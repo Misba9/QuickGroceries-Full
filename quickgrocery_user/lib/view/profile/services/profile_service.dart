@@ -1,0 +1,82 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
+import 'package:share_plus/share_plus.dart';
+
+class ProfileService extends ChangeNotifier {
+  Future<String> createReferralLink(String userId) async {
+    final dynamicLinkParams = DynamicLinkParameters(
+      uriPrefix: "https://siswar.page.link",
+      link: Uri.parse("https://siswar.com/referral?code=$userId"),
+      androidParameters: const AndroidParameters(
+        packageName: "com.siswar.app",
+        minimumVersion: 1,
+      ),
+    );
+
+    final dynamicLink =
+        await FirebaseDynamicLinks.instance.buildShortLink(dynamicLinkParams);
+    return dynamicLink.shortUrl.toString();
+  }
+
+  void shareReferralLink(String userId) async {
+    String link = await createReferralLink(userId);
+    Share.share('Hey! Sign up using my referral link: $link');
+  }
+
+  Future<double> getReferralProgress() async {
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+    // Get all referred customers
+    QuerySnapshot referredCustomersSnapshot = await firestore
+        .collection('customers')
+        .where('referred_by', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+        .get();
+
+    List<String> referredCustomerIds =
+        referredCustomersSnapshot.docs.map((doc) => doc.id).toList();
+
+    int completedReferrals = 0;
+
+    for (String refCustomerId in referredCustomerIds) {
+      QuerySnapshot orderSnapshot = await firestore
+          .collection('cart')
+          .where('uuid', isEqualTo: refCustomerId)
+          .get();
+
+      double totalSpent = orderSnapshot.docs
+          .fold(0.0, (sum, doc) => sum + (doc['price'] as num).toDouble());
+
+      if (totalSpent >= 500) {
+        completedReferrals++;
+      }
+
+      if (completedReferrals >= 3) break;
+    }
+
+    double progress = completedReferrals / 3;
+    return progress.clamp(0.0, 1.0);
+  }
+
+  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+
+  Future<void> init() async {
+    NotificationSettings settings = await _fcm.requestPermission();
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      String? token = await _fcm.getToken();
+      print("FCM Token: $token");
+      // Save this token to your server
+    }
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print("Foreground message: ${message.notification?.title}");
+    });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print("Notification tapped");
+    });
+  }
+}

@@ -1,0 +1,222 @@
+import 'package:animate_do/animate_do.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
+import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/constants/app_icons.dart';
+import 'package:quickgrocery/constants/app_spacing.dart';
+import 'package:quickgrocery/view/address/screens/add_address_screen.dart';
+import 'package:quickgrocery/view/address/services/address_service.dart';
+import 'package:quickgrocery/view/address/widgets/primary_button.dart';
+import 'package:quickgrocery/view/cart/services/cart_service.dart';
+import 'package:quickgrocery/view/cart/widgets/address_card.dart';
+import 'package:quickgrocery/view/category/services/category_service.dart';
+import 'package:quickgrocery/view/home/provider/home_provider.dart';
+import 'package:quickgrocery/view/payment/services/payment_service.dart';
+import 'package:provider/provider.dart';
+
+class PaymentScreen extends StatelessWidget {
+  const PaymentScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = Provider.of<PaymentService>(context);
+    final addressService = Provider.of<AddressService>(context);
+    final cartService = Provider.of<CartService>(context);
+    final catService = Provider.of<CategoryService>(context);
+    final homeService = Provider.of<HomeProvider>(context);
+
+    final width = MediaQuery.of(context).size.width;
+    final height = MediaQuery.of(context).size.height;
+    return Scaffold(
+      appBar: AppBar(),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(15.0),
+          child: Column(
+            children: [
+              //   PrimaryAppBar(width: width, title: 'Payment Method'),
+              Consumer<AddressService>(
+                builder: (context, p, _) {
+                  if (p.addresses == null || p.addresses!.isEmpty) {
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AddAdressScreen(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          color: AppColor.primary.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add),
+                              Text('add_address'.tr()),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  return const AddressCard();
+                },
+              ),
+              AppSpacing.h20,
+              Column(
+                children: [
+                  FadeInLeft(
+                    duration: const Duration(milliseconds: 800),
+                    child: PaymentTile(
+                      onChanged: (v) {
+                        provider.onPaymentMethodChange(false);
+                      },
+                      width: width,
+                      groupValue: false,
+                      isTrue: provider.isCashOnDelivery,
+                      title: 'online_payment'.tr(),
+                      icon: AppIcons.mastercard,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  FadeInRight(
+                    duration: const Duration(milliseconds: 800),
+                    child: PaymentTile(
+                      onChanged: (v) {
+                        provider.onPaymentMethodChange(true);
+                      },
+                      groupValue: true,
+                      isTrue: provider.isCashOnDelivery,
+                      width: width,
+                      title: 'cash_on_delivery'.tr(),
+                      icon: AppIcons.money,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PrimaryButton(
+              height: height,
+              width: width,
+              title: 'continue'.tr(),
+              isLoading: cartService.isLoading,
+              onTap: () async {
+                if (addressService.addresses == null ||
+                    addressService.addresses!.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('please_add_address'.tr())),
+                  );
+                } else {
+                  // Get delivery charge from zone
+                  final pinCode = addressService.pinCode;
+                  final deliveryCharge = await cartService
+                      .getDeliveryChargeFromZone(pinCode);
+
+                  if (provider.isCashOnDelivery) {
+                    cartService.addCartItemto(
+                      context,
+                      catService.selectedProduct,
+                      addressService.addresses![addressService.selectedIndex],
+                      addressService.address,
+                      addressService.latLng ?? homeService.currentLatLng,
+                    );
+                  } else {
+                    provider.openCheckout(
+                      catService.getTotalAmount(
+                        deliveryCharge.toInt(),
+                        cartService.selectedCoupon,
+                        platformFee: cartService.platformFee,
+                        handlingCharge: cartService.handlingCharge,
+                      ),
+                      "",
+                      "Payment for product",
+                      onPaymentSuccess: (_) {
+                        cartService.addCartItemto(
+                          context,
+                          catService.selectedProduct,
+                          addressService.addresses![addressService
+                              .selectedIndex],
+                          addressService.address,
+                          addressService.latLng ?? homeService.currentLatLng,
+                        );
+                      },
+                    );
+                  }
+                }
+                // Navigator.push(
+                //     context,
+                //     MaterialPageRoute(
+                //         builder: (context) => const TrackinScreen()));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PaymentTile extends StatelessWidget {
+  const PaymentTile({
+    super.key,
+    required this.width,
+    required this.title,
+    required this.icon,
+    required this.isTrue,
+    required this.groupValue,
+    required this.onChanged,
+  });
+
+  final double width;
+  final String title;
+  final String icon;
+  final bool isTrue;
+  final bool groupValue;
+  final Function(bool? v) onChanged;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      height: width * .20,
+      width: width,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              SizedBox(height: 30, child: Image.asset(icon, fit: BoxFit.cover)),
+              const SizedBox(width: 20),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          Radio(value: isTrue, groupValue: groupValue, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}

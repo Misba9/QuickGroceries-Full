@@ -1,0 +1,273 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:quickgrocery/models/order_model.dart';
+import 'package:quickgrocery/view/cart/domain/cart_models.dart' show OrderStatus;
+
+export 'package:quickgrocery/view/cart/domain/cart_models.dart' show OrderStatus;
+
+/// A live, screen-friendly view of an order — wraps the legacy [OrderModel]
+/// and surfaces the modern fields written by the new checkout flow
+/// (`status`, `paymentMethod`, `delivery_slot`, `delivery_instructions`,
+/// `bill`, `address_snapshot`, `paymentRef`) while keeping all the legacy
+/// per-step timestamps so screens can render a rich timeline.
+@immutable
+class LiveOrder {
+  final OrderModel legacy;
+  final OrderStatus status;
+  final DateTime createdAt;
+  final String paymentMethodId;
+  final String paymentStatus;
+  final String? paymentRef;
+  final String deliveryInstructions;
+  final DateTime? slotStart;
+  final DateTime? slotEnd;
+  final String? slotLabel;
+  final bool slotExpress;
+  final Map<String, dynamic> billSnapshot;
+  final Map<String, dynamic>? addressSnapshot;
+
+  const LiveOrder({
+    required this.legacy,
+    required this.status,
+    required this.createdAt,
+    required this.paymentMethodId,
+    required this.paymentStatus,
+    required this.paymentRef,
+    required this.deliveryInstructions,
+    required this.slotStart,
+    required this.slotEnd,
+    required this.slotLabel,
+    required this.slotExpress,
+    required this.billSnapshot,
+    required this.addressSnapshot,
+  });
+
+  String get id => legacy.id;
+  String get deliveryBoyId => legacy.deliveryBoyId;
+  String get phone => legacy.phone;
+  String get customerName => legacy.customerName;
+  LatLng get dropLatLng => LatLng(legacy.lat, legacy.lng);
+  int get itemCount =>
+      legacy.products.fold<int>(0, (acc, p) => acc + p.itemCount);
+  bool get isPaid => legacy.isPaid;
+  bool get isCancelled => legacy.isCancelled;
+  bool get isDelivered => legacy.isDelivered;
+  bool get hasRider => legacy.deliveryBoyId.isNotEmpty;
+
+  /// Total used by UI — prefer the new `bill.total` field, fall back to a
+  /// derived sum so legacy orders still display correctly.
+  double get total {
+    final t = (billSnapshot['total'] as num?)?.toDouble();
+    if (t != null && t > 0) return t;
+    var sum = 0.0;
+    for (final p in legacy.products) {
+      sum += p.price * p.itemCount;
+    }
+    sum += legacy.deliveryCharge;
+    return sum;
+  }
+
+  /// Stable 4-digit OTP derived from the order id. The same code is shown
+  /// to the user and to the rider's app, so neither side needs an extra
+  /// Firestore round-trip for verification.
+  String get deliveryOtp {
+    if (id.isEmpty) return '0000';
+    final hash = id.codeUnits.fold<int>(7, (a, b) => (a * 31 + b) & 0xFFFFFF);
+    return (hash % 10000).toString().padLeft(4, '0');
+  }
+
+  factory LiveOrder.fromFirestore(
+    Map<String, dynamic> data,
+    String id,
+  ) {
+    final legacy = OrderModel.fromFirestore(data, id);
+    final status = OrderStatus.fromId(
+      (data['status'] as String?) ?? _statusFromLegacy(data),
+    );
+
+    DateTime createdAt = _parseDateTime(data['createdAt']) ??
+        _parseDateTime(data['created_date']) ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+
+    final slot = data['delivery_slot'];
+    DateTime? slotStart;
+    DateTime? slotEnd;
+    String? slotLabel;
+    bool slotExpress = false;
+    if (slot is Map) {
+      slotStart = _parseDateTime(slot['start']);
+      slotEnd = _parseDateTime(slot['end']);
+      slotLabel = slot['label']?.toString();
+      slotExpress = slot['isExpress'] as bool? ?? false;
+    }
+
+    final bill = data['bill'];
+    final addressSnap = data['address_snapshot'];
+
+    return LiveOrder(
+      legacy: legacy,
+      status: status,
+      createdAt: createdAt,
+      paymentMethodId: (data['paymentMethod'] as String?) ?? 'cod',
+      paymentStatus: (data['paymentStatus'] as String?) ??
+          (legacy.isPaid ? 'paid' : 'pending'),
+      paymentRef: data['paymentRef']?.toString(),
+      deliveryInstructions: (data['delivery_instructions'] ?? '').toString(),
+      slotStart: slotStart,
+      slotEnd: slotEnd,
+      slotLabel: slotLabel,
+      slotExpress: slotExpress,
+      billSnapshot: bill is Map
+          ? Map<String, dynamic>.from(bill)
+          : <String, dynamic>{},
+      addressSnapshot: addressSnap is Map
+          ? Map<String, dynamic>.from(addressSnap)
+          : null,
+    );
+  }
+
+  static String _statusFromLegacy(Map<String, dynamic> data) {
+    if (data['isCancelled'] == true) return OrderStatus.cancelled.id;
+    if (data['isDelivered'] == true) return OrderStatus.delivered.id;
+    final s = (data['order_status'] as String?)?.toLowerCase() ?? '';
+    if (s.contains('on the way')) return OrderStatus.outForDelivery.id;
+    if (s.contains('picked')) return OrderStatus.outForDelivery.id;
+    if (s.contains('shop')) return OrderStatus.packing.id;
+    if (s.contains('confirm')) return OrderStatus.accepted.id;
+    return OrderStatus.pending.id;
+  }
+}
+
+/// Single tile in the order timeline.
+@immutable
+class OrderTimelineEntry {
+  final String title;
+  final String subtitle;
+  final DateTime? at;
+  final bool done;
+  final bool active;
+
+  const OrderTimelineEntry({
+    required this.title,
+    required this.subtitle,
+    required this.at,
+    required this.done,
+    required this.active,
+  });
+}
+
+/// Build the canonical 5-step timeline for a [LiveOrder]. Times come from
+/// legacy per-step fields when present.
+List<OrderTimelineEntry> buildTimeline(LiveOrder o) {
+  bool reached(OrderStatus target) =>
+      o.status.index >= target.index && o.status != OrderStatus.cancelled;
+
+  bool currently(OrderStatus s) => o.status == s;
+
+  final placedAt = o.createdAt == DateTime.fromMillisecondsSinceEpoch(0)
+      ? null
+      : o.createdAt;
+
+  return [
+    OrderTimelineEntry(
+      title: 'Order placed',
+      subtitle: 'We have received your order',
+      at: placedAt,
+      done: true,
+      active: currently(OrderStatus.pending),
+    ),
+    OrderTimelineEntry(
+      title: 'Accepted',
+      subtitle: 'Vendor has accepted your order',
+      at: _tryParse(o.legacy.confimedTime),
+      done: reached(OrderStatus.accepted),
+      active: currently(OrderStatus.accepted),
+    ),
+    OrderTimelineEntry(
+      title: 'Packing',
+      subtitle: 'Your items are being packed',
+      at: _tryParse(o.legacy.driverGoShopTime),
+      done: reached(OrderStatus.packing),
+      active: currently(OrderStatus.packing),
+    ),
+    OrderTimelineEntry(
+      title: 'Out for delivery',
+      subtitle: 'Rider is on the way',
+      at: _tryParse(o.legacy.onTheWayTime) ??
+          _tryParse(o.legacy.orderPickedTime),
+      done: reached(OrderStatus.outForDelivery),
+      active: currently(OrderStatus.outForDelivery),
+    ),
+    OrderTimelineEntry(
+      title: 'Delivered',
+      subtitle: 'Order completed — enjoy!',
+      at: _tryParse(o.legacy.orderDeliveredTime),
+      done: reached(OrderStatus.delivered),
+      active: currently(OrderStatus.delivered),
+    ),
+    if (o.isCancelled)
+      const OrderTimelineEntry(
+        title: 'Cancelled',
+        subtitle: 'This order was cancelled',
+        at: null,
+        done: true,
+        active: true,
+      ),
+  ];
+}
+
+/// Realtime rider position. Shape:
+/// `delivery_boys/{id}` is expected to optionally contain
+/// `lat`, `lng`, `heading`, `lastUpdated`, `phone`, `name`, `image`.
+@immutable
+class RiderLocation {
+  final String id;
+  final String name;
+  final String phone;
+  final String image;
+  final LatLng? position;
+  final double? heading;
+  final DateTime? lastUpdated;
+
+  const RiderLocation({
+    required this.id,
+    required this.name,
+    required this.phone,
+    required this.image,
+    required this.position,
+    required this.heading,
+    required this.lastUpdated,
+  });
+
+  factory RiderLocation.fromMap(Map<String, dynamic> data, String id) {
+    final lat = (data['lat'] as num?)?.toDouble() ??
+        (data['latitude'] as num?)?.toDouble();
+    final lng = (data['lng'] as num?)?.toDouble() ??
+        (data['longitude'] as num?)?.toDouble();
+    return RiderLocation(
+      id: id,
+      name: (data['name'] ?? '').toString(),
+      phone: (data['phone'] ?? '').toString(),
+      image: (data['image'] ?? '').toString(),
+      position: (lat != null && lng != null) ? LatLng(lat, lng) : null,
+      heading: (data['heading'] as num?)?.toDouble(),
+      lastUpdated: _parseDateTime(data['lastUpdated']),
+    );
+  }
+}
+
+DateTime? _parseDateTime(dynamic v) {
+  if (v == null) return null;
+  if (v is Timestamp) return v.toDate();
+  if (v is DateTime) return v;
+  if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
+  final s = v.toString();
+  if (s.isEmpty) return null;
+  return DateTime.tryParse(s);
+}
+
+DateTime? _tryParse(String s) {
+  if (s.isEmpty) return null;
+  return DateTime.tryParse(s);
+}

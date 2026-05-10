@@ -1,0 +1,210 @@
+import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
+import 'package:shimmer/shimmer.dart';
+
+/// Shimmer building blocks scoped to the homepage. Centralizes the shimmer
+/// look so all sections animate in sync.
+class HomeShimmer {
+  const HomeShimmer._();
+
+  static Widget _box({double? width, double? height, double radius = 8}) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade200,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(radius),
+        ),
+      ),
+    );
+  }
+
+  static Widget categoriesGrid({int count = 8, int crossAxisCount = 4}) {
+    const crossSpacing = 10.0;
+    const mainSpacing = 14.0;
+    const labelGap = 8.0;
+    const labelHeight = 32.0;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tileWidth =
+            (constraints.maxWidth - crossSpacing * (crossAxisCount - 1)) /
+                crossAxisCount;
+        final tileHeight = tileWidth + labelGap + labelHeight;
+        final ratio = tileWidth / tileHeight;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: crossSpacing,
+            mainAxisSpacing: mainSpacing,
+            childAspectRatio: ratio,
+          ),
+          itemCount: count,
+          itemBuilder: (_, __) => Column(
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              Expanded(
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: _box(radius: 16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: labelGap),
+              SizedBox(
+                height: labelHeight,
+                child: Center(
+                  child: _box(height: 10, width: 60, radius: 4),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  static Widget categoriesRail({int count = 8}) {
+    return SizedBox(
+      height: 128,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.zero,
+        itemCount: count,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, __) => SizedBox(
+          width: 96,
+          child: Column(
+            children: [
+              Expanded(child: _box(radius: 18)),
+              const SizedBox(height: 8),
+              _box(height: 10, width: 52, radius: 4),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static Widget videoRail() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _box(height: 18, width: 120, radius: 6),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 200,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.zero,
+            itemCount: 2,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (_, __) => _box(height: 200, width: 300, radius: 24),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static Widget banner() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Mirrors HomeBannerSlider's 16:7 cinematic aspect.
+        final width = constraints.maxWidth;
+        final height = (width * 7 / 16).clamp(168.0, 280.0);
+        return Column(
+          children: [
+            _box(height: height, radius: 20),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                4,
+                (i) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: _box(
+                    height: 6,
+                    width: i == 0 ? 22 : 6,
+                    radius: 3,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  static Widget horizontalProducts({double height = 248}) {
+    return SizedBox(
+      height: height,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: kHorizontalProductRailPhysics,
+        itemCount: 4,
+        padding: EdgeInsets.zero,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, __) => SizedBox(
+          width: 150,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              Expanded(child: AspectRatio(aspectRatio: 1, child: _box(radius: 12))),
+              const SizedBox(height: 8),
+              _box(height: 10, width: 80),
+              const SizedBox(height: 6),
+              _box(height: 10, width: 120),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _box(height: 14, width: 60),
+                  const Spacer(),
+                  _box(height: 24, width: 50, radius: 6),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static Widget exploreGrid({int count = 6}) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.56,
+      ),
+      itemCount: count,
+      itemBuilder: (_, __) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          Expanded(child: AspectRatio(aspectRatio: 1, child: _box(radius: 12))),
+          const SizedBox(height: 8),
+          _box(height: 10, width: 80),
+          const SizedBox(height: 6),
+          _box(height: 10, width: 120),
+          const SizedBox(height: 8),
+          _box(height: 14, width: 60),
+        ],
+      ),
+    );
+  }
+}
