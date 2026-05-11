@@ -1,0 +1,27 @@
+// --- MERGE into your root `firestore.rules` ---
+//
+// function isNotificationAdmin() {
+//   return request.auth != null && (
+//     request.auth.token.superAdmin == true ||
+//     request.auth.token.admin == true ||
+//     request.auth.token.smsAdmin == true ||
+//     request.auth.token.notificationsAdmin == true ||
+//     request.auth.token.role == 'admin' ||
+//     request.auth.token.role == 'superAdmin' ||
+//     request.auth.token.role == 'smsAdmin'
+//   );
+// }
+//
+// match /sms_templates/{id} {
+//   allow read, write: if isNotificationAdmin();
+// }
+//
+// match /sms_campaigns/{id} {
+//   allow read: if isNotificationAdmin();
+//   allow write: if false;
+// }
+//
+// match /sms_logs/{id} {
+//   allow read: if isNotificationAdmin();
+//   allow write: if false;
+// }

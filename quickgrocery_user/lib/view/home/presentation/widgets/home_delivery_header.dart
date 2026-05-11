@@ -11,8 +11,9 @@ import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/realtime/models/notification_item.dart';
 import 'package:quickgrocery/realtime/providers/realtime_providers.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
+import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
+import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
 import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
-import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/home/screens/location_selector.dart';
 
 /// Pinned Blinkit/Zepto-style delivery strip + quick actions.
@@ -173,16 +174,6 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
                               builder: (_) => const CartScreen(),
                             ),
                           );
-                        },
-                      ),
-                      _HeaderIconButton(
-                        icon: Icons.person_outline_rounded,
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          legacy.Provider.of<HomeProvider>(
-                            context,
-                            listen: false,
-                          ).onSelectedChange(3);
                         },
                       ),
                     ],
@@ -377,29 +368,97 @@ class _NotificationsSheet extends ConsumerWidget {
                     ),
                   ),
                   data: (items) {
-                    if (items.isEmpty) {
-                      return Center(
-                        child: Text(
-                          'You\'re all caught up.',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: AppSurface.textMuted,
-                          ),
-                        ),
-                      );
-                    }
+                    final emptyFooter = items.isEmpty ? 1 : 0;
                     return ListView.builder(
                       controller: scrollCtrl,
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      itemCount: items.length,
-                      itemBuilder: (_, i) =>
-                          _NotificationTile(item: items[i]),
+                      itemCount: 1 + items.length + emptyFooter,
+                      itemBuilder: (_, i) {
+                        if (i == 0) {
+                          return _DeliveryLiveNotificationsCard(ref: ref);
+                        }
+                        if (items.isEmpty && i == 1) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Center(
+                              child: Text(
+                                'You\'re all caught up.',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: AppSurface.textMuted,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        return _NotificationTile(item: items[i - 1]);
+                      },
                     );
                   },
                 ),
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Live delivery policy pulled from the same Firestore stream as cart pricing.
+class _DeliveryLiveNotificationsCard extends StatelessWidget {
+  const _DeliveryLiveNotificationsCard({required this.ref});
+
+  final WidgetRef ref;
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(pricingConfigProvider);
+    return async.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (config) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Material(
+            color: AppColor.primary.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Delivery (live)',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      color: AppSurface.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    DeliveryPricingPolicy.notificationLiveLine(config),
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
+                      color: AppSurface.textSecondary,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    DeliveryPricingPolicy.offersLine(config),
+                    style: GoogleFonts.poppins(
+                      fontSize: 11.5,
+                      color: AppSurface.textMuted,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },

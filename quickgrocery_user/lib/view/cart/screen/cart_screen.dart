@@ -202,12 +202,48 @@ class _CartBody extends StatelessWidget {
               child: FreeDeliveryBanner(
                 subtotal: bill.subtotal,
                 threshold: cart.pricing.freeDeliveryThreshold.toDouble(),
+                isFreeDeliveryEnabled: cart.pricing.isFreeDeliveryEnabled,
+                isDeliveryChargesEnabled: cart.pricing.isDeliveryChargesEnabled,
                 surgeActive: cart.pricing.surgeActive,
                 surgeMultiplier: cart.pricing.surgeMultiplier,
                 surgeReason: cart.pricing.surgeReason,
               ),
             ),
           ),
+          if (bill.isFreeDelivery && cart.pricing.isDeliveryChargesEnabled)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.92, end: 1),
+                  duration: const Duration(milliseconds: 650),
+                  builder: (context, value, child) => Transform.scale(
+                    scale: value,
+                    child: child,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppSurface.success.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppRadii.md),
+                      border: Border.all(
+                        color: AppSurface.success.withValues(alpha: 0.24),
+                      ),
+                    ),
+                    child: Text(
+                      '🎉 FREE delivery unlocked',
+                      style: GoogleFonts.poppins(
+                        color: AppSurface.success,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (cart.errorMessage != null)
             SliverToBoxAdapter(
               child: Padding(

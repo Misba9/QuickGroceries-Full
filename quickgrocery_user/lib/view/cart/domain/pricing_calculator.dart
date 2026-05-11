@@ -53,7 +53,10 @@ class PricingCalculator {
     final tax = taxableAmount * (config.taxPercent / 100.0);
 
     final taxedSubtotal = taxableAmount;
-    final isFreeDelivery = taxedSubtotal >= config.freeDeliveryThreshold;
+    final freeDeliveryThreshold = config.isFreeDeliveryEnabled
+        ? config.freeDeliveryThreshold.toDouble()
+        : double.infinity;
+    final isFreeDelivery = taxedSubtotal >= freeDeliveryThreshold;
 
     final baseDelivery = (deliveryChargeOverride ??
             (config.standardDeliveryCharge > 0
@@ -61,7 +64,9 @@ class PricingCalculator {
                 : config.defaultDeliveryCharge))
         .toDouble();
 
-    final deliveryFee = isFreeDelivery ? 0.0 : baseDelivery;
+    final deliveryFee = (!config.isDeliveryChargesEnabled || isFreeDelivery)
+        ? 0.0
+        : baseDelivery;
 
     double surgeFee = 0;
     if (config.surgeActive && config.surgeMultiplier > 1 && deliveryFee > 0) {

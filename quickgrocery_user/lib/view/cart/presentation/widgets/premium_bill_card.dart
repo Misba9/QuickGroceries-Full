@@ -36,6 +36,13 @@ class PremiumBillCard extends StatefulWidget {
 class _PremiumBillCardState extends State<PremiumBillCard> {
   late bool _expanded = widget.initiallyExpanded;
 
+  static String _formatBillSyncTime(DateTime d) {
+    final l = d.toLocal();
+    final hh = l.hour.toString().padLeft(2, '0');
+    final mm = l.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
+  }
+
   @override
   Widget build(BuildContext context) {
     final bill = widget.bill;
@@ -61,6 +68,7 @@ class _PremiumBillCardState extends State<PremiumBillCard> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       width: 32,
@@ -77,15 +85,46 @@ class _PremiumBillCardState extends State<PremiumBillCard> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    Text(
-                      'Bill details',
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14.5,
-                        color: AppSurface.text,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bill details',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14.5,
+                              color: AppSurface.text,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.circle,
+                                size: 6,
+                                color: Colors.green.shade600,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  pricing.settingsUpdatedAt != null
+                                      ? 'Live pricing · ${_formatBillSyncTime(pricing.settingsUpdatedAt!)}'
+                                      : 'Live pricing',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppSurface.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    const Spacer(),
                     AnimatedRotation(
                       turns: _expanded ? 0.5 : 0,
                       duration: AppMotion.short,

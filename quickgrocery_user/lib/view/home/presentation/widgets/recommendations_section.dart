@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,9 +21,16 @@ import 'package:quickgrocery/view/product_view/presentation/providers/recently_v
 /// All inputs are autoDispose Riverpod providers, so signing out cleans
 /// up the underlying Firestore listeners automatically.
 class RecommendationsSection extends ConsumerWidget {
-  const RecommendationsSection({super.key, this.maxItems = 12});
+  const RecommendationsSection({
+    super.key,
+    this.maxItems = 12,
+    this.sectionTitle,
+  });
 
   final int maxItems;
+
+  /// Defaults to [picked_for_you] translation.
+  final String? sectionTitle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -68,13 +76,15 @@ class RecommendationsSection extends ConsumerWidget {
     add(featuredList);
     add(trendingList);
 
+    final title = sectionTitle ?? 'picked_for_you'.tr();
+
     if (out.isEmpty && (featured.isLoading || trending.isLoading)) {
       return Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SectionHeader(title: 'Picked for you'),
+            SectionHeader(title: title),
             Builder(
               builder: (context) => SkeletonRail(
                 count: 4,
@@ -92,7 +102,7 @@ class RecommendationsSection extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionHeader(title: 'Picked for you'),
+          SectionHeader(title: title),
           Builder(
             builder: (context) {
               final h = Responsive.horizontalProductRailHeight(context);

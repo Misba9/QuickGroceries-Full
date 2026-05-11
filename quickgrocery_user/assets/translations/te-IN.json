@@ -128,5 +128,15 @@
     "search_hint_milk": "శోధించండి \"పాలు\"",
     "search_hint_bread": "శోధించండి \"బ్రెడ్\"",
     "search_hint_snacks": "శోధించండి \"స్నాక్స్\"",
-    "search_hint_fruits": "శోధించండి \"పండ్లు\""
+    "search_hint_fruits": "శోధించండి \"పండ్లు\"",
+    "picked_for_you": "మీ కోసం ఎంపిక",
+    "category_promo_video_title": "స్పాట్లైట్ ఆఫర్లు",
+    "popular_near_you": "మీ ప్రాంతంలో ట్రెండింగ్",
+    "popular_near_you_sub": "ఇతరులు కొనుగోలు చేస్తున్నది",
+    "recommended_products": "మీ కోసం సూచించినవి",
+    "flash_deals_title": "ఫ్లాష్ డీల్స్",
+    "items_in_category": "{count} ఐటమ్‌లు",
+    "shop_now_cta": "ఇప్పుడే కొనండి",
+    "explore_cta": "చూడండి",
+    "promo_more_soon": "లింక్ త్వరలో వస్తుంది — ఆఫర్ల కోసం హోమ్ చూడండి."
 }

@@ -1,3 +1,4 @@
+import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/dabshboard.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
@@ -34,24 +35,19 @@ class _DeliveryLocationListScreenState
       body: Column(
         children: [
           PrimaryAppBar(),
-          Padding(
-            padding: const EdgeInsets.all(15.0),
-            child: Column(
-              children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(15.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                 WrapperWidget(
                   child: Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Delivery Zones',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          ElevatedButton.icon(
+                      LayoutBuilder(
+                        builder: (context, c) {
+                          final narrow = c.maxWidth < 560;
+                          final btn = ElevatedButton.icon(
                             onPressed: () {
                               Navigator.push(
                                 context,
@@ -75,8 +71,41 @@ class _DeliveryLocationListScreenState
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                          ),
-                        ],
+                          );
+                          if (narrow) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  'Delivery Zones',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                AppSpacing.h10,
+                                btn,
+                              ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Delivery Zones',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              AppSpacing.w10,
+                              btn,
+                            ],
+                          );
+                        },
                       ),
                       AppSpacing.h10,
                       Divider(color: Colors.grey.shade300),
@@ -141,11 +170,14 @@ class _DeliveryLocationListScreenState
                             );
                           }
 
-                          return DataTable(
-                            columnSpacing:
-                                MediaQuery.of(context).size.width * .05,
-                            dataRowHeight: 80,
-                            columns: const [
+                          return LayoutBuilder(
+                            builder: (context, c) {
+                              final colSpace =
+                                  (c.maxWidth * 0.03).clamp(8.0, 24.0);
+                              final dt = DataTable(
+                                columnSpacing: colSpace,
+                                dataRowHeight: 80,
+                                columns: const [
                               DataColumn(
                                 label: Text(
                                   'SL',
@@ -202,9 +234,17 @@ class _DeliveryLocationListScreenState
                                       style: TextStyle(
                                         fontWeight: FontWeight.w500,
                                       ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  DataCell(Text(zone.city)),
+                                  DataCell(
+                                    Text(
+                                      zone.city,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
                                   DataCell(
                                     Container(
                                       constraints: BoxConstraints(
@@ -367,6 +407,12 @@ class _DeliveryLocationListScreenState
                                 ],
                               );
                             }),
+                              );
+                              return adminScrollableDataTable(
+                                viewportWidth: c.maxWidth,
+                                dataTable: dt,
+                              );
+                            },
                           );
                         },
                       ),
@@ -376,6 +422,7 @@ class _DeliveryLocationListScreenState
               ],
             ),
           ),
+        ),
         ],
       ),
     );

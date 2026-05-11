@@ -14,24 +14,27 @@ import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
 import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
+import 'package:quickgrocery/view/cart/domain/cart_models.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/delivery_location/services/delivery_zone_service.dart';
 import 'package:quickgrocery/view/home/presentation/providers/explore_products_provider.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
+import 'package:quickgrocery/view/offers/presentation/providers/offer_providers.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/flash_sale_section.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_banner_helpers.dart';
-import 'package:quickgrocery/view/home/presentation/widgets/home_banner_video_rail.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/home_explore_offer_slivers.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_categories_rail.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_delivery_header.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/fallback_banner_slider.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_banner_slider.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
-import 'package:quickgrocery/view/home/presentation/widgets/home_status_views.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/recently_ordered_section.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/recommendations_section.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
+import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
+import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
 import 'package:quickgrocery/view/home/screens/no_serviceable_area_screen.dart';
 import 'package:quickgrocery/view/search/screens/search_screen.dart';
 
@@ -166,6 +169,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _refreshAll() async {
     ref.invalidate(categoriesStreamProvider);
     ref.invalidate(bannersStreamProvider);
+    ref.invalidate(homeExploreOfferBannersProvider);
     ref.invalidate(trendingProductsStreamProvider);
     ref.invalidate(featuredProductsStreamProvider);
     await ref.read(exploreProductsProvider.notifier).refresh();
@@ -209,6 +213,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final hasCartItems = cartService.selectedProduct.isNotEmpty;
     final responsive = Responsive.of(context);
     final gutter = responsive.gutter();
+    final pricing = ref.watch(pricingConfigProvider).value;
 
     return Scaffold(
       backgroundColor: AppSurface.background,
@@ -245,6 +250,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
               ),
+              if (pricing != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 10),
+                    child: _DeliveryPromoStrip(pricing: pricing),
+                  ),
+                ),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 12),
@@ -255,15 +267,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
                   child: const HomeCategoriesRail(),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(gutter, 18, gutter, 8),
-                  child: const HomeBannerVideoRail(
-                    segmentCount: 2,
-                    segmentIndex: 0,
-                  ),
                 ),
               ),
               SliverToBoxAdapter(
@@ -306,16 +309,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(gutter, 6, gutter, 8),
-                  child: const HomeBannerVideoRail(
-                    title: 'More for you',
-                    segmentCount: 2,
-                    segmentIndex: 1,
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
                   child: _LegacyRail(
                     title: 'epic_price_drop_items'.tr(),
@@ -332,19 +325,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
               ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(gutter, 8, gutter, 0),
-                  child: SectionHeader(title: 'explore_products'.tr()),
-                ),
+              ...buildHomeExploreOfferSlivers(
+                context: context,
+                ref: ref,
+                exploreAsync: ref.watch(exploreProductsProvider),
+                offers:
+                    ref.watch(homeExploreOfferBannersProvider).value ??
+                        const [],
+                gutter: gutter,
               ),
-              const _ExploreGridSliver(),
               SliverToBoxAdapter(
                 child: SizedBox(height: hasCartItems ? 110 : 30),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DeliveryPromoStrip extends StatelessWidget {
+  const _DeliveryPromoStrip({required this.pricing});
+
+  final PricingConfig pricing;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = DeliveryPricingPolicy.homePromoLine(pricing);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        border: Border.all(color: AppSurface.border),
+      ),
+      child: Text(
+        message,
+        style: const TextStyle(fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -465,99 +483,6 @@ class _RailWithProducts extends StatelessWidget {
       ),
     );
   }
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-//  EXPLORE GRID (paginated, responsive cols)
-// ──────────────────────────────────────────────────────────────────────────
-
-class _ExploreGridSliver extends ConsumerWidget {
-  const _ExploreGridSliver();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(exploreProductsProvider);
-    final responsive = Responsive.of(context);
-    final cols = responsive.cols(phone: 2, tablet: 3, desktop: 4);
-    final gutter = responsive.gutter();
-
-    return async.when(
-      loading: () => SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: gutter),
-          child: HomeShimmer.exploreGrid(),
-        ),
-      ),
-      error: (e, _) => SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 16),
-          child: HomeErrorView(
-            message: 'Couldn\'t load products',
-            onRetry: () =>
-                ref.read(exploreProductsProvider.notifier).refresh(),
-          ),
-        ),
-      ),
-      data: (state) {
-        if (state.products.isEmpty) {
-          final subtitle = _exploreEmptySubtitle(state);
-          return SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 16),
-              child: HomeEmptyView(
-                message: 'No products available right now.',
-                subtitle: subtitle,
-                icon: Icons.shopping_bag_outlined,
-                height: subtitle == null ? 120 : 156,
-              ),
-            ),
-          );
-        }
-        return SliverPadding(
-          padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 12),
-          sliver: SliverGrid(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: cols,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              // Slightly taller cells on narrow phones so text + controls
-              // stay comfortable even with large accessibility text.
-              childAspectRatio: cols >= 4 ? 0.62 : 0.56,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, i) {
-                if (i >= state.products.length) {
-                  return state.isLoadingMore
-                      ? const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        )
-                      : const SizedBox.shrink();
-                }
-                return HomeProductCard(product: state.products[i]);
-              },
-              childCount:
-                  state.products.length + (state.isLoadingMore ? cols : 0),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Lightweight, user-friendly subtitle when explore has 0 items.
-/// Uses the diagnostic counters carried in [ExploreState] but stays
-/// production-safe (no debug-only language).
-String? _exploreEmptySubtitle(ExploreState state) {
-  if (state.diagnosticRawDocs == 0) return null;
-  if (state.diagnosticFilteredUnavailable > 0) {
-    return '${state.diagnosticFilteredUnavailable} item(s) are temporarily '
-        'out of stock. Pull to refresh.';
-  }
-  return null;
 }
 
 // ──────────────────────────────────────────────────────────────────────────

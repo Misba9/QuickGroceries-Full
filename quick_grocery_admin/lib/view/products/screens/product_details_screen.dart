@@ -293,21 +293,27 @@ class WrapperWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(15),
-      width: MediaQuery.of(context).size.width,
-      decoration: BoxDecoration(
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade100,
-            blurRadius: 12,
-            spreadRadius: 2,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        return Container(
+          padding: const EdgeInsets.all(15),
+          width: w.isFinite ? w : null,
+          constraints: const BoxConstraints(minWidth: 0),
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.shade100,
+                blurRadius: 12,
+                spreadRadius: 2,
+              ),
+            ],
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
           ),
-        ],
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: child,
+          child: child,
+        );
+      },
     );
   }
 }

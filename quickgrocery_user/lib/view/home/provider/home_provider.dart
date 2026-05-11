@@ -18,6 +18,7 @@ import 'package:quickgrocery/models/customer_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/category/screens/category_screen.dart';
 import 'package:quickgrocery/view/home/screens/home_screen.dart';
+import 'package:quickgrocery/view/offers/presentation/screens/offers_screen.dart';
 import 'package:quickgrocery/view/orders/orders_screen.dart';
 import 'package:quickgrocery/view/profile/screens/profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -94,6 +95,7 @@ class HomeProvider extends ChangeNotifier {
   List<Widget> pages = const [
     HomeScreen(),
     MainCategoryViewScreen(),
+    OffersScreen(),
     OrdersScreeen(),
     ProfileScreen(),
   ];

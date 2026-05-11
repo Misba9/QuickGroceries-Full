@@ -99,7 +99,7 @@ class _SectionFrame extends StatelessWidget {
             actionLabel: 'View orders',
             onAction: () {
               legacy.Provider.of<HomeProvider>(context, listen: false)
-                  .onSelectedChange(2);
+                  .onSelectedChange(3);
             },
           ),
           child,

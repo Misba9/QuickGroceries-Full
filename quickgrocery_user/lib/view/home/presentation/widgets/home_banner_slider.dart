@@ -11,6 +11,7 @@ import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/category/screens/category_screen.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
+import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
 
@@ -120,8 +121,8 @@ class _BannerSlide extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 ColoredBox(color: AppSurface.subtle),
-                if (banner.isVideo && banner.video.isNotEmpty)
-                  _BannerVideoPlayer(url: banner.video)
+                if (banner.isVideo && banner.effectiveVideoUrl.isNotEmpty)
+                  _BannerVideoPlayer(url: banner.effectiveVideoUrl)
                 else
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -145,6 +146,11 @@ class _BannerSlide extends StatelessWidget {
 
   Future<void> _handleTap(BuildContext context) async {
     switch (banner.redirectType) {
+      case 'offers_page':
+        legacy.Provider.of<HomeProvider>(context, listen: false)
+            .onSelectedChange(2);
+        break;
+
       case 'category':
         Navigator.push(
           context,

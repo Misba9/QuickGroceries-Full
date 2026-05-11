@@ -214,10 +214,15 @@ class PricingConfig {
   final int standardDeliveryCharge;
   final int minOrderValue;
   final int freeDeliveryThreshold;
+  final bool isFreeDeliveryEnabled;
+  final bool isDeliveryChargesEnabled;
   final double taxPercent;
   final double surgeMultiplier;
   final bool surgeActive;
   final String? surgeReason;
+
+  /// Latest [settings/main] (or merged admin) `updatedAt` for UI / debugging.
+  final DateTime? settingsUpdatedAt;
 
   const PricingConfig({
     this.platformFee = 0,
@@ -226,10 +231,13 @@ class PricingConfig {
     this.standardDeliveryCharge = 0,
     this.minOrderValue = 100,
     this.freeDeliveryThreshold = 99,
+    this.isFreeDeliveryEnabled = true,
+    this.isDeliveryChargesEnabled = true,
     this.taxPercent = 0,
     this.surgeMultiplier = 1.0,
     this.surgeActive = false,
     this.surgeReason,
+    this.settingsUpdatedAt,
   });
 
   static const PricingConfig empty = PricingConfig();
@@ -241,10 +249,13 @@ class PricingConfig {
     int? standardDeliveryCharge,
     int? minOrderValue,
     int? freeDeliveryThreshold,
+    bool? isFreeDeliveryEnabled,
+    bool? isDeliveryChargesEnabled,
     double? taxPercent,
     double? surgeMultiplier,
     bool? surgeActive,
     String? surgeReason,
+    DateTime? settingsUpdatedAt,
   }) =>
       PricingConfig(
         platformFee: platformFee ?? this.platformFee,
@@ -256,10 +267,15 @@ class PricingConfig {
         minOrderValue: minOrderValue ?? this.minOrderValue,
         freeDeliveryThreshold:
             freeDeliveryThreshold ?? this.freeDeliveryThreshold,
+        isFreeDeliveryEnabled:
+            isFreeDeliveryEnabled ?? this.isFreeDeliveryEnabled,
+        isDeliveryChargesEnabled:
+            isDeliveryChargesEnabled ?? this.isDeliveryChargesEnabled,
         taxPercent: taxPercent ?? this.taxPercent,
         surgeMultiplier: surgeMultiplier ?? this.surgeMultiplier,
         surgeActive: surgeActive ?? this.surgeActive,
         surgeReason: surgeReason ?? this.surgeReason,
+        settingsUpdatedAt: settingsUpdatedAt ?? this.settingsUpdatedAt,
       );
 }
 

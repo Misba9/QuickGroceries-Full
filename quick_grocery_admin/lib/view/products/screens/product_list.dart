@@ -1,4 +1,6 @@
+import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/model/catrgory_model.dart';
+import 'package:quick_grocery_admin/model/product_model.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/home/screens/home_screen.dart';
@@ -15,310 +17,320 @@ class ProductListScreen extends StatefulWidget {
 }
 
 class _ProductListScreenState extends State<ProductListScreen> {
-  List<String> items = ['Apple', 'Banana', 'Orange', 'Mango'];
   String? selectedValue;
-  TextEditingController searchController = TextEditingController();
+  final TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
+    super.initState();
     Provider.of<ProductService>(context, listen: false).fetchVendors();
     Provider.of<ProductService>(context, listen: false).fetchCategory();
-    super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<ProductService>(context);
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppSpacing.h20,
-          AppSpacing.h20,
-          Text(
-            'Product List',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          AppSpacing.h10,
-          Container(
-            padding: EdgeInsets.all(15),
-            width: MediaQuery.of(context).size.width * .80,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Category'),
-                        AppSpacing.h10,
-                        Row(
-                          children: [
-                            SizedBox(
-                              width:
-                                  300, // Adjust width for better web experience
-                              child: FutureBuilder<List<CategoryModel>?>(
-                                future: provider.fetchCategory(),
-                                builder: (context, snapshot) {
-                                  if (snapshot.hasError) {
-                                    return Center(
-                                      child: Text('Error: ${snapshot.error}'),
-                                    );
-                                  } else if (!snapshot.hasData ||
-                                      snapshot.data!.isEmpty) {
-                                    return const Center(
-                                      child: Text('No items found.'),
-                                    );
-                                  } else {
-                                    final items = snapshot.data!;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final pad = adminResponsivePadding(w);
+        final narrow = adminIsMobileWidth(w);
 
-                                    return DropdownButtonFormField<String>(
-                                      decoration: InputDecoration(
-                                        hintText: 'Select product category',
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ), // Optional: Rounded corners
-                                          borderSide: BorderSide(
-                                            color: Colors.grey, // Border color
-                                            width:
-                                                0.5, // Reduced border thickness
-                                          ),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          borderSide: BorderSide(
-                                            color: Colors.grey,
-                                            width:
-                                                0.5, // Border thickness when not focused
-                                          ),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          borderSide: BorderSide(
-                                            color: AppColor.primary,
-                                            width: 0.8,
-                                          ),
-                                        ),
-                                      ),
-                                      value: provider.selectedItem,
-                                      items: items.map((item) {
-                                        return DropdownMenuItem<String>(
-                                          value: item.name,
-                                          child: Text(item.name),
-                                        );
-                                      }).toList(),
-                                      onChanged: (value) {
-                                        provider.onCategoryQuaryChange(value!);
-                                      },
-                                    );
-                                  }
-                                },
-                              ),
-                            ),
-                            Visibility(
-                              visible: provider.selectedItem != null,
-                              child: IconButton(
-                                onPressed: () {
-                                  provider.clear();
-                                },
-                                icon: Icon(Icons.close),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    SizedBox(
-                      width: 400,
-                      child: TextField(
-                        autofocus: false,
-                        controller: searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search...',
-                          prefixIcon: Icon(Icons.search),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              Icons.arrow_forward,
-                            ), // Search button icon
-                            onPressed: () {
-                              print('Searching for: ${searchController.text}');
-                            },
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        onChanged: (value) {
-                          provider.onSearchQuary(value);
-                        },
+        return SingleChildScrollView(
+          padding: EdgeInsets.all(pad),
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Product List',
+                    style: TextStyle(
+                      fontSize: adminResponsiveFontSize(
+                        w,
+                        mobile: 17,
+                        tablet: 18,
+                        desktop: 20,
                       ),
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
-                ),
-                AppSpacing.h20,
-                Consumer<ProductService>(
-                  builder: (context, p, _) {
-                    return p.filteredProductsList == null
-                        ? CircularProgressIndicator()
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: p.filteredProductsList!.length,
-                            itemBuilder: (context, i) {
-                              return Container(
-                                margin: EdgeInsets.only(bottom: 10),
-                                padding: EdgeInsets.all(15),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Colors.grey.shade300,
+                  ),
+                  AppSpacing.h10,
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (narrow)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const Text('Category'),
+                              AppSpacing.h10,
+                              _categoryDropdown(provider),
+                              AppSpacing.h10,
+                              TextField(
+                                autofocus: false,
+                                controller: searchController,
+                                decoration: InputDecoration(
+                                  hintText: 'Search...',
+                                  prefixIcon: const Icon(Icons.search),
+                                  suffixIcon: IconButton(
+                                    icon: const Icon(Icons.arrow_forward),
+                                    onPressed: () {},
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
-                                width: MediaQuery.of(context).size.width * .80,
-                                child: Row(
+                                onChanged: provider.onSearchQuary,
+                              ),
+                            ],
+                          )
+                        else
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    SizedBox(
-                                      height: 200,
-                                      width: 200,
-                                      child: Image.network(
-                                        p.filteredProductsList![i].image,
-                                      ),
-                                    ),
-                                    AppSpacing.w20,
+                                    const Text('Category'),
+                                    AppSpacing.h10,
                                     Row(
                                       children: [
-                                        SizedBox(
-                                          width:
-                                              MediaQuery.of(
-                                                context,
-                                              ).size.width *
-                                              .58,
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                p.filteredProductsList![i].name,
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              AppSpacing.h10,
-                                              NamedFieldWidget(
-                                                label: 'Brand',
-                                                value: p
-                                                    .filteredProductsList![i]
-                                                    .category,
-                                              ),
-                                              NamedFieldWidget(
-                                                label: 'Vendor Name',
-                                                value: p
-                                                    .filteredProductsList![i]
-                                                    .shopName,
-                                              ),
-                                              NamedFieldWidget(
-                                                label: 'Price',
-                                                value: p
-                                                    .filteredProductsList![i]
-                                                    .price
-                                                    .toString(),
-                                              ),
-                                              NamedFieldWidget(
-                                                label: 'Stock',
-                                                value: p
-                                                    .filteredProductsList![i]
-                                                    .stock
-                                                    .toString(),
-                                              ),
-                                              NamedFieldWidget(
-                                                label: 'ID',
-                                                value: p
-                                                    .filteredProductsList![i]
-                                                    .id
-                                                    .toString(),
-                                              ),
-                                              NamedFieldWidget(
-                                                label: 'MAX Order',
-                                                value: p
-                                                    .filteredProductsList![i]
-                                                    .maxOrder
-                                                    .toString(),
-                                              ),
-                                              Row(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text('Description :'),
-                                                  AppSpacing.w10,
-                                                  SizedBox(
-                                                    width:
-                                                        MediaQuery.of(
-                                                          context,
-                                                        ).size.width *
-                                                        .50,
-                                                    child: Text(
-                                                      p
-                                                          .filteredProductsList![i]
-                                                          .description
-                                                          .toString(),
-                                                      maxLines: 2,
-                                                      style: TextStyle(
-                                                        fontSize: 16,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
+                                        Expanded(
+                                          child: _categoryDropdown(provider),
                                         ),
-                                      ],
-                                    ),
-                                    IconButton(
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                ProductEditScreen(
-                                                  product: p
-                                                      .filteredProductsList![i],
-                                                ),
+                                        if (provider.selectedItem != null)
+                                          IconButton(
+                                            onPressed: provider.clear,
+                                            icon: const Icon(Icons.close),
                                           ),
-                                        );
-                                      },
-                                      icon: Icon(
-                                        Icons.edit,
-                                        color: AppColor.primary,
-                                      ),
+                                      ],
                                     ),
                                   ],
                                 ),
+                              ),
+                              AppSpacing.w20,
+                              Expanded(
+                                flex: 2,
+                                child: TextField(
+                                  autofocus: false,
+                                  controller: searchController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search...',
+                                    prefixIcon: const Icon(Icons.search),
+                                    suffixIcon: IconButton(
+                                      icon: const Icon(Icons.arrow_forward),
+                                      onPressed: () {},
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  onChanged: provider.onSearchQuary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        AppSpacing.h20,
+                        Consumer<ProductService>(
+                          builder: (context, p, _) {
+                            if (p.filteredProductsList == null) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24),
+                                  child: CircularProgressIndicator(),
+                                ),
                               );
-                            },
-                          );
-                  },
+                            }
+                            return ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: p.filteredProductsList!.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, i) {
+                                final product = p.filteredProductsList![i];
+                                return _ProductRowCard(
+                                  narrow: narrow,
+                                  product: product,
+                                  onEdit: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ProductEditScreen(
+                                          product: product,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _categoryDropdown(ProductService provider) {
+    return FutureBuilder<List<CategoryModel>?>(
+      future: provider.fetchCategory(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}');
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('No items found.'));
+        }
+        final items = snapshot.data!;
+        return DropdownButtonFormField<String>(
+          isExpanded: true,
+          decoration: InputDecoration(
+            hintText: 'Select product category',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.grey, width: 0.5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.grey, width: 0.5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColor.primary, width: 0.8),
+            ),
+          ),
+          value: provider.selectedItem,
+          items: items
+              .map(
+                (item) => DropdownMenuItem<String>(
+                  value: item.name,
+                  child: Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value != null) provider.onCategoryQuaryChange(value);
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ProductRowCard extends StatelessWidget {
+  const _ProductRowCard({
+    required this.narrow,
+    required this.product,
+    required this.onEdit,
+  });
+
+  final bool narrow;
+  final ProductModel product;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final img = ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        width: narrow ? double.infinity : 140,
+        height: narrow ? 180 : 140,
+        child: Image.network(
+          product.image,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => ColoredBox(
+            color: Colors.grey.shade200,
+            child: const Icon(Icons.image_not_supported),
+          ),
+        ),
+      ),
+    );
+
+    final details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          product.name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        AppSpacing.h10,
+        NamedFieldWidget(label: 'Brand', value: product.category),
+        NamedFieldWidget(label: 'Vendor Name', value: product.shopName),
+        NamedFieldWidget(label: 'Price', value: product.price.toString()),
+        NamedFieldWidget(label: 'Stock', value: product.stock.toString()),
+        NamedFieldWidget(label: 'ID', value: product.id.toString()),
+        NamedFieldWidget(label: 'MAX Order', value: product.maxOrder.toString()),
+        Text(
+          product.description.toString(),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 14),
+        ),
+      ],
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: narrow
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                img,
+                AppSpacing.h10,
+                details,
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    onPressed: onEdit,
+                    icon: Icon(Icons.edit, color: AppColor.primary),
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                img,
+                AppSpacing.w20,
+                Expanded(child: details),
+                IconButton(
+                  onPressed: onEdit,
+                  icon: Icon(Icons.edit, color: AppColor.primary),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }

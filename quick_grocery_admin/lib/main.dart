@@ -6,12 +6,16 @@ import 'package:quick_grocery_admin/view/home/services/dash_board_services.dart'
 import 'package:quick_grocery_admin/view/orders/services/order_service.dart';
 import 'package:quick_grocery_admin/view/products/services/product_service.dart';
 import 'package:quick_grocery_admin/view/users/services/user_service.dart';
+import 'package:quick_grocery_admin/view/delivery_settings/services/delivery_settings_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quick_grocery_admin/view/vendor/services/vendor_service.dart';
 import 'package:quick_grocery_admin/view/platform_fee/services/platform_fee_service.dart';
+import 'package:quick_grocery_admin/view/analytics/services/analytics_service.dart';
+import 'package:quick_grocery_admin/view/sms/services/sms_admin_service.dart';
+import 'package:quick_grocery_admin/view/auth/screens/login_screen.dart';
 import 'package:provider/provider.dart';
 
 Future<void> main() async {
@@ -45,6 +49,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => DashBoardServices()),
         ChangeNotifierProvider(create: (context) => DeliveryZoneService()),
         ChangeNotifierProvider(create: (context) => PlatformFeeService()),
+        ChangeNotifierProvider(create: (context) => DeliverySettingsService()),
+        ChangeNotifierProvider(create: (context) => AnalyticsService()),
+        ChangeNotifierProvider(create: (context) => SmsAdminService()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -54,13 +61,18 @@ class MyApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.yellow),
           useMaterial3: true,
         ),
-        home: StreamBuilder(
+        home: StreamBuilder<User?>(
           stream: FirebaseAuth.instance.authStateChanges(),
-          builder: (context, userSnp) {
-            if (userSnp.hasData) {
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snap.hasData && snap.data != null) {
               return const HomeScreen();
             }
-            return const HomeScreen();
+            return const LoginScreen();
           },
         ),
       ),

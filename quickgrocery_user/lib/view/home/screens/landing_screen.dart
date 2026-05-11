@@ -4,7 +4,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/core/widgets/floating_cart_pill.dart';
-import 'package:quickgrocery/core/widgets/modern_bottom_nav.dart';
+import 'package:quickgrocery/core/widgets/premium_five_tab_nav.dart';
+import 'package:quickgrocery/view/delivery/presentation/delivery_pricing_update_listener.dart';
+import 'package:quickgrocery/view/offers/presentation/widgets/promotion_popup_bootstrap.dart';
 import 'package:quickgrocery/not_available_screen.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 
@@ -65,49 +67,27 @@ class _LandingScreenState extends State<LandingScreen> {
         return Consumer<HomeProvider>(
           builder: (context, provider, _) {
             return Scaffold(
-              body: Stack(
-                children: [
-                  IndexedStack(
-                    index: provider.selectedIndex,
-                    children: provider.pages,
+              body: DeliveryPricingUpdateListener(
+                child: PromotionPopupBootstrap(
+                  child: Stack(
+                    children: [
+                      IndexedStack(
+                        index: provider.selectedIndex,
+                        children: provider.pages,
+                      ),
+                      const Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 76,
+                        child: FloatingCartPill(),
+                      ),
+                    ],
                   ),
-                  const Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 8,
-                    child: FloatingCartPill(),
-                  ),
-                ],
-              ),
-              bottomNavigationBar: SafeArea(
-                top: false,
-                maintainBottomViewPadding: true,
-                child: ModernBottomNav(
-                  currentIndex: provider.selectedIndex,
-                  onTap: provider.onSelectedChange,
-                  items: const [
-                    ModernBottomNavItem(
-                      label: 'Home',
-                      icon: Icons.home_outlined,
-                      activeIcon: Icons.home_rounded,
-                    ),
-                    ModernBottomNavItem(
-                      label: 'Categories',
-                      icon: Icons.grid_view_outlined,
-                      activeIcon: Icons.grid_view_rounded,
-                    ),
-                    ModernBottomNavItem(
-                      label: 'Orders',
-                      icon: Icons.receipt_long_outlined,
-                      activeIcon: Icons.receipt_long_rounded,
-                    ),
-                    ModernBottomNavItem(
-                      label: 'Profile',
-                      icon: Icons.person_outline_rounded,
-                      activeIcon: Icons.person_rounded,
-                    ),
-                  ],
                 ),
+              ),
+              bottomNavigationBar: PremiumFiveTabNav(
+                currentIndex: provider.selectedIndex,
+                onTap: provider.onSelectedChange,
               ),
             );
           },

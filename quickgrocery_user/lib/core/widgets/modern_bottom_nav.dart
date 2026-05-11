@@ -22,12 +22,12 @@ class ModernBottomNavItem {
 }
 
 /// Premium bottom navigation bar with:
-///   • animated active indicator (slides between tabs)
+///   • animated sliding indicator under the active tab
 ///   • per-tab badge support
-///   • spring scale on tap
+///   • spring scale on active icon
 ///   • expects parent [SafeArea] (see [LandingScreen]) — bar uses symmetric
 ///     padding only; safe inset is not duplicated here.
-class ModernBottomNav extends StatelessWidget {
+class ModernBottomNav extends StatefulWidget {
   const ModernBottomNav({
     super.key,
     required this.items,
@@ -39,6 +39,11 @@ class ModernBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
+  @override
+  State<ModernBottomNav> createState() => _ModernBottomNavState();
+}
+
+class _ModernBottomNavState extends State<ModernBottomNav> {
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -59,18 +64,54 @@ class ModernBottomNav extends StatelessWidget {
           ),
         ),
         padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            for (int i = 0; i < items.length; i++)
-              Expanded(
-                child: _NavTab(
-                  item: items[i],
-                  selected: i == currentIndex,
-                  onTap: () => onTap(i),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final n = widget.items.length;
+            final tabW = constraints.maxWidth / n;
+            final idx = widget.currentIndex.clamp(0, n - 1);
+            final indicatorLeft = tabW * idx + (tabW - 40) / 2;
+
+            return Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.topCenter,
+              children: [
+                AnimatedPositioned(
+                  duration: AppMotion.medium,
+                  curve: AppMotion.spring,
+                  top: 4,
+                  left: indicatorLeft,
+                  width: 40,
+                  height: 3,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColor.primary,
+                      borderRadius: BorderRadius.circular(2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColor.primary.withValues(alpha: 0.45),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-          ],
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    for (int i = 0; i < n; i++)
+                      Expanded(
+                        child: _NavTab(
+                          item: widget.items[i],
+                          selected: i == widget.currentIndex,
+                          onTap: () => widget.onTap(i),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -97,30 +138,11 @@ class _NavTab extends StatelessWidget {
       radius: 38,
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedContainer(
-              duration: AppMotion.short,
-              curve: AppMotion.standard,
-              width: selected ? 36 : 0,
-              height: 3,
-              decoration: BoxDecoration(
-                color: activeColor,
-                borderRadius: BorderRadius.circular(2),
-                boxShadow: selected
-                    ? [
-                        BoxShadow(
-                          color: activeColor.withValues(alpha: 0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
-              ),
-            ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
@@ -128,10 +150,10 @@ class _NavTab extends StatelessWidget {
                 AnimatedScale(
                   duration: AppMotion.short,
                   curve: AppMotion.spring,
-                  scale: selected ? 1.08 : 1.0,
+                  scale: selected ? 1.1 : 1.0,
                   child: SizedBox(
-                    height: 24,
-                    width: 24,
+                    height: 26,
+                    width: 26,
                     child: item.svgIcon != null
                         ? SvgPicture.asset(
                             item.svgIcon!,
@@ -140,8 +162,8 @@ class _NavTab extends StatelessWidget {
                           )
                         : Icon(
                             selected ? (item.activeIcon ?? item.icon) : item.icon,
-                            color: iconColor,
-                            size: 22,
+                            color: selected ? activeColor : iconColor,
+                            size: selected ? 24 : 22,
                           ),
                   ),
                 ),

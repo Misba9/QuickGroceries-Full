@@ -4,9 +4,9 @@ import 'package:quick_grocery_admin/model/banner_model.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/home/services/dash_board_services.dart';
+import 'package:provider/provider.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
-import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:io';
 
@@ -18,10 +18,53 @@ class AddBannerScreen extends StatefulWidget {
 }
 
 class _AddBannerScreenState extends State<AddBannerScreen> {
+  late final TextEditingController _title;
+  late final TextEditingController _subtitle;
+  late final TextEditingController _cta;
+  late final TextEditingController _redirectId;
+  late final TextEditingController _priority;
+  late final TextEditingController _popupSecs;
+  late final TextEditingController _startsAt;
+  late final TextEditingController _endsAt;
+
+  String _redirectType = 'offers_page';
+  bool _isActive = true;
+  bool _showInHome = true;
+  bool _showInOffers = true;
+  bool _showAsPopup = false;
+  bool _autoplay = true;
+  bool _loop = true;
+  bool _muted = true;
+
   @override
   void initState() {
-    Provider.of<DashBoardServices>(context, listen: false).fetchBanners();
     super.initState();
+    _title = TextEditingController();
+    _subtitle = TextEditingController();
+    _cta = TextEditingController(text: 'Shop now');
+    _redirectId = TextEditingController();
+    _priority = TextEditingController(text: '10');
+    _popupSecs = TextEditingController(text: '12');
+    _startsAt = TextEditingController();
+    _endsAt = TextEditingController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<DashBoardServices>(context, listen: false).fetchBanners();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _subtitle.dispose();
+    _cta.dispose();
+    _redirectId.dispose();
+    _priority.dispose();
+    _popupSecs.dispose();
+    _startsAt.dispose();
+    _endsAt.dispose();
+    super.dispose();
   }
 
   @override
@@ -145,22 +188,36 @@ class _AddBannerScreenState extends State<AddBannerScreen> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   AppSpacing.h10,
-                  Container(
-                    height: MediaQuery.of(context).size.width * .20,
-                    width: MediaQuery.of(context).size.width * .80,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Center(
-                      child: provider.bannerType == 'image'
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final cw = constraints.maxWidth.isFinite
+                          ? constraints.maxWidth
+                          : 400.0;
+                      final previewW = cw.clamp(120.0, 960.0);
+                      final previewH = previewW * 0.22;
+                      return SizedBox(
+                        width: previewW,
+                        height: previewH,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Center(
+                            child: provider.bannerType == 'image'
                           ? (provider.imageBytes == null
                                 ? Icon(
                                     Icons.image,
                                     size: 40,
                                     color: Colors.grey.shade300,
                                   )
-                                : Image.memory(provider.imageBytes!))
+                                : Image.memory(
+                                    provider.imageBytes!,
+                                    fit: BoxFit.contain,
+                                    width: previewW,
+                                    height: previewH,
+                                  ))
                           : (provider.videoPath == null &&
                                     provider.videoBytes == null
                                 ? Icon(
@@ -268,11 +325,221 @@ class _AddBannerScreenState extends State<AddBannerScreen> {
                                       ],
                                     ),
                                   )),
-                    ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   AppSpacing.h20,
+                  Text(
+                    'Copy & placement',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  AppSpacing.h10,
+                  TextField(
+                    controller: _title,
+                    decoration: InputDecoration(
+                      labelText: 'Banner title',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  AppSpacing.h10,
+                  TextField(
+                    controller: _subtitle,
+                    decoration: InputDecoration(
+                      labelText: 'Subtitle',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  AppSpacing.h10,
+                  TextField(
+                    controller: _cta,
+                    decoration: InputDecoration(
+                      labelText: 'CTA button text',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  AppSpacing.h10,
+                  DropdownButtonFormField<String>(
+                    value: _redirectType,
+                    decoration: InputDecoration(
+                      labelText: 'Redirect type',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'none', child: Text('None')),
+                      DropdownMenuItem(
+                        value: 'offers_page',
+                        child: Text('Offers page'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'product',
+                        child: Text('Product (use ID below)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'category',
+                        child: Text('Category (use ID below)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'url',
+                        child: Text('External URL'),
+                      ),
+                    ],
+                    onChanged: (v) =>
+                        setState(() => _redirectType = v ?? 'none'),
+                  ),
+                  AppSpacing.h10,
+                  TextField(
+                    controller: _redirectId,
+                    decoration: InputDecoration(
+                      labelText:
+                          'Product ID, category ID, or full URL (if applicable)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  AppSpacing.h10,
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _priority,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Priority (higher shows first)',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      AppSpacing.w10,
+                      Expanded(
+                        child: TextField(
+                          controller: _popupSecs,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Popup auto-close (sec)',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  AppSpacing.h10,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _startsAt,
+                          decoration: InputDecoration(
+                            labelText: 'Start date (optional, ISO)',
+                            hintText: '2026-06-01',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      AppSpacing.w10,
+                      Expanded(
+                        child: TextField(
+                          controller: _endsAt,
+                          decoration: InputDecoration(
+                            labelText: 'End date (optional, ISO)',
+                            hintText: '2026-12-31',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  AppSpacing.h10,
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('Active'),
+                    value: _isActive,
+                    onChanged: (v) => setState(() => _isActive = v),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('Show on home (explore promos)'),
+                    value: _showInHome,
+                    onChanged: (v) => setState(() => _showInHome = v),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('Show on Offers & deals page'),
+                    value: _showInOffers,
+                    onChanged: (v) => setState(() => _showInOffers = v),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('Show as startup popup'),
+                    value: _showAsPopup,
+                    onChanged: (v) => setState(() => _showAsPopup = v),
+                  ),
+                  if (provider.bannerType == 'video') ...[
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Autoplay video'),
+                      value: _autoplay,
+                      onChanged: (v) => setState(() => _autoplay = v),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Loop video'),
+                      value: _loop,
+                      onChanged: (v) => setState(() => _loop = v),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Mute video'),
+                      value: _muted,
+                      onChanged: (v) => setState(() => _muted = v),
+                    ),
+                  ],
+                  AppSpacing.h20,
+                  if (provider.bannerType == 'video')
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => provider.pickThumbnail(),
+                          icon: Icon(Icons.image_outlined),
+                          label: Text('Upload thumbnail (recommended)'),
+                        ),
+                        if (provider.thumbnailBytes != null)
+                          Text(
+                            'Thumbnail ready',
+                            style: TextStyle(
+                              color: AppColor.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
+                    ),
+                  if (provider.bannerType == 'video') AppSpacing.h20,
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    spacing: 12,
+                    runSpacing: 12,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       GestureDetector(
                         onTap: () {
@@ -283,51 +550,76 @@ class _AddBannerScreenState extends State<AddBannerScreen> {
                           }
                         },
                         child: Container(
-                          width: MediaQuery.of(context).size.width * .12,
                           padding: EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: Colors.grey.shade300),
                           ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.add),
                               AppSpacing.w10,
                               Text(
                                 provider.bannerType == 'image'
-                                    ? 'Upload Image'
-                                    : 'Upload Video',
+                                    ? 'Upload image'
+                                    : 'Upload video',
                               ),
                             ],
                           ),
                         ),
                       ),
-                      Align(
-                        alignment: Alignment.topRight,
-                        child: Padding(
-                          padding: const EdgeInsets.all(15.0),
-                          child: SizedBox(
-                            height: 40,
-                            width: 300,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor: AppColor.primary,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: SizedBox(
+                          height: 44,
+                          width: 220,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: AppColor.primary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              onPressed: () => provider.addBanner(context),
-                              child: provider.isLoading
-                                  ? Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 1,
-                                      ),
-                                    )
-                                  : Text('Submit'),
                             ),
+                            onPressed: () {
+                              final pr =
+                                  int.tryParse(_priority.text.trim()) ?? 10;
+                              final pop = int.tryParse(
+                                    _popupSecs.text.trim(),
+                                  ) ??
+                                  12;
+                              provider.addBanner(
+                                context,
+                                title: _title.text.trim(),
+                                subtitle: _subtitle.text.trim(),
+                                ctaText: _cta.text.trim().isEmpty
+                                    ? 'Shop now'
+                                    : _cta.text.trim(),
+                                redirectType: _redirectType,
+                                redirectId: _redirectId.text.trim(),
+                                priority: pr,
+                                isActive: _isActive,
+                                showInHome: _showInHome,
+                                showInOffers: _showInOffers,
+                                showAsPopup: _showAsPopup,
+                                autoplay: _autoplay,
+                                loop: _loop,
+                                muted: _muted,
+                                popupAutoCloseSeconds: pop.clamp(3, 120),
+                                startsAtRaw: _startsAt.text,
+                                endsAtRaw: _endsAt.text,
+                              );
+                            },
+                            child: provider.isLoading
+                                ? Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 1,
+                                    ),
+                                  )
+                                : Text('Save banner'),
                           ),
                         ),
                       ),

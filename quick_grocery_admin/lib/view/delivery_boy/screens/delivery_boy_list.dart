@@ -1,3 +1,4 @@
+import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/services/delivery_boy_service.dart';
@@ -26,52 +27,96 @@ class _DeliveryBoysScreenState extends State<DeliveryBoysScreen> {
       body: Column(
         children: [
           PrimaryAppBar(),
-          Padding(
-            padding: const EdgeInsets.all(15.0),
-            child: Column(
-              children: [
-                WrapperWidget(
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Delivery Boys',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(
-                            width: 400,
-                            child: TextField(
-                              autofocus: false,
-                              decoration: InputDecoration(
-                                hintText: 'Search...',
-                                prefixIcon: Icon(Icons.search),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    Icons.arrow_forward,
-                                    color: AppColor.primary,
-                                  ), // Search button icon
-                                  onPressed: () {},
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(15.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  WrapperWidget(
+                    child: Column(
+                      children: [
+                        LayoutBuilder(
+                          builder: (context, c) {
+                            final narrow = c.maxWidth < 560;
+                            if (narrow) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Text(
+                                    'Delivery Boys',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  AppSpacing.h10,
+                                  TextField(
+                                    autofocus: false,
+                                    decoration: InputDecoration(
+                                      hintText: 'Search...',
+                                      prefixIcon: Icon(Icons.search),
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          Icons.arrow_forward,
+                                          color: AppColor.primary,
+                                        ),
+                                        onPressed: () {},
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onChanged: (value) {},
+                                  ),
+                                ],
+                              );
+                            }
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Delivery Boys',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                                AppSpacing.w10,
+                                SizedBox(
+                                  width: (c.maxWidth * 0.45).clamp(200.0, 400.0),
+                                  child: TextField(
+                                    autofocus: false,
+                                    decoration: InputDecoration(
+                                      hintText: 'Search...',
+                                      prefixIcon: Icon(Icons.search),
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          Icons.arrow_forward,
+                                          color: AppColor.primary,
+                                        ),
+                                        onPressed: () {},
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onChanged: (value) {},
+                                  ),
                                 ),
-                              ),
-                              onChanged: (value) {},
-                            ),
-                          ),
-                        ],
-                      ),
-                      AppSpacing.h10,
-                      Divider(color: Colors.grey.shade300),
-                      AppSpacing.h10,
-                    ],
+                              ],
+                            );
+                          },
+                        ),
+                        AppSpacing.h10,
+                        Divider(color: Colors.grey.shade300),
+                        AppSpacing.h10,
+                      ],
+                    ),
                   ),
-                ),
                 AppSpacing.h20,
                 WrapperWidget(
                   child: Column(
@@ -81,10 +126,13 @@ class _DeliveryBoysScreenState extends State<DeliveryBoysScreen> {
                           if (p.deliveryBoys == null) {
                             return LinearProgressIndicator();
                           }
-                          return DataTable(
-                            columnSpacing:
-                                MediaQuery.of(context).size.width * .05,
-                            dataRowHeight: 70,
+                          return LayoutBuilder(
+                            builder: (context, c) {
+                              final colSpace =
+                                  (c.maxWidth * 0.03).clamp(8.0, 24.0);
+                              final dataTable = DataTable(
+                                columnSpacing: colSpace,
+                                dataRowHeight: 70,
                             columns: const [
                               DataColumn(
                                 label: Text(
@@ -136,26 +184,38 @@ class _DeliveryBoysScreenState extends State<DeliveryBoysScreen> {
                                 cells: [
                                   DataCell(Text((index + 1).toString())),
                                   DataCell(
-                                    Row(
-                                      children: [
-                                        Container(
-                                          margin: EdgeInsets.symmetric(
-                                            vertical: 10,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            border: Border.all(
-                                              color: Colors.grey,
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 220,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            margin: EdgeInsets.symmetric(
+                                              vertical: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              border: Border.all(
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                            height: 50,
+                                            width: 50,
+                                            child: Image.network(
+                                              p.deliveryBoys![index].image,
+                                              fit: BoxFit.cover,
                                             ),
                                           ),
-                                          height: 50,
-                                          width: 50,
-                                          child: Image.network(
-                                            p.deliveryBoys![index].image,
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              p.deliveryBoys![index].firstName,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(p.deliveryBoys![index].firstName),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                   DataCell(
@@ -165,8 +225,16 @@ class _DeliveryBoysScreenState extends State<DeliveryBoysScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(p.deliveryBoys![index].phone),
-                                          Text(p.deliveryBoys![index].email),
+                                          Text(
+                                            p.deliveryBoys![index].phone,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            p.deliveryBoys![index].email,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -227,6 +295,12 @@ class _DeliveryBoysScreenState extends State<DeliveryBoysScreen> {
                                 ],
                               );
                             }),
+                              );
+                              return adminScrollableDataTable(
+                                viewportWidth: c.maxWidth,
+                                dataTable: dataTable,
+                              );
+                            },
                           );
                         },
                       ),
@@ -236,6 +310,7 @@ class _DeliveryBoysScreenState extends State<DeliveryBoysScreen> {
               ],
             ),
           ),
+        ),
         ],
       ),
     );

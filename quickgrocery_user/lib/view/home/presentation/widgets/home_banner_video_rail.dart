@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,84 +23,226 @@ import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart'
 ///
 /// Use [segmentCount] / [segmentIndex] to split videos across two home rows
 /// (even / odd ordering) without extra admin fields.
-class HomeBannerVideoRail extends ConsumerWidget {
+///
+/// Set [snapPaging] for Categories-style **page snapping** between promos.
+class HomeBannerVideoRail extends ConsumerStatefulWidget {
   const HomeBannerVideoRail({
     super.key,
     this.title = 'Spotlight',
     this.segmentCount = 1,
     this.segmentIndex = 0,
+    this.showHeader = true,
+    this.snapPaging = false,
+    this.pageFraction = 0.88,
   });
 
   final String title;
   final int segmentCount;
   final int segmentIndex;
 
+  /// When false, renders only the horizontal video strip (embedded headers).
+  final bool showHeader;
+
+  /// Snap between videos with [PageView] (smooth quick-commerce style).
+  final bool snapPaging;
+
+  /// Viewport fraction when [snapPaging] is true.
+  final double pageFraction;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeBannerVideoRail> createState() =>
+      _HomeBannerVideoRailState();
+}
+
+class _HomeBannerVideoRailState extends ConsumerState<HomeBannerVideoRail> {
+  PageController? _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.snapPaging) {
+      _pageController = PageController(viewportFraction: widget.pageFraction);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeBannerVideoRail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.snapPaging != oldWidget.snapPaging ||
+        widget.pageFraction != oldWidget.pageFraction) {
+      _pageController?.dispose();
+      _pageController = widget.snapPaging
+          ? PageController(viewportFraction: widget.pageFraction)
+          : null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController?.dispose();
+    super.dispose();
+  }
+
+  List<BannerModel> _segment(List<BannerModel> all) {
+    if (widget.segmentCount <= 1 || all.isEmpty) return all;
+    final idx = widget.segmentIndex % widget.segmentCount;
+    final out = <BannerModel>[];
+    for (var i = 0; i < all.length; i++) {
+      if (i % widget.segmentCount == idx) out.add(all[i]);
+    }
+    return out;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(bannersStreamProvider);
 
     return async.when(
-      loading: () => HomeShimmer.videoRail(),
+      loading: () =>
+          HomeShimmer.videoRail(showHeader: widget.showHeader),
       error: (_, __) => const SizedBox.shrink(),
       data: (banners) {
         final all = promoVideoBanners(banners);
         final videos = _segment(all);
         if (videos.isEmpty) return const SizedBox.shrink();
 
+        final header = widget.showHeader
+            ? Padding(
+                padding: EdgeInsets.only(bottom: widget.snapPaging ? 8 : 10),
+                child: Row(
+                  children: [
+                    Icon(Icons.play_circle_filled_rounded,
+                        color: AppColor.primary, size: 22),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.title,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                          color: AppSurface.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : null;
+
+        Widget rail;
+        if (widget.snapPaging && _pageController != null) {
+          final ctrl = _pageController!;
+          final w = MediaQuery.sizeOf(context).width * widget.pageFraction;
+          if (videos.length == 1) {
+            rail = Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: _PromoVideoCard(banner: videos.first, cardWidth: w),
+            );
+          } else {
+            rail = Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 218,
+                  child: PageView.builder(
+                    controller: ctrl,
+                    physics: const BouncingScrollPhysics(),
+                    padEnds: true,
+                    itemCount: videos.length,
+                    itemBuilder: (ctx, i) => Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: _PromoVideoCard(
+                        banner: videos[i],
+                        cardWidth: w - 12,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                _VideoPageDots(
+                  controller: ctrl,
+                  count: videos.length,
+                ),
+              ],
+            );
+          }
+        } else {
+          rail = SizedBox(
+            height: 218,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.zero,
+              itemCount: videos.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 14),
+              itemBuilder: (_, i) => _PromoVideoCard(banner: videos[i]),
+            ),
+          );
+        }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: [
-                  Icon(Icons.play_circle_filled_rounded,
-                      color: AppColor.primary, size: 22),
-                  const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                      color: AppSurface.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              height: 200,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.zero,
-                itemCount: videos.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 14),
-                itemBuilder: (_, i) => _PromoVideoCard(banner: videos[i]),
-              ),
-            ),
+            if (header != null) header,
+            rail,
           ],
         );
       },
     );
   }
+}
 
-  List<BannerModel> _segment(List<BannerModel> all) {
-    if (segmentCount <= 1 || all.isEmpty) return all;
-    final idx = segmentIndex % segmentCount;
-    final out = <BannerModel>[];
-    for (var i = 0; i < all.length; i++) {
-      if (i % segmentCount == idx) out.add(all[i]);
-    }
-    return out;
+class _VideoPageDots extends StatelessWidget {
+  const _VideoPageDots({
+    required this.controller,
+    required this.count,
+  });
+
+  final PageController controller;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    if (count <= 1) return const SizedBox.shrink();
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (_, __) {
+        final page = controller.hasClients ? (controller.page ?? 0) : 0;
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(count, (i) {
+            final distance = (page - i).abs().clamp(0.0, 1.0);
+            final wide = distance < 0.5;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: wide ? 18 : 6,
+              height: 6,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(99),
+                color: wide
+                    ? AppColor.primary
+                    : AppColor.primary.withValues(alpha: 0.22),
+              ),
+            );
+          }),
+        );
+      },
+    );
   }
 }
 
 class _PromoVideoCard extends StatefulWidget {
-  const _PromoVideoCard({required this.banner});
+  const _PromoVideoCard({
+    required this.banner,
+    this.cardWidth,
+  });
 
   final BannerModel banner;
+
+  /// Fixed width for snap/carousel layouts; default uses ~82% screen clamp.
+  final double? cardWidth;
 
   @override
   State<_PromoVideoCard> createState() => _PromoVideoCardState();
@@ -195,13 +338,22 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
     }
   }
 
+  String _ctaLabel() {
+    final b = widget.banner;
+    if (b.ctaLabel.trim().isNotEmpty) return b.ctaLabel.trim();
+    if (b.hasRedirect) return 'shop_now_cta'.tr();
+    return 'explore_cta'.tr();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width * 0.82;
+    final screenW = MediaQuery.sizeOf(context).width;
+    final width = widget.cardWidth ??
+        (screenW * 0.82).clamp(260.0, 420.0);
     final radius = BorderRadius.circular(24);
 
     return SizedBox(
-      width: width.clamp(260.0, 420.0),
+      width: width,
       child: Material(
         color: Colors.transparent,
         borderRadius: radius,
@@ -239,44 +391,89 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.black.withValues(alpha: 0.05),
-                            Colors.black.withValues(alpha: 0.45),
+                            Colors.black.withValues(alpha: 0.02),
+                            Colors.black.withValues(alpha: 0.28),
+                            Colors.black.withValues(alpha: 0.72),
                           ],
+                          stops: const [0.0, 0.45, 1.0],
                         ),
                       ),
                     ),
                   ),
                 ),
-                Positioned.fill(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: widget.banner.hasRedirect
-                          ? () => _handleTap(context)
-                          : null,
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                ),
-                Center(
+                Positioned(
+                  top: 10,
+                  right: 10,
                   child: Material(
                     color: Colors.white.withValues(alpha: 0.92),
                     shape: const CircleBorder(),
-                    elevation: 4,
+                    elevation: 3,
                     shadowColor: Colors.black26,
                     child: InkWell(
                       customBorder: const CircleBorder(),
                       onTap: _togglePause,
                       child: Padding(
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(10),
                         child: Icon(
                           _paused
                               ? Icons.play_arrow_rounded
                               : Icons.pause_rounded,
-                          size: 28,
+                          size: 22,
                           color: AppSurface.textPrimary,
                         ),
                       ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 14,
+                  right: 14,
+                  bottom: 12,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.95),
+                      foregroundColor: AppColor.primary,
+                      disabledBackgroundColor:
+                          Colors.white.withValues(alpha: 0.5),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                      textStyle: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    onPressed: widget.banner.hasRedirect
+                        ? () => _handleTap(context)
+                        : () {
+                            HapticFeedback.lightImpact();
+                            ScaffoldMessenger.of(context).clearSnackBars();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                behavior: SnackBarBehavior.floating,
+                                margin: const EdgeInsets.all(14),
+                                content: Text(
+                                  'promo_more_soon'.tr(),
+                                  style: GoogleFonts.poppins(),
+                                ),
+                              ),
+                            );
+                          },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(_ctaLabel()),
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 18,
+                          color: widget.banner.hasRedirect
+                              ? AppColor.primary
+                              : AppSurface.textMuted,
+                        ),
+                      ],
                     ),
                   ),
                 ),

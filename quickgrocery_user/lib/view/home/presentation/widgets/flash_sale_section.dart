@@ -24,9 +24,17 @@ import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 /// change. Once a `flashSaleEndsAt` field exists on documents, swap
 /// [_endTime] for the document field.
 class FlashSaleSection extends ConsumerStatefulWidget {
-  const FlashSaleSection({super.key, this.minDiscountPercent = 25});
+  const FlashSaleSection({
+    super.key,
+    this.minDiscountPercent = 25,
+    this.cardMargin = const EdgeInsets.only(top: 12),
+  });
 
   final int minDiscountPercent;
+
+  /// Outer margin around the gradient card (Categories sets [EdgeInsets.zero]
+  /// when a section title sits above).
+  final EdgeInsetsGeometry cardMargin;
 
   @override
   ConsumerState<FlashSaleSection> createState() => _FlashSaleSectionState();
@@ -88,6 +96,7 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
 
     if (loading && discounted.isEmpty) {
       return _Card(
+        margin: widget.cardMargin,
         end: _remaining,
         child: Builder(
           builder: (context) => SkeletonRail(
@@ -102,6 +111,7 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
     discounted.sort((a, b) => b.discountPercent.compareTo(a.discountPercent));
 
     return _Card(
+      margin: widget.cardMargin,
       end: _remaining,
       child: Builder(
         builder: (context) {
@@ -122,14 +132,19 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
 }
 
 class _Card extends StatelessWidget {
-  const _Card({required this.end, required this.child});
+  const _Card({
+    required this.margin,
+    required this.end,
+    required this.child,
+  });
+  final EdgeInsetsGeometry margin;
   final Duration end;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(top: 12),
+      margin: margin,
       decoration: BoxDecoration(
         gradient: AppGradients.flashSale,
         borderRadius: AppRadii.all(AppRadii.lg),

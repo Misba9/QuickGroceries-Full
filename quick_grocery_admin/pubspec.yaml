@@ -40,7 +40,9 @@ dependencies:
   firebase_auth: ^5.5.1
   firebase_storage: ^12.4.4
   firebase_analytics: ^11.4.4
+  cloud_functions: ^5.5.2
   provider: ^6.1.2
+  flutter_animate: ^4.5.2
   intl: ^0.20.2
   image_picker: ^1.1.2
   google_fonts: ^6.2.1
@@ -48,6 +50,7 @@ dependencies:
   video_player: ^2.9.2
   printing: ^5.13.3
   pdf: ^3.11.1
+  csv: ^6.0.0
 
 dev_dependencies:
   flutter_test:

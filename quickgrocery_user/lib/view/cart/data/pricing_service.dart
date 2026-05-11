@@ -1,22 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:rxdart/rxdart.dart';
 
+import '../../settings/data/app_settings_service.dart';
 import '../domain/cart_models.dart';
 
 /// Reads platform-wide pricing knobs from Firestore.
 ///
-/// Compatible with the existing `delivery_charge` collection laid out in the
-/// legacy `CartService.getDeliveryCharge` (three docs: standard fee, min order
-/// amount, and a "platform fee" doc that bundles platform/handling/delivery).
+/// **Realtime:** listens to `settings/main`, `delivery_settings/default`,
+/// `app_config/pricing`, and every `delivery_charge` document used in [fetch]
+/// so admin updates (platform fee, delivery fee, thresholds) propagate
+/// immediately without app restart.
 ///
-/// Surge + tax are read from a new optional `app_config/pricing` document with
-/// the shape:
-/// ```
-/// {
-///   taxPercent: 0,
-///   surge: { multiplier: 1.5, isActive: false, reason: "Heavy rain" }
-/// }
-/// ```
-/// Both blocks are optional — missing = no surge, no tax.
+/// `settings/main` overrides legacy fields when present (merge-friendly).
 class PricingService {
   PricingService(this._firestore);
 
@@ -25,6 +21,7 @@ class PricingService {
   static const _standardDocId = 'b1slJi5ePvTQ5JHeYtWx';
   static const _minOrderDocId = 'dpKk0Q4CNNwgUlltn6OM';
   static const _platformDocId = 'r6ArqhMeZYDJnpFo6EJP';
+  static const _deliverySettingsDocId = 'default';
 
   Future<PricingConfig> fetch() async {
     final results = await Future.wait([
@@ -32,21 +29,65 @@ class PricingService {
       _firestore.collection('delivery_charge').doc(_minOrderDocId).get(),
       _firestore.collection('delivery_charge').doc(_platformDocId).get(),
       _firestore.collection('app_config').doc('pricing').get(),
+      _firestore
+          .collection('delivery_settings')
+          .doc(_deliverySettingsDocId)
+          .get(),
+      _firestore
+          .collection(AppSettingsPaths.collection)
+          .doc(AppSettingsPaths.documentId)
+          .get(),
     ]);
 
     final standardDoc = results[0].data() ?? const {};
     final minOrderDoc = results[1].data() ?? const {};
     final platformDoc = results[2].data() ?? const {};
     final appConfig = results[3].data() ?? const {};
+    final deliverySettings = results[4].data() ?? const {};
+    final mainSettings = results[5].data() ?? const {};
 
     final standard = (standardDoc['amount'] as num?)?.toInt() ?? 0;
     final minOrder = (minOrderDoc['amount'] as num?)?.toInt() ?? 100;
     final platformFee = (platformDoc['amount'] as num?)?.toInt() ?? 0;
-    final handling = (platformDoc['handling_charge'] as num?)?.toInt() ?? 0;
+    final handlingFromPlatform =
+        (platformDoc['handling_charge'] as num?)?.toInt() ??
+            (platformDoc['handlingCharge'] as num?)?.toInt() ??
+            0;
     final deliveryDefault =
         (platformDoc['delivery_charge'] as num?)?.toInt() ?? 0;
-    final freeThreshold =
+    final freeThresholdLegacy =
         (platformDoc['free_delivery_threshold'] as num?)?.toInt() ?? 99;
+    final freeThresholdCamel =
+        (platformDoc['freeDeliveryThreshold'] as num?)?.toInt();
+    final freeThresholdPlatform = freeThresholdCamel ?? freeThresholdLegacy;
+
+    final adminThreshold =
+        (deliverySettings['freeDeliveryThreshold'] as num?)?.toInt();
+    final adminDeliveryFee = (deliverySettings['deliveryFee'] as num?)?.toInt();
+    final freeDeliveryEnabledFromDelivery =
+        deliverySettings['freeDeliveryEnabled'] as bool? ??
+            deliverySettings['isFreeDeliveryEnabled'] as bool?;
+    final deliveryFeeEnabledFromDelivery =
+        deliverySettings['deliveryChargesEnabled'] as bool? ??
+            deliverySettings['isDeliveryChargesEnabled'] as bool?;
+
+    final freeDeliveryEnabledFromPlatform =
+        platformDoc['freeDeliveryEnabled'] as bool? ??
+            platformDoc['isFreeDeliveryEnabled'] as bool?;
+    final dynamicDeliveryFromPlatform =
+        platformDoc['dynamicDeliveryEnabled'] as bool?;
+    final deliveryFeeEnabledFromPlatform =
+        platformDoc['deliveryChargesEnabled'] as bool? ??
+            platformDoc['deliveryFeeEnabled'] as bool? ??
+            platformDoc['isDeliveryChargesEnabled'] as bool?;
+
+    final freeDeliveryEnabled = freeDeliveryEnabledFromDelivery ??
+        freeDeliveryEnabledFromPlatform ??
+        true;
+    final deliveryFeeEnabled = deliveryFeeEnabledFromDelivery ??
+        dynamicDeliveryFromPlatform ??
+        deliveryFeeEnabledFromPlatform ??
+        true;
 
     final taxPercent = (appConfig['taxPercent'] as num?)?.toDouble() ?? 0;
 
@@ -61,28 +102,59 @@ class PricingService {
       surgeReason = surgeRaw['reason']?.toString();
     }
 
-    return PricingConfig(
+    final base = PricingConfig(
       platformFee: platformFee,
-      handlingCharge: handling,
+      handlingCharge: handlingFromPlatform,
       defaultDeliveryCharge: deliveryDefault,
-      standardDeliveryCharge: standard,
+      standardDeliveryCharge: adminDeliveryFee ??
+          (deliveryDefault > 0 ? deliveryDefault : standard),
       minOrderValue: minOrder,
-      freeDeliveryThreshold: freeThreshold,
+      freeDeliveryThreshold: adminThreshold ?? freeThresholdPlatform,
+      isFreeDeliveryEnabled: freeDeliveryEnabled,
+      isDeliveryChargesEnabled: deliveryFeeEnabled,
       taxPercent: taxPercent,
       surgeMultiplier: surgeMultiplier,
       surgeActive: surgeActive,
       surgeReason: surgeReason,
     );
+
+    final merged = AppSettingsService.mergeMainDocument(base, mainSettings);
+
+    if (kDebugMode) {
+      debugPrint(
+        '[PricingService] fetch → platformFee=${merged.platformFee} '
+        'threshold=${merged.freeDeliveryThreshold} delivery=${merged.standardDeliveryCharge} '
+        'freeOn=${merged.isFreeDeliveryEnabled} chargesOn=${merged.isDeliveryChargesEnabled}',
+      );
+    }
+
+    return merged;
   }
 
-  /// Live stream of the surge config so the cart updates in real time during
-  /// surges (e.g. heavy rain banner appears the moment ops flips it).
+  /// Emits a new [PricingConfig] whenever any backing document changes.
   Stream<PricingConfig> watch() async* {
     yield await fetch();
-    yield* _firestore
-        .collection('app_config')
-        .doc('pricing')
-        .snapshots()
-        .asyncMap((_) => fetch());
+
+    final paths = <Stream<DocumentSnapshot<Map<String, dynamic>>>>[
+      _firestore.collection('app_config').doc('pricing').snapshots(),
+      _firestore
+          .collection('delivery_settings')
+          .doc(_deliverySettingsDocId)
+          .snapshots(),
+      _firestore
+          .collection(AppSettingsPaths.collection)
+          .doc(AppSettingsPaths.documentId)
+          .snapshots(),
+      _firestore.collection('delivery_charge').doc(_platformDocId).snapshots(),
+      _firestore.collection('delivery_charge').doc(_standardDocId).snapshots(),
+      _firestore.collection('delivery_charge').doc(_minOrderDocId).snapshots(),
+    ];
+
+    yield* Rx.merge(paths).asyncMap((snap) async {
+      if (kDebugMode) {
+        debugPrint('[PricingService] snapshot → ${snap.reference.path}');
+      }
+      return fetch();
+    });
   }
 }

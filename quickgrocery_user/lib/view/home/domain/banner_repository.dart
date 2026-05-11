@@ -44,13 +44,11 @@ class BannerRepository {
     }
 
     final inactive = parsed.where((b) => !b.isActive).length;
-    final noMedia = parsed
-        .where((b) => b.image.isEmpty && b.video.isEmpty)
-        .length;
+    final noMedia = parsed.where((b) => !b.hasPromoMedia).length;
 
     final items = parsed
         .where((b) => b.isActive)
-        .where((b) => b.image.isNotEmpty || b.video.isNotEmpty)
+        .where((b) => b.hasPromoMedia)
         .toList();
     items.sort((a, b) => a.priority.compareTo(b.priority));
 
@@ -63,7 +61,7 @@ class BannerRepository {
       if (items.isEmpty && raw > 0) {
         debugPrint(
           '[Banners] All $raw doc(s) were filtered out. '
-          'Check `isActive` + `image`/`video` fields in Firestore.',
+          'Check `isActive` plus `image` / `video` / `thumbnailUrl`.',
         );
       }
     }

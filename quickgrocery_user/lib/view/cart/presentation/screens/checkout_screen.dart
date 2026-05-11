@@ -303,12 +303,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           SliverPadding(
                             padding: const EdgeInsets.fromLTRB(14, 18, 14, 24),
                             sliver: SliverToBoxAdapter(
-                              child: PremiumBillCard(
-                                bill: bill,
-                                pricing: cart.pricing,
-                                couponLabel: cart.coupon != null
-                                    ? 'Coupon · ${cart.coupon!.code}'
-                                    : null,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _CheckoutDeliveryInfo(
+                                    bill: bill,
+                                    pricing: cart.pricing,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  PremiumBillCard(
+                                    bill: bill,
+                                    pricing: cart.pricing,
+                                    couponLabel: cart.coupon != null
+                                        ? 'Coupon · ${cart.coupon!.code}'
+                                        : null,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -345,6 +355,42 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             readableAddress: readable,
           );
         },
+      ),
+    );
+  }
+}
+
+class _CheckoutDeliveryInfo extends StatelessWidget {
+  const _CheckoutDeliveryInfo({
+    required this.bill,
+    required this.pricing,
+  });
+
+  final BillBreakdown bill;
+  final PricingConfig pricing;
+
+  @override
+  Widget build(BuildContext context) {
+    final msg = !pricing.isDeliveryChargesEnabled
+        ? 'Delivery charges are currently disabled'
+        : bill.isFreeDelivery
+            ? '🎉 FREE delivery unlocked'
+            : pricing.isFreeDeliveryEnabled
+                ? 'Free delivery above ₹${pricing.freeDeliveryThreshold}'
+                : 'Delivery fee ₹${bill.deliveryFee.toStringAsFixed(0)} applies';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        border: Border.all(color: AppSurface.border),
+      ),
+      child: Text(
+        msg,
+        style: GoogleFonts.poppins(
+          fontWeight: FontWeight.w600,
+          color: AppSurface.textSecondary,
+        ),
       ),
     );
   }

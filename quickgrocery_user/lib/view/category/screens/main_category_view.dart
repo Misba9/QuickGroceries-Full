@@ -12,33 +12,27 @@ import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
 import 'package:quickgrocery/core/widgets/skeleton.dart';
 import 'package:quickgrocery/models/category_model.dart';
+import 'package:quickgrocery/models/product.dart';
+import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
-import 'package:quickgrocery/view/category/presentation/providers/categories_discovery_providers.dart';
 import 'package:quickgrocery/view/category/presentation/widgets/animated_category_card.dart';
 import 'package:quickgrocery/view/category/presentation/widgets/featured_products_section.dart';
 import 'package:quickgrocery/view/category/presentation/widgets/flash_sale_widget.dart';
 import 'package:quickgrocery/view/category/presentation/widgets/floating_cart_bar.dart';
-import 'package:quickgrocery/view/category/presentation/widgets/hero_banner_slider.dart';
-import 'package:quickgrocery/view/category/presentation/widgets/promo_video_section.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_banner_video_rail.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/recommendations_section.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/search/screens/search_screen.dart';
 
 /// Categories discovery screen — premium animated grocery experience.
 ///
 /// Sections (top → bottom):
-///   1. Animated header (greeting + delivery location + categories count)
-///   2. Sticky search bar (cycling hints + voice mic)
-///   3. Hero banner carousel (Firestore `banners/`, falls back to branded slides)
-///   4. Trending categories rail (gradient hero cards)
-///   5. Promo videos / GIFs / Lottie offers (Firestore `promos/`)
-///   6. All categories grid (responsive 4 / 6 / 8 columns, staggered fade-in)
-///   7. Flash sale (countdown + glowing cards) — pulled from products with
-///      ≥25 % discount in trending + featured streams
-///   8. Featured for you (Firestore `products` where `isFeatured == true`)
-///   9. Trending now    (Firestore `products` where `isTrending == true`)
-///   10. Floating cart bar (auto-shows when cart has items)
+///   1. Sticky header (greeting + delivery + pinned search)
+///   2. Trending categories (horizontal snap carousel)
+///   3. Admin video promos (`banners/` MP4) directly above explore grid
+///   4. Shop by category grid
+///   5. Flash Deals, Popular Near You, Recommended Products
 ///
 /// Everything is realtime — admin changes propagate instantly via the
 /// existing Firestore stream providers.
@@ -53,24 +47,9 @@ class MainCategoryViewScreen extends ConsumerStatefulWidget {
 class _MainCategoryViewScreenState
     extends ConsumerState<MainCategoryViewScreen> {
   final ScrollController _scrollController = ScrollController();
-  bool _condenseHeader = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  void _onScroll() {
-    final condense = _scrollController.offset > 60;
-    if (condense != _condenseHeader && mounted) {
-      setState(() => _condenseHeader = condense);
-    }
-  }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
   }
@@ -79,7 +58,6 @@ class _MainCategoryViewScreenState
     HapticFeedback.selectionClick();
     ref.invalidate(categoriesStreamProvider);
     ref.invalidate(bannersStreamProvider);
-    ref.invalidate(activePromosStreamProvider);
     ref.invalidate(trendingProductsStreamProvider);
     ref.invalidate(featuredProductsStreamProvider);
     await Future.delayed(const Duration(milliseconds: 600));
@@ -117,86 +95,64 @@ class _MainCategoryViewScreenState
                     SliverPersistentHeader(
                       pinned: true,
                       delegate: _StickyHeaderDelegate(
-                        condense: _condenseHeader,
                         gutter: gutter,
                       ),
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.fromLTRB(gutter, 6, gutter, 12),
-                        child: const HeroBannerSlider(),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 10),
-                        child: const HomeBannerVideoRail(),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 0),
+                        padding: EdgeInsets.fromLTRB(gutter, 2, gutter, 4),
                         child: const _TrendingCategoriesSection(),
                       ),
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.fromLTRB(gutter, 12, gutter, 0),
+                        padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 6),
+                        child: HomeBannerVideoRail(
+                          title: 'category_promo_video_title'.tr(),
+                          snapPaging: true,
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(gutter, 2, gutter, 0),
+                        child: const _AllCategoriesSection(),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(gutter, 10, gutter, 0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _SectionTitle(
-                              title: 'offers_for_you'.tr(),
-                              icon: Icons.local_offer_rounded,
+                              title: 'flash_deals_title'.tr(),
+                              icon: Icons.bolt_rounded,
+                              compact: true,
                             ),
-                            const PromoVideoSection(),
+                            const FlashSaleWidget(cardMargin: EdgeInsets.zero),
                           ],
                         ),
                       ),
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.fromLTRB(gutter, 14, gutter, 0),
-                        child: const _AllCategoriesSection(),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
                         padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 0),
-                        child: const FlashSaleWidget(),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(gutter, 6, gutter, 0),
                         child: FeaturedProductsSection(
-                          title: 'featured_for_you'.tr(),
-                          subtitle: 'curated_picks_subtitle'.tr(),
-                          icon: Icons.auto_awesome_rounded,
-                          provider: featuredProductsStreamProvider,
+                          title: 'popular_near_you'.tr(),
+                          subtitle: 'popular_near_you_sub'.tr(),
+                          icon: Icons.near_me_rounded,
+                          provider: trendingProductsStreamProvider,
+                          maxItems: 14,
                         ),
                       ),
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.fromLTRB(gutter, 6, gutter, 0),
-                        child: FeaturedProductsSection(
-                          title: 'trending_now'.tr(),
-                          subtitle: 'trending_subtitle'.tr(),
-                          icon: Icons.trending_up_rounded,
-                          provider: trendingProductsStreamProvider,
-                        ),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(gutter, 6, gutter, 0),
-                        child: FeaturedProductsSection(
-                          title: 'best_sellers'.tr(),
-                          subtitle: 'best_sellers_subtitle'.tr(),
-                          icon: Icons.workspace_premium_rounded,
-                          provider: trendingProductsStreamProvider,
-                          maxItems: 12,
+                        padding: EdgeInsets.fromLTRB(gutter, 2, gutter, 0),
+                        child: RecommendationsSection(
+                          maxItems: 14,
+                          sectionTitle: 'recommended_products'.tr(),
                         ),
                       ),
                     ),
@@ -224,15 +180,13 @@ class _MainCategoryViewScreenState
 
 class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   _StickyHeaderDelegate({
-    required this.condense,
     required this.gutter,
   });
 
-  final bool condense;
   final double gutter;
 
-  static const double _expanded = 168;
-  static const double _collapsed = 76;
+  static const double _expanded = 144;
+  static const double _collapsed = 74;
 
   @override
   double get minExtent => _collapsed;
@@ -246,12 +200,12 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
     bool overlapsContent,
   ) {
     final t = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
-    final greetingOpacity = (1 - t * 1.6).clamp(0.0, 1.0);
-    final searchTop = 64.0 - (t * 18);
+    final greetingOpacity = (1 - t * 1.85).clamp(0.0, 1.0);
+    final searchTop = 56.0 - (t * 20);
 
     return Material(
       color: AppSurface.background,
-      elevation: t * 2,
+      elevation: t * 3,
       shadowColor: Colors.black.withValues(alpha: 0.1),
       child: Container(
         decoration: BoxDecoration(
@@ -299,7 +253,7 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(_StickyHeaderDelegate oldDelegate) =>
-      oldDelegate.condense != condense || oldDelegate.gutter != gutter;
+      oldDelegate.gutter != gutter;
 }
 
 class _Greeting extends ConsumerWidget {
@@ -408,17 +362,59 @@ class _Greeting extends ConsumerWidget {
 
 // ─── Trending categories rail ────────────────────────────────────────────
 
-class _TrendingCategoriesSection extends ConsumerWidget {
+Map<String, int> _countsByNormalizedCategory(List<ProductModel> products) {
+  final out = <String, int>{};
+  for (final p in products) {
+    final k = p.category.trim().toLowerCase();
+    if (k.isEmpty) continue;
+    out[k] = (out[k] ?? 0) + 1;
+  }
+  return out;
+}
+
+Map<String, int> _maxDiscountByCategory(List<ProductModel> products) {
+  final out = <String, int>{};
+  for (final p in products) {
+    final k = p.category.trim().toLowerCase();
+    if (k.isEmpty || !p.hasDiscount) continue;
+    final d = p.discountPercent;
+    if (d > (out[k] ?? 0)) out[k] = d;
+  }
+  return out;
+}
+
+class _TrendingCategoriesSection extends ConsumerStatefulWidget {
   const _TrendingCategoriesSection();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TrendingCategoriesSection> createState() =>
+      _TrendingCategoriesSectionState();
+}
+
+class _TrendingCategoriesSectionState
+    extends ConsumerState<_TrendingCategoriesSection> {
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.88);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final asyncCats = ref.watch(categoriesStreamProvider);
     final cats = asyncCats.value ?? const <CategoryModel>[];
 
     if (asyncCats.isLoading && cats.isEmpty) {
       return Padding(
-        padding: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.only(top: 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -427,15 +423,12 @@ class _TrendingCategoriesSection extends ConsumerWidget {
               icon: Icons.local_fire_department_rounded,
             ),
             SizedBox(
-              height: 130,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.zero,
-                itemCount: 5,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (_, __) => const SizedBox(
-                  width: 150,
-                  child: Skeleton(radius: 16),
+              height: 178,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  width: MediaQuery.sizeOf(context).width * 0.84,
+                  child: const Skeleton(radius: 20),
                 ),
               ),
             ),
@@ -447,35 +440,108 @@ class _TrendingCategoriesSection extends ConsumerWidget {
 
     final featured = cats.take(8).toList();
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionTitle(
-            title: 'trending_categories'.tr(),
-            icon: Icons.local_fire_department_rounded,
-          ),
-          SizedBox(
-            height: 130,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.zero,
-              itemCount: featured.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
-              itemBuilder: (context, i) => FadeInRight(
-                from: 16,
-                duration: Duration(milliseconds: 280 + i * 50),
-                child: AnimatedCategoryCard(
-                  category: featured[i],
-                  variant: AnimatedCategoryCardVariant.trendingHero,
-                  heroPrefix: 'trending-',
+    return legacy.Consumer<CategoryService>(
+      builder: (context, cartService, _) {
+        final counts = _countsByNormalizedCategory(cartService.allProducts);
+        final discs = _maxDiscountByCategory(cartService.allProducts);
+
+        int countFor(CategoryModel c) =>
+            counts[c.name.trim().toLowerCase()] ?? 0;
+
+        int discFor(CategoryModel c) =>
+            discs[c.name.trim().toLowerCase()] ?? 0;
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SectionTitle(
+                title: 'trending_categories'.tr(),
+                icon: Icons.local_fire_department_rounded,
+              ),
+              SizedBox(
+                height: 178,
+                child: PageView.builder(
+                  controller: _pageController,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: featured.length,
+                  padEnds: true,
+                  itemBuilder: (context, i) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      child: FadeInRight(
+                        from: 12,
+                        duration: Duration(milliseconds: 260 + i * 40),
+                        child: AnimatedCategoryCard(
+                          category: featured[i],
+                          variant:
+                              AnimatedCategoryCardVariant.trendingHero,
+                          heroPrefix: 'trending-',
+                          productCount: countFor(featured[i]),
+                          topDiscountPercent: discFor(featured[i]),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-            ),
+              const SizedBox(height: 4),
+              Center(
+                child: SmoothPageIndicator(
+                  controller: _pageController,
+                  count: featured.length,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
+    );
+  }
+}
+
+/// Lightweight dot pager for snapping category carousel.
+class SmoothPageIndicator extends StatelessWidget {
+  const SmoothPageIndicator({
+    super.key,
+    required this.controller,
+    required this.count,
+  });
+
+  final PageController controller;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    if (count <= 1) return const SizedBox.shrink();
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (_, __) {
+        final page = controller.hasClients ? (controller.page ?? 0) : 0;
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(count, (i) {
+            final distance = (page - i).abs().clamp(0.0, 1.0);
+            final wide = distance < 0.5;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: wide ? 18 : 6,
+              height: 6,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(99),
+                color: wide
+                    ? AppColor.primary
+                    : AppColor.primary.withValues(alpha: 0.22),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }
@@ -545,22 +611,37 @@ class _AllCategoriesSection extends ConsumerWidget {
     }
     if (cats.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionTitle(
-          title: 'shop_by_category'.tr(),
-          icon: Icons.grid_view_rounded,
-        ),
-        grid(
-          count: cats.length,
-          builder: (context, i) => FadeInUp(
-            from: 12,
-            duration: Duration(milliseconds: 240 + (i % 12) * 30),
-            child: AnimatedCategoryCard(category: cats[i]),
-          ),
-        ),
-      ],
+    return legacy.Consumer<CategoryService>(
+      builder: (context, cartService, _) {
+        final counts = _countsByNormalizedCategory(cartService.allProducts);
+        final discs = _maxDiscountByCategory(cartService.allProducts);
+        int countFor(CategoryModel c) =>
+            counts[c.name.trim().toLowerCase()] ?? 0;
+        int discFor(CategoryModel c) =>
+            discs[c.name.trim().toLowerCase()] ?? 0;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SectionTitle(
+              title: 'shop_by_category'.tr(),
+              icon: Icons.grid_view_rounded,
+            ),
+            grid(
+              count: cats.length,
+              builder: (context, i) => FadeInUp(
+                from: 12,
+                duration: Duration(milliseconds: 240 + (i % 12) * 30),
+                child: AnimatedCategoryCard(
+                  category: cats[i],
+                  productCount: countFor(cats[i]),
+                  topDiscountPercent: discFor(cats[i]),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -568,15 +649,20 @@ class _AllCategoriesSection extends ConsumerWidget {
 // ─── Section title ───────────────────────────────────────────────────────
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, required this.icon});
+  const _SectionTitle({
+    required this.title,
+    required this.icon,
+    this.compact = false,
+  });
 
   final String title;
   final IconData icon;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 6, 0, 10),
+      padding: EdgeInsets.fromLTRB(0, compact ? 4 : 6, 0, compact ? 8 : 10),
       child: Row(
         children: [
           Container(

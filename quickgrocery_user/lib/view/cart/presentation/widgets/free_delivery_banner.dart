@@ -19,6 +19,8 @@ class FreeDeliveryBanner extends StatelessWidget {
     super.key,
     required this.subtotal,
     required this.threshold,
+    this.isFreeDeliveryEnabled = true,
+    this.isDeliveryChargesEnabled = true,
     this.surgeActive = false,
     this.surgeMultiplier = 1.0,
     this.surgeReason,
@@ -26,6 +28,8 @@ class FreeDeliveryBanner extends StatelessWidget {
 
   final double subtotal;
   final double threshold;
+  final bool isFreeDeliveryEnabled;
+  final bool isDeliveryChargesEnabled;
   final bool surgeActive;
   final double surgeMultiplier;
   final String? surgeReason;
@@ -39,6 +43,14 @@ class FreeDeliveryBanner extends StatelessWidget {
       );
     }
 
+    if (!isDeliveryChargesEnabled) {
+      return const _ChargesDisabledVariant();
+    }
+
+    if (!isFreeDeliveryEnabled) {
+      return _FreeDeliveryDisabledVariant(threshold: threshold);
+    }
+
     if (threshold <= 0 || subtotal >= threshold) {
       return const _FreeNowVariant();
     }
@@ -48,6 +60,68 @@ class FreeDeliveryBanner extends StatelessWidget {
     return _AlmostThereVariant(
       remaining: remaining,
       progress: progress,
+    );
+  }
+}
+
+class _ChargesDisabledVariant extends StatelessWidget {
+  const _ChargesDisabledVariant();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        gradient: AppGradients.delivery,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        boxShadow: AppShadow.dim,
+      ),
+      child: Row(
+        children: [
+          _IconBubble(icon: Icons.local_shipping_rounded),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Delivery charges are OFF today',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 13.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FreeDeliveryDisabledVariant extends StatelessWidget {
+  const _FreeDeliveryDisabledVariant({required this.threshold});
+
+  final double threshold;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: AppSurface.border),
+        boxShadow: AppShadow.dim,
+      ),
+      child: Text(
+        'Free delivery is currently disabled by admin'
+        '${threshold > 0 ? ' (threshold ₹${threshold.toStringAsFixed(0)})' : ''}',
+        style: GoogleFonts.poppins(
+          color: AppSurface.textSecondary,
+          fontWeight: FontWeight.w600,
+          fontSize: 12.5,
+        ),
+      ),
     );
   }
 }

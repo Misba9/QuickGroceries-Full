@@ -1,3 +1,4 @@
+import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/orders/screens/order_details_screen.dart';
@@ -34,47 +35,94 @@ class _AllOrdersScreeenState extends State<AllOrdersScreeen> {
             WrapperWidget(
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'New Orders',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(
-                        width: 400,
-                        child: TextField(
-                          autofocus: false,
-                          decoration: InputDecoration(
-                            hintText: 'Search...',
-                            prefixIcon: Icon(Icons.search),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                Icons.arrow_forward,
-                                color: AppColor.primary,
-                              ), // Search button icon
-                              onPressed: () {},
+                  LayoutBuilder(
+                    builder: (context, c) {
+                      final narrow = c.maxWidth < 560;
+                      if (narrow) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'All Orders',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
+                            AppSpacing.h10,
+                            TextField(
+                              autofocus: false,
+                              decoration: InputDecoration(
+                                hintText: 'Search...',
+                                prefixIcon: Icon(Icons.search),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    Icons.arrow_forward,
+                                    color: AppColor.primary,
+                                  ),
+                                  onPressed: () {},
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              onChanged: (value) {},
+                            ),
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'All Orders',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          onChanged: (value) {},
-                        ),
-                      ),
-                    ],
+                          AppSpacing.w10,
+                          SizedBox(
+                            width: (c.maxWidth * 0.45).clamp(200.0, 400.0),
+                            child: TextField(
+                              autofocus: false,
+                              decoration: InputDecoration(
+                                hintText: 'Search...',
+                                prefixIcon: Icon(Icons.search),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    Icons.arrow_forward,
+                                    color: AppColor.primary,
+                                  ),
+                                  onPressed: () {},
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              onChanged: (value) {},
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   AppSpacing.h10,
                   Divider(color: Colors.grey.shade300),
                   AppSpacing.h10,
                   provider.orders == null
                       ? LinearProgressIndicator()
-                      : DataTable(
-                          dataRowHeight: 70,
-                          columns: const [
+                      : LayoutBuilder(
+                          builder: (context, c) {
+                            final colSpace =
+                                (c.maxWidth * 0.03).clamp(8.0, 24.0);
+                            final dt = DataTable(
+                              columnSpacing: colSpace,
+                              dataRowHeight: 70,
+                              columns: const [
                             DataColumn(
                               label: Text(
                                 'SL',
@@ -197,6 +245,12 @@ class _AllOrdersScreeenState extends State<AllOrdersScreeen> {
                               ],
                             );
                           }),
+                            );
+                            return adminScrollableDataTable(
+                              viewportWidth: c.maxWidth,
+                              dataTable: dt,
+                            );
+                          },
                         ),
                 ],
               ),

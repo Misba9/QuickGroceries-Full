@@ -129,5 +129,15 @@
     "search_hint_milk": "खोजें \"दूध\"",
     "search_hint_bread": "खोजें \"ब्रेड\"",
     "search_hint_snacks": "खोजें \"स्नैक्स\"",
-    "search_hint_fruits": "खोजें \"फल\""
+    "search_hint_fruits": "खोजें \"फल\"",
+    "picked_for_you": "आपके लिए चुना हुआ",
+    "category_promo_video_title": "स्पॉटलाइट ऑफ़र",
+    "popular_near_you": "आपके आसपास लोकप्रिय",
+    "popular_near_you_sub": "दूसरे क्या खरीद रहे हैं",
+    "recommended_products": "आपके लिए सुझाई गई खरीदें",
+    "flash_deals_title": "फ्लैश डील",
+    "items_in_category": "{count} आइटम",
+    "shop_now_cta": "अभी खरीदें",
+    "explore_cta": "देखें",
+    "promo_more_soon": "लिंक जल्द आएगा — होम पर ऑफ़र देखें।"
 }

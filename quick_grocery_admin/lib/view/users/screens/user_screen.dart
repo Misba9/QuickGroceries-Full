@@ -1,3 +1,4 @@
+import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -89,36 +90,80 @@ class _UsersScreenState extends State<UsersScreen> {
                     WrapperWidget(
                       child: Column(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Customers',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(
-                                width: 400,
-                                child: TextField(
-                                  autofocus: false,
-                                  decoration: InputDecoration(
-                                    hintText: 'Search...',
-                                    prefixIcon: Icon(Icons.search),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
+                          LayoutBuilder(
+                            builder: (context, c) {
+                              final narrow = c.maxWidth < 560;
+                              if (narrow) {
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text(
+                                      'Customers',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    AppSpacing.h10,
+                                    TextField(
+                                      autofocus: false,
+                                      decoration: InputDecoration(
+                                        hintText: 'Search...',
+                                        prefixIcon: Icon(Icons.search),
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                      onChanged: (value) {
+                                        Provider.of<UserService>(
+                                          context,
+                                          listen: false,
+                                        ).searchUsers(value);
+                                      },
+                                    ),
+                                  ],
+                                );
+                              }
+                              return Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Customers',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  onChanged: (value) {
-                                    Provider.of<UserService>(
-                                      context,
-                                      listen: false,
-                                    ).searchUsers(value);
-                                  },
-                                ),
-                              ),
-                            ],
+                                  AppSpacing.w10,
+                                  SizedBox(
+                                    width: (c.maxWidth * 0.45)
+                                        .clamp(200.0, 400.0),
+                                    child: TextField(
+                                      autofocus: false,
+                                      decoration: InputDecoration(
+                                        hintText: 'Search...',
+                                        prefixIcon: Icon(Icons.search),
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                      onChanged: (value) {
+                                        Provider.of<UserService>(
+                                          context,
+                                          listen: false,
+                                        ).searchUsers(value);
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                           AppSpacing.h10,
                           Divider(color: Colors.grey.shade300),
@@ -146,10 +191,13 @@ class CustomerTable extends StatelessWidget {
         if (userService.filteredCustomers.isEmpty) {
           return LinearProgressIndicator();
         }
-        return DataTable(
-          columnSpacing: MediaQuery.of(context).size.width * .07,
-          dataRowHeight: 70,
-          columns: const [
+        return LayoutBuilder(
+          builder: (context, c) {
+            final colSpace = (c.maxWidth * 0.04).clamp(8.0, 28.0);
+            final dt = DataTable(
+              columnSpacing: colSpace,
+              dataRowHeight: 70,
+              columns: const [
             DataColumn(
               label: Text('SL', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
@@ -190,22 +238,37 @@ class CustomerTable extends StatelessWidget {
               cells: [
                 DataCell(Text((index + 1).toString())),
                 DataCell(
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundImage: customer.image != ''
-                            ? NetworkImage(customer.image)
-                            : null,
-                        child: customer.image.isEmpty
-                            ? Icon(Icons.person, size: 20)
-                            : null,
-                      ),
-                      SizedBox(width: 8),
-                      Text(customer.name),
-                    ],
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 240),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundImage: customer.image != ''
+                              ? NetworkImage(customer.image)
+                              : null,
+                          child: customer.image.isEmpty
+                              ? Icon(Icons.person, size: 20)
+                              : null,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            customer.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                DataCell(Text(customer.phoneNumber)),
+                DataCell(
+                  Text(
+                    customer.phoneNumber,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 DataCell(Text("0")),
                 DataCell(
                   Switch(
@@ -243,6 +306,12 @@ class CustomerTable extends StatelessWidget {
               ],
             );
           }),
+            );
+            return adminScrollableDataTable(
+              viewportWidth: c.maxWidth,
+              dataTable: dt,
+            );
+          },
         );
       },
     );

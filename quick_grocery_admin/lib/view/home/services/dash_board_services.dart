@@ -6,7 +6,6 @@ import 'package:quick_grocery_admin/model/customer_model.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/model/product_model.dart';
 import 'package:quick_grocery_admin/model/vendor_model.dart';
-import 'package:quick_grocery_admin/view/home/screens/dabshboard.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -22,6 +21,7 @@ class DashBoardServices extends ChangeNotifier {
   Map<String, int> monthlyRevenue = {};
   Uint8List? imageBytes;
   Uint8List? videoBytes;
+  Uint8List? thumbnailBytes;
   String? videoPath;
   String bannerType = 'image'; // 'image' or 'video'
   final ImagePicker _picker = ImagePicker();
@@ -33,6 +33,7 @@ class DashBoardServices extends ChangeNotifier {
     imageBytes = null;
     videoBytes = null;
     videoPath = null;
+    thumbnailBytes = null;
     notifyListeners();
   }
 
@@ -49,6 +50,14 @@ class DashBoardServices extends ChangeNotifier {
     if (pickedFile != null) {
       videoPath = pickedFile.path;
       videoBytes = await pickedFile.readAsBytes();
+      notifyListeners();
+    }
+  }
+
+  Future<void> pickThumbnail() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      thumbnailBytes = await pickedFile.readAsBytes();
       notifyListeners();
     }
   }
@@ -265,15 +274,37 @@ class DashBoardServices extends ChangeNotifier {
     }
   }
 
-  Future<void> addBanner(BuildContext context) async {
+  Future<void> addBanner(
+    BuildContext context, {
+    String title = '',
+    String subtitle = '',
+    String ctaText = 'Shop now',
+    String redirectType = 'none',
+    String redirectId = '',
+    int priority = 10,
+    bool isActive = true,
+    bool showInHome = true,
+    bool showInOffers = true,
+    bool showAsPopup = false,
+    bool autoplay = true,
+    bool loop = true,
+    bool muted = true,
+    int popupAutoCloseSeconds = 12,
+    String startsAtRaw = '',
+    String endsAtRaw = '',
+  }) async {
     try {
       String imageUrl = '';
       String videoUrl = '';
+      String thumbnailUrl = '';
 
       if (bannerType == 'image' && imageBytes != null) {
         imageUrl = await uploadImageToStorage(imageBytes!);
       } else if (bannerType == 'video' && videoBytes != null) {
         videoUrl = await uploadVideoToStorage(videoBytes!);
+        if (thumbnailBytes != null) {
+          thumbnailUrl = await uploadImageToStorage(thumbnailBytes!);
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Please select an image or video")),
@@ -281,34 +312,75 @@ class DashBoardServices extends ChangeNotifier {
         return;
       }
 
-      DocumentReference docRef = await FirebaseFirestore.instance
-          .collection('banners')
-          .add({
-            "image": imageUrl,
-            "video": videoUrl,
-            "type": bannerType,
-            "id": "",
-            "created_date": DateTime.now().toString(),
-          });
+      final startsAt = DateTime.tryParse(startsAtRaw.trim());
+      final endsAt = DateTime.tryParse(endsAtRaw.trim());
+
+      final Map<String, dynamic> payload = {
+        'image': imageUrl,
+        'video': videoUrl,
+        'videoUrl': videoUrl,
+        'type': bannerType,
+        'bannerType': bannerType,
+        'thumbnailUrl': thumbnailUrl,
+        'title': title,
+        'subtitle': subtitle,
+        'ctaText': ctaText,
+        'redirectType': redirectType,
+        'redirectId': redirectId,
+        'isActive': isActive,
+        'showInHome': showInHome,
+        'showInOffers': showInOffers,
+        'showAsPopup': showAsPopup,
+        'priority': priority,
+        'autoplay': autoplay,
+        'loop': loop,
+        'muted': muted,
+        'popupAutoCloseSeconds': popupAutoCloseSeconds,
+        'viewCount': 0,
+        'clickCount': 0,
+        'id': '',
+        'created_date': DateTime.now().toIso8601String(),
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+      if (startsAt != null) {
+        payload['startsAt'] = Timestamp.fromDate(startsAt);
+      }
+      if (endsAt != null) {
+        payload['endsAt'] = Timestamp.fromDate(endsAt);
+      }
+
+      final docRef =
+          await FirebaseFirestore.instance.collection('banners').add(payload);
       await docRef.update({'id': docRef.id});
 
-      // Reset after successful upload
       imageBytes = null;
       videoBytes = null;
       videoPath = null;
+      thumbnailBytes = null;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Banner Added Success")));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Banner added successfully')),
+        );
+      }
       fetchBanners();
 
       isLoading = false;
       notifyListeners();
     } catch (e) {
       print('Error adding banner: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error adding banner: ${e.toString()}")),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding banner: ${e.toString()}')),
+        );
+      }
     }
   }
+}
+
+/// Legacy monthly rollup for [fetchRevenueData] (kept for backward compatibility).
+class RevenueData {
+  final String month;
+  final double revenue;
+  RevenueData(this.month, this.revenue);
 }

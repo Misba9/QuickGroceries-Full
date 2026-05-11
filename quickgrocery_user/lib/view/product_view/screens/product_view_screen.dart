@@ -8,6 +8,8 @@ import 'package:share_plus/share_plus.dart' show Share;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
+import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
+import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/recently_viewed_provider.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/cart_action_bar.dart';
@@ -227,6 +229,7 @@ class _DetailBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final pricing = ref.watch(pricingConfigProvider).value;
     return CustomScrollView(
       keyboardDismissBehavior:
           ScrollViewKeyboardDismissBehavior.onDrag,
@@ -242,6 +245,28 @@ class _DetailBody extends ConsumerWidget {
         ),
         SliverToBoxAdapter(child: _ProductHeader(product: product)),
         SliverToBoxAdapter(child: ProductVariantWidget(product: product)),
+        if (pricing != null)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Text(
+                  DeliveryPricingPolicy.productEligibilityLine(pricing),
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.5,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ),
+          ),
         const SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),

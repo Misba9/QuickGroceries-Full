@@ -95,21 +95,23 @@ class HomeShimmer {
     );
   }
 
-  static Widget videoRail() {
+  static Widget videoRail({bool showHeader = true}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _box(height: 18, width: 120, radius: 6),
-        const SizedBox(height: 12),
+        if (showHeader) ...[
+          _box(height: 18, width: 120, radius: 6),
+          const SizedBox(height: 12),
+        ],
         SizedBox(
-          height: 200,
+          height: 218,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.zero,
             itemCount: 2,
             separatorBuilder: (_, __) => const SizedBox(width: 14),
-            itemBuilder: (_, __) => _box(height: 200, width: 300, radius: 24),
+            itemBuilder: (_, __) => _box(height: 218, width: 300, radius: 24),
           ),
         ),
       ],

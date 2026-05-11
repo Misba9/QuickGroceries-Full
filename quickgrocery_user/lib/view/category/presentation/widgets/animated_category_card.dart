@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -29,11 +30,19 @@ class AnimatedCategoryCard extends StatefulWidget {
     required this.category,
     this.variant = AnimatedCategoryCardVariant.tile,
     this.heroPrefix = 'cat-',
+    this.productCount,
+    this.topDiscountPercent,
   });
 
   final CategoryModel category;
   final AnimatedCategoryCardVariant variant;
   final String heroPrefix;
+
+  /// From live product inventory (optional).
+  final int? productCount;
+
+  /// Highest discount percent in category (shows badge when > 0).
+  final int? topDiscountPercent;
 
   @override
   State<AnimatedCategoryCard> createState() => _AnimatedCategoryCardState();
@@ -70,9 +79,19 @@ class _AnimatedCategoryCardState extends State<AnimatedCategoryCard> {
         duration: AppMotion.short,
         curve: AppMotion.spring,
         child: switch (widget.variant) {
-          AnimatedCategoryCardVariant.tile => _Tile(category: widget.category, heroPrefix: widget.heroPrefix),
+          AnimatedCategoryCardVariant.tile => _Tile(
+              category: widget.category,
+              heroPrefix: widget.heroPrefix,
+              productCount: widget.productCount,
+              topDiscountPercent: widget.topDiscountPercent,
+            ),
           AnimatedCategoryCardVariant.trendingHero =>
-            _TrendingHero(category: widget.category, heroPrefix: widget.heroPrefix),
+            _TrendingHero(
+              category: widget.category,
+              heroPrefix: widget.heroPrefix,
+              productCount: widget.productCount,
+              topDiscountPercent: widget.topDiscountPercent,
+            ),
         },
       ),
     );
@@ -80,64 +99,122 @@ class _AnimatedCategoryCardState extends State<AnimatedCategoryCard> {
 }
 
 class _Tile extends StatelessWidget {
-  const _Tile({required this.category, required this.heroPrefix});
+  const _Tile({
+    required this.category,
+    required this.heroPrefix,
+    this.productCount,
+    this.topDiscountPercent,
+  });
   final CategoryModel category;
   final String heroPrefix;
+  final int? productCount;
+  final int? topDiscountPercent;
 
   @override
   Widget build(BuildContext context) {
+    final disc = topDiscountPercent ?? 0;
+    final count = productCount;
     return Column(
       children: [
         Expanded(
           child: AspectRatio(
             aspectRatio: 1,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppColor.primary.withValues(alpha: 0.10),
-                        Colors.white,
-                      ],
+            child: Transform.translate(
+              offset: const Offset(0, -2),
+              child: Stack(
+                clipBehavior: Clip.none,
+                fit: StackFit.expand,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColor.primary.withValues(alpha: 0.16),
+                          Colors.white,
+                          AppSurface.subtle.withValues(alpha: 0.85),
+                        ],
+                      ),
+                      borderRadius: AppRadii.all(AppRadii.lg),
+                      border:
+                          Border.all(color: AppSurface.border.withValues(alpha: 0.8)),
+                      boxShadow: AppShadow.card,
                     ),
-                    borderRadius: AppRadii.all(AppRadii.md),
-                    border: Border.all(color: AppSurface.border),
-                    boxShadow: AppShadow.dim,
-                  ),
-                  padding: const EdgeInsets.all(8),
-                  child: Hero(
-                    tag: '$heroPrefix${category.id}-${category.name}',
-                    child: CachedImage(
-                      url: category.image,
-                      fit: BoxFit.contain,
-                      borderRadius: AppRadii.all(AppRadii.sm),
-                      memCacheWidth: 240,
+                    padding: const EdgeInsets.all(10),
+                    child: Hero(
+                      tag: '$heroPrefix${category.id}-${category.name}',
+                      child: CachedImage(
+                        url: category.image,
+                        fit: BoxFit.contain,
+                        borderRadius: AppRadii.all(AppRadii.sm),
+                        memCacheWidth: 240,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                  if (disc > 0)
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppSurface.danger,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: AppShadow.dim,
+                        ),
+                        child: Text(
+                          '$disc%',
+                          style: GoogleFonts.poppins(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
         const SizedBox(height: 6),
         SizedBox(
-          height: 32,
-          child: Text(
-            category.name,
-            maxLines: 2,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            softWrap: true,
-            style: GoogleFonts.poppins(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: AppSurface.textPrimary,
-              height: 1.15,
-            ),
+          height: count != null ? 38 : 32,
+          child: Column(
+            children: [
+              Text(
+                category.name,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                softWrap: true,
+                style: GoogleFonts.poppins(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppSurface.textPrimary,
+                  height: 1.15,
+                ),
+              ),
+              if (count != null && count > 0) ...[
+                const SizedBox(height: 2),
+                Text(
+                  'items_in_category'
+                      .tr(namedArgs: {'count': count.toString()}),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppSurface.textMuted,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ],
@@ -146,9 +223,16 @@ class _Tile extends StatelessWidget {
 }
 
 class _TrendingHero extends StatelessWidget {
-  const _TrendingHero({required this.category, required this.heroPrefix});
+  const _TrendingHero({
+    required this.category,
+    required this.heroPrefix,
+    this.productCount,
+    this.topDiscountPercent,
+  });
   final CategoryModel category;
   final String heroPrefix;
+  final int? productCount;
+  final int? topDiscountPercent;
 
   /// Deterministic accent gradient picked from the category name so each
   /// hero gets a consistent (but varied) palette without admin config.
@@ -172,103 +256,190 @@ class _TrendingHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 150,
-      child: Container(
+    final disc = topDiscountPercent ?? 0;
+    final count = productCount;
+    return LayoutBuilder(
+      builder: (context, constraints) => SizedBox(
+        width: constraints.maxWidth.isFinite ? constraints.maxWidth : 320,
+        height: 162,
+        child: DecoratedBox(
         decoration: BoxDecoration(
-          borderRadius: AppRadii.all(AppRadii.md),
-          gradient: _accent(),
-          boxShadow: AppShadow.card,
+          borderRadius: AppRadii.all(20),
+          boxShadow: AppShadow.raised,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          children: [
-            Positioned(
-              right: -22,
-              top: -22,
-              child: Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.14),
-                ),
+        child: ClipRRect(
+          borderRadius: AppRadii.all(20),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: _accent(),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.22),
+                width: 1,
               ),
             ),
-            Positioned(
-              right: 8,
-              bottom: 8,
-              child: Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: AppRadii.all(AppRadii.sm),
-                ),
-                padding: const EdgeInsets.all(6),
-                child: Hero(
-                  tag: '$heroPrefix${category.id}-${category.name}',
-                  child: CachedImage(
-                    url: category.image,
-                    fit: BoxFit.contain,
-                    borderRadius: AppRadii.all(AppRadii.xs),
-                    memCacheWidth: 180,
+            child: Stack(
+              children: [
+                Positioned(
+                  right: -28,
+                  top: -28,
+                  child: Container(
+                    width: 110,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.12),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.22),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'TRENDING',
-                      style: GoogleFonts.poppins(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: 1.1,
+                if (disc > 0)
+                  Positioned(
+                    top: 10,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.28),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.percent_rounded,
+                              color: Colors.limeAccent.shade200, size: 12),
+                          const SizedBox(width: 2),
+                          Text(
+                            '$disc% ${'off'.tr()}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    category.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.2,
-                      height: 1.15,
+                Positioned(
+                  right: 14,
+                  bottom: 46,
+                  child: Material(
+                    color: Colors.white,
+                    elevation: 6,
+                    shadowColor: Colors.black26,
+                    borderRadius: AppRadii.all(AppRadii.md),
+                    child: SizedBox(
+                      width: 78,
+                      height: 78,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Hero(
+                          tag: '$heroPrefix${category.id}-${category.name}',
+                          child: CachedImage(
+                            url: category.image,
+                            fit: BoxFit.contain,
+                            borderRadius: AppRadii.all(AppRadii.sm),
+                            memCacheWidth: 200,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                  const Spacer(),
-                  Text(
-                    'Shop now ›',
-                    style: GoogleFonts.poppins(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white.withValues(alpha: 0.94),
-                    ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 96, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'TRENDING',
+                          style: GoogleFonts.poppins(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        category.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: -0.3,
+                          height: 1.12,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              offset: const Offset(0, 1),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (count != null && count > 0) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'items_in_category'.tr(
+                            namedArgs: {'count': count.toString()},
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.92),
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.94),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Shop now ›',
+                              style: GoogleFonts.poppins(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: AppColor.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
+    ),
     );
   }
 }

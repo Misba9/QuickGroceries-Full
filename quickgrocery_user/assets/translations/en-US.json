@@ -129,5 +129,15 @@
     "search_hint_milk": "Search \"milk\"",
     "search_hint_bread": "Search \"bread\"",
     "search_hint_snacks": "Search \"snacks\"",
-    "search_hint_fruits": "Search \"fruits\""
+    "search_hint_fruits": "Search \"fruits\"",
+    "picked_for_you": "Picked for you",
+    "category_promo_video_title": "Spotlight offers",
+    "popular_near_you": "Popular near you",
+    "popular_near_you_sub": "What others are stocking up on",
+    "recommended_products": "Recommended for you",
+    "flash_deals_title": "Flash deals",
+    "items_in_category": "{count} items",
+    "shop_now_cta": "Shop now",
+    "explore_cta": "Explore",
+    "promo_more_soon": "Offer link coming soon — check the home page for deals."
 }

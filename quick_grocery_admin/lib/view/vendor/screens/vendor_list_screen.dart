@@ -1,3 +1,4 @@
+import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
@@ -28,30 +29,41 @@ class _VendorListScreenState extends State<VendorListScreen> {
       body: Column(
         children: [
           PrimaryAppBar(),
-          Padding(
-            padding: const EdgeInsets.all(15.0),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    SvgPicture.asset('assets/icons/userplus.svg'),
-                    AppSpacing.w10,
-                    Text('Vendor List'),
-                  ],
-                ),
-                AppSpacing.h20,
-                WrapperWidget(
-                  child: Column(
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(15.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
                     children: [
-                      Consumer<VendorService>(
-                        builder: (context, p, _) {
-                          if (p.vendors == null) {
-                            return LinearProgressIndicator();
-                          }
-                          return DataTable(
-                            columnSpacing:
-                                MediaQuery.of(context).size.width * .05,
-                            dataRowHeight: 70,
+                      SvgPicture.asset('assets/icons/userplus.svg'),
+                      AppSpacing.w10,
+                      Expanded(
+                        child: Text(
+                          'Vendor List',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  AppSpacing.h20,
+                  WrapperWidget(
+                    child: Column(
+                      children: [
+                        Consumer<VendorService>(
+                          builder: (context, p, _) {
+                            if (p.vendors == null) {
+                              return LinearProgressIndicator();
+                            }
+                            return LayoutBuilder(
+                              builder: (context, c) {
+                                final colSpace =
+                                    (c.maxWidth * 0.03).clamp(8.0, 24.0);
+                                final dataTable = DataTable(
+                                  columnSpacing: colSpace,
+                                  dataRowHeight: 70,
                             columns: const [
                               DataColumn(
                                 label: Text(
@@ -101,26 +113,38 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                 cells: [
                                   DataCell(Text((index + 1).toString())),
                                   DataCell(
-                                    Row(
-                                      children: [
-                                        Container(
-                                          margin: EdgeInsets.symmetric(
-                                            vertical: 10,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            border: Border.all(
-                                              color: Colors.grey,
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                        maxWidth: 260,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            margin: EdgeInsets.symmetric(
+                                              vertical: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              border: Border.all(
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                            height: 50,
+                                            width: 50,
+                                            child: Image.network(
+                                              p.vendors![index].shopImage,
+                                              fit: BoxFit.cover,
                                             ),
                                           ),
-                                          height: 50,
-                                          width: 50,
-                                          child: Image.network(
-                                            p.vendors![index].shopImage,
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              p.vendors![index].shopName,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(p.vendors![index].shopName),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                   DataCell(
@@ -130,8 +154,16 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(p.vendors![index].phone),
-                                          Text(p.vendors![index].email),
+                                          Text(
+                                            p.vendors![index].phone,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Text(
+                                            p.vendors![index].email,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -197,13 +229,20 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                 ],
                               );
                             }),
-                          );
-                        },
-                      ),
-                    ],
+                                );
+                                return adminScrollableDataTable(
+                                  viewportWidth: c.maxWidth,
+                                  dataTable: dataTable,
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
