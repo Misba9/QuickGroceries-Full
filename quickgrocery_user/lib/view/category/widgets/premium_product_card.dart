@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/widgets/animated_add_button.dart';
+import 'package:quickgrocery/core/widgets/discount_badge.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
@@ -170,71 +171,13 @@ class _ImageSurface extends StatelessWidget {
               Positioned(
                 top: 0,
                 left: 0,
-                child: _DiscountBadge(percent: discountPct),
+                child: DiscountBadge(percent: discountPct),
               ),
           ],
         ),
       ),
     );
   }
-}
-
-class _DiscountBadge extends StatelessWidget {
-  const _DiscountBadge({required this.percent});
-  final int percent;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipPath(
-      clipper: _BadgeClipper(),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(6, 4, 6, 10),
-        decoration: const BoxDecoration(gradient: AppGradients.flashSale),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '$percent%',
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                height: 1,
-              ),
-            ),
-            const SizedBox(height: 1),
-            Text(
-              'OFF',
-              style: GoogleFonts.poppins(
-                fontSize: 8.5,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                letterSpacing: 0.6,
-                height: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BadgeClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height - 6)
-      ..lineTo(size.width / 2, size.height)
-      ..lineTo(0, size.height - 6)
-      ..close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
 // ─── Unit chip ──────────────────────────────────────────────────────────

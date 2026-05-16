@@ -207,6 +207,27 @@ class AddressService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Updates preview line + pin from reverse-geocode while picking on the map.
+  void applyMapGeocode(Placemark p) {
+    _pinCode = p.postalCode;
+    final parts = <String>[];
+    void add(String? s) {
+      if (s == null) return;
+      final t = s.trim();
+      if (t.isEmpty) return;
+      parts.add(t);
+    }
+
+    add(p.name);
+    add(p.street);
+    add(p.subLocality);
+    add(p.locality);
+    add(p.postalCode);
+    add(p.administrativeArea);
+    _address = parts.isEmpty ? 'Address not found' : parts.join(', ');
+    notifyListeners();
+  }
+
   /// Extract pin code from address string
   /// Looks for 6-digit numbers (Indian pin code format)
   String? _extractPinCodeFromAddress(String address) {

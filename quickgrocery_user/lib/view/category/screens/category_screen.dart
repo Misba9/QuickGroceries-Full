@@ -5,16 +5,12 @@ import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart' as legacy;
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
-import 'package:quickgrocery/core/widgets/animated_add_button.dart';
 import 'package:quickgrocery/core/widgets/floating_cart_pill.dart';
-import 'package:quickgrocery/core/widgets/quantity_stepper.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/category/widgets/category_search_bar.dart';
 import 'package:quickgrocery/view/category/widgets/category_sidebar_tile.dart';
-import 'package:quickgrocery/view/category/widgets/premium_product_card.dart';
-import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
-import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 
 /// Premium **Category Products** screen — Zepto / Blinkit / Instamart
 /// inspired layout.
@@ -60,11 +56,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 const Expanded(child: _Body()),
               ],
             ),
-            const Positioned(
+            Positioned(
               left: 0,
               right: 0,
-              bottom: 16,
-              child: FloatingCartPill(),
+              bottom: FloatingCartPill.positionedBottomFullScreen(context),
+              child: const FloatingCartPill(),
             ),
           ],
         ),
@@ -239,7 +235,7 @@ class _Grid extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isLoading) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
         child: HomeShimmer.exploreGrid(count: 6),
       );
     }
@@ -248,46 +244,31 @@ class _Grid extends StatelessWidget {
       return _Empty();
     }
 
-    return legacy.Consumer<CategoryService>(
-      builder: (context, p, _) {
-        return GridView.builder(
-          padding: const EdgeInsets.fromLTRB(10, 12, 10, 110),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            // Card content (image + chip + title + rating + price + ADD)
-            // needs ~280 dp at ~139 dp wide → ratio ~0.50 with breathing room
-            // for one-line vs two-line titles and presence/absence of rating.
-            childAspectRatio: 0.50,
-          ),
-          itemCount: p.products.length,
-          itemBuilder: (context, i) {
-            final product = p.products[i];
-            final selected = p.selectedProduct.firstWhere(
-              (e) => e.id == product.id,
-              orElse: () => product,
-            );
-            final inCart = p.selectedProduct.any((e) => e.id == product.id);
-            final count = inCart ? selected.itemCount : 0;
-
-            return PremiumProductCard(
-              product: product,
-              count: count,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProductViewScreen(product: product),
-                ),
+        return legacy.Consumer<CategoryService>(
+          builder: (context, p, _) {
+            return GridView.builder(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 110),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.64,
               ),
-              onAdd: () => p.addProduct(context, product),
-              onIncrement: () => p.addProductCount(product.id),
-              onDecrement: () => p.removeProductCount(product.id),
+              itemCount: p.products.length,
+              itemBuilder: (context, i) {
+                final product = p.products[i];
+                return LayoutBuilder(
+                  builder: (context, c) {
+                    return ProductCardWidget(
+                      product: product,
+                      width: c.maxWidth,
+                    );
+                  },
+                );
+              },
             );
           },
         );
-      },
-    );
   }
 }
 
@@ -330,236 +311,3 @@ class _Empty extends StatelessWidget {
     );
   }
 }
-
-// ──────────────────────────────────────────────────────────────────────────
-//  Legacy `ProductCard` adapter
-// ──────────────────────────────────────────────────────────────────────────
-//
-// Older callers (cart, search, wishlist, "you might also like" rail) still
-// import this widget by name from `category_screen.dart`. We keep its
-// public API exactly as it was — primitives in, callbacks out — but the
-// internals now use the same premium look as [PremiumProductCard]:
-// cached image, discount badge, unit chip, animated ADD ↔ stepper.
-//
-// This means upgrading any of those screens later is a no-op aesthetically
-// because they're already on the new design system.
-
-class ProductCard extends StatelessWidget {
-  const ProductCard({
-    super.key,
-    required this.image,
-    required this.name,
-    required this.price,
-    required this.slashedPrice,
-    required this.isSelected,
-    required this.onSelect,
-    required this.itemCount,
-    required this.onIncrement,
-    required this.onDecrement,
-    required this.onTap,
-    required this.itemQuantity,
-  });
-
-  final String image;
-  final String name;
-  final String price;
-  final String slashedPrice;
-  final bool isSelected;
-  final VoidCallback onSelect;
-  final String itemCount;
-  final VoidCallback onIncrement;
-  final VoidCallback onDecrement;
-  final VoidCallback onTap;
-  final String itemQuantity;
-
-  @override
-  Widget build(BuildContext context) {
-    final priceVal = double.tryParse(price) ?? 0;
-    final slashVal = double.tryParse(slashedPrice) ?? 0;
-    final hasSlash = slashVal > 0 && slashVal > priceVal;
-    final discountPct = hasSlash
-        ? ((slashVal - priceVal) / slashVal * 100).round()
-        : 0;
-    final count = isSelected ? (int.tryParse(itemCount) ?? 1) : 0;
-
-    final card = Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(AppRadii.md),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppRadii.md),
-            border: Border.all(color: AppSurface.border),
-            boxShadow: AppShadow.dim,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final bounded = constraints.hasBoundedHeight &&
-                    constraints.maxHeight < double.infinity;
-                Widget imageStack() {
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadii.sm),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ColoredBox(
-                          color: AppSurface.subtle,
-                          child: CachedImage(url: image, fit: BoxFit.cover),
-                        ),
-                        if (discountPct > 0)
-                          Positioned(
-                            top: 4,
-                            left: 4,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: AppGradients.flashSale,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '$discountPct% OFF',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  height: 1.1,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                }
-
-                final compactImage = SizedBox(
-                  height: 110,
-                  width: double.infinity,
-                  child: imageStack(),
-                );
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize:
-                      bounded ? MainAxisSize.max : MainAxisSize.min,
-                  children: [
-                    if (bounded)
-                      Expanded(
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: imageStack(),
-                        ),
-                      )
-                    else
-                      compactImage,
-                    const SizedBox(height: 8),
-                    if (itemQuantity.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppSurface.subtle,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          itemQuantity,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppSurface.textSecondary,
-                            letterSpacing: 0.2,
-                            height: 1.2,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 4),
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: AppSurface.text,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '₹${_money(priceVal)}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppSurface.text,
-                                  height: 1.1,
-                                ),
-                              ),
-                              if (hasSlash)
-                                Text(
-                                  '₹${_money(slashVal)}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppSurface.textMuted,
-                                    decoration: TextDecoration.lineThrough,
-                                    height: 1.2,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        AnimatedAddButton(
-                          count: count,
-                          onAdd: onSelect,
-                          onIncrement: onIncrement,
-                          onDecrement: onDecrement,
-                          size: QuantityStepperSize.small,
-                        ),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-
-    // When dropped into an unbounded-width parent (e.g. cart's
-    // horizontal ListView), give the card a sensible default width.
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth.isFinite) return card;
-        return SizedBox(width: 150, child: card);
-      },
-    );
-  }
-
-  String _money(double v) =>
-      v == v.truncateToDouble() ? v.toInt().toString() : v.toStringAsFixed(2);
-}
-

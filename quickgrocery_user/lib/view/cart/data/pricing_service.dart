@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
@@ -23,7 +25,48 @@ class PricingService {
   static const _platformDocId = 'r6ArqhMeZYDJnpFo6EJP';
   static const _deliverySettingsDocId = 'default';
 
+  /// Swallows per-document stream errors so [Rx.merge] never tears down the
+  /// whole pricing stream (which would surface as [AsyncError] on the home page).
+  Stream<DocumentSnapshot<Map<String, dynamic>>> _guardDoc(
+    Stream<DocumentSnapshot<Map<String, dynamic>>> raw,
+  ) {
+    return raw.transform(
+      StreamTransformer<DocumentSnapshot<Map<String, dynamic>>,
+          DocumentSnapshot<Map<String, dynamic>>>.fromHandlers(
+        handleData: (data, sink) => sink.add(data),
+        handleError: (
+          Object error,
+          StackTrace stackTrace,
+          EventSink<DocumentSnapshot<Map<String, dynamic>>> sink,
+        ) {
+          if (kDebugMode) {
+            debugPrint(
+              '[PricingService] doc stream soft-fail (${error.runtimeType}): $error',
+            );
+          }
+        },
+        handleDone: (sink) => sink.close(),
+      ),
+    );
+  }
+
   Future<PricingConfig> fetch() async {
+    try {
+      return await _fetchUnchecked();
+    } on FirebaseException catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[PricingService] fetch FirebaseException: $e\n$st');
+      }
+      return const PricingConfig();
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[PricingService] fetch failed: $e\n$st');
+      }
+      return const PricingConfig();
+    }
+  }
+
+  Future<PricingConfig> _fetchUnchecked() async {
     final results = await Future.wait([
       _firestore.collection('delivery_charge').doc(_standardDocId).get(),
       _firestore.collection('delivery_charge').doc(_minOrderDocId).get(),
@@ -133,28 +176,40 @@ class PricingService {
 
   /// Emits a new [PricingConfig] whenever any backing document changes.
   Stream<PricingConfig> watch() async* {
-    yield await fetch();
+    var lastKnown = await fetch();
+    yield lastKnown;
 
     final paths = <Stream<DocumentSnapshot<Map<String, dynamic>>>>[
-      _firestore.collection('app_config').doc('pricing').snapshots(),
-      _firestore
-          .collection('delivery_settings')
-          .doc(_deliverySettingsDocId)
-          .snapshots(),
-      _firestore
-          .collection(AppSettingsPaths.collection)
-          .doc(AppSettingsPaths.documentId)
-          .snapshots(),
-      _firestore.collection('delivery_charge').doc(_platformDocId).snapshots(),
-      _firestore.collection('delivery_charge').doc(_standardDocId).snapshots(),
-      _firestore.collection('delivery_charge').doc(_minOrderDocId).snapshots(),
+      _guardDoc(_firestore.collection('app_config').doc('pricing').snapshots()),
+      _guardDoc(
+        _firestore
+            .collection('delivery_settings')
+            .doc(_deliverySettingsDocId)
+            .snapshots(),
+      ),
+      _guardDoc(
+        _firestore
+            .collection(AppSettingsPaths.collection)
+            .doc(AppSettingsPaths.documentId)
+            .snapshots(),
+      ),
+      _guardDoc(
+        _firestore.collection('delivery_charge').doc(_platformDocId).snapshots(),
+      ),
+      _guardDoc(
+        _firestore.collection('delivery_charge').doc(_standardDocId).snapshots(),
+      ),
+      _guardDoc(
+        _firestore.collection('delivery_charge').doc(_minOrderDocId).snapshots(),
+      ),
     ];
 
     yield* Rx.merge(paths).asyncMap((snap) async {
       if (kDebugMode) {
         debugPrint('[PricingService] snapshot → ${snap.reference.path}');
       }
-      return fetch();
+      lastKnown = await fetch();
+      return lastKnown;
     });
   }
 }

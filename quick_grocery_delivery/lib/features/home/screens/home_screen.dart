@@ -11,6 +11,7 @@ import 'package:quick_grocery_delivery/features/orders/screens/order_screen.dart
 import 'package:quick_grocery_delivery/features/payment/screens/payment_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_grocery_delivery/main.dart';
+import 'package:quick_grocery_delivery/support/support_contact_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -149,8 +150,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       AppSpacing.h10,
                       const Text(
-                        'Please contact the admin',
+                        'Please contact support',
                         style: TextStyle(),
+                      ),
+                      AppSpacing.h15,
+                      ElevatedButton.icon(
+                        onPressed: () => SupportContactSheet.show(context),
+                        icon: const Icon(Icons.support_agent_outlined),
+                        label: const Text('Contact Support'),
                       ),
                     ],
                   ),

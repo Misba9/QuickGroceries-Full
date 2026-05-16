@@ -1,10 +1,8 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
-import 'package:quickgrocery/view/auth/screens/otp_screen.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
 import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
-import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 class LoginScreen extends StatelessWidget {

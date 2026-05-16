@@ -8,10 +8,13 @@ import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/view/category/screens/category_screen.dart';
+import 'package:quickgrocery/view/app_content/models/app_content_config.dart';
+import 'package:quickgrocery/view/app_content/presentation/providers/app_content_providers.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_status_views.dart';
+import 'package:quickgrocery/view/app_content/presentation/providers/app_content_extensions.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 
@@ -24,12 +27,19 @@ class HomeCategoriesRail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(categoriesStreamProvider);
+    final appContentAsync = ref.watch(appContentStreamProvider);
+    final appContent = appContentAsync.value ?? AppContentConfig.defaults;
+    final contentLoading =
+        appContentAsync.isLoading && !appContentAsync.hasValue;
+
+    if (!appContent.showShopCategory) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
-          title: 'shop_by_category'.tr(),
+          title: appContent.shopCategoryHeading,
+          isLoading: contentLoading,
           actionLabel: 'see_all'.tr(),
           onAction: () => legacy.Provider.of<HomeProvider>(
             context,

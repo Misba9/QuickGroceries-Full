@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:easy_localization/easy_localization.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:quickgrocery/core/widgets/firestore_connection_lost.dart';
 import 'package:quickgrocery/core/widgets/floating_cart_pill.dart';
 import 'package:quickgrocery/core/widgets/premium_five_tab_nav.dart';
 import 'package:quickgrocery/view/delivery/presentation/delivery_pricing_update_listener.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
 import 'package:quickgrocery/view/offers/presentation/widgets/promotion_popup_bootstrap.dart';
 import 'package:quickgrocery/not_available_screen.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
@@ -18,45 +18,37 @@ class LandingScreen extends StatefulWidget {
 }
 
 class _LandingScreenState extends State<LandingScreen> {
-  @override
-  void initState() {
-    super.initState();
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      // Foreground notifications are handled by the system tray.
-      // Hook into [message] here if a custom in-app banner is desired.
-    });
+  int _adminStreamKey = 0;
 
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      final notification = message.notification;
-      if (notification != null && mounted) {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: Text(notification.title ?? ''),
-            content: SingleChildScrollView(
-              child: Text(notification.body ?? ''),
-            ),
-          ),
-        );
-      }
-    });
+  Stream<DocumentSnapshot> _adminDocStream() {
+    return FirebaseFirestore.instance
+        .collection('admins')
+        .doc('4elRGQlC662hdcE1a1Ls')
+        .snapshots();
+  }
+
+  void _reconnectAdminStream() {
+    setState(() => _adminStreamKey++);
   }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('admins')
-          .doc('4elRGQlC662hdcE1a1Ls')
-          .snapshots(),
+      key: ValueKey<int>(_adminStreamKey),
+      stream: _adminDocStream(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Scaffold(
-            body: Center(child: Text('something_went_wrong'.tr())),
+          return FirestoreConnectionLost(
+            error: snapshot.error!,
+            onRetry: _reconnectAdminStream,
           );
         }
 
-        if (!snapshot.hasData || !snapshot.data!.exists) {
+        if (!snapshot.hasData) {
+          return HomeShimmer.landingTabShell();
+        }
+
+        if (!snapshot.data!.exists) {
           return const NotActiveScreen();
         }
 
@@ -75,11 +67,13 @@ class _LandingScreenState extends State<LandingScreen> {
                         index: provider.selectedIndex,
                         children: provider.pages,
                       ),
-                      const Positioned(
+                      Positioned(
                         left: 0,
                         right: 0,
-                        bottom: 76,
-                        child: FloatingCartPill(),
+                        bottom: PremiumFiveTabNav.floatingOverlayBodyBottom(
+                          context,
+                        ),
+                        child: const FloatingCartPill(),
                       ),
                     ],
                   ),

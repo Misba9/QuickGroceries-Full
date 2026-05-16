@@ -54,7 +54,7 @@ class Responsive {
     return (188 / textFactor).clamp(162.0, 216.0);
   }
 
-  /// Cart / legacy horizontal [ProductCard] rail height.
+  /// Cart horizontal product rail height (matches [HomeProductCard]).
   static double legacyHorizontalProductRailHeight(BuildContext context) {
     final mq = MediaQuery.of(context);
     final textFactor = (mq.textScaler.scale(12) / 12).clamp(0.82, 1.65);

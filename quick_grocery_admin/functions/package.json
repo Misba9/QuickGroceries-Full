@@ -13,11 +13,12 @@
     "seed:admin": "node scripts/seed_admin.cjs"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "firebase-admin": "^12.7.0",
-    "firebase-functions": "^5.1.1",
-    "twilio": "^5.4.0"
+    "firebase-functions": "^5.1.1"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
     "typescript": "^5.7.2"
   }
 }

@@ -101,7 +101,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
     final storyOffers = _storyOffers(storiesAsync, pageAsync);
     final endingSoon = _endingSoon(banners);
     final couponsAsync = ref.watch(couponsStreamProvider);
-    final pricing = ref.watch(pricingConfigProvider).value;
+    final pricing = ref.watch(pricingConfigProvider).asData?.value;
 
     return PopScope(
       canPop: false,

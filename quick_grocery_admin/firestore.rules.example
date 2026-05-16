@@ -25,3 +25,13 @@
 //   allow read: if isNotificationAdmin();
 //   allow write: if false;
 // }
+//
+// match /app_content/{id} {
+//   allow read: if true;
+//   allow write: if isNotificationAdmin();
+// }
+//
+// match /support_settings/{id} {
+//   allow read: if true;
+//   allow write: if isNotificationAdmin();
+// }

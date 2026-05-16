@@ -1,9 +1,8 @@
 import * as admin from "firebase-admin";
 import { logger } from "firebase-functions";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { callableBaseOptions } from "./https_callable_options";
 import { hasElevatedAdmin } from "./roles";
-
-const REGION = "us-central1";
 
 const MIN_BOOTSTRAP_LEN = 12;
 
@@ -14,7 +13,7 @@ const MIN_BOOTSTRAP_LEN = 12;
  *   elevates **only** the signed-in user.
  * - **Admin promote**: existing elevated admin may pass `uid` to grant another account.
  */
-export const setAdminClaims = onCall({ region: REGION }, async (request) => {
+export const setAdminClaims = onCall({ ...callableBaseOptions() }, async (request) => {
   const callerUid = request.auth?.uid;
   if (!callerUid) {
     throw new HttpsError("unauthenticated", "Sign in required.");

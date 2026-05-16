@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/product/product_quantity_label.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/widgets/discount_badge.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
@@ -21,12 +23,16 @@ class HomeProductCard extends ConsumerWidget {
     super.key,
     required this.product,
     this.width = 150,
+    this.onAfterProductDetailClosed,
   });
 
   final ProductModel product;
   final double width;
+  /// Called after the product detail route is popped (e.g. wishlist refresh).
+  final VoidCallback? onAfterProductDetailClosed;
 
   static const double _radius = AppRadii.lg;
+  static const double _elevation = 6;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -43,7 +49,20 @@ class HomeProductCard extends ConsumerWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(_radius),
-          boxShadow: AppShadow.card,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: _elevation * 2,
+              spreadRadius: 0,
+              offset: const Offset(0, 3),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: _elevation,
+              spreadRadius: -1,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Material(
           color: Colors.white,
@@ -51,14 +70,15 @@ class HomeProductCard extends ConsumerWidget {
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             borderRadius: BorderRadius.circular(_radius),
-            onTap: () {
+            onTap: () async {
               HapticFeedback.selectionClick();
-              Navigator.push(
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => ProductViewScreen(product: product),
                 ),
               );
+              onAfterProductDetailClosed?.call();
             },
             child: Container(
               decoration: BoxDecoration(
@@ -91,11 +111,11 @@ class HomeProductCard extends ConsumerWidget {
                       else
                         image,
                       const SizedBox(height: 8),
-                      _Quantity(text: _formatQuantity(product)),
+                      _Quantity(text: productQuantityLabel(product)),
                       const SizedBox(height: 4),
                       Text(
                         product.name,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
                           fontSize: 12.5,
@@ -137,16 +157,10 @@ class HomeProductCard extends ConsumerWidget {
       ),
     );
   }
-
-  String _formatQuantity(ProductModel p) {
-    final unitPerItem = p.unitPerItem.trim();
-    final unit = p.unit.trim();
-    if (unitPerItem.isEmpty && unit.isEmpty) return '';
-    if (unitPerItem.isEmpty) return unit;
-    if (unit.isEmpty) return unitPerItem;
-    return '$unitPerItem $unit';
-  }
 }
+
+/// Same widget as [HomeProductCard] — use this name in category/search grids.
+typedef ProductCardWidget = HomeProductCard;
 
 class _FavoriteChip extends ConsumerWidget {
   const _FavoriteChip({required this.productId});
@@ -193,49 +207,37 @@ class _ImageWithDiscount extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        AspectRatio(
-          aspectRatio: 1,
-          child: Container(
-            decoration: BoxDecoration(
+    return AspectRatio(
+      aspectRatio: 1,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(_innerR),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ColoredBox(
               color: AppSurface.subtle.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(_innerR),
-            ),
-            padding: const EdgeInsets.all(6),
-            child: Hero(
-              tag: productHeroTag(product.id),
-              child: CachedImage(
-                url: product.image,
-                fit: BoxFit.contain,
-                borderRadius: BorderRadius.circular(_innerR - 4),
-                memCacheWidth: 360,
-              ),
-            ),
-          ),
-        ),
-        if (product.hasDiscount)
-          Positioned(
-            top: 6,
-            left: 6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColor.primary,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: AppShadow.dim,
-              ),
-              child: Text(
-                '${product.discountPercent}% OFF',
-                style: GoogleFonts.poppins(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Hero(
+                  tag: productHeroTag(product.id),
+                  child: CachedImage(
+                    url: product.image,
+                    fit: BoxFit.contain,
+                    borderRadius: BorderRadius.circular(_innerR - 4),
+                    memCacheWidth: 360,
+                  ),
                 ),
               ),
             ),
-          ),
-      ],
+            if (product.hasDiscount)
+              Positioned(
+                top: 0,
+                left: 0,
+                child: DiscountBadge(percent: product.discountPercent),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -249,7 +251,7 @@ class _Quantity extends StatelessWidget {
     if (text.isEmpty) return const SizedBox.shrink();
     return Text(
       text,
-      maxLines: 1,
+      maxLines: 2,
       overflow: TextOverflow.ellipsis,
       style: GoogleFonts.poppins(
         fontSize: 10.5,

@@ -15,15 +15,24 @@ import '../design/app_tokens.dart';
 class FloatingCartPill extends StatelessWidget {
   const FloatingCartPill({
     super.key,
-    this.bottomInset = 16,
+    this.bottomInset = 12,
     this.horizontalInset = 24,
   });
+
+  /// Same vertical band as [PremiumFiveTabNav.floatingCartGapAboveBar].
+  static const double kGapAboveTabBar = 12;
+
+  /// [Positioned.bottom] when the stack fills the screen (no tab bar) but
+  /// [SafeArea] bottom is off — adds [MediaQuery.padding.bottom] for the
+  /// home indicator / gesture inset.
+  static double positionedBottomFullScreen(BuildContext context) =>
+      kGapAboveTabBar + MediaQuery.paddingOf(context).bottom;
 
   /// Wrap any [body] with the pill stacked at the bottom. Use this on
   /// screens that don't already have their own floating cart bar.
   static Widget scaffold({
     required Widget body,
-    double bottomInset = 16,
+    double bottomInset = 12,
     double horizontalInset = 24,
   }) {
     return Stack(
@@ -92,9 +101,10 @@ class _PillBody extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: horizontalInset),
       child: Material(
-        color: AppColor.primary,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(AppRadii.pill),
         elevation: 0,
+        shadowColor: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadii.pill),
           onTap: () {
@@ -107,7 +117,14 @@ class _PillBody extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColor.primary,
               borderRadius: BorderRadius.circular(AppRadii.pill),
-              boxShadow: AppShadow.primaryGlow,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 8,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

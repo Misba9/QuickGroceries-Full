@@ -28,6 +28,12 @@ class ProductModel {
   double slashedPrice;
   String vendorId;
   String unitPerItem;
+  /// Optional pack quantity from admin (`quantity`, `qty`, …).
+  String packQuantity;
+  /// Optional weight / size from admin (`weight`, …).
+  String packWeight;
+  /// Optional measurement hint (`measurement_type`, …).
+  String measurementType;
   int itemCount;
   bool isMostSold;
   int productIndex;
@@ -59,6 +65,9 @@ class ProductModel {
     required this.slashedPrice,
     required this.vendorId,
     required this.unitPerItem,
+    this.packQuantity = '',
+    this.packWeight = '',
+    this.measurementType = '',
     required this.itemCount,
     required this.isMostSold,
     required this.productIndex,
@@ -92,6 +101,20 @@ class ProductModel {
       slashedPrice: _asDouble(data['discountPrice'] ?? data['slashedPrice']),
       vendorId: data['vendor_id']?.toString() ?? '',
       unitPerItem: data['unitPerItem']?.toString() ?? '',
+      packQuantity: _firstNonEmptyString(data, const [
+        'quantity',
+        'packQuantity',
+        'qty',
+      ]),
+      packWeight: _firstNonEmptyString(data, const [
+        'weight',
+        'packWeight',
+        'gram_weight',
+      ]),
+      measurementType: _firstNonEmptyString(data, const [
+        'measurement_type',
+        'measurementType',
+      ]),
       itemCount: _asInt(data['itemCount']),
       isMostSold: _asBool(data['most_sold'], fallback: false),
       productIndex: _asInt(data['product_index']),
@@ -128,6 +151,9 @@ class ProductModel {
     'slashedPrice': slashedPrice,
     'vendor_id': vendorId,
     'unitPerItem': unitPerItem,
+    if (packQuantity.isNotEmpty) 'quantity': packQuantity,
+    if (packWeight.isNotEmpty) 'weight': packWeight,
+    if (measurementType.isNotEmpty) 'measurement_type': measurementType,
     'itemCount': itemCount,
     'most_sold': isMostSold,
     'product_index': productIndex,
@@ -158,6 +184,9 @@ class ProductModel {
     double? slashedPrice,
     String? vendorId,
     String? unitPerItem,
+    String? packQuantity,
+    String? packWeight,
+    String? measurementType,
     int? itemCount,
     bool? isMostSold,
     int? productIndex,
@@ -187,6 +216,9 @@ class ProductModel {
       slashedPrice: slashedPrice ?? this.slashedPrice,
       vendorId: vendorId ?? this.vendorId,
       unitPerItem: unitPerItem ?? this.unitPerItem,
+      packQuantity: packQuantity ?? this.packQuantity,
+      packWeight: packWeight ?? this.packWeight,
+      measurementType: measurementType ?? this.measurementType,
       itemCount: itemCount ?? this.itemCount,
       isMostSold: isMostSold ?? this.isMostSold,
       productIndex: productIndex ?? this.productIndex,
@@ -239,6 +271,17 @@ class ProductModel {
     }
     return slashedPrice;
   }
+}
+
+String _firstNonEmptyString(Map<String, dynamic> data, List<String> keys) {
+  for (final k in keys) {
+    if (!data.containsKey(k)) continue;
+    final v = data[k];
+    if (v == null) continue;
+    final t = v.toString().trim();
+    if (t.isNotEmpty) return t;
+  }
+  return '';
 }
 
 bool _resolveIsAvailable(Map<String, dynamic> data) {

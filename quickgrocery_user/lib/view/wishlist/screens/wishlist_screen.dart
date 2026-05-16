@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
-import 'package:quickgrocery/view/category/screens/category_screen.dart';
-import 'package:quickgrocery/view/category/services/category_service.dart';
-import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/wishlist/services/wishlist_service.dart';
 
 class WishlistScreen extends StatefulWidget {
@@ -30,7 +28,6 @@ class _WishlistScreenState extends State<WishlistScreen> {
   @override
   Widget build(BuildContext context) {
     final wishlistProvider = Provider.of<WishlistService>(context);
-    final categoryProvider = Provider.of<CategoryService>(context);
 
     return Scaffold(
       appBar: AppBar(centerTitle: true, title: Text('wishlist'.tr())),
@@ -56,46 +53,24 @@ class _WishlistScreenState extends State<WishlistScreen> {
                 wishlistProvider.refreshWishlist();
               },
               child: GridView.builder(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 24),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 15,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 0.38,
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 0.64,
                 ),
                 itemCount: wishlistProvider.wishlistProducts!.length,
                 itemBuilder: (context, i) {
                   final product = wishlistProvider.wishlistProducts![i];
-                  return ProductCard(
-                    itemQuantity: product.unitPerItem,
-                    name: product.name,
-                    image: product.image,
-                    price: product.price.toString(),
-                    slashedPrice: product.slashedPrice.toString(),
-                    isSelected: categoryProvider.selectedProduct.any(
-                      (e) => e.id == product.id,
-                    ),
-                    onSelect: () {
-                      categoryProvider.addProduct(context, product);
-                    },
-                    itemCount: product.itemCount.toString(),
-                    onDecrement: () {
-                      categoryProvider.removeProductCount(product.id);
-                    },
-                    onIncrement: () {
-                      categoryProvider.addProductCount(product.id);
-                    },
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              ProductViewScreen(product: product),
-                        ),
-                      ).then((_) {
-                        // Refresh wishlist when returning from product view
-                        wishlistProvider.refreshWishlist();
-                      });
+                  return LayoutBuilder(
+                    builder: (context, c) {
+                      return ProductCardWidget(
+                        product: product,
+                        width: c.maxWidth,
+                        onAfterProductDetailClosed: () =>
+                            wishlistProvider.refreshWishlist(),
+                      );
                     },
                   );
                 },

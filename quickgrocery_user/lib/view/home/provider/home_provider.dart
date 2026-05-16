@@ -71,7 +71,21 @@ class HomeProvider extends ChangeNotifier {
         await FirebaseFirestore.instance
             .collection('customers')
             .doc(FirebaseAuth.instance.currentUser!.uid)
-            .update({'fcm_token': token});
+            .set(
+          {
+            'fcm_token': token,
+            'fcmToken': token,
+            'fcmUpdatedAt': FieldValue.serverTimestamp(),
+            'fcmTopics': FieldValue.arrayUnion(const [
+              'all_users',
+              'offers',
+              'vegetables',
+              'dairy',
+              'premium_users',
+            ]),
+          },
+          SetOptions(merge: true),
+        );
 
         print('FCM token updated successfully: $token');
       } else {

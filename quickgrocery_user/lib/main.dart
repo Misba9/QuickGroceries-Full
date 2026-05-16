@@ -4,17 +4,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/firebase/firebase_bootstrap.dart';
+import 'package:quickgrocery/core/firestore/firestore_retry.dart';
+import 'package:quickgrocery/core/widgets/startup_failure_screen.dart';
 // Riverpod and `package:provider` both export `ChangeNotifierProvider`
 // and `Consumer`. Restrict Riverpod to `ProviderScope` here so the legacy
 // Provider symbols remain unambiguous everywhere else in the app.
 import 'package:flutter_riverpod/flutter_riverpod.dart'
     show ProviderScope, Consumer;
 import 'package:quickgrocery/core/design/app_theme.dart';
+import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
+import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/realtime/realtime_bootstrap.dart';
 import 'package:quickgrocery/services/language_service.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
@@ -36,21 +40,11 @@ import 'package:provider/provider.dart' hide Consumer;
 import 'package:provider/provider.dart' as legacy_provider show Consumer;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'view/home/screens/landing_screen.dart';
-// import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
-// const AndroidNotificationChannel channel = AndroidNotificationChannel(
-//   'high_importance_channel',
-//   'High Importance Notifications',
-//   description: 'This channel is used for important notifications.',
-//   importance: Importance.high,
-//   playSound: true,
-// );
-
-// final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-//     FlutterLocalNotificationsPlugin();
-
+@pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeFirebaseWithRetry(maxAttempts: 4);
+  RealtimeBootstrap.configureFirestore();
 }
 
 /// App Check must be active when enforcement is on in Firebase Console.
@@ -111,10 +105,12 @@ Future<void> handleReferralAfterInstall() async {
 }
 
 Future<void> saveReferral(String referrerId) async {
-  await FirebaseFirestore.instance
-      .collection('customers')
-      .doc(FirebaseAuth.instance.currentUser!.uid)
-      .set({'referred_by': referrerId}, SetOptions(merge: true));
+  await withFirestoreRetry(
+    () => FirebaseFirestore.instance
+        .collection('customers')
+        .doc(FirebaseAuth.instance.currentUser!.uid)
+        .set({'referred_by': referrerId}, SetOptions(merge: true)),
+  );
 
   print("Referral saved! New user referred by: $referrerId");
 }
@@ -135,45 +131,89 @@ bool _shouldSilencePrint(String? message) {
   return false;
 }
 
+void _configureProductionErrorPresentation() {
+  if (kDebugMode) return;
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: Colors.white,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey.shade500),
+              const SizedBox(height: 16),
+              Text(
+                'This part of the app couldn’t be shown.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Go back or restart the app.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
+}
+
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp();
-  // Realtime layer needs offline persistence configured BEFORE any
-  // Firestore handle is acquired; configure first so the very first
-  // listener inherits the right cache settings.
-  RealtimeBootstrap.configureFirestore();
-  await configureFirebaseAppCheck();
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  try {
+    await initializeFirebaseWithRetry();
+    // Realtime layer needs offline persistence configured BEFORE any
+    // Firestore handle is acquired; configure first so the very first
+    // listener inherits the right cache settings.
+    RealtimeBootstrap.configureFirestore();
+    await configureFirebaseAppCheck();
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Initialize EasyLocalization
-  await EasyLocalization.ensureInitialized();
-  // await flutterLocalNotificationsPlugin
-  //     .resolvePlatformSpecificImplementation<
-  //       AndroidFlutterLocalNotificationsPlugin
-  //     >()
-  //     ?.createNotificationChannel(channel);
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
+    // Initialize EasyLocalization
+    await EasyLocalization.ensureInitialized();
+    await FcmPushInitializer.ensureInitialized();
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-  // ignore: unused_local_variable
-  NotificationSettings settings = await messaging.requestPermission(
-    alert: true,
-    announcement: false,
-    badge: true,
-    carPlay: false,
-    criticalAlert: false,
-    provisional: false,
-    sound: true,
-  );
+    // ignore: unused_local_variable
+    NotificationSettings settings = await messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
 
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
+    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
 
-  handleReferralAfterInstall();
-  runApp(const ProviderScope(child: MyApp()));
+    _configureProductionErrorPresentation();
+
+    handleReferralAfterInstall();
+    runApp(const ProviderScope(child: MyApp()));
+  } catch (e, st) {
+    FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
+    runApp(
+      StartupFailureScreen(
+        error: e,
+        onRetry: _bootstrap,
+      ),
+    );
+  }
 }
 
 /// Real entrypoint — wraps [_bootstrap] in a custom [Zone] that
@@ -258,6 +298,7 @@ class _MyAppState extends State<MyApp> {
               builder: (context, languageService, _) {
                 return Builder(
                   builder: (context) => MaterialApp(
+                    navigatorKey: rootNavigatorKey,
                     key: ValueKey(languageService.currentLocale.toString()),
                     localizationsDelegates: context.localizationDelegates,
                     supportedLocales: context.supportedLocales,

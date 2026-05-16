@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart' show Share;
 
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/models/product.dart';
+import 'package:quickgrocery/core/product/product_quantity_label.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
@@ -229,7 +230,7 @@ class _DetailBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pricing = ref.watch(pricingConfigProvider).value;
+    final pricing = ref.watch(pricingConfigProvider).asData?.value;
     return CustomScrollView(
       keyboardDismissBehavior:
           ScrollViewKeyboardDismissBehavior.onDrag,
@@ -328,7 +329,7 @@ class _ProductHeader extends ConsumerWidget {
         children: [
           Row(
             children: [
-              if (product.unitPerItem.isNotEmpty || product.unit.isNotEmpty)
+              if (productQuantityLabel(product).isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -339,9 +340,9 @@ class _ProductHeader extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    [product.unitPerItem, product.unit]
-                        .where((s) => s.trim().isNotEmpty)
-                        .join(' '),
+                    productQuantityLabel(product),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
                       fontSize: 11,
                       color: Colors.grey.shade700,

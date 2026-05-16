@@ -10,6 +10,7 @@ import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
 import 'package:quickgrocery/core/widgets/skeleton.dart';
 import 'package:quickgrocery/core/widgets/staggered_fade_in.dart';
 import 'package:quickgrocery/models/product.dart';
+import 'package:quickgrocery/view/app_content/presentation/widgets/animated_app_heading.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 
@@ -28,9 +29,15 @@ class FlashSaleSection extends ConsumerStatefulWidget {
     super.key,
     this.minDiscountPercent = 25,
     this.cardMargin = const EdgeInsets.only(top: 12),
+    this.heading,
+    this.headingLoading = false,
   });
 
   final int minDiscountPercent;
+
+  /// Admin-configured title; when null the parent should pass Firestore copy.
+  final String? heading;
+  final bool headingLoading;
 
   /// Outer margin around the gradient card (Categories sets [EdgeInsets.zero]
   /// when a section title sits above).
@@ -84,8 +91,8 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
 
     final loading = trending.isLoading || featured.isLoading;
     final List<ProductModel> pool = [
-      ...trending.value ?? const [],
-      ...featured.value ?? const [],
+      ...trending.asData?.value ?? const [],
+      ...featured.asData?.value ?? const [],
     ];
 
     final seen = <String>{};
@@ -94,10 +101,14 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
         .where((p) => seen.add(p.id))
         .toList();
 
+    final title = widget.heading ?? 'Flash deals';
+
     if (loading && discounted.isEmpty) {
       return _Card(
         margin: widget.cardMargin,
         end: _remaining,
+        heading: title,
+        headingLoading: widget.headingLoading,
         child: Builder(
           builder: (context) => SkeletonRail(
             count: 4,
@@ -113,6 +124,8 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
     return _Card(
       margin: widget.cardMargin,
       end: _remaining,
+      heading: title,
+      headingLoading: widget.headingLoading,
       child: Builder(
         builder: (context) {
           final h = Responsive.horizontalProductRailHeight(context);
@@ -135,10 +148,14 @@ class _Card extends StatelessWidget {
   const _Card({
     required this.margin,
     required this.end,
+    required this.heading,
     required this.child,
+    this.headingLoading = false,
   });
   final EdgeInsetsGeometry margin;
   final Duration end;
+  final String heading;
+  final bool headingLoading;
   final Widget child;
 
   @override
@@ -171,13 +188,17 @@ class _Card extends StatelessWidget {
                     const Icon(Icons.flash_on_rounded,
                         color: Colors.white, size: 14),
                     const SizedBox(width: 4),
-                    Text(
-                      'FLASH SALE',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: 0.6,
+                    Flexible(
+                      child: AnimatedAppHeading(
+                        text: heading.toUpperCase(),
+                        isLoading: headingLoading,
+                        compact: true,
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: 0.6,
+                        ),
                       ),
                     ),
                   ],

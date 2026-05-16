@@ -1,11 +1,15 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quickgrocery/core/firestore/firestore_retry.dart';
+import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
+import 'package:quickgrocery/core/push/push_navigation.dart';
 
 /// Configures Firestore offline persistence + FCM foreground bridge so
 /// the realtime layer behaves correctly across reconnects, kill/restart,
@@ -52,27 +56,90 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
     RealtimeBootstrap.configureFirestore();
     _attachFcm();
     _attachAuth();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final initial = await FirebaseMessaging.instance.getInitialMessage();
+      if (initial != null) {
+        await _persistInboxFromMessage(initial);
+        await handlePushNavigation(initial.data);
+      }
+    });
+  }
+
+  Future<void> _persistInboxFromMessage(RemoteMessage msg) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final n = msg.notification;
+    final d = msg.data;
+    try {
+      await withFirestoreRetry(
+        () => FirebaseFirestore.instance
+            .collection('customers')
+            .doc(uid)
+            .collection('notification_inbox')
+            .add({
+          'title': n?.title ?? '',
+          'body': n?.body ?? '',
+          'redirectType': d['redirectType']?.toString() ?? '',
+          'deepLink': d['deepLink']?.toString() ?? '',
+          'imageUrl': d['imageUrl']?.toString() ?? '',
+          'logId': d['logId']?.toString() ?? '',
+          'read': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        }),
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Realtime] inbox write failed: $e');
+    }
+  }
+
+  static const _defaultFcmTopics = <String>[
+    'all_users',
+    'offers',
+    'vegetables',
+    'dairy',
+    'premium_users',
+  ];
+
+  Future<void> _subscribeDefaultTopics() async {
+    if (kIsWeb) return;
+    for (final t in _defaultFcmTopics) {
+      try {
+        await FirebaseMessaging.instance.subscribeToTopic(t);
+      } catch (e) {
+        if (kDebugMode) debugPrint('[Realtime] subscribe $t: $e');
+      }
+    }
   }
 
   void _attachFcm() {
-    // Foreground push → in-app banner. The OS won't show a tray
-    // notification while the app is in the foreground; users still
-    // need to know.
-    _onMessageSub = FirebaseMessaging.onMessage.listen((msg) {
+    _onMessageSub = FirebaseMessaging.onMessage.listen((msg) async {
       if (!mounted) return;
+      await _persistInboxFromMessage(msg);
       final n = msg.notification;
-      if (n == null) return;
-      _showInAppSnack(n.title ?? 'Update', n.body ?? '');
+      final title = n?.title ?? (msg.data['title']?.toString() ?? 'Update');
+      final body = n?.body ?? (msg.data['message']?.toString() ?? '');
+      if (kIsWeb) {
+        _showInAppSnack(title, body);
+      } else {
+        await FcmPushInitializer.showForeground(msg);
+      }
+      try {
+        await FirebaseAnalytics.instance.logEvent(
+          name: 'notification_received',
+          parameters: {
+            'foreground': 'true',
+            'has_notification': (n != null).toString(),
+          },
+        );
+      } catch (_) {
+        /* optional */
+      }
     });
 
-    // Tap on a tray notification → deep link via `data.deepLink`.
-    // Cloud Functions should set `data: { deepLink: '/orders/123' }`.
-    _onMessageOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((msg) {
-      final link = msg.data['deepLink'];
-      if (link is String && link.isNotEmpty) {
-        debugPrint('[Realtime] FCM tap deepLink=$link');
-        // Navigation hooked at the app router level.
-      }
+    _onMessageOpenedSub =
+        FirebaseMessaging.onMessageOpenedApp.listen((msg) async {
+      await _persistInboxFromMessage(msg);
+      await handlePushNavigation(msg.data);
     });
 
     // Token refresh → write into the customer doc the user is signed
@@ -101,14 +168,19 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
     final uid = _lastUid ?? FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     try {
-      await FirebaseFirestore.instance.collection('customers').doc(uid).set(
-        {
-          'fcmToken': token,
-          'fcmPlatform': defaultTargetPlatform.name,
-          'fcmUpdatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
+      await withFirestoreRetry(
+        () => FirebaseFirestore.instance.collection('customers').doc(uid).set(
+          {
+            'fcmToken': token,
+            'fcm_token': token,
+            'fcmPlatform': defaultTargetPlatform.name,
+            'fcmUpdatedAt': FieldValue.serverTimestamp(),
+            'fcmTopics': FieldValue.arrayUnion(_defaultFcmTopics),
+          },
+          SetOptions(merge: true),
+        ),
       );
+      await _subscribeDefaultTopics();
     } catch (e) {
       if (kDebugMode) debugPrint('[Realtime] FCM token write failed: $e');
     }

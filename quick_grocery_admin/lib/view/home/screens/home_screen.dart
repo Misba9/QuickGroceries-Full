@@ -20,9 +20,11 @@ import 'package:quick_grocery_admin/view/products/services/product_service.dart'
 import 'package:quick_grocery_admin/view/users/screens/user_screen.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_add_screen.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
-import 'package:quick_grocery_admin/view/sms/presentation/screens/sms_history_screen.dart';
-import 'package:quick_grocery_admin/view/sms/presentation/screens/sms_notifications_screen.dart';
-import 'package:quick_grocery_admin/view/sms/presentation/screens/sms_templates_screen.dart';
+import 'package:quick_grocery_admin/view/push_notifications/presentation/screens/notification_history_screen.dart';
+import 'package:quick_grocery_admin/view/push_notifications/presentation/screens/notification_templates_screen.dart';
+import 'package:quick_grocery_admin/view/push_notifications/presentation/screens/push_notifications_screen.dart';
+import 'package:quick_grocery_admin/view/app_content_management/screens/app_content_management_screen.dart';
+import 'package:quick_grocery_admin/view/support_settings/screens/support_settings_screen.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
@@ -169,12 +171,19 @@ class _HomeScreenState extends State<HomeScreen> {
           HoverExpansionTile(
             selectedSubcategory: selectedScreen,
             icon: 'assets/icons/sms.svg',
-            title: "Notifications",
+            title: "Push Notifications",
             subcategories: const [
-              "SMS Notifications",
-              "SMS Templates",
-              "SMS History",
+              "Push Notifications",
+              "Notification Templates",
+              "Notification History",
             ],
+            onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
+          ),
+          HoverExpansionTile(
+            selectedSubcategory: selectedScreen,
+            icon: 'assets/icons/user.svg',
+            title: "Settings",
+            subcategories: const ["App Content", "Support Settings"],
             onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
           ),
         ],
@@ -282,12 +291,16 @@ class _HomeScreenState extends State<HomeScreen> {
         return CouponScreen();
       case "Platform Fee & Charges":
         return PlatformFeeScreen();
-      case "SMS Notifications":
-        return const SmsNotificationsScreen();
-      case "SMS Templates":
-        return const SmsTemplatesScreen();
-      case "SMS History":
-        return const SmsHistoryScreen();
+      case "Push Notifications":
+        return const PushNotificationsScreen();
+      case "Notification Templates":
+        return const NotificationTemplatesScreen();
+      case "Notification History":
+        return const NotificationHistoryScreen();
+      case "App Content":
+        return const AppContentManagementScreen();
+      case "Support Settings":
+        return const SupportSettingsScreen();
       default:
         return Center(child: Text("Select a category"));
     }

@@ -21,12 +21,10 @@ import 'package:quickgrocery/view/cart/presentation/widgets/premium_bill_card.da
 import 'package:quickgrocery/view/cart/presentation/widgets/premium_cart_item_card.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/premium_checkout_bar.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/premium_empty_cart.dart';
-import 'package:quickgrocery/view/category/screens/category_screen.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/coupons/coupon_screen.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
-import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
-
 /// **CartScreen** — premium Zepto / Blinkit / Instamart-style bag.
 ///
 /// **Layout architecture (the user explicitly asked for this):**
@@ -530,7 +528,7 @@ class _YouMightAlsoLikeRail extends StatelessWidget {
                 ),
               ),
               SizedBox(
-                height: Responsive.legacyHorizontalProductRailHeight(context),
+                height: Responsive.horizontalProductRailHeight(context),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   physics: kHorizontalProductRailPhysics,
@@ -538,29 +536,11 @@ class _YouMightAlsoLikeRail extends StatelessWidget {
                   itemCount: filtered.length,
                   itemBuilder: (context, j) {
                     final p = filtered[j];
-                    final selected =
-                        cat.selectedProduct.any((x) => x.id == p.id);
                     return Padding(
                       padding: const EdgeInsets.only(right: 10),
-                      child: ProductCard(
-                        itemQuantity: p.unitPerItem,
-                        name: p.name,
-                        image: p.image,
-                        price: p.price.toString(),
-                        slashedPrice: p.slashedPrice.toString(),
-                        isSelected: selected,
-                        onSelect: () => cat.addProduct(context, p),
-                        itemCount: p.itemCount.toString(),
-                        onDecrement: () => cat.removeProductCount(p.id),
-                        onIncrement: () => cat.addProductCount(p.id),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ProductViewScreen(product: p),
-                            ),
-                          );
-                        },
+                      child: HomeProductCard(
+                        product: p,
+                        width: Responsive.of(context).isPhone ? 148 : 158,
                       ),
                     );
                   },

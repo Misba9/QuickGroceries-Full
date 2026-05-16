@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -9,6 +10,7 @@ import 'package:quickgrocery/view/auth/screens/login_screen.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/view/profile/screens/support_screen.dart';
+import 'package:quickgrocery/view/notifications/notification_center_screen.dart';
 import 'package:quickgrocery/view/wishlist/screens/wishlist_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -205,6 +207,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ],
                       ),
+                      AppSpacing.h10,
+                      Divider(color: Colors.grey.shade300),
+                      AppSpacing.h10,
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (context) =>
+                                  const NotificationCenterScreen(),
+                            ),
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ProfileTile(
+                                icon: 'assets/icons/chat.png',
+                                label: 'notification_center'.tr(),
+                              ),
+                            ),
+                            Builder(
+                              builder: (context) {
+                                final uid =
+                                    FirebaseAuth.instance.currentUser?.uid;
+                                if (uid == null) {
+                                  return const SizedBox.shrink();
+                                }
+                                return StreamBuilder<
+                                    QuerySnapshot<Map<String, dynamic>>>(
+                                  stream: FirebaseFirestore.instance
+                                      .collection('customers')
+                                      .doc(uid)
+                                      .collection('notification_inbox')
+                                      .where('read', isEqualTo: false)
+                                      .snapshots(),
+                                  builder: (context, snap) {
+                                    final n = snap.data?.docs.length ?? 0;
+                                    if (n == 0) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColor.primary,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        n > 99 ? '99+' : '$n',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -322,7 +390,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => SupportScreen(),
+                              builder: (context) => const SupportScreen(),
                             ),
                           );
                         },

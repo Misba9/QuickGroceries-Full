@@ -1,10 +1,13 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:pinput/pinput.dart';
+import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
-import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
-import 'package:pin_code_fields/pin_code_fields.dart';
-import 'package:provider/provider.dart';
+import 'package:quickgrocery/view/auth/widgets/pinput_sms_retriever.dart';
 
 class OtpAuthScreen extends StatefulWidget {
   static String route = 'otpScreen';
@@ -14,107 +17,308 @@ class OtpAuthScreen extends StatefulWidget {
   State<OtpAuthScreen> createState() => _OtpAuthScreenState();
 }
 
-class _OtpAuthScreenState extends State<OtpAuthScreen> {
-  String otp = '';
+class _OtpAuthScreenState extends State<OtpAuthScreen>
+    with SingleTickerProviderStateMixin {
+  static const int _otpLength = 6;
+  static const int _resendSeconds = 30;
+
+  final TextEditingController _pinController = TextEditingController();
+  final FocusNode _pinFocus = FocusNode();
+  late final AnimationController _shakeController;
+  late final PinputSmsRetriever _smsRetriever;
+
+  Timer? _resendTimer;
+  int _resendCountdown = _resendSeconds;
+  bool _canResend = false;
+  bool _localVerifying = false;
+  bool _invalidOtp = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _smsRetriever = PinputSmsRetriever();
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    );
+    _startResendCountdown();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _pinFocus.requestFocus();
+    });
+  }
+
+  void _startResendCountdown() {
+    _resendTimer?.cancel();
+    setState(() {
+      _resendCountdown = _resendSeconds;
+      _canResend = false;
+    });
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_resendCountdown <= 1) {
+        t.cancel();
+        setState(() {
+          _resendCountdown = 0;
+          _canResend = true;
+        });
+      } else {
+        setState(() => _resendCountdown--);
+      }
+    });
+  }
+
+  Future<void> _verifyIfComplete(String pin) async {
+    if (pin.length != _otpLength || _localVerifying) return;
+    final auth = context.read<AuthService>();
+    if (auth.isLoading) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _localVerifying = true;
+      _invalidOtp = false;
+    });
+
+    final ok = await auth.signInWithOTP(pin, context);
+
+    if (!mounted) return;
+
+    if (ok) {
+      setState(() => _localVerifying = false);
+      return;
+    }
+
+    setState(() {
+      _localVerifying = false;
+      _invalidOtp = true;
+    });
+    _pinController.clear();
+    _shakeController.forward(from: 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _pinFocus.requestFocus();
+    });
+  }
+
+  Future<void> _onResend() async {
+    if (!_canResend) return;
+    final auth = context.read<AuthService>();
+    await auth.resendOtp(context);
+    if (mounted) {
+      _pinController.clear();
+      setState(() => _invalidOtp = false);
+      _startResendCountdown();
+      _pinFocus.requestFocus();
+    }
+  }
+
+  @override
+  void dispose() {
+    _resendTimer?.cancel();
+    _shakeController.dispose();
+    _pinController.dispose();
+    _pinFocus.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<AuthService>(context);
-    final height = MediaQuery.of(context).size.height;
+    final auth = context.watch<AuthService>();
+    final verifying = _localVerifying || auth.isLoading;
+    final theme = Theme.of(context);
+    final primary = AppColor.primary;
+    final size = MediaQuery.sizeOf(context);
+    final fieldW = (size.width - 48).clamp(220.0, 400.0) / _otpLength - 6;
+
+    final defaultPin = PinTheme(
+      width: fieldW.clamp(40.0, 52.0),
+      height: 52,
+      textStyle: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ) ??
+          const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.25),
+        ),
+      ),
+    );
+
+    final focusedPin = defaultPin.copyDecorationWith(
+      border: Border.all(color: primary, width: 2),
+      boxShadow: [
+        BoxShadow(
+          color: primary.withValues(alpha: 0.28),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+
+    final submittedPin = defaultPin.copyWith(
+      decoration: defaultPin.decoration?.copyWith(
+        border: Border.all(color: primary.withValues(alpha: 0.5)),
+      ),
+    );
+
+    final errorPin = defaultPin.copyDecorationWith(
+      border: Border.all(color: theme.colorScheme.error, width: 1.5),
+    );
+
+    final shakeAnim = TweenSequence<double>([
+      for (int i = 0; i < 6; i++)
+        TweenSequenceItem<double>(
+          tween: Tween<double>(begin: 0, end: i.isEven ? 10.0 : -10.0)
+              .chain(CurveTween(curve: Curves.easeInOut)),
+          weight: 1,
+        ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(begin: -10, end: 0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 1,
+      ),
+    ]).animate(_shakeController);
+
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 22),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Spacer(),
-              Column(
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  onPressed: verifying ? null : () => Navigator.maybePop(context),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                ),
+              ),
+              const Spacer(flex: 1),
+              Text(
+                'please_type_verification_code'.tr(),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  height: 1.35,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'please_type_verification_code'.tr(),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('to'.tr(), style: TextStyle(fontSize: 16)),
-                      const SizedBox(width: 10),
-                      Text(
-                        'your_mobile_number'.tr(),
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
+                  Text('to'.tr(), style: theme.textTheme.bodyLarge),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      '+91 ${auth.mobileController.text}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
-                    ],
-                  ),
-                  SizedBox(height: height * .05),
-                  PinCodeTextField(
-                    controller: provider.opController,
-                    enableActiveFill: true,
-                    cursorColor: AppColor.primary,
-                    appContext: context,
-                    length: 6,
-                    pinTheme: PinTheme(
-                      selectedFillColor: Colors.grey.shade200,
-                      inactiveFillColor: Colors.grey.shade200,
-                      activeColor: Colors.transparent,
-                      borderRadius: BorderRadius.circular(5),
-                      shape: PinCodeFieldShape.box,
-                      inactiveColor: Colors.transparent,
-                      selectedColor: Colors.transparent,
-                      fieldHeight: height * .06,
-                      fieldWidth: height * .06,
-                      activeFillColor: AppColor.primary,
-                      disabledColor: AppColor.primary,
                     ),
-                    onChanged: (v) {
-                      setState(() {
-                        otp = v;
-                      });
-                    },
-                    onCompleted: (v) {},
-                  ),
-                  SizedBox(height: height * .05),
-                  PrimaryButton(
-                    isLoading: provider.isLoading,
-                    label: 'continue'.tr(),
-                    onTap: () async {
-                      // Navigator.push(
-                      //     context,
-                      //     MaterialPageRoute(
-                      //         builder: (context) => const LandingScreen()));
-                      if (provider.opController.text.length < 6) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("incorrect_otp".tr()),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      } else {
-                        provider.signInWithOTP(
-                          provider.opController.text,
-                          context,
-                        );
-                      }
-                    },
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('dont_receive_otp'.tr()),
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.black,
-                        ),
-                        onPressed: () {},
-                        child: Text('resend'.tr()),
-                      ),
-                    ],
                   ),
                 ],
               ),
-              const Spacer(),
+              const SizedBox(height: 36),
+              AnimatedBuilder(
+                animation: shakeAnim,
+                builder: (context, child) {
+                  return Transform.translate(
+                    offset: Offset(shakeAnim.value, 0),
+                    child: child,
+                  );
+                },
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    AutofillGroup(
+                      child: Pinput(
+                        length: _otpLength,
+                        controller: _pinController,
+                        focusNode: _pinFocus,
+                        autofocus: true,
+                        enabled: !verifying,
+                        smsRetriever: _smsRetriever,
+                        defaultPinTheme: defaultPin,
+                        focusedPinTheme: focusedPin,
+                        submittedPinTheme: submittedPin,
+                        errorPinTheme: errorPin,
+                        forceErrorState: _invalidOtp,
+                        separatorBuilder: (i) => const SizedBox(width: 6),
+                        hapticFeedbackType: HapticFeedbackType.lightImpact,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.oneTimeCode],
+                        closeKeyboardWhenCompleted: false,
+                        animationCurve: Curves.easeOutCubic,
+                        animationDuration: const Duration(milliseconds: 220),
+                        pinAnimationType: PinAnimationType.scale,
+                        onChanged: (v) {
+                          if (_invalidOtp) {
+                            setState(() => _invalidOtp = false);
+                          }
+                        },
+                        onCompleted: (pin) => _verifyIfComplete(pin),
+                      ),
+                    ),
+                    if (verifying)
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: const SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: _invalidOtp
+                    ? Text(
+                        'invalid_otp'.tr(),
+                        key: const ValueKey('err'),
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      )
+                    : const SizedBox(height: 20, key: ValueKey('ok')),
+              ),
+              const Spacer(flex: 2),
+              TextButton(
+                onPressed: (_canResend && !verifying) ? _onResend : null,
+                child: Text(
+                  _canResend
+                      ? 'resend'.tr()
+                      : 'resend_otp_in'.tr(
+                          namedArgs: {'seconds': '$_resendCountdown'},
+                        ),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: _canResend ? primary : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'dont_receive_otp'.tr(),
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+              SizedBox(height: MediaQuery.paddingOf(context).bottom + 12),
             ],
           ),
         ),

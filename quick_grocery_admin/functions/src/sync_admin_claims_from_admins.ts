@@ -2,8 +2,7 @@ import * as admin from "firebase-admin";
 import { logger } from "firebase-functions";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { isBootstrapPanelEmail } from "./bootstrap_emails";
-
-const REGION = "us-central1";
+import { callableBaseOptions } from "./https_callable_options";
 
 function emailVariants(email: string): string[] {
   const t = email.trim();
@@ -15,7 +14,9 @@ function emailVariants(email: string): string[] {
  * If the signed-in user's email exists in Firestore `admins`, sets full
  * notification + SMS custom claims (same bundle as manual promotion).
  */
-export const syncAdminClaimsFromAdmins = onCall({ region: REGION }, async (request) => {
+export const syncAdminClaimsFromAdmins = onCall(
+  { ...callableBaseOptions() },
+  async (request) => {
   const uid = request.auth?.uid;
   if (!uid) {
     throw new HttpsError("unauthenticated", "Sign in required.");
@@ -61,4 +62,5 @@ export const syncAdminClaimsFromAdmins = onCall({ region: REGION }, async (reque
   await admin.auth().setCustomUserClaims(uid, next);
   logger.info("syncAdminClaimsFromAdmins", { uid, email: emailRaw });
   return { ok: true, claims: next };
-});
+  }
+);

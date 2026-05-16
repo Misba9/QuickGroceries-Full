@@ -1,5 +1,5 @@
 import 'package:quick_grocery_admin/view/auth/admin_bootstrap_emails.dart';
-import 'package:quick_grocery_admin/view/sms/services/sms_functions_client.dart';
+import 'package:quick_grocery_admin/view/push_notifications/services/fcm_functions_client.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -61,7 +61,7 @@ class LoginService extends ChangeNotifier {
       if (userCredential.user != null) {
         final u = userCredential.user!;
         try {
-          await SmsFunctionsClient().syncAdminClaimsFromAdmins();
+          await FcmFunctionsClient().syncAdminClaimsFromAdmins();
         } catch (e) {
           if (kDebugMode) {
             debugPrint('post-login syncAdminClaimsFromAdmins: $e');

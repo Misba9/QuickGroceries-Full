@@ -8,7 +8,7 @@ import 'package:quickgrocery/core/widgets/floating_cart_pill.dart';
 class FloatingCartBar extends StatelessWidget {
   const FloatingCartBar({
     super.key,
-    this.bottomInset = 16,
+    this.bottomInset = 12,
     this.horizontalInset = 16,
   });
 

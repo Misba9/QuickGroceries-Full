@@ -4,6 +4,7 @@ import '../../services/auth_service.dart';
 import '../../style/app_color.dart';
 import '../../utils/app_spacing.dart';
 import '../auth/login_screen.dart';
+import '../../widgets/support_contact_dialog.dart';
 import 'profile_edit_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -63,52 +64,6 @@ class ProfileScreen extends StatelessWidget {
         }
       }
     }
-  }
-
-  void _showSupportDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Support'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Need help? Contact our support team:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Icon(Icons.email, size: 20),
-                SizedBox(width: 8),
-                Text('support@quickgrocery.com'),
-              ],
-            ),
-            SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.phone, size: 20),
-                SizedBox(width: 8),
-                Text('+91 1234567890'),
-              ],
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Our support team is available 24/7 to assist you.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -275,7 +230,7 @@ class ProfileScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 50,
                     child: OutlinedButton.icon(
-                      onPressed: () => _showSupportDialog(context),
+                      onPressed: () => SupportContactDialog.show(context),
                       icon: const Icon(Icons.help_outline),
                       label: const Text(
                         'Support',

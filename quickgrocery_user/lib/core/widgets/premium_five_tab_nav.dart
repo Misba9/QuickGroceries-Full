@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/widgets/floating_cart_pill.dart';
 
 import '../design/app_tokens.dart';
 
@@ -12,6 +13,11 @@ class PremiumFiveTabNav extends StatelessWidget {
     required this.onTap,
     this.offersBadgeCount,
   });
+
+  /// [Positioned.bottom] for overlays in the main tab [Scaffold.body] stack.
+  /// Uses [FloatingCartPill.kGapAboveTabBar] (compact band above this bar).
+  static double floatingOverlayBodyBottom(BuildContext context) =>
+      FloatingCartPill.kGapAboveTabBar;
 
   /// Tab index in [HomeProvider.pages]: 0–4 (Offers is **2**).
   final int currentIndex;

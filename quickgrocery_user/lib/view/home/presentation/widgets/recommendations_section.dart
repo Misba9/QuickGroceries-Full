@@ -39,12 +39,12 @@ class RecommendationsSection extends ConsumerWidget {
     final featured = ref.watch(featuredProductsStreamProvider);
     final trending = ref.watch(trendingProductsStreamProvider);
 
-    final viewed = recentlyViewed.value ?? const <ProductModel>[];
-    final featuredList = featured.value ?? const <ProductModel>[];
-    final trendingList = trending.value ?? const <ProductModel>[];
+    final viewed = recentlyViewed.asData?.value ?? const <ProductModel>[];
+    final featuredList = featured.asData?.value ?? const <ProductModel>[];
+    final trendingList = trending.asData?.value ?? const <ProductModel>[];
 
     final orderedCategories = <String>{};
-    for (final order in (ordersAsync.value ?? const [])) {
+    for (final order in (ordersAsync.asData?.value ?? const [])) {
       for (final p in order.legacy.products) {
         if (p.category.trim().isNotEmpty) {
           orderedCategories.add(p.category.trim().toLowerCase());

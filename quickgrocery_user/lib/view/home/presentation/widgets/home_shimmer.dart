@@ -183,6 +183,40 @@ class HomeShimmer {
     );
   }
 
+  /// Placeholder while the Firestore admin gate connects (landing tab shell).
+  static Widget landingTabShell() {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _box(height: 26, width: 140, radius: 10),
+              const SizedBox(height: 18),
+              Expanded(
+                flex: 3,
+                child: _box(radius: 18),
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                flex: 2,
+                child: Row(
+                  children: [
+                    Expanded(child: _box(radius: 14)),
+                    const SizedBox(width: 12),
+                    Expanded(child: _box(radius: 14)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   static Widget exploreGrid({int count = 6}) {
     return GridView.builder(
       shrinkWrap: true,

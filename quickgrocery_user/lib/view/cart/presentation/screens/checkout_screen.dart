@@ -29,6 +29,7 @@ import 'package:quickgrocery/view/checkout/widgets/empty_address_widget.dart';
 import 'package:quickgrocery/view/coupons/coupon_screen.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/payment/services/payment_service.dart';
+import 'package:quickgrocery/view/app_content/presentation/providers/app_content_extensions.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -510,7 +511,7 @@ class _DeliverToSection extends StatelessWidget {
   }
 }
 
-class _EtaCouponRow extends StatelessWidget {
+class _EtaCouponRow extends ConsumerWidget {
   const _EtaCouponRow({
     required this.slot,
     required this.cart,
@@ -522,7 +523,8 @@ class _EtaCouponRow extends StatelessWidget {
   final VoidCallback onCouponTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final deliveryEta = ref.appContent.deliveryTimeText;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -532,8 +534,8 @@ class _EtaCouponRow extends StatelessWidget {
             iconColor: AppSurface.success,
             title: 'delivery_eta_title'.tr(),
             subtitle: slot != null
-                ? '${'delivery_in_20_minutes'.tr()} · ${slot!.label}'
-                : 'delivery_in_20_minutes'.tr(),
+                ? '$deliveryEta · ${slot!.label}'
+                : deliveryEta,
           ),
         ),
         const SizedBox(width: 10),

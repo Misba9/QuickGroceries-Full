@@ -2,10 +2,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
-import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
-import 'package:quickgrocery/view/category/screens/category_screen.dart';
-import 'package:quickgrocery/view/category/services/category_service.dart';
-import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
+import 'package:quickgrocery/core/widgets/floating_cart_pill.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/search/services/search_service.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
@@ -136,10 +134,10 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<SearchService>(context);
-    final p = Provider.of<CategoryService>(context);
     return Scaffold(
       appBar: AppBar(title: Text('search'.tr())),
       body: SafeArea(
+        bottom: false,
         child: Stack(
           children: [
             Column(
@@ -181,9 +179,9 @@ class _SearchScreenState extends State<SearchScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: _isListening
-                                ? AppColor.primary.withOpacity(0.2)
-                                : Colors.transparent,
+                                color: _isListening
+                                    ? AppColor.primary.withValues(alpha: 0.2)
+                                    : Colors.transparent,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -212,134 +210,35 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                         )
                       : GridView.builder(
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 100),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: 15,
-                                mainAxisSpacing: 10,
-                                childAspectRatio: 0.38,
-                              ),
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.64,
+                          ),
                           itemCount: provider.filteredProductsList!.length,
                           itemBuilder: (context, i) {
                             final product = provider.filteredProductsList![i];
-                            return ProductCard(
-                              itemQuantity: product.unitPerItem,
-                              name: product.name,
-                              image: product.image,
-                              price: product.price.toString(),
-                              slashedPrice: product.slashedPrice.toString(),
-                              isSelected: p.selectedProduct.any(
-                                (e) => e.id == product.id,
-                              ),
-                              onSelect: () => p.addProduct(context, product),
-                              itemCount: product.itemCount.toString(),
-                              onDecrement: () =>
-                                  p.removeProductCount(product.id),
-                              onIncrement: () => p.addProductCount(product.id),
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      ProductViewScreen(product: product),
-                                ),
-                              ),
+                            return LayoutBuilder(
+                              builder: (context, c) {
+                                return ProductCardWidget(
+                                  product: product,
+                                  width: c.maxWidth,
+                                );
+                              },
                             );
                           },
                         ),
                 ),
               ],
             ),
-            Visibility(
-              visible: p.selectedProduct.isNotEmpty,
-              child: Positioned(
-                bottom: 50,
-                left: 0,
-                right: 0,
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CartScreen(),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    margin: const EdgeInsets.symmetric(horizontal: 40),
-                    height: 60,
-                    width: MediaQuery.of(context).size.width,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(60),
-                      color: AppColor.primary,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        SizedBox(
-                          height: 40,
-                          width: 100,
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            scrollDirection: Axis.horizontal,
-                            itemCount: p.selectedProduct.length,
-                            itemBuilder: (context, index) {
-                              return Transform.translate(
-                                offset: Offset(
-                                  -index * 40,
-                                  0,
-                                ), // Adjust overlap here
-                                child: Container(
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(40),
-                                    child: Image.network(
-                                      p.selectedProduct[index].image,
-                                      width: 40,
-                                      height: 40,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'view_cart'.tr(),
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            Text(
-                              "${p.selectedProduct.length.toString()} ITEMS",
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                        AppSpacing.w20,
-                        CircleAvatar(
-                          backgroundColor: AppColor.primary,
-                          child: const Icon(
-                            Icons.arrow_forward_ios,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: FloatingCartPill.positionedBottomFullScreen(context),
+              child: const FloatingCartPill(),
             ),
           ],
         ),

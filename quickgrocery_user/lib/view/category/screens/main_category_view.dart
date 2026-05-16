@@ -18,7 +18,9 @@ import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/category/presentation/widgets/animated_category_card.dart';
 import 'package:quickgrocery/view/category/presentation/widgets/featured_products_section.dart';
 import 'package:quickgrocery/view/category/presentation/widgets/flash_sale_widget.dart';
-import 'package:quickgrocery/view/category/presentation/widgets/floating_cart_bar.dart';
+import 'package:quickgrocery/view/app_content/models/app_content_config.dart';
+import 'package:quickgrocery/view/app_content/presentation/providers/app_content_providers.dart';
+import 'package:quickgrocery/view/app_content/presentation/widgets/animated_app_heading.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_banner_video_rail.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/recommendations_section.dart';
@@ -60,6 +62,7 @@ class _MainCategoryViewScreenState
     ref.invalidate(bannersStreamProvider);
     ref.invalidate(trendingProductsStreamProvider);
     ref.invalidate(featuredProductsStreamProvider);
+    ref.invalidate(appContentStreamProvider);
     await Future.delayed(const Duration(milliseconds: 600));
   }
 
@@ -67,6 +70,10 @@ class _MainCategoryViewScreenState
   Widget build(BuildContext context) {
     final responsive = Responsive.of(context);
     final gutter = responsive.gutter();
+    final appContentAsync = ref.watch(appContentStreamProvider);
+    final appContent = appContentAsync.value ?? AppContentConfig.defaults;
+    final contentLoading =
+        appContentAsync.isLoading && !appContentAsync.hasValue;
 
     return PopScope(
       canPop: false,
@@ -98,12 +105,16 @@ class _MainCategoryViewScreenState
                         gutter: gutter,
                       ),
                     ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(gutter, 2, gutter, 4),
-                        child: const _TrendingCategoriesSection(),
+                    if (appContent.showTrendingCategories)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(gutter, 2, gutter, 4),
+                          child: _TrendingCategoriesSection(
+                            heading: appContent.trendingHeading,
+                            headingLoading: contentLoading,
+                          ),
+                        ),
                       ),
-                    ),
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 6),
@@ -113,28 +124,27 @@ class _MainCategoryViewScreenState
                         ),
                       ),
                     ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(gutter, 2, gutter, 0),
-                        child: const _AllCategoriesSection(),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(gutter, 10, gutter, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _SectionTitle(
-                              title: 'flash_deals_title'.tr(),
-                              icon: Icons.bolt_rounded,
-                              compact: true,
-                            ),
-                            const FlashSaleWidget(cardMargin: EdgeInsets.zero),
-                          ],
+                    if (appContent.showShopCategory)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(gutter, 2, gutter, 0),
+                          child: _AllCategoriesSection(
+                            heading: appContent.shopCategoryHeading,
+                            headingLoading: contentLoading,
+                          ),
                         ),
                       ),
-                    ),
+                    if (appContent.showFlashDeals)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(gutter, 10, gutter, 0),
+                          child: FlashSaleWidget(
+                            cardMargin: EdgeInsets.zero,
+                            heading: appContent.flashDealHeading,
+                            headingLoading: contentLoading,
+                          ),
+                        ),
+                      ),
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 0),
@@ -161,12 +171,6 @@ class _MainCategoryViewScreenState
                     ),
                   ],
                 ),
-              ),
-              const Positioned(
-                left: 0,
-                right: 0,
-                bottom: 8,
-                child: FloatingCartBar(),
               ),
             ],
           ),
@@ -259,18 +263,16 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
 class _Greeting extends ConsumerWidget {
   const _Greeting();
 
-  String _greetingText() {
-    final h = DateTime.now().hour;
-    if (h < 12) return 'good_morning'.tr();
-    if (h < 17) return 'good_afternoon'.tr();
-    return 'good_evening'.tr();
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final addressService = legacy.Provider.of<AddressService>(context);
     final categoriesAsync = ref.watch(categoriesStreamProvider);
     final categoryCount = (categoriesAsync.value ?? const []).length;
+    final appContentAsync = ref.watch(appContentStreamProvider);
+    final greeting =
+        appContentAsync.value?.homeGreeting ?? AppContentConfig.defaults.homeGreeting;
+    final greetingLoading =
+        appContentAsync.isLoading && !appContentAsync.hasValue;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -296,8 +298,9 @@ class _Greeting extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                _greetingText(),
+              AnimatedAppGreeting(
+                text: greeting,
+                isLoading: greetingLoading,
                 style: GoogleFonts.poppins(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
@@ -384,7 +387,13 @@ Map<String, int> _maxDiscountByCategory(List<ProductModel> products) {
 }
 
 class _TrendingCategoriesSection extends ConsumerStatefulWidget {
-  const _TrendingCategoriesSection();
+  const _TrendingCategoriesSection({
+    required this.heading,
+    this.headingLoading = false,
+  });
+
+  final String heading;
+  final bool headingLoading;
 
   @override
   ConsumerState<_TrendingCategoriesSection> createState() =>
@@ -419,8 +428,9 @@ class _TrendingCategoriesSectionState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _SectionTitle(
-              title: 'trending_categories'.tr(),
+              title: widget.heading,
               icon: Icons.local_fire_department_rounded,
+              isLoading: widget.headingLoading,
             ),
             SizedBox(
               height: 178,
@@ -457,8 +467,9 @@ class _TrendingCategoriesSectionState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _SectionTitle(
-                title: 'trending_categories'.tr(),
+                title: widget.heading,
                 icon: Icons.local_fire_department_rounded,
+                isLoading: widget.headingLoading,
               ),
               SizedBox(
                 height: 178,
@@ -549,7 +560,13 @@ class SmoothPageIndicator extends StatelessWidget {
 // ─── All categories grid ─────────────────────────────────────────────────
 
 class _AllCategoriesSection extends ConsumerWidget {
-  const _AllCategoriesSection();
+  const _AllCategoriesSection({
+    required this.heading,
+    this.headingLoading = false,
+  });
+
+  final String heading;
+  final bool headingLoading;
 
   /// Compute a safe `childAspectRatio` so each tile can fit
   /// image (square via [AspectRatio(1)]) + 6 px gap + 32 px text label.
@@ -599,8 +616,9 @@ class _AllCategoriesSection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _SectionTitle(
-            title: 'shop_by_category'.tr(),
+            title: heading,
             icon: Icons.grid_view_rounded,
+            isLoading: headingLoading,
           ),
           grid(
             count: cols * 3,
@@ -624,8 +642,9 @@ class _AllCategoriesSection extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _SectionTitle(
-              title: 'shop_by_category'.tr(),
+              title: heading,
               icon: Icons.grid_view_rounded,
+              isLoading: headingLoading,
             ),
             grid(
               count: cats.length,
@@ -653,11 +672,13 @@ class _SectionTitle extends StatelessWidget {
     required this.title,
     required this.icon,
     this.compact = false,
+    this.isLoading = false,
   });
 
   final String title;
   final IconData icon;
   final bool compact;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -677,8 +698,10 @@ class _SectionTitle extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              title,
+            child: AnimatedAppHeading(
+              text: title,
+              isLoading: isLoading,
+              compact: compact,
               style: GoogleFonts.poppins(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,

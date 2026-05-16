@@ -18,6 +18,7 @@ class AuthService extends ChangeNotifier {
 
   bool get isVisible => _isVisible;
   String _verificationId = '';
+  int? _resendToken;
   bool isLoading = false;
   TextEditingController nameController = TextEditingController();
   TextEditingController emailController = TextEditingController();
@@ -122,6 +123,8 @@ class AuthService extends ChangeNotifier {
       },
       codeSent: (String verificationId, int? resendToken) {
         _verificationId = verificationId;
+        _resendToken = resendToken;
+        opController.clear();
         log("OTP code sent to phone.");
         isLoading = false;
         notifyListeners();
@@ -138,21 +141,23 @@ class AuthService extends ChangeNotifier {
     );
   }
 
-  Future<void> signInWithOTP(String smsCode, BuildContext context) async {
+  /// Returns `true` if sign-in succeeded and navigation was performed.
+  /// Returns `false` for an invalid OTP (caller should shake UI / show error).
+  Future<bool> signInWithOTP(String smsCode, BuildContext context) async {
     try {
       isLoading = true;
       notifyListeners();
 
-      PhoneAuthCredential credential = PhoneAuthProvider.credential(
+      final PhoneAuthCredential credential = PhoneAuthProvider.credential(
         verificationId: _verificationId,
         smsCode: smsCode,
       );
 
-      UserCredential userCredential = await _auth.signInWithCredential(
+      final UserCredential userCredential = await _auth.signInWithCredential(
         credential,
       );
 
-      if (userCredential.user != null) {
+      if (userCredential.user != null && context.mounted) {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
@@ -160,33 +165,79 @@ class AuthService extends ChangeNotifier {
           ),
           (Route<dynamic> route) => false,
         );
+        isLoading = false;
+        notifyListeners();
+        return true;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Account Created"),
-          backgroundColor: Colors.green,
-        ),
-      );
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Firebase Auth Error: ${e.message}"),
-          backgroundColor: Colors.red,
-        ),
-      );
-
-      // You can also show a snackbar or alert dialog to the user
+      isLoading = false;
+      notifyListeners();
+      final code = e.code;
+      if (code == 'invalid-verification-code' ||
+          code == 'invalid-verification-id' ||
+          code == 'session-expired') {
+        return false;
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? 'Phone auth failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Unexpected error: $e"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Unexpected error: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       isLoading = false;
       notifyListeners();
     }
+    return false;
+  }
+
+  /// Resend OTP using Firebase [forceResendingToken] when available.
+  Future<void> resendOtp(BuildContext context) async {
+    if (mobileController.text.length < 10) return;
+    isLoading = true;
+    notifyListeners();
+    await _auth.verifyPhoneNumber(
+      phoneNumber: "+91${mobileController.text}",
+      forceResendingToken: _resendToken,
+      verificationCompleted: (PhoneAuthCredential credential) async {},
+      verificationFailed: (FirebaseAuthException e) {
+        isLoading = false;
+        notifyListeners();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Phone auth failed: ${e.code} — ${e.message ?? ""}'),
+            ),
+          );
+        }
+        log("Resend OTP failed: ${e.code} ${e.message}");
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        _verificationId = verificationId;
+        _resendToken = resendToken;
+        opController.clear();
+        isLoading = false;
+        notifyListeners();
+        log("OTP resent.");
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {
+        _verificationId = verificationId;
+        isLoading = false;
+        notifyListeners();
+      },
+    );
   }
 
   Future<bool> doesMobileNumberExist() async {

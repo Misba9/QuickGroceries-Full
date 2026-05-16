@@ -14,7 +14,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:quick_grocery_admin/view/vendor/services/vendor_service.dart';
 import 'package:quick_grocery_admin/view/platform_fee/services/platform_fee_service.dart';
 import 'package:quick_grocery_admin/view/analytics/services/analytics_service.dart';
-import 'package:quick_grocery_admin/view/sms/services/sms_admin_service.dart';
+import 'package:quick_grocery_admin/view/push_notifications/services/notification_admin_service.dart';
+import 'package:quick_grocery_admin/view/app_content_management/services/app_content_management_service.dart';
+import 'package:quick_grocery_admin/view/support_settings/services/support_settings_service.dart';
 import 'package:quick_grocery_admin/view/auth/screens/login_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -51,7 +53,13 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => PlatformFeeService()),
         ChangeNotifierProvider(create: (context) => DeliverySettingsService()),
         ChangeNotifierProvider(create: (context) => AnalyticsService()),
-        ChangeNotifierProvider(create: (context) => SmsAdminService()),
+        ChangeNotifierProvider(create: (context) => NotificationAdminService()),
+        ChangeNotifierProvider(
+          create: (context) => AppContentManagementService(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => SupportSettingsService(),
+        ),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

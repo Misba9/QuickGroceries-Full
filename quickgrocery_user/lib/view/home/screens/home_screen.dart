@@ -10,6 +10,7 @@ import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
+import 'package:quickgrocery/core/widgets/home_section_error_card.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
 import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/models/product.dart';
@@ -18,6 +19,8 @@ import 'package:quickgrocery/view/cart/domain/cart_models.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/delivery_location/services/delivery_zone_service.dart';
 import 'package:quickgrocery/view/home/presentation/providers/explore_products_provider.dart';
+import 'package:quickgrocery/view/app_content/models/app_content_config.dart';
+import 'package:quickgrocery/view/app_content/presentation/providers/app_content_providers.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
 import 'package:quickgrocery/view/offers/presentation/providers/offer_providers.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/flash_sale_section.dart';
@@ -36,6 +39,7 @@ import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
 import 'package:quickgrocery/view/home/screens/no_serviceable_area_screen.dart';
+import 'package:quickgrocery/view/app_content/presentation/providers/app_content_extensions.dart';
 import 'package:quickgrocery/view/search/screens/search_screen.dart';
 
 /// Home screen — Step 5 premium iteration.
@@ -172,6 +176,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.invalidate(homeExploreOfferBannersProvider);
     ref.invalidate(trendingProductsStreamProvider);
     ref.invalidate(featuredProductsStreamProvider);
+    ref.invalidate(appContentStreamProvider);
     await ref.read(exploreProductsProvider.notifier).refresh();
 
     if (!mounted) return;
@@ -213,7 +218,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final hasCartItems = cartService.selectedProduct.isNotEmpty;
     final responsive = Responsive.of(context);
     final gutter = responsive.gutter();
-    final pricing = ref.watch(pricingConfigProvider).value;
+    final pricingAsync = ref.watch(pricingConfigProvider);
+    final pricing = pricingAsync.asData?.value;
+    final appContentAsync = ref.watch(appContentStreamProvider);
+    final appContent = appContentAsync.value ?? AppContentConfig.defaults;
+    final contentLoading =
+        appContentAsync.isLoading && !appContentAsync.hasValue;
 
     return Scaffold(
       backgroundColor: AppSurface.background,
@@ -250,6 +260,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
               ),
+              if (pricingAsync.hasError)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 8),
+                    child: HomeSectionErrorCard(
+                      title: 'Delivery offers unavailable',
+                      subtitle:
+                          'Prices and delivery fees may be outdated until we reconnect.',
+                      onRetry: () => ref.invalidate(pricingConfigProvider),
+                      minHeight: 108,
+                    ),
+                  ),
+                ),
               if (pricing != null)
                 SliverToBoxAdapter(
                   child: Padding(
@@ -263,23 +286,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: const _BannersSection(),
                 ),
               ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: const HomeCategoriesRail(),
+              if (appContent.showShopCategory)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: gutter),
+                    child: const HomeCategoriesRail(),
+                  ),
                 ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: const FlashSaleSection(),
+              if (appContent.showFlashDeals)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: gutter),
+                    child: FlashSaleSection(
+                      heading: appContent.flashDealHeading,
+                      headingLoading: contentLoading,
+                    ),
+                  ),
                 ),
-              ),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
                   child: _ProductRailSection(
-                    title: 'Trending Now',
+                    title: appContent.trendingHeading,
+                    titleLoading: contentLoading,
                     provider: trendingProductsStreamProvider,
                     legacySpecialCat: "Today's snacks deals",
                   ),
@@ -330,7 +359,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ref: ref,
                 exploreAsync: ref.watch(exploreProductsProvider),
                 offers:
-                    ref.watch(homeExploreOfferBannersProvider).value ??
+                    ref.watch(homeExploreOfferBannersProvider).asData?.value ??
                         const [],
                 gutter: gutter,
               ),
@@ -380,9 +409,20 @@ class _BannersSection extends ConsumerWidget {
     final async = ref.watch(bannersStreamProvider);
     return async.when(
       loading: () => HomeShimmer.banner(),
-      // On error we still show the branded fallback so the home page never
-      // looks broken — the error will surface in logs / Crashlytics.
-      error: (e, _) => const FallbackBannerSlider(),
+      error: (e, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => ref.invalidate(bannersStreamProvider),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Retry banners'),
+            ),
+          ),
+          const FallbackBannerSlider(),
+        ],
+      ),
       data: (List<BannerModel> banners) {
         if (banners.isEmpty) return const FallbackBannerSlider();
         final carousel = imageCarouselBanners(banners);
@@ -402,9 +442,11 @@ class _ProductRailSection extends ConsumerWidget {
     required this.title,
     required this.provider,
     required this.legacySpecialCat,
+    this.titleLoading = false,
   });
 
   final String title;
+  final bool titleLoading;
   final AutoDisposeStreamProvider<List<ProductModel>> provider;
   final String legacySpecialCat;
 
@@ -418,7 +460,7 @@ class _ProductRailSection extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionHeader(title: title),
+            SectionHeader(title: title, isLoading: titleLoading),
             Builder(
               builder: (context) => HomeShimmer.horizontalProducts(
                 height: Responsive.horizontalProductRailHeight(context),
@@ -427,21 +469,38 @@ class _ProductRailSection extends ConsumerWidget {
           ],
         ),
       ),
-      error: (e, _) => const SizedBox.shrink(),
+      error: (e, _) => HomeSectionErrorCard(
+        title: 'Unable to load products',
+        subtitle: 'Pull to refresh or try again in a moment.',
+        onRetry: () => ref.invalidate(provider),
+      ),
       data: (products) {
         if (products.isNotEmpty) {
-          return _RailWithProducts(title: title, products: products);
+          return _RailWithProducts(
+            title: title,
+            titleLoading: titleLoading,
+            products: products,
+          );
         }
-        return _LegacyRail(title: title, specialCat: legacySpecialCat);
+        return _LegacyRail(
+          title: title,
+          titleLoading: titleLoading,
+          specialCat: legacySpecialCat,
+        );
       },
     );
   }
 }
 
 class _LegacyRail extends ConsumerWidget {
-  const _LegacyRail({required this.title, required this.specialCat});
+  const _LegacyRail({
+    required this.title,
+    required this.specialCat,
+    this.titleLoading = false,
+  });
 
   final String title;
+  final bool titleLoading;
   final String specialCat;
 
   @override
@@ -452,16 +511,25 @@ class _LegacyRail extends ConsumerWidget {
       error: (_, __) => const SizedBox.shrink(),
       data: (products) {
         if (products.isEmpty) return const SizedBox.shrink();
-        return _RailWithProducts(title: title, products: products);
+        return _RailWithProducts(
+          title: title,
+          titleLoading: titleLoading,
+          products: products,
+        );
       },
     );
   }
 }
 
 class _RailWithProducts extends StatelessWidget {
-  const _RailWithProducts({required this.title, required this.products});
+  const _RailWithProducts({
+    required this.title,
+    required this.products,
+    this.titleLoading = false,
+  });
 
   final String title;
+  final bool titleLoading;
   final List<ProductModel> products;
 
   @override
@@ -472,7 +540,7 @@ class _RailWithProducts extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SectionHeader(title: title),
+          SectionHeader(title: title, isLoading: titleLoading),
           HorizontalProductRail(
             height: h,
             itemCount: products.length,

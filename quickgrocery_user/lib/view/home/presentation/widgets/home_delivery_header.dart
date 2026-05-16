@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +13,9 @@ import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
 import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
+import 'package:quickgrocery/view/app_content/models/app_content_config.dart';
+import 'package:quickgrocery/view/app_content/presentation/providers/app_content_providers.dart';
+import 'package:quickgrocery/view/app_content/presentation/widgets/animated_app_heading.dart';
 import 'package:quickgrocery/view/home/screens/location_selector.dart';
 
 /// Pinned Blinkit/Zepto-style delivery strip + quick actions.
@@ -22,7 +24,7 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   final double gutter;
 
-  static const double _height = 108;
+  static const double _height = 118;
 
   @override
   double get maxExtent => _height;
@@ -67,6 +69,12 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Consumer(
                 builder: (context, ref, _) {
+                  final appContentAsync = ref.watch(appContentStreamProvider);
+                  final appContent =
+                      appContentAsync.value ?? AppContentConfig.defaults;
+                  final contentLoading =
+                      appContentAsync.isLoading && !appContentAsync.hasValue;
+
                   final unreadAsync = ref.watch(unreadNotificationsCountProvider);
                   final unread = unreadAsync.when(
                     data: (v) => v,
@@ -115,13 +123,17 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
                                       CrossAxisAlignment.start,
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
+                                    AnimatedAppGreeting(
+                                      text: appContent.homeGreeting,
+                                      isLoading: contentLoading,
+                                    ),
+                                    const SizedBox(height: 2),
                                     Row(
                                       children: [
                                         Expanded(
-                                          child: Text(
-                                            'delivery_in_20_minutes'.tr(),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+                                          child: AnimatedAppHeading(
+                                            text: appContent.deliveryTimeText,
+                                            isLoading: contentLoading,
                                             style: GoogleFonts.poppins(
                                               fontSize: 15,
                                               fontWeight: FontWeight.w800,

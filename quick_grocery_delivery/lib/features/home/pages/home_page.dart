@@ -6,6 +6,7 @@ import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/features/home/screens/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_grocery_delivery/models/order_model.dart';
+import 'package:quick_grocery_delivery/support/support_contact_sheet.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -38,6 +39,11 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.support_agent_outlined),
+            tooltip: 'Support',
+            onPressed: () => SupportContactSheet.show(context),
+          ),
           CircleAvatar(
             backgroundImage: provider.deliveryBoy == null
                 ? null

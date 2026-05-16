@@ -12,16 +12,22 @@ class FlashSaleWidget extends StatelessWidget {
     super.key,
     this.minDiscountPercent = 25,
     this.cardMargin = const EdgeInsets.only(top: 12),
+    this.heading,
+    this.headingLoading = false,
   });
 
   final int minDiscountPercent;
   final EdgeInsetsGeometry cardMargin;
+  final String? heading;
+  final bool headingLoading;
 
   @override
   Widget build(BuildContext context) {
     return FlashSaleSection(
       minDiscountPercent: minDiscountPercent,
       cardMargin: cardMargin,
+      heading: heading,
+      headingLoading: headingLoading,
     );
   }
 }
