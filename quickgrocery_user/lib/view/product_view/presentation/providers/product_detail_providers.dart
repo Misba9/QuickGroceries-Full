@@ -5,6 +5,7 @@ import 'package:quickgrocery/models/rating_model.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart'
     show firestoreProvider;
 import 'package:quickgrocery/view/product_view/data/services/product_detail_service.dart';
+import 'package:quickgrocery/view/product_view/data/review_api_client.dart';
 import 'package:quickgrocery/view/product_view/data/services/rating_service.dart';
 import 'package:quickgrocery/view/product_view/data/services/recently_viewed_service.dart';
 import 'package:quickgrocery/view/product_view/domain/product_detail_repository.dart';
@@ -28,6 +29,10 @@ final productDetailRepositoryProvider = Provider<ProductDetailRepository>((
   ref,
 ) {
   return ProductDetailRepository(ref.watch(productDetailServiceProvider));
+});
+
+final reviewApiClientProvider = Provider<ReviewApiClient>((ref) {
+  return ReviewApiClient();
 });
 
 final ratingRepositoryProvider = Provider<RatingRepository>((ref) {

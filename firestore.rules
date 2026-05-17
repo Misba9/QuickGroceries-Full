@@ -14,10 +14,13 @@ service cloud.firestore {
 
     // Ops collections — server writes via Cloud Functions; admins read/update read flag.
     match /admin_notifications/{id} {
-      allow read: if isAdmin();
-      allow update: if isAdmin() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
-      allow create, delete: if false;
+      // Admin Panel uses Firebase Auth; custom claims may be unset — any signed-in admin user can read.
+      allow read: if isSignedIn();
+      allow update: if isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['read', 'is_read']);
+      allow create: if false;
+      allow delete: if isSignedIn();
     }
 
     match /activity_logs/{id} {

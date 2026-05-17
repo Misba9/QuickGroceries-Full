@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/operations/screens/admin_notification_center_screen.dart';
@@ -13,19 +14,77 @@ class AdminNotificationBell extends StatelessWidget {
     return Consumer<AdminNotificationService>(
       builder: (context, svc, _) {
         final count = svc.unreadCount;
+        final hasUrgent = svc.recent.any((n) => !n.read && n.isUrgent);
         return IconButton(
           tooltip: 'Notifications',
           onPressed: () {
             Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const AdminNotificationCenterScreen(),
+              PageRouteBuilder<void>(
+                pageBuilder: (_, __, ___) =>
+                    const AdminNotificationCenterScreen(),
+                transitionsBuilder: (_, anim, __, child) {
+                  final offset = Tween<Offset>(
+                    begin: const Offset(1, 0),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(parent: anim, curve: Curves.easeOutCubic),
+                  );
+                  return SlideTransition(position: offset, child: child);
+                },
               ),
             );
           },
-          icon: Badge(
-            isLabelVisible: count > 0,
-            label: Text(count > 99 ? '99+' : '$count'),
-            child: const Icon(Icons.notifications_outlined),
+          icon: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(
+                Icons.notifications_outlined,
+                color: hasUrgent ? Colors.red.shade700 : null,
+              )
+                  .animate(
+                    target: count > 0 ? 1 : 0,
+                    onPlay: (c) => c.repeat(reverse: true),
+                  )
+                  .shake(hz: 2, duration: 600.ms),
+              if (count > 0)
+                Positioned(
+                  right: -4,
+                  top: -4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: hasUrgent ? Colors.red : AppColor.primary,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (hasUrgent ? Colors.red : AppColor.primary)
+                              .withValues(alpha: 0.4),
+                          blurRadius: 6,
+                        ),
+                      ],
+                    ),
+                    constraints: const BoxConstraints(minWidth: 18),
+                    child: Text(
+                      count > 99 ? '99+' : '$count',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                      .animate(onPlay: (c) => c.repeat(reverse: true))
+                      .scale(
+                        begin: const Offset(1, 1),
+                        end: const Offset(1.15, 1.15),
+                        duration: 800.ms,
+                      ),
+                ),
+            ],
           ),
         );
       },
@@ -33,7 +92,7 @@ class AdminNotificationBell extends StatelessWidget {
   }
 }
 
-/// Top ops bar: bell + sound toggle — embed above dashboard / order screens.
+/// In-page section header (sound toggle).
 class AdminOpsTopBar extends StatelessWidget {
   const AdminOpsTopBar({super.key, required this.title, this.subtitle});
 
@@ -80,7 +139,6 @@ class AdminOpsTopBar extends StatelessWidget {
               );
             },
           ),
-          const AdminNotificationBell(),
         ],
       ),
     );

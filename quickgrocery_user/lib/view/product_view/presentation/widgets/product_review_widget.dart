@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
@@ -6,14 +7,19 @@ import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/models/rating_model.dart';
 import 'package:quickgrocery/view/product_view/domain/rating_repository.dart';
 
-/// Review summary card — average score + per-star distribution bars.
 class ReviewSummaryCard extends StatelessWidget {
-  const ReviewSummaryCard({super.key, required this.summary});
+  const ReviewSummaryCard({
+    super.key,
+    required this.summary,
+    this.qualityScore,
+  });
 
   final RatingSummary summary;
+  final int? qualityScore;
 
   @override
   Widget build(BuildContext context) {
+    final q = qualityScore ?? summary.qualityScorePercent;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -52,9 +58,22 @@ class ReviewSummaryCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 '${summary.total} ${'reviews'.tr()}',
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  color: Colors.grey.shade600,
+                style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '$q% quality',
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.green.shade800,
+                  ),
                 ),
               ),
             ],
@@ -97,13 +116,7 @@ class _DistributionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        SizedBox(
-          width: 14,
-          child: Text(
-            '$star',
-            style: GoogleFonts.poppins(fontSize: 11),
-          ),
-        ),
+        SizedBox(width: 14, child: Text('$star', style: GoogleFonts.poppins(fontSize: 11))),
         const Icon(Icons.star_rounded, size: 12, color: AppColor.primary),
         const SizedBox(width: 6),
         Expanded(
@@ -120,20 +133,28 @@ class _DistributionRow extends StatelessWidget {
         const SizedBox(width: 6),
         SizedBox(
           width: 26,
-          child: Text(
-            '$count',
-            style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey),
-          ),
+          child: Text('$count', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
         ),
       ],
     );
   }
 }
 
-/// Single review card.
 class ProductReviewCard extends StatelessWidget {
-  const ProductReviewCard({super.key, required this.rating});
+  const ProductReviewCard({
+    super.key,
+    required this.rating,
+    this.onHelpful,
+    this.onReport,
+    this.onEdit,
+    this.onDelete,
+  });
+
   final RatingModel rating;
+  final VoidCallback? onHelpful;
+  final VoidCallback? onReport;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -141,9 +162,11 @@ class ProductReviewCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: rating.isFeatured ? Colors.amber.shade50 : Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: rating.isFeatured ? Colors.amber.shade200 : Colors.grey.shade200,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,22 +178,34 @@ class ProductReviewCard extends StatelessWidget {
                 backgroundColor: AppColor.primary.withValues(alpha: 0.18),
                 child: Text(
                   _initials(rating.userName),
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
-                  ),
+                  style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w700),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  rating.userName.isNotEmpty ? rating.userName : 'Anonymous',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      rating.userName.isNotEmpty ? rating.userName : 'Customer',
+                      style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    if (rating.verifiedPurchase)
+                      Row(
+                        children: [
+                          Icon(Icons.verified, size: 12, color: Colors.blue.shade700),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Verified Purchase',
+                            style: GoogleFonts.poppins(
+                              fontSize: 10,
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
                 ),
               ),
               RatingBar.builder(
@@ -180,32 +215,92 @@ class ProductReviewCard extends StatelessWidget {
                 itemCount: 5,
                 itemSize: 12,
                 glow: false,
-                itemBuilder: (_, __) => const Icon(
-                  Icons.star_rounded,
-                  color: AppColor.primary,
-                ),
+                itemBuilder: (_, __) => const Icon(Icons.star_rounded, color: AppColor.primary),
                 onRatingUpdate: (_) {},
               ),
             ],
           ),
           if (rating.review.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               rating.review,
-              style: GoogleFonts.poppins(
-                fontSize: 12.5,
-                color: Colors.black87,
-                height: 1.35,
+              style: GoogleFonts.poppins(fontSize: 12.5, height: 1.35),
+            ),
+          ],
+          if (rating.reviewImages.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 64,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: rating.reviewImages.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (_, i) => ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CachedNetworkImage(
+                    imageUrl: rating.reviewImages[i],
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                  ),
+                ),
               ),
             ),
           ],
-          const SizedBox(height: 6),
-          Text(
-            DateFormat('MMM d, y').format(rating.createdAt.toDate()),
-            style: GoogleFonts.poppins(
-              fontSize: 10.5,
-              color: Colors.grey.shade500,
+          if (rating.vendorReply.text.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Seller reply',
+                    style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w700),
+                  ),
+                  Text(rating.vendorReply.text, style: GoogleFonts.poppins(fontSize: 12)),
+                ],
+              ),
             ),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text(
+                DateFormat('MMM d, y').format(rating.createdAt.toDate()),
+                style: GoogleFonts.poppins(fontSize: 10.5, color: Colors.grey.shade500),
+              ),
+              const Spacer(),
+              if (onEdit != null)
+                IconButton(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  tooltip: 'Edit',
+                  visualDensity: VisualDensity.compact,
+                ),
+              if (onDelete != null)
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  tooltip: 'Delete',
+                  visualDensity: VisualDensity.compact,
+                ),
+              if (onHelpful != null)
+                TextButton.icon(
+                  onPressed: onHelpful,
+                  icon: const Icon(Icons.thumb_up_outlined, size: 14),
+                  label: Text('Helpful (${rating.helpfulCount})'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    textStyle: GoogleFonts.poppins(fontSize: 11),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -216,8 +311,6 @@ class ProductReviewCard extends StatelessWidget {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return '?';
     final parts = trimmed.split(RegExp(r'\s+'));
-    final first = parts.first[0];
-    final last = parts.length > 1 ? parts.last[0] : '';
-    return (first + last).toUpperCase();
+    return (parts.first[0] + (parts.length > 1 ? parts.last[0] : '')).toUpperCase();
   }
 }

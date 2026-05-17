@@ -3,6 +3,7 @@ import '../../services/auth_service.dart';
 import '../../services/preference_service.dart';
 import 'login_screen.dart';
 import '../main_navigation_screen.dart';
+import 'force_password_change_screen.dart';
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
@@ -24,34 +25,37 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _checkLoginStatus() async {
     try {
-      // Check if vendor is logged in
       final isLoggedIn = await PreferenceService.isLoggedIn();
-      
+
       if (isLoggedIn) {
-        // Get stored vendor ID
         final vendorId = await PreferenceService.getVendorId();
-        
+
         if (vendorId != null && vendorId.isNotEmpty) {
-          // Fetch vendor data from Firestore
-          final vendor = await _authService.getVendorById(vendorId);
-          
-          if (vendor != null && vendor.isActive) {
-            // Vendor is logged in and active, navigate to main navigation screen
-            if (mounted) {
-              setState(() {
-                _initialScreen = MainNavigationScreen(vendor: vendor);
-                _isLoading = false;
-              });
-            }
-            return;
-          } else {
-            // Vendor not found or inactive, clear preferences
+          final sessionOk = await _authService.isSessionValid(vendorId);
+          if (!sessionOk) {
             await PreferenceService.clearVendorData();
+          } else {
+            final vendor = await _authService.getVendorById(vendorId);
+
+            if (vendor != null && vendor.isActive) {
+              final forceChange =
+                  await PreferenceService.getForcePasswordChange();
+              if (mounted) {
+                setState(() {
+                  _initialScreen = forceChange
+                      ? ForcePasswordChangeScreen(vendor: vendor)
+                      : MainNavigationScreen(vendor: vendor);
+                  _isLoading = false;
+                });
+              }
+              return;
+            } else {
+              await PreferenceService.clearVendorData();
+            }
           }
         }
       }
-      
-      // Not logged in or invalid session, show login screen
+
       if (mounted) {
         setState(() {
           _initialScreen = const LoginScreen();
@@ -59,7 +63,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
         });
       }
     } catch (e) {
-      // Error checking login status, show login screen
       if (mounted) {
         setState(() {
           _initialScreen = const LoginScreen();
@@ -78,8 +81,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         ),
       );
     }
-    
+
     return _initialScreen;
   }
 }
-

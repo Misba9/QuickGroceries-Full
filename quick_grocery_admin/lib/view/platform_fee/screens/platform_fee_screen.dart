@@ -38,7 +38,6 @@ class _PlatformFeeScreenState extends State<PlatformFeeScreen> {
     return Scaffold(
       body: Column(
         children: [
-          const PrimaryAppBar(),
           AppSpacing.h20,
           Expanded(
             child: LayoutBuilder(

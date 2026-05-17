@@ -122,10 +122,13 @@ class HomeProvider extends ChangeNotifier {
             .get();
 
         // Map Firestore documents to ProductModel list
-        products = snapshot.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return ProductModel.fromFirestore(data, doc.id);
-        }).toList();
+        products = snapshot.docs
+            .map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return ProductModel.fromFirestore(data, doc.id);
+            })
+            .where((p) => p.isAvailable)
+            .toList();
 
         // Filter special categories
         todaysSnack = products!
@@ -163,10 +166,13 @@ class HomeProvider extends ChangeNotifier {
           .get();
 
       // Map Firestore documents to ProductModel list
-      products = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return ProductModel.fromFirestore(data, doc.id);
-      }).toList();
+      products = snapshot.docs
+          .map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return ProductModel.fromFirestore(data, doc.id);
+          })
+          .where((p) => p.isAvailable)
+          .toList();
 
       // Filter special categories
       todaysSnack = products!

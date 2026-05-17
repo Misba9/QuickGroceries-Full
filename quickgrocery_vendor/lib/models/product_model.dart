@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'product_settings.dart';
 
 class ProductModel {
   final String id;
@@ -7,7 +8,7 @@ class ProductModel {
   final Timestamp createdAt;
   final String description;
   final String category;
-  final String? subcategory; // Optional subcategory
+  final String? subcategory;
   final String unit;
   final String stock;
   final String maxOrder;
@@ -15,16 +16,14 @@ class ProductModel {
   final String slashedPrice;
   final int totalSold;
   final String vendorId;
-  final bool isFlashSale;
-  final bool isActive;
+  final ProductSettings settings;
   final Timestamp lastEdited;
   final String unitPerItem;
   final List favorites;
   final String shopName;
-  final bool isTodaysBest;
-  final bool isMostSelling;
-  final List<dynamic> images; // list of image URLs
-  final List<dynamic> videos; // list of video URLs
+  final List<dynamic> images;
+  final List<dynamic> videos;
+  final String specialCat;
 
   ProductModel({
     required this.id,
@@ -41,73 +40,183 @@ class ProductModel {
     required this.slashedPrice,
     required this.totalSold,
     required this.vendorId,
-    required this.isFlashSale,
-    required this.isActive,
+    required this.settings,
     required this.lastEdited,
     required this.unitPerItem,
     required this.favorites,
     required this.shopName,
-    required this.isMostSelling,
-    required this.isTodaysBest,
     required this.images,
     required this.videos,
+    this.specialCat = '',
   });
 
+  bool get isActive => settings.isActive;
+  bool get isFlashSale => settings.isFlashSale;
+  bool get isTodaysBest => settings.isTodaysBest;
+  bool get isMostSelling => settings.isMostSelling;
+
+  int get stockInt => int.tryParse(stock) ?? 0;
+
+  /// All gallery URLs (main + extras), deduplicated, main first.
+  List<String> get galleryUrls =>
+      ProductModel.collectImageUrls(image: image, images: images);
+
+  static List<String>? dataProductImages({Map<String, dynamic>? data}) {
+    if (data == null) return null;
+    final raw = data['product_images'] ?? data['images'];
+    if (raw is! List) return null;
+    return raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+  }
+
+  static List<String> collectImageUrls({
+    required String image,
+    required List<dynamic> images,
+    List<String>? productImages,
+  }) {
+    final out = <String>[];
+    void add(String url) {
+      final u = url.trim();
+      if (u.isEmpty || out.contains(u)) return;
+      out.add(u);
+    }
+
+    add(image);
+    for (final item in productImages ?? []) {
+      add(item);
+    }
+    for (final item in images) {
+      add(item.toString());
+    }
+    return out;
+  }
+
   factory ProductModel.fromFirestore(Map<String, dynamic> data, String id) {
+    final gallery = collectImageUrls(
+      image: data['image']?.toString() ?? '',
+      images: data['images'] is List ? data['images'] as List : const [],
+      productImages: dataProductImages(data: data),
+    );
+    final cover = gallery.isNotEmpty ? gallery.first : '';
+
     return ProductModel(
       id: id,
       name: data['name'] ?? '',
-      image: data['image'] ?? '',
-      createdAt: data['createdAt'] ?? Timestamp.now(),
+      image: cover,
+      createdAt: data['createdAt'] is Timestamp
+          ? data['createdAt'] as Timestamp
+          : Timestamp.now(),
       description: data['description'] ?? '',
       category: data['category'] ?? '',
       subcategory: data['subcategory'],
       unit: data['unit'] ?? '',
-      stock: data['stock'] ?? '',
-      maxOrder: data['maxOrder'] ?? '',
-      price: data['price'] ?? '',
-      slashedPrice: data['slashedPrice'] ?? '',
-      totalSold: data['totalSold'] ?? 0,
+      stock: data['stock']?.toString() ?? '',
+      maxOrder: data['maxOrder']?.toString() ?? '',
+      price: data['price']?.toString() ?? '',
+      slashedPrice: data['slashedPrice']?.toString() ?? '',
+      totalSold: (data['totalSold'] as num?)?.toInt() ?? 0,
       vendorId: data['vendor_id'] ?? '',
-      isFlashSale: data['is_flash_sale'] ?? false,
-      isActive: data['is_active'] ?? true,
-      lastEdited: data['lastEdited'] ?? Timestamp.now(),
+      settings: ProductSettings.fromMap(data),
+      lastEdited: data['lastEdited'] is Timestamp
+          ? data['lastEdited'] as Timestamp
+          : Timestamp.now(),
       unitPerItem: data['unitPerItem'] ?? '',
       favorites: data['favorites'] ?? [],
       shopName: data['shop_name'] ?? 'Appmoc',
-      isMostSelling: data['is_most_selling'] ?? false,
-      isTodaysBest: data['is_todays_best'] ?? false,
-      images: data['images'] ?? [],
+      images: gallery,
       videos: data['videos'] ?? [],
+      specialCat: data['special_cat']?.toString() ?? '',
     );
   }
 
-  Map<String, dynamic> toFirestore() {
+  static Map<String, dynamic> imageFieldsForFirestore(List<String> urls) {
+    final list = urls.where((u) => u.trim().isNotEmpty).toList();
+    final cover = list.isNotEmpty ? list.first : '';
     return {
-      "id": id,
-      "name": name,
-      "image": image,
-      "createdAt": FieldValue.serverTimestamp(),
-      "description": description,
-      "category": category,
-      if (subcategory != null) "subcategory": subcategory,
-      "unit": unit,
-      "stock": stock,
-      "maxOrder": maxOrder,
-      "price": price,
-      "slashedPrice": slashedPrice,
-      "totalSold": totalSold,
-      "vendor_id": vendorId,
-      "is_flash_sale": isFlashSale,
-      "is_active": isActive,
-      "lastEdited": FieldValue.serverTimestamp(),
-      "unitPerItem": unitPerItem,
-      "favorites": favorites,
-      "shop_name": shopName,
-      "is_most_selling": isMostSelling,
-      "is_todays_best": isTodaysBest,
-      "images": images,
-      "videos": videos,
+      'image': cover,
+      'images': list,
+      'product_images': list,
     };
+  }
+
+  Map<String, dynamic> toCreateMap() {
+    final urls = collectImageUrls(image: image, images: images);
+    return {
+      'name': name,
+      ...imageFieldsForFirestore(urls),
+      'createdAt': FieldValue.serverTimestamp(),
+      'description': description,
+      'category': category,
+      if (subcategory != null) 'subcategory': subcategory,
+      'unit': unit,
+      'stock': stock,
+      'maxOrder': maxOrder,
+      'price': price,
+      'slashedPrice': slashedPrice,
+      'totalSold': totalSold,
+      'vendor_id': vendorId,
+      'unitPerItem': unitPerItem,
+      'favorites': favorites,
+      'shop_name': shopName,
+      'videos': videos,
+      ...settings.toFirestorePatch(existingSpecialCat: specialCat),
+    };
+  }
+
+  Map<String, dynamic> toUpdateMap() {
+    final urls = collectImageUrls(image: image, images: images);
+    return {
+      'name': name,
+      ...imageFieldsForFirestore(urls),
+      'description': description,
+      'category': category,
+      if (subcategory != null) 'subcategory': subcategory,
+      'unit': unit,
+      'stock': stock,
+      'maxOrder': maxOrder,
+      'price': price,
+      'slashedPrice': slashedPrice,
+      'totalSold': totalSold,
+      'vendor_id': vendorId,
+      'unitPerItem': unitPerItem,
+      'favorites': favorites,
+      'shop_name': shopName,
+      'videos': videos,
+      'lastEdited': FieldValue.serverTimestamp(),
+    };
+  }
+
+  ProductModel copyWith({
+    String? name,
+    String? image,
+    List<String>? images,
+    ProductSettings? settings,
+    String? stock,
+    String? price,
+    String? slashedPrice,
+  }) {
+    return ProductModel(
+      id: id,
+      name: name ?? this.name,
+      image: image ?? this.image,
+      createdAt: createdAt,
+      description: description,
+      category: category,
+      subcategory: subcategory,
+      unit: unit,
+      stock: stock ?? this.stock,
+      maxOrder: maxOrder,
+      price: price ?? this.price,
+      slashedPrice: slashedPrice ?? this.slashedPrice,
+      totalSold: totalSold,
+      vendorId: vendorId,
+      settings: settings ?? this.settings,
+      lastEdited: lastEdited,
+      unitPerItem: unitPerItem,
+      favorites: favorites,
+      shopName: shopName,
+      images: images ?? this.images,
+      videos: videos,
+      specialCat: specialCat,
+    );
   }
 }

@@ -117,6 +117,7 @@ class OrderModel {
 }
 
 class ProductItem {
+  String productId;
   String name;
   String image;
   String description;
@@ -128,6 +129,7 @@ class ProductItem {
   String vendorId;
 
   ProductItem({
+    this.productId = '',
     required this.name,
     required this.image,
     required this.description,
@@ -141,6 +143,7 @@ class ProductItem {
 
   factory ProductItem.fromMap(Map<String, dynamic> data) {
     return ProductItem(
+      productId: (data['productId'] ?? data['product_id'] ?? '').toString(),
       name: data['name'] ?? '',
       image: data['image'] ?? '',
       description: data['description'] ?? '',
@@ -155,6 +158,7 @@ class ProductItem {
 
   Map<String, dynamic> toMap() {
     return {
+      if (productId.isNotEmpty) 'productId': productId,
       'name': name,
       'image': image,
       'description': description,

@@ -38,3 +38,35 @@ export {
 export { onProductStockUpdated } from "./operations/stock_triggers";
 export { abandonedCartReminder } from "./operations/abandoned_cart";
 export { dailySalesSummary } from "./operations/daily_summary";
+export { seedAdminTestNotification } from "./operations/ops_callables";
+export { onDeliveryBoyStatusUpdated } from "./operations/delivery_status_triggers";
+
+/** Vendor & delivery partner auth: login, OTP password reset, admin controls. */
+export {
+  partnerRequestPasswordReset,
+  partnerVerifyResetOtp,
+  partnerCompletePasswordReset,
+  partnerLogin,
+  partnerUpdatePassword,
+  partnerCheckSession,
+  adminPartnerAccountAction,
+} from "./partner_auth/partner_callables";
+
+/** Advanced coupon validation, redemption, and checkout listing. */
+export {
+  validateCouponCallable,
+  redeemCouponCallable,
+  listActiveCouponsCallable,
+} from "./coupons/coupon_callables";
+
+/** Product reviews: verified purchase, moderation, quality score. */
+export {
+  submitProductReview,
+  updateProductReview,
+  deleteProductReview,
+  moderateProductReview,
+  vendorReplyProductReview,
+  markReviewHelpful,
+  reportProductReview,
+  canReviewProduct,
+} from "./reviews/review_callables";

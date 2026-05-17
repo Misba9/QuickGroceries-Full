@@ -1,5 +1,6 @@
 import 'package:quick_grocery_admin/model/catrgory_model.dart';
 import 'package:quick_grocery_admin/model/vendor_model.dart';
+import 'package:quick_grocery_admin/core/responsive/admin_layout_widgets.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
@@ -30,7 +31,6 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
       backgroundColor: Color(0xFFFFFAF0),
       body: Column(
         children: [
-          PrimaryAppBar(),
           AppSpacing.h20,
           Expanded(
             child: ListView(
@@ -47,52 +47,38 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                         ],
                       ),
                       AppSpacing.h20,
-                      Row(
+                      AdminResponsiveRow(
                         children: [
                           Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              AppSpacing.h20,
-                              Text('Product name'),
+                              const Text('Product name'),
                               AppSpacing.h10,
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width * .24,
-                                child: PrimaryTextField(
-                                  controller: provider.productNamecontroller,
-                                  hintText: 'Ex: engi oil',
-                                ),
+                              PrimaryTextField(
+                                controller: provider.productNamecontroller,
+                                hintText: 'Ex: engi oil',
                               ),
                             ],
                           ),
-                          AppSpacing.w15,
                           Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              AppSpacing.h20,
-                              Text('Product MRP'),
+                              const Text('Product MRP'),
                               AppSpacing.h10,
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width * .24,
-                                child: PrimaryTextField(
-                                  controller: provider.mrpcontroller,
-                                  hintText: 'Ex: 120.00',
-                                ),
+                              PrimaryTextField(
+                                controller: provider.mrpcontroller,
+                                hintText: 'Ex: 120.00',
                               ),
                             ],
                           ),
-                          AppSpacing.w15,
                           Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              AppSpacing.h20,
-                              Text('Price (Selling price)'),
+                              const Text('Price (Selling price)'),
                               AppSpacing.h10,
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width * .24,
-                                child: PrimaryTextField(
-                                  controller: provider.pricecontroller,
-                                  hintText: 'Ex: 110.00',
-                                ),
+                              PrimaryTextField(
+                                controller: provider.pricecontroller,
+                                hintText: 'Ex: 110.00',
                               ),
                             ],
                           ),
@@ -539,51 +525,16 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                         ],
                       ),
                       AppSpacing.h10,
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          AppSpacing.h20,
-                          Text('Product Image (Main)'),
-                          AppSpacing.h10,
-                          Container(
-                            height: MediaQuery.of(context).size.width * .15,
-                            width: MediaQuery.of(context).size.width * .15,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: Center(
-                              child: provider.imageBytes == null
-                                  ? Icon(
-                                      Icons.image,
-                                      size: 40,
-                                      color: Colors.grey.shade300,
-                                    )
-                                  : Image.memory(provider.imageBytes!),
-                            ),
-                          ),
-                          AppSpacing.h20,
-                          GestureDetector(
-                            onTap: () {
-                              provider.pickImage();
-                            },
-                            child: Container(
-                              width: MediaQuery.of(context).size.width * .12,
-                              padding: EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey.shade300),
+                      AdminUploadSection(
+                        label: 'Product image (main)',
+                        buttonLabel: 'Upload main image',
+                        onTap: provider.pickImage,
+                        preview: provider.imageBytes == null
+                            ? null
+                            : Image.memory(
+                                provider.imageBytes!,
+                                fit: BoxFit.cover,
                               ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.add),
-                                  AppSpacing.w10,
-                                  Text('Upload Main Image'),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                       AppSpacing.h20,
                       Column(
@@ -642,24 +593,12 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                               ),
                             ),
                           AppSpacing.h10,
-                          GestureDetector(
-                            onTap: () {
-                              provider.pickMultipleImages();
-                            },
-                            child: Container(
-                              width: MediaQuery.of(context).size.width * .12,
-                              padding: EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey.shade300),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.add_photo_alternate),
-                                  AppSpacing.w10,
-                                  Text('Add Images'),
-                                ],
-                              ),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: provider.pickMultipleImages,
+                              icon: const Icon(Icons.add_photo_alternate),
+                              label: const Text('Add images'),
                             ),
                           ),
                         ],
@@ -745,24 +684,12 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                               ),
                             ),
                           AppSpacing.h10,
-                          GestureDetector(
-                            onTap: () {
-                              provider.pickVideo();
-                            },
-                            child: Container(
-                              width: MediaQuery.of(context).size.width * .12,
-                              padding: EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey.shade300),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.video_library),
-                                  AppSpacing.w10,
-                                  Text('Add Video'),
-                                ],
-                              ),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: provider.pickVideo,
+                              icon: const Icon(Icons.video_library),
+                              label: const Text('Add video'),
                             ),
                           ),
                         ],
@@ -770,35 +697,14 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                     ],
                   ),
                 ),
-                Align(
-                  alignment: Alignment.topRight,
-                  child: Padding(
-                    padding: const EdgeInsets.all(15.0),
-                    child: SizedBox(
-                      height: 40,
-                      width: 300,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: AppColor.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () => provider.addProduct(context),
-                        child: provider.isLoading
-                            ? Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 1,
-                                ),
-                              )
-                            : Text('Submit'),
-                      ),
+                Padding(
+                    padding: const EdgeInsets.all(15),
+                    child: AdminPrimaryButton(
+                      label: 'Submit',
+                      isLoading: provider.isLoading,
+                      onPressed: () => provider.addProduct(context),
                     ),
                   ),
-                ),
                 AppSpacing.h20,
                 AppSpacing.h20,
               ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -121,12 +122,12 @@ class HomeShimmer {
   static Widget banner() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Mirrors HomeBannerSlider's 16:7 cinematic aspect.
-        final width = constraints.maxWidth;
-        final height = (width * 7 / 16).clamp(168.0, 280.0);
+        const viewportFraction = 0.926;
+        final slideW = constraints.maxWidth * viewportFraction;
+        final height = slideW * 7 / 16;
         return Column(
           children: [
-            _box(height: height, radius: 20),
+            _box(height: height, radius: AppRadii.banner),
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,

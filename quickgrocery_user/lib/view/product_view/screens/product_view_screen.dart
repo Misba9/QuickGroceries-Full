@@ -11,11 +11,14 @@ import 'package:quickgrocery/core/product/product_quantity_label.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
-import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/recently_viewed_provider.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/cart_action_bar.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_detail_shimmer.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_image_carousel.dart';
+import 'package:quickgrocery/view/product_view/data/review_api_client.dart';
+import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
+import 'package:quickgrocery/view/product_view/presentation/screens/product_reviews_screen.dart';
+import 'package:quickgrocery/view/product_view/presentation/screens/write_review_screen.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_review_widget.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_variant_widget.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/recently_viewed_section.dart';
@@ -288,7 +291,7 @@ class _DetailBody extends ConsumerWidget {
             child: Divider(height: 24),
           ),
         ),
-        SliverToBoxAdapter(child: _ReviewsSection(productId: product.id)),
+        SliverToBoxAdapter(child: _ReviewsSection(product: product)),
         const SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
@@ -660,26 +663,86 @@ class _DescriptionSectionState extends State<_DescriptionSection> {
   }
 }
 
-class _ReviewsSection extends ConsumerWidget {
-  const _ReviewsSection({required this.productId});
-  final String productId;
+class _ReviewsSection extends ConsumerStatefulWidget {
+  const _ReviewsSection({required this.product});
+  final ProductModel product;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ReviewsSection> createState() => _ReviewsSectionState();
+}
+
+class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
+  bool _checkingReview = false;
+
+  Future<void> _openWriteReview() async {
+    setState(() => _checkingReview = true);
+    try {
+      final api = ref.read(reviewApiClientProvider);
+      final res = await api.canReview(
+        productId: widget.product.id,
+        productName: widget.product.name,
+      );
+      if (!mounted) return;
+      if (res['canReview'] != true) {
+        final reason = res['reason']?.toString() ?? '';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              reason == 'already_reviewed'
+                  ? 'You already reviewed this product'
+                  : 'Only verified buyers can review this product',
+            ),
+          ),
+        );
+        return;
+      }
+      final orderId = res['orderId']?.toString() ?? '';
+      final ok = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => WriteReviewScreen(product: widget.product, orderId: orderId),
+        ),
+      );
+      if (ok == true && mounted) setState(() {});
+    } finally {
+      if (mounted) setState(() => _checkingReview = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final productId = widget.product.id;
     final ratingsAsync = ref.watch(ratingsStreamProvider(productId));
     final summary = ref.watch(ratingSummaryProvider(productId));
+    final api = ReviewApiClient();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'reviews'.tr(),
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'reviews'.tr(),
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: _checkingReview ? null : _openWriteReview,
+                child: _checkingReview
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Write review'),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           ratingsAsync.when(
@@ -722,53 +785,28 @@ class _ReviewsSection extends ConsumerWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ReviewSummaryCard(summary: summary),
-                  const SizedBox(height: 12),
-                  ...ratings.take(5).map(
-                    (r) => ProductReviewCard(rating: r),
+                  ReviewSummaryCard(
+                    summary: summary,
+                    qualityScore: widget.product.totalReviews > 0
+                        ? ((widget.product.rating / 5) * 100).round()
+                        : summary.qualityScorePercent,
                   ),
-                  if (ratings.length > 5)
+                  const SizedBox(height: 12),
+                  ...ratings.take(3).map(
+                    (r) => ProductReviewCard(
+                      rating: r,
+                      onHelpful: () => api.markHelpful(r.id),
+                    ),
+                  ),
+                  if (ratings.length > 3)
                     Center(
                       child: TextButton(
                         onPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.white,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(16),
-                              ),
-                            ),
-                            builder: (_) => DraggableScrollableSheet(
-                              initialChildSize: 0.8,
-                              maxChildSize: 0.95,
-                              minChildSize: 0.4,
-                              expand: false,
-                              builder: (_, controller) => ListView.builder(
-                                controller: controller,
-                                padding: const EdgeInsets.all(16),
-                                itemCount: ratings.length + 1,
-                                itemBuilder: (_, i) {
-                                  if (i == 0) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 12,
-                                      ),
-                                      child: Text(
-                                        'All reviews',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  return ProductReviewCard(
-                                    rating: ratings[i - 1],
-                                  );
-                                },
-                              ),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ProductReviewsScreen(product: widget.product),
                             ),
                           );
                         },

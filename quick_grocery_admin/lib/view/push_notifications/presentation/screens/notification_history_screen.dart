@@ -168,14 +168,11 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                                                 overflow: TextOverflow.ellipsis,
                                               )),
                                               DataCell(
-                                                SizedBox(
-                                                  width: 240,
-                                                  child: Text(
-                                                    e.message,
-                                                    maxLines: 2,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
+                                                Text(
+                                                  e.message,
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                               DataCell(

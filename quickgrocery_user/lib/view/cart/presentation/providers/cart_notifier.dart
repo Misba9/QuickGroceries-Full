@@ -10,6 +10,7 @@ import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/delivery_location/services/delivery_zone_service.dart';
 
 import '../../data/cart_repository.dart';
+import '../../data/coupon_validation_client.dart';
 import '../../data/pricing_service.dart';
 import '../../domain/cart_models.dart';
 import '../../domain/pricing_calculator.dart';
@@ -268,7 +269,9 @@ class CartNotifier extends Notifier<CartState> {
   void addProduct(ProductModel product) {
     if (_disposed) return;
     final items = [...state.items];
-    final idx = items.indexWhere((c) => c.productId == product.id);
+    final idx = items.indexWhere(
+      (c) => c.productId == product.id && !c.isComboLine,
+    );
     if (idx == -1) {
       items.add(CartItem.fromProduct(product, itemCount: 1));
     } else {
@@ -280,12 +283,45 @@ class CartNotifier extends Notifier<CartState> {
     _writeLocal(items);
   }
 
+  /// Adds all combo products with proportional combo pricing locked in.
+  void addComboBundle({
+    required String comboId,
+    required List<ProductModel> products,
+    required double comboUnitPrice,
+    int bundleCount = 1,
+  }) {
+    if (_disposed || products.isEmpty) return;
+    final groupKey = '${comboId}_${DateTime.now().millisecondsSinceEpoch}';
+    final originalSum =
+        products.fold<double>(0, (s, p) => s + p.price).clamp(0.01, double.infinity);
+    final targetTotal = comboUnitPrice * bundleCount;
+
+    final items = [...state.items];
+    for (final p in products) {
+      final share = p.price / originalSum;
+      final unitPrice = (targetTotal * share) / bundleCount;
+      items.add(
+        CartItem.fromProduct(p, itemCount: bundleCount).copyWith(
+          price: unitPrice,
+          slashedPrice: p.price,
+          comboId: comboId,
+          comboGroupKey: groupKey,
+        ),
+      );
+    }
+    _writeLocal(items);
+  }
+
   void increment(String productId) {
     if (_disposed) return;
     final items = [...state.items];
     final idx = items.indexWhere((c) => c.productId == productId);
     if (idx == -1) return;
     final cur = items[idx];
+    if (cur.isComboLine) {
+      _adjustComboGroup(cur.comboGroupKey!, 1);
+      return;
+    }
     final cap = cur.maxOrder == 0 ? 999 : cur.maxOrder;
     if (cur.itemCount >= cap) return;
     items[idx] = cur.copyWith(itemCount: cur.itemCount + 1);
@@ -298,6 +334,10 @@ class CartNotifier extends Notifier<CartState> {
     final idx = items.indexWhere((c) => c.productId == productId);
     if (idx == -1) return;
     final cur = items[idx];
+    if (cur.isComboLine) {
+      _adjustComboGroup(cur.comboGroupKey!, -1);
+      return;
+    }
     if (cur.itemCount <= 1) {
       items.removeAt(idx);
     } else {
@@ -308,8 +348,36 @@ class CartNotifier extends Notifier<CartState> {
 
   void remove(String productId) {
     if (_disposed) return;
+    final hit = state.items.where((c) => c.productId == productId).firstOrNull;
+    if (hit != null && hit.isComboLine) {
+      _removeComboGroup(hit.comboGroupKey!);
+      return;
+    }
     final items =
         state.items.where((c) => c.productId != productId).toList();
+    _writeLocal(items);
+  }
+
+  void _adjustComboGroup(String groupKey, int delta) {
+    final items = [...state.items];
+    final group = items.where((c) => c.comboGroupKey == groupKey).toList();
+    if (group.isEmpty) return;
+    final nextCount = (group.first.itemCount + delta).clamp(0, 999);
+    if (nextCount <= 0) {
+      _writeLocal(items.where((c) => c.comboGroupKey != groupKey).toList());
+      return;
+    }
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].comboGroupKey == groupKey) {
+        items[i] = items[i].copyWith(itemCount: nextCount);
+      }
+    }
+    _writeLocal(items);
+  }
+
+  void _removeComboGroup(String groupKey) {
+    final items =
+        state.items.where((c) => c.comboGroupKey != groupKey).toList();
     _writeLocal(items);
   }
 
@@ -327,6 +395,28 @@ class CartNotifier extends Notifier<CartState> {
     state = state.copyWith(coupon: coupon, clearError: true);
     _recomputeBill();
     _scheduleSync();
+  }
+
+  /// Server-side validation (first order, limits, expiry, etc.).
+  Future<String?> applyCouponValidated({
+    required String code,
+    required CouponValidationClient validationClient,
+    String? phone,
+    String? deviceId,
+  }) async {
+    if (_disposed) return 'Cart unavailable';
+    final result = await validationClient.validate(
+      code: code,
+      subtotal: state.bill.subtotal > 0
+          ? state.bill.subtotal
+          : state.items.fold(0.0, (a, i) => a + i.lineTotal),
+      items: state.items,
+      phone: phone,
+      deviceId: deviceId,
+    );
+    if (!result.isValid) return result.message;
+    applyCoupon(result.applied!);
+    return null;
   }
 
   void removeCoupon() {

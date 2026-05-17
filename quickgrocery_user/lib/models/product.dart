@@ -49,7 +49,17 @@ class ProductModel {
   bool isTrending;
   bool isFeatured;
   bool isAvailable;
+  bool isFlashSale;
+  bool isTodaysBest;
+  bool isRecommended;
+  bool isPremium;
+  bool isNewArrival;
+  bool isLimitedStock;
+  bool isOrganic;
+  bool isFastSelling;
+  bool isSeasonal;
   DateTime? createdAt;
+  DateTime? flashSaleEnd;
 
   ProductModel({
     required this.id,
@@ -81,14 +91,29 @@ class ProductModel {
     this.isTrending = false,
     this.isFeatured = false,
     this.isAvailable = true,
+    this.isFlashSale = false,
+    this.isTodaysBest = false,
+    this.isRecommended = false,
+    this.isPremium = false,
+    this.isNewArrival = false,
+    this.isLimitedStock = false,
+    this.isOrganic = false,
+    this.isFastSelling = false,
+    this.isSeasonal = false,
     this.createdAt,
+    this.flashSaleEnd,
   });
 
   factory ProductModel.fromFirestore(Map<String, dynamic> data, String id) {
+    final gallery = _galleryFromData(data);
+    final cover = data['image']?.toString().trim() ?? '';
+    final primaryImage =
+        cover.isNotEmpty ? cover : (gallery.isNotEmpty ? gallery.first : '');
+
     return ProductModel(
       id: id,
       name: data['name']?.toString() ?? '',
-      image: data['image']?.toString() ?? '',
+      image: primaryImage,
       description: data['description']?.toString() ?? '',
       category: data['category']?.toString() ?? '',
       subcategory: data['subcategory']?.toString() ?? '',
@@ -116,11 +141,12 @@ class ProductModel {
         'measurementType',
       ]),
       itemCount: _asInt(data['itemCount']),
-      isMostSold: _asBool(data['most_sold'], fallback: false),
+      isMostSold: _asBool(data['most_sold'], fallback: false) ||
+          _asBool(data['is_most_selling'], fallback: false),
       productIndex: _asInt(data['product_index']),
       specialCat: data['special_cat']?.toString() ?? '',
       addonIds: _asStringList(data['addonIds']),
-      images: _asDynamicList(data['images']),
+      images: _galleryFromData(data),
       videos: _asDynamicList(data['videos']),
       selectedWeightInGrams: _asInt(
         data['selectedWeightInGrams'],
@@ -128,11 +154,27 @@ class ProductModel {
       ),
       rating: _asDouble(data['rating']),
       totalReviews: _asInt(data['totalReviews']),
-      isTrending: _asBool(data['isTrending'], fallback: false),
-      isFeatured: _asBool(data['isFeatured'], fallback: false),
-      // Prefer explicit flags when present; tolerate string/int representations.
+      isTrending: _asBool(data['isTrending'], fallback: false) ||
+          _asBool(data['is_trending'], fallback: false),
+      isFeatured: _asBool(data['isFeatured'], fallback: false) ||
+          _asBool(data['is_featured'], fallback: false),
       isAvailable: _resolveIsAvailable(data),
+      isFlashSale: _asBool(data['is_flash_sale'], fallback: false),
+      isTodaysBest: _asBool(data['is_todays_best'], fallback: false),
+      isRecommended: _asBool(data['is_recommended'], fallback: false),
+      isPremium: _asBool(data['premium_badge'], fallback: false) ||
+          _asBool(data['is_premium'], fallback: false),
+      isNewArrival: _asBool(data['is_new_arrival'], fallback: false),
+      isLimitedStock: _asBool(data['limited_stock'], fallback: false) ||
+          _asBool(data['is_limited_stock'], fallback: false),
+      isOrganic: _asBool(data['organic_product'], fallback: false) ||
+          _asBool(data['is_organic'], fallback: false),
+      isFastSelling: _asBool(data['fast_selling'], fallback: false) ||
+          _asBool(data['is_fast_selling'], fallback: false),
+      isSeasonal: _asBool(data['seasonal_product'], fallback: false) ||
+          _asBool(data['is_seasonal'], fallback: false),
       createdAt: _asDateTime(data['createdAt']),
+      flashSaleEnd: _asDateTime(data['flash_sale_end']),
     );
   }
 
@@ -249,6 +291,12 @@ class ProductModel {
     return (((price - slashedPrice) / price) * 100).round();
   }
 
+  bool get isFlashSaleLive {
+    if (!isFlashSale) return false;
+    if (flashSaleEnd == null) return true;
+    return DateTime.now().isBefore(flashSaleEnd!);
+  }
+
   bool get isVegetable {
     final catLower = category.toLowerCase();
     final subCatLower = subcategory.toLowerCase();
@@ -282,6 +330,30 @@ String _firstNonEmptyString(Map<String, dynamic> data, List<String> keys) {
     if (t.isNotEmpty) return t;
   }
   return '';
+}
+
+List<dynamic> _galleryFromData(Map<String, dynamic> data) {
+  final out = <String>[];
+  void add(dynamic v) {
+    final u = v?.toString().trim() ?? '';
+    if (u.isEmpty || out.contains(u)) return;
+    out.add(u);
+  }
+
+  add(data['image']);
+  final productImages = data['product_images'];
+  if (productImages is List) {
+    for (final e in productImages) {
+      add(e);
+    }
+  }
+  final images = data['images'];
+  if (images is List) {
+    for (final e in images) {
+      add(e);
+    }
+  }
+  return out;
 }
 
 bool _resolveIsAvailable(Map<String, dynamic> data) {

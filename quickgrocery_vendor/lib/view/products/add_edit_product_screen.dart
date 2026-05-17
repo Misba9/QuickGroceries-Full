@@ -1,15 +1,19 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import '../../models/product_model.dart';
+import '../../models/product_settings.dart';
 import '../../models/vendor_model.dart';
 import '../../models/category_model.dart';
+import '../../constants/product_image_limits.dart';
+import '../../models/product_image_slot.dart';
 import '../../services/product_service.dart';
-import '../../services/storage_service.dart';
 import '../../services/category_service.dart';
+import '../../services/product_image_upload_service.dart';
 import '../../style/app_color.dart';
 import '../../utils/app_spacing.dart';
+import 'widgets/product_images_upload_section.dart';
+import 'widgets/product_settings_panel.dart';
 
 class AddEditProductScreen extends StatefulWidget {
   final VendorModel vendor;
@@ -28,11 +32,11 @@ class AddEditProductScreen extends StatefulWidget {
 class _AddEditProductScreenState extends State<AddEditProductScreen> {
   final _formKey = GlobalKey<FormState>();
   final _productService = ProductService();
-  final _storageService = StorageService();
   final _categoryService = CategoryService();
-  final _imagePicker = ImagePicker();
+  final _imageUploadService = ProductImageUploadService();
   bool _isLoading = false;
-  bool _isUploadingImage = false;
+  bool _isUploadingImages = false;
+  double? _uploadProgress;
   bool _isLoadingCategories = false;
 
   // Controllers
@@ -53,13 +57,10 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   String? _selectedCategoryName;
   String? _selectedSubcategoryName;
 
-  bool _isActive = true;
-  bool _isFlashSale = false;
-  bool _isTodaysBest = false;
-  bool _isMostSelling = false;
+  ProductSettings _settings = const ProductSettings();
 
-  File? _selectedImage;
-  String? _imageUrl; // URL from Firestore or uploaded image
+  List<ProductImageSlot> _imageSlots = [];
+  List<String> _initialGalleryUrls = [];
 
   @override
   void initState() {
@@ -67,7 +68,8 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     _loadCategories();
     if (widget.product != null) {
       _populateForm(widget.product!);
-      _imageUrl = widget.product!.image;
+      _initialGalleryUrls = widget.product!.galleryUrls;
+      _imageSlots = ProductImageSlot.fromUrls(_initialGalleryUrls);
     }
   }
 
@@ -163,10 +165,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     _priceController.text = product.price;
     _slashedPriceController.text = product.slashedPrice;
     _unitPerItemController.text = product.unitPerItem;
-    _isActive = product.isActive;
-    _isFlashSale = product.isFlashSale;
-    _isTodaysBest = product.isTodaysBest;
-    _isMostSelling = product.isMostSelling;
+    _settings = product.settings;
     // Category and subcategory will be set in _loadCategories after categories are loaded
   }
 
@@ -183,111 +182,37 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      final XFile? pickedFile = await _imagePicker.pickImage(
-        source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
-      );
-
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImage = File(pickedFile.path);
-          _imageUrl = null; // Clear old URL when new image is selected
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error picking image: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _showImageSourceDialog() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from Gallery'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.gallery);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Take a Photo'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.camera);
-              },
-            ),
-            if (_imageUrl != null || _selectedImage != null)
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Remove Image', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _selectedImage = null;
-                    _imageUrl = null;
-                  });
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<String?> _uploadImage() async {
-    if (_selectedImage == null) {
-      // If no new image selected, return existing URL
-      return _imageUrl;
-    }
-
+  Future<List<String>> _uploadGalleryImages() async {
     setState(() {
-      _isUploadingImage = true;
+      _isUploadingImages = true;
+      _uploadProgress = 0;
     });
 
     try {
-      // Delete old image if updating product
-      if (widget.product != null && _imageUrl != null && _imageUrl!.isNotEmpty) {
-        try {
-          await _storageService.deleteImage(_imageUrl!);
-        } catch (e) {
-          // Continue even if deletion fails
-          print('Error deleting old image: $e');
-        }
-      }
-
-      // Upload new image
-      final String downloadUrl = await _storageService.uploadProductImage(
-        imageFile: _selectedImage!,
+      final productId = widget.product?.id;
+      final urls = await _imageUploadService.uploadSlots(
+        slots: _imageSlots,
         vendorId: widget.vendor.id,
-        productId: widget.product?.id,
+        productId: productId?.isNotEmpty == true ? productId : null,
+        onProgress: (done, total) {
+          if (!mounted || total == 0) return;
+          setState(() => _uploadProgress = done / total);
+        },
       );
 
-      setState(() {
-        _isUploadingImage = false;
-      });
+      await _imageUploadService.deleteRemovedUrls(
+        previousUrls: _initialGalleryUrls,
+        nextUrls: urls,
+      );
 
-      return downloadUrl;
-    } catch (e) {
-      setState(() {
-        _isUploadingImage = false;
-      });
-      rethrow;
+      return urls;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingImages = false;
+          _uploadProgress = null;
+        });
+      }
     }
   }
 
@@ -298,20 +223,29 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       });
 
       try {
-        // Upload image first if a new one is selected
-        String? finalImageUrl = await _uploadImage();
-
-        if (finalImageUrl == null || finalImageUrl.isEmpty) {
+        if (_imageSlots.length < ProductImageLimits.minImages) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Please select a product image'),
+                content: Text('Please add at least 1 product image'),
                 backgroundColor: Colors.orange,
               ),
             );
-            setState(() {
-              _isLoading = false;
-            });
+            setState(() => _isLoading = false);
+          }
+          return;
+        }
+
+        final galleryUrls = await _uploadGalleryImages();
+        if (galleryUrls.isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Upload failed, retry again'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            setState(() => _isLoading = false);
           }
           return;
         }
@@ -319,7 +253,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
         final product = ProductModel(
           id: widget.product?.id ?? '',
           name: _nameController.text.trim(),
-          image: finalImageUrl,
+          image: galleryUrls.first,
           createdAt: widget.product?.createdAt ?? Timestamp.now(),
           description: _descriptionController.text.trim(),
           category: _selectedCategoryName ?? '',
@@ -331,32 +265,28 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
           slashedPrice: _slashedPriceController.text.trim(),
           totalSold: widget.product?.totalSold ?? 0,
           vendorId: widget.vendor.id,
-          isFlashSale: _isFlashSale,
-          isActive: _isActive,
+          settings: _settings,
           lastEdited: Timestamp.now(),
           unitPerItem: _unitPerItemController.text.trim(),
           favorites: widget.product?.favorites ?? [],
           shopName: widget.vendor.shopName,
-          isMostSelling: _isMostSelling,
-          isTodaysBest: _isTodaysBest,
-          images: widget.product?.images ?? [],
+          images: galleryUrls,
           videos: widget.product?.videos ?? [],
+          specialCat: widget.product?.specialCat ?? '',
         );
 
         if (widget.product != null) {
-          // Update existing product
           await _productService.updateProduct(product);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Product updated successfully'),
+                content: Text('Images uploaded successfully'),
                 backgroundColor: Colors.green,
               ),
             );
             Navigator.pop(context);
           }
         } else {
-          // Add new product
           await _productService.addProduct(product);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -410,114 +340,11 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Product Image Section
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Product Image *',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      AppSpacing.h15,
-                      GestureDetector(
-                        onTap: _showImageSourceDialog,
-                        child: Container(
-                          width: double.infinity,
-                          height: 200,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.grey[300]!,
-                              width: 2,
-                              style: BorderStyle.solid,
-                            ),
-                          ),
-                          child: _isUploadingImage
-                              ? const Center(
-                                  child: CircularProgressIndicator(),
-                                )
-                              : _selectedImage != null
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
-                                      child: Image.file(
-                                        _selectedImage!,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    )
-                                  : _imageUrl != null && _imageUrl!.isNotEmpty
-                                      ? ClipRRect(
-                                          borderRadius: BorderRadius.circular(10),
-                                          child: Image.network(
-                                            _imageUrl!,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              return const Center(
-                                                child: Column(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                  children: [
-                                                    Icon(
-                                                      Icons.error_outline,
-                                                      size: 48,
-                                                      color: Colors.red,
-                                                    ),
-                                                    SizedBox(height: 8),
-                                                    Text('Error loading image'),
-                                                  ],
-                                                ),
-                                              );
-                                            },
-                                            loadingBuilder: (context, child, loadingProgress) {
-                                              if (loadingProgress == null) return child;
-                                              return const Center(
-                                                child: CircularProgressIndicator(),
-                                              );
-                                            },
-                                          ),
-                                        )
-                                      : const Center(
-                                          child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.add_photo_alternate,
-                                                size: 48,
-                                                color: Colors.grey,
-                                              ),
-                                              SizedBox(height: 8),
-                                              Text(
-                                                'Tap to add product image',
-                                                style: TextStyle(
-                                                  color: Colors.grey,
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                        ),
-                      ),
-                      AppSpacing.h10,
-                      Center(
-                        child: TextButton.icon(
-                          onPressed: _showImageSourceDialog,
-                          icon: const Icon(Icons.camera_alt),
-                          label: Text(
-                            _selectedImage != null || _imageUrl != null
-                                ? 'Change Image'
-                                : 'Select Image',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              ProductImagesUploadSection(
+                initialUrls: _initialGalleryUrls,
+                isUploading: _isUploadingImages,
+                uploadProgress: _uploadProgress,
+                onChanged: (slots) => setState(() => _imageSlots = slots),
               ),
               AppSpacing.h20,
 
@@ -781,65 +608,15 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               ),
               AppSpacing.h20,
 
-              // Toggle Switches
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Product Settings',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      AppSpacing.h15,
-                      SwitchListTile(
-                        title: const Text('Active'),
-                        subtitle: const Text('Product will be visible to customers'),
-                        value: _isActive,
-                        onChanged: (value) {
-                          setState(() {
-                            _isActive = value;
-                          });
-                        },
-                        activeColor: AppColor.primary,
-                      ),
-                      SwitchListTile(
-                        title: const Text('Flash Sale'),
-                        value: _isFlashSale,
-                        onChanged: (value) {
-                          setState(() {
-                            _isFlashSale = value;
-                          });
-                        },
-                        activeColor: AppColor.primary,
-                      ),
-                      SwitchListTile(
-                        title: const Text("Today's Best"),
-                        value: _isTodaysBest,
-                        onChanged: (value) {
-                          setState(() {
-                            _isTodaysBest = value;
-                          });
-                        },
-                        activeColor: AppColor.primary,
-                      ),
-                      SwitchListTile(
-                        title: const Text('Most Selling'),
-                        value: _isMostSelling,
-                        onChanged: (value) {
-                          setState(() {
-                            _isMostSelling = value;
-                          });
-                        },
-                        activeColor: AppColor.primary,
-                      ),
-                    ],
-                  ),
-                ),
+              ProductSettingsPanel(
+                productId: widget.product?.id.isNotEmpty == true
+                    ? widget.product!.id
+                    : null,
+                initialProduct: widget.product,
+                initialSettings: _settings,
+                onLocalChanged: (s) {
+                  if (_settings != s) setState(() => _settings = s);
+                },
               ),
               AppSpacing.h20,
               AppSpacing.h10,
@@ -848,7 +625,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               SizedBox(
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: (_isLoading || _isUploadingImage) ? null : _saveProduct,
+                  onPressed: (_isLoading || _isUploadingImages) ? null : _saveProduct,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColor.primary,
                     foregroundColor: Colors.black,
@@ -857,7 +634,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                     ),
                     elevation: 2,
                   ),
-                  child: _isLoading || _isUploadingImage
+                  child: _isLoading || _isUploadingImages
                       ? const SizedBox(
                           height: 20,
                           width: 20,

@@ -40,7 +40,6 @@ class _AppContentManagementScreenState extends State<AppContentManagementScreen>
 
           return Column(
             children: [
-              const PrimaryAppBar(),
               AppSpacing.h20,
               Expanded(
                 child: service.loading

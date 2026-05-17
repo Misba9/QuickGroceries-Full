@@ -26,6 +26,8 @@ import 'package:quickgrocery/view/cart/screen/success_screen.dart';
 import 'package:quickgrocery/view/checkout/widgets/address_card.dart';
 import 'package:quickgrocery/view/checkout/widgets/checkout_bottom_bar.dart';
 import 'package:quickgrocery/view/checkout/widgets/empty_address_widget.dart';
+import 'package:quickgrocery/core/device/device_id_service.dart';
+import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.dart';
 import 'package:quickgrocery/view/coupons/coupon_screen.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/payment/services/payment_service.dart';
@@ -98,7 +100,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final bill = _bill(cart, zoneCharge);
 
     Future<void> finalize({String? paymentRef}) async {
-      await ref.read(orderRepositoryProvider).placeOrder(
+      final orderId = await ref.read(orderRepositoryProvider).placeOrder(
             items: cart.items,
             coupon: cart.coupon,
             bill: bill,
@@ -110,6 +112,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             paymentMethod: paymentMethod,
             paymentRef: paymentRef,
           );
+      if (cart.coupon != null) {
+        try {
+          final deviceId = await DeviceIdService.getOrCreate();
+          await ref.read(couponValidationClientProvider).redeem(
+                code: cart.coupon!.code,
+                orderId: orderId,
+                subtotal: bill.subtotal,
+                discountApplied: bill.couponDiscount,
+                items: cart.items,
+                phone: address.mobile,
+                deviceId: deviceId,
+              );
+        } catch (_) {
+          // Order placed; redemption logged server-side on retry if needed.
+        }
+      }
       await cartNotifier.clear();
       checkoutNotifier.setPlacingOrder(false);
       if (!mounted) return;
@@ -256,7 +274,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => const CouponScreen(),
+                                        builder: (_) => CouponScreen(
+                                          checkoutPhone: selectedAddr?.mobile,
+                                        ),
                                       ),
                                     ).then((_) => addressService.getAddress());
                                   },
@@ -585,7 +605,9 @@ class _EtaCouponRow extends ConsumerWidget {
                     const SizedBox(height: 6),
                     Text(
                       cart.coupon != null
-                          ? '${'coupon_applied_prefix'.tr()}: ${cart.coupon!.code}'
+                          ? cart.coupon!.isFirstOrderOffer
+                              ? 'First Order Offer · ${cart.coupon!.code}'
+                              : '${'coupon_applied_prefix'.tr()}: ${cart.coupon!.code}'
                           : 'tap_to_apply_coupon'.tr(),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,

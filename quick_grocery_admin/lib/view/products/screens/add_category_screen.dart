@@ -1,3 +1,4 @@
+import 'package:quick_grocery_admin/core/responsive/admin_layout_widgets.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
@@ -29,7 +30,6 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            PrimaryAppBar(),
             AppSpacing.h20,
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,99 +61,47 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
                         ],
                       ),
                       AppSpacing.h20,
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      AdminResponsiveRow(
                         children: [
                           Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              AppSpacing.h20,
-                              Text('Category name'),
+                              const Text('Category name'),
                               AppSpacing.h10,
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width * .24,
-                                child: PrimaryTextField(
-                                  controller: provider.categoryController,
-                                  hintText: 'Ex: HP',
-                                ),
+                              PrimaryTextField(
+                                controller: provider.categoryController,
+                                hintText: 'Ex: HP',
                               ),
                             ],
                           ),
-                          AppSpacing.w15,
                           Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              AppSpacing.h20,
-                              Text(
-                                'Category order number ( based on index number)',
+                              const Text(
+                                'Category order number (based on index)',
                               ),
                               AppSpacing.h10,
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width * .24,
-                                child: PrimaryTextField(
-                                  controller: provider.categoryOrderController,
-                                  hintText: 'Ex: 6',
-                                ),
+                              PrimaryTextField(
+                                controller: provider.categoryOrderController,
+                                hintText: 'Ex: 6',
                               ),
                             ],
                           ),
-                          AppSpacing.w15,
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              AppSpacing.h20,
-                              Text('Category Image'),
-                              AppSpacing.h10,
-                              Container(
-                                height: MediaQuery.of(context).size.width * .08,
-                                width: MediaQuery.of(context).size.width * .08,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Colors.grey.shade300,
+                          AdminUploadSection(
+                            label: 'Category image',
+                            buttonLabel: 'Upload image',
+                            onTap: () => provider.pickImage(),
+                            preview: provider.imageBytes == null
+                                ? (provider.editingCategoryImage != null
+                                    ? Image.network(
+                                        provider.editingCategoryImage!,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null)
+                                : Image.memory(
+                                    provider.imageBytes!,
+                                    fit: BoxFit.cover,
                                   ),
-                                ),
-                                child: Center(
-                                  child: provider.imageBytes == null
-                                      ? (provider.editingCategoryId != null &&
-                                              provider.editingCategoryImage != null
-                                          ? Image.network(
-                                              provider.editingCategoryImage!,
-                                              fit: BoxFit.cover,
-                                            )
-                                          : Icon(
-                                              Icons.image,
-                                              size: 40,
-                                              color: Colors.grey.shade300,
-                                            ))
-                                      : Image.memory(provider.imageBytes!),
-                                ),
-                              ),
-                              AppSpacing.h20,
-                              GestureDetector(
-                                onTap: () {
-                                  provider.pickImage();
-                                },
-                                child: Container(
-                                  width:
-                                      MediaQuery.of(context).size.width * .12,
-                                  padding: EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.add),
-                                      AppSpacing.w10,
-                                      Text('Upload Image'),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
                           ),
                         ],
                       ),
@@ -161,33 +109,12 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
                   ),
                 ),
                 AppSpacing.h20,
-                Align(
-                  alignment: Alignment.topRight,
-                  child: Padding(
-                    padding: const EdgeInsets.all(15.0),
-                    child: SizedBox(
-                      height: 40,
-                      width: 300,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: AppColor.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () => provider.addCategory(context),
-                        child: provider.isLoading
-                            ? Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 1,
-                                ),
-                              )
-                            : Text('Submit'),
-                      ),
-                    ),
+                Padding(
+                  padding: const EdgeInsets.all(15),
+                  child: AdminPrimaryButton(
+                    label: 'Submit',
+                    isLoading: provider.isLoading,
+                    onPressed: () => provider.addCategory(context),
                   ),
                 ),
                 AppSpacing.h20,

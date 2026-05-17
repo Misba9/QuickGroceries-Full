@@ -1,4 +1,5 @@
 import 'package:quick_grocery_admin/model/customer_model.dart';
+import 'package:quick_grocery_admin/core/responsive/admin_layout_widgets.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/home/screens/home_screen.dart';
@@ -34,11 +35,11 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              Row(
+              AdminResponsiveRow(
+                breakpoint: 900,
                 children: [
                   SizedBox(
                     height: 210,
-                    width: MediaQuery.of(context).size.width * .30,
                     child: WrapperWidget(
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,10 +86,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                       ),
                     ),
                   ),
-                  AppSpacing.w20,
-                  SizedBox(
-                    width: MediaQuery.of(context).size.width * .66,
-                    child: WrapperWidget(
+                  WrapperWidget(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -148,7 +146,6 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                         ],
                       ),
                     ),
-                  ),
                 ],
               ),
               AppSpacing.h20,
@@ -156,17 +153,16 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                 child: Column(
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
+                        const Text(
                           'Orders',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        SizedBox(
-                          width: 400,
+                        const SizedBox(width: 16),
+                        Expanded(
                           child: TextField(
                             autofocus: false,
                             decoration: InputDecoration(

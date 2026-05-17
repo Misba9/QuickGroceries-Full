@@ -4,6 +4,8 @@ import '../../services/auth_service.dart';
 import '../../style/app_color.dart';
 import '../../utils/app_spacing.dart';
 import '../main_navigation_screen.dart';
+import 'forgot_password/forgot_password_email_screen.dart';
+import 'force_password_change_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -41,15 +43,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (vendor != null) {
           await VendorFcmBootstrap.configureForVendor(vendor.id);
-          // Login successful
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MainNavigationScreen(vendor: vendor),
-              ),
-            );
-          }
+          if (!mounted) return;
+          final forceChange = await _authService.shouldForcePasswordChange();
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => forceChange
+                  ? ForcePasswordChangeScreen(vendor: vendor)
+                  : MainNavigationScreen(vendor: vendor),
+            ),
+          );
         } else {
           // Invalid credentials
           if (mounted) {
@@ -203,7 +207,29 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-                  AppSpacing.h20,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const ForgotPasswordEmailScreen(),
+                                ),
+                              );
+                            },
+                      child: Text(
+                        'Forgot Password?',
+                        style: TextStyle(
+                          color: AppColor.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
                   AppSpacing.h10,
 
                   // Login Button

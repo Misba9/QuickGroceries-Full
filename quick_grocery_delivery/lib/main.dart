@@ -3,10 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:quick_grocery_delivery/core/fcm_bootstrap.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 // import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:quick_grocery_delivery/features/home/screens/home_screen.dart';
-import 'package:quick_grocery_delivery/features/login/login_screen.dart';
+import 'package:quick_grocery_delivery/features/login/auth_gate.dart';
 import 'package:quick_grocery_delivery/features/login/services/login_service.dart';
 import 'package:quick_grocery_delivery/features/orders/services/order_service.dart';
+import 'package:quick_grocery_delivery/services/driver_profile_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -65,12 +65,11 @@ Future<void> main() async {
     await DeliveryFcmBootstrap.configureForRider(riderId);
   }
 
-  runApp(MyApp(isLogged: riderId.isNotEmpty));
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, required this.isLogged});
-  final bool isLogged;
+  const MyApp({super.key});
 
   // This widget is the root of your application.
   @override
@@ -79,6 +78,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (context) => OrderService()),
         ChangeNotifierProvider(create: (context) => LoginService()),
+        ChangeNotifierProvider(create: (context) => DriverProfileService()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -87,7 +87,7 @@ class MyApp extends StatelessWidget {
           textTheme: GoogleFonts.nunitoTextTheme(Theme.of(context).textTheme),
           colorScheme: ColorScheme.fromSeed(seedColor: GlobalVariables.primary),
         ),
-        home: isLogged ? const HomeScreen() : const LoginScreen(),
+        home: const AuthGate(),
       ),
     );
   }

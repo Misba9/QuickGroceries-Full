@@ -1,4 +1,4 @@
-import 'package:quick_grocery_admin/style/app_color.dart';
+import 'package:quick_grocery_admin/core/responsive/admin_layout_widgets.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/services/delivery_boy_service.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
@@ -21,7 +21,6 @@ class _AddDeliveryScreenState extends State<AddDeliveryScreen> {
     return Scaffold(
       body: Column(
         children: [
-          PrimaryAppBar(),
           AppSpacing.h20,
           Expanded(
             child: SingleChildScrollView(
@@ -47,165 +46,92 @@ class _AddDeliveryScreenState extends State<AddDeliveryScreen> {
                             ],
                           ),
                           AppSpacing.h20,
-                          Row(
+                          AdminResponsiveRow(
                             children: [
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Text('First name'),
+                                  const Text('First name'),
                                   AppSpacing.h10,
-                                  SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width * .35,
-                                    child: PrimaryTextField(
-                                      controller: provider.firstNameController,
-                                      hintText: 'Ex: Jhone',
-                                    ),
+                                  PrimaryTextField(
+                                    controller: provider.firstNameController,
+                                    hintText: 'Ex: Jhone',
                                   ),
                                 ],
                               ),
-                              AppSpacing.w20,
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Text('Last name'),
+                                  const Text('Last name'),
                                   AppSpacing.h10,
-                                  SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width * .35,
-                                    child: PrimaryTextField(
-                                      controller: provider.secondNameController,
-                                      hintText: 'Ex: K',
-                                    ),
+                                  PrimaryTextField(
+                                    controller: provider.secondNameController,
+                                    hintText: 'Ex: K',
                                   ),
                                 ],
                               ),
                             ],
                           ),
                           AppSpacing.h20,
-                          Row(
+                          AdminResponsiveRow(
                             children: [
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Text('Phone'),
+                                  const Text('Phone'),
                                   AppSpacing.h10,
-                                  SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width * .35,
-                                    child: Row(
-                                      children: [
-                                        Text('+91'),
-                                        AppSpacing.w10,
-                                        Expanded(
-                                          child: PrimaryTextField(
-                                            controller:
-                                                provider.phoneController,
-                                            hintText: '9876543210',
-                                          ),
+                                  Row(
+                                    children: [
+                                      const Text('+91'),
+                                      AppSpacing.w10,
+                                      Expanded(
+                                        child: PrimaryTextField(
+                                          controller: provider.phoneController,
+                                          hintText: '9876543210',
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                              AppSpacing.w20,
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Text('Licence Number'),
+                                  const Text('Licence number'),
                                   AppSpacing.h10,
-                                  SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width * .35,
-                                    child: PrimaryTextField(
-                                      controller: provider.licenceController,
-                                      hintText: 'Ex: KL XXX0 XX06',
-                                    ),
+                                  PrimaryTextField(
+                                    controller: provider.licenceController,
+                                    hintText: 'Ex: KL XXX0 XX06',
                                   ),
                                 ],
                               ),
                             ],
                           ),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          AppSpacing.h20,
+                          AdminResponsiveRow(
+                            breakpoint: 640,
                             children: [
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  AppSpacing.h20,
-                                  Text('Address'),
+                                  const Text('Address'),
                                   AppSpacing.h10,
-                                  SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width * .35,
-                                    child: PrimaryTextField(
-                                      controller: provider.addressController,
-                                      hintText: 'Ex: second street',
-                                    ),
+                                  PrimaryTextField(
+                                    controller: provider.addressController,
+                                    hintText: 'Ex: second street',
                                   ),
                                 ],
                               ),
-                              AppSpacing.w20,
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  AppSpacing.h20,
-                                  Text('Vendor Image (Ratio 1:1)'),
-                                  AppSpacing.h10,
-                                  Center(
-                                    child: Container(
-                                      height:
-                                          MediaQuery.of(context).size.width *
-                                          .15,
-                                      width:
-                                          MediaQuery.of(context).size.width *
-                                          .15,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: Colors.grey.shade300,
-                                        ),
+                              AdminUploadSection(
+                                label: 'Profile image (1:1)',
+                                buttonLabel: 'Upload image',
+                                onTap: provider.pickImage,
+                                preview: provider.imageBytes == null
+                                    ? null
+                                    : Image.memory(
+                                        provider.imageBytes!,
+                                        fit: BoxFit.cover,
                                       ),
-                                      child: Center(
-                                        child: provider.imageBytes == null
-                                            ? Icon(
-                                                Icons.image,
-                                                size: 40,
-                                                color: Colors.grey.shade300,
-                                              )
-                                            : Image.memory(
-                                                provider.imageBytes!,
-                                              ),
-                                      ),
-                                    ),
-                                  ),
-                                  AppSpacing.h20,
-                                  GestureDetector(
-                                    onTap: () {
-                                      provider.pickImage();
-                                    },
-                                    child: Container(
-                                      width:
-                                          MediaQuery.of(context).size.width *
-                                          .12,
-                                      padding: EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: Colors.grey.shade300,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.add),
-                                          AppSpacing.w10,
-                                          Text('Upload Image'),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
                               ),
                             ],
                           ),
@@ -225,55 +151,38 @@ class _AddDeliveryScreenState extends State<AddDeliveryScreen> {
                             ],
                           ),
                           AppSpacing.h20,
-                          Row(
+                          AdminResponsiveRow(
                             children: [
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  AppSpacing.h20,
-                                  Text('Email'),
+                                  const Text('Email'),
                                   AppSpacing.h10,
-                                  SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width * .24,
-                                    child: PrimaryTextField(
-                                      controller: provider.emailController,
-                                      hintText: 'Ex: jhone@gmail.com',
-                                    ),
+                                  PrimaryTextField(
+                                    controller: provider.emailController,
+                                    hintText: 'Ex: jhone@gmail.com',
                                   ),
                                 ],
                               ),
-                              AppSpacing.w15,
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  AppSpacing.h20,
-                                  Text('Password'),
+                                  const Text('Password'),
                                   AppSpacing.h10,
-                                  SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width * .24,
-                                    child: PrimaryTextField(
-                                      controller: provider.passwordController,
-                                      hintText: 'Password',
-                                    ),
+                                  PrimaryTextField(
+                                    controller: provider.passwordController,
+                                    hintText: 'Password',
                                   ),
                                 ],
                               ),
-                              AppSpacing.w15,
                               Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  AppSpacing.h20,
-                                  Text('Confirm password'),
+                                  const Text('Confirm password'),
                                   AppSpacing.h10,
-                                  SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width * .24,
-                                    child: PrimaryTextField(
-                                      controller: provider.confirmController,
-                                      hintText: 'Confirm password',
-                                    ),
+                                  PrimaryTextField(
+                                    controller: provider.confirmController,
+                                    hintText: 'Confirm password',
                                   ),
                                 ],
                               ),
@@ -283,31 +192,10 @@ class _AddDeliveryScreenState extends State<AddDeliveryScreen> {
                       ),
                     ),
                     AppSpacing.h20,
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: SizedBox(
-                        height: 40,
-                        width: 300,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: AppColor.primary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () => provider.addDeliveryBoy(context),
-                          child: provider.isLoading
-                              ? Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 1,
-                                  ),
-                                )
-                              : Text('Submit'),
-                        ),
-                      ),
+                    AdminPrimaryButton(
+                      label: 'Submit',
+                      isLoading: provider.isLoading,
+                      onPressed: () => provider.addDeliveryBoy(context),
                     ),
                     AppSpacing.h20,
                     AppSpacing.h20,

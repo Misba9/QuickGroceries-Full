@@ -38,7 +38,6 @@ class _SupportSettingsScreenState extends State<SupportSettingsScreen> {
 
           return Column(
             children: [
-              const PrimaryAppBar(),
               AppSpacing.h20,
               Expanded(
                 child: service.loading

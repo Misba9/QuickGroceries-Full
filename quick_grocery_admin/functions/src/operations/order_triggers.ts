@@ -210,6 +210,15 @@ export const onOrderUpdated = onDocumentUpdated(
     const prevPaid = Boolean(before.isPaid);
     const nextPaid = Boolean(after.isPaid);
     if (nextPaid && !prevPaid) {
+      const total = orderTotal(after);
+      await notifyAdmins({
+        title: "Payment received",
+        message: `₹${total.toFixed(0)} for order #${orderId.slice(-6)}.`,
+        type: "payment_success",
+        category: "payments",
+        soundAlert: true,
+        metadata: { orderId, amount: total },
+      });
       for (const vendorId of vendorIds(after)) {
         await notifyVendor(vendorId, {
           title: "Payment released",
@@ -218,6 +227,65 @@ export const onOrderUpdated = onDocumentUpdated(
           metadata: { orderId },
         });
       }
+    }
+
+    const prevFailed = str(before.payment_status || before.paymentStatus).toLowerCase();
+    const nextFailed = str(after.payment_status || after.paymentStatus).toLowerCase();
+    if (
+      (nextFailed.includes("fail") || nextFailed.includes("declin")) &&
+      !prevFailed.includes("fail")
+    ) {
+      await notifyAdmins({
+        title: "Payment failed",
+        message: `Payment failed for order #${orderId.slice(-6)}.`,
+        type: "payment_failed",
+        category: "payments",
+        soundAlert: true,
+        metadata: { orderId },
+      });
+    }
+
+    const accepted = (s: string) =>
+      s.toLowerCase().includes("accept") || s.toLowerCase().includes("prepar");
+    if (accepted(nextStatus) && !accepted(prevStatus)) {
+      await notifyAdmins({
+        title: "Order accepted",
+        message: `Vendor accepted order #${orderId.slice(-6)}.`,
+        type: "order_accepted",
+        category: "orders",
+        metadata: { orderId },
+      });
+    }
+
+    if (
+      nextStatus.toLowerCase().includes("delay") &&
+      !prevStatus.toLowerCase().includes("delay")
+    ) {
+      await notifyAdmins({
+        title: "Order delayed",
+        message: `Order #${orderId.slice(-6)} is delayed.`,
+        type: "order_delayed",
+        category: "delivery",
+        metadata: { orderId },
+      });
+    }
+
+    const isCod =
+      !after.isPaid &&
+      (str(after.paymentMethod).toLowerCase().includes("cod") ||
+        str(after.payment_method).toLowerCase().includes("cod"));
+    if (
+      isCod &&
+      nextStatus.toLowerCase().includes("delivered") &&
+      !prevStatus.toLowerCase().includes("delivered")
+    ) {
+      await notifyAdmins({
+        title: "COD received",
+        message: `Cash on delivery collected for #${orderId.slice(-6)}.`,
+        type: "cod_received",
+        category: "payments",
+        metadata: { orderId },
+      });
     }
   }
 );

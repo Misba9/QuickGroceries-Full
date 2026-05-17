@@ -664,7 +664,7 @@ class _AnalyticsStatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 200,
+      constraints: const BoxConstraints(minWidth: 140),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,

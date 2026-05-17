@@ -34,7 +34,6 @@ class _DeliveryLocationListScreenState
     return Scaffold(
       body: Column(
         children: [
-          PrimaryAppBar(),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(15.0),

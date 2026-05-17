@@ -63,6 +63,11 @@ final featuredProductsStreamProvider =
       return ref.watch(productRepositoryProvider).watchFeatured(limit: 12);
     });
 
+final flashSaleProductsStreamProvider =
+    StreamProvider.autoDispose<List<ProductModel>>((ref) {
+      return ref.watch(productRepositoryProvider).watchFlashSale(limit: 16);
+    });
+
 /// Family stream for the legacy `special_cat` rails so a single provider
 /// definition powers all four legacy sections.
 final specialCatProductsProvider = StreamProvider.autoDispose

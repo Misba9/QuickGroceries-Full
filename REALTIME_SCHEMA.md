@@ -38,8 +38,11 @@ gets a snapshot tick within ~ms — no manual refresh.
 | `daily_summaries/{id}`           | Cloud Functions (scheduled)                | Admin                          |
 | `settings/ops_settings`          | Admin                                      | Cloud Functions                |
 | `coupons/{id}`                   | Admin                                      | User, Admin                    |
+| `coupon_usages/{id}`             | Cloud Functions (`validateCoupon` / `redeemCoupon`) | Admin (analytics) |
+| `combo_offers/{id}`              | Admin, Vendor (own vendorId)               | User, Admin, Vendor            |
 | `delivery_zones/{id}`            | Admin                                      | User                           |
 | `delivery_slots/{id}`            | Admin                                      | User                           |
+| `ratings/{id}`                   | User (via Cloud Functions), Admin (moderation) | User, Admin, Vendor      |
 
 ---
 
@@ -50,8 +53,9 @@ gets a snapshot tick within ~ms — no manual refresh.
 ```jsonc
 {
   "name": "Tomatoes",
-  "image": "https://…/tomatoes.jpg",
+  "image": "https://…/tomatoes.jpg",   // cover = first gallery image
   "images": ["https://…/1.jpg", "https://…/2.jpg"],
+  "product_images": ["https://…/1.jpg", "https://…/2.jpg"],  // alias of images (max 8)
   "videos": [],
   "description": "…",
   "category": "vegetables",
@@ -69,11 +73,30 @@ gets a snapshot tick within ~ms — no manual refresh.
   "special_cat": "Today's snacks deals",
   "addonIds": [],
   "selectedWeightInGrams": 1000,
-  "rating": 4.6,
+  "rating": 4.6,                 // auto-updated from approved reviews
   "totalReviews": 132,
+  "quality_score": 94,           // 0–100; auto from avg rating unless overridden
+  "quality_score_override": null,// admin manual override (0–100)
+  "featured_quality_badge": false,
+  "premium_badge": false,
+  "fresh_product_tag": false,
+  "low_quality_alert_sent": false,
   "isTrending": true,
   "isFeatured": false,
-  "isAvailable": true,           // also accepts "is_active" / "active"
+  "is_active": true,
+  "isAvailable": true,           // mirrored from is_active for User App
+  "is_flash_sale": false,
+  "is_todays_best": false,
+  "is_most_selling": false,
+  "most_sold": false,            // legacy alias of is_most_selling
+  "is_recommended": false,
+  "is_new_arrival": false,
+  "limited_stock": false,
+  "flash_sale_start": <Timestamp>,
+  "flash_sale_end": <Timestamp>,
+  "flash_sale_stock_limit": 0,
+  "admin_featured_approved": true,
+  "admin_settings_locked": false,
   "createdAt": <Timestamp>
 }
 ```
@@ -102,6 +125,42 @@ Existing schema kept — `id`, `category`, `image`, `isActive`, etc.
   "createdAt": <Timestamp>
 }
 ```
+
+### 2.3.1 `combo_offers/{id}`
+
+Product bundle offers (Milk + Bread, Rice + Oil, etc.) shown on the Offers hub.
+
+```jsonc
+{
+  "id": "combo_abc",
+  "title": "Breakfast combo",
+  "subtitle": "Start your day right",
+  "image": "https://…/combo.jpg",
+  "productIds": ["p1", "p2", "p3"],
+  "products": [
+    { "productId": "p1", "name": "Milk", "image": "…", "quantity": 1, "unitPrice": 60 }
+  ],
+  "originalTotalPrice": 250,
+  "comboPrice": 199,
+  "discountPercent": 20,
+  "vendorId": "vendor_xyz",        // empty = platform-wide
+  "vendorName": "Fresh Mart",
+  "stock": 50,
+  "isActive": true,
+  "isFlashSale": false,
+  "isTrending": true,
+  "startsAt": <Timestamp>,         // optional
+  "endsAt": <Timestamp>,           // optional
+  "priority": 10,
+  "viewCount": 0,
+  "orderCount": 0,
+  "createdBy": "admin" | "vendor",
+  "createdAt": <Timestamp>,
+  "updatedAt": <Timestamp>
+}
+```
+
+**Cart:** when a combo is added, each product line is stored in `cart/{uid}` with optional `comboId` and `comboGroupKey`; prices are scaled so line totals sum to `comboPrice`.
 
 ### 2.4 `customers/{uid}`
 
@@ -168,6 +227,24 @@ User App reads via `orderStreamProvider(orderId)` and `ordersStreamProvider`.
 
 ### 2.6 `delivery_boys/{id}` — rider profile + live telemetry
 
+Partner auth/security fields (written by Cloud Functions `partner*` / `adminPartnerAccountAction`):
+
+| Field | Type | Notes |
+| ----- | ---- | ----- |
+| `reset_otp` | string | HMAC-SHA256 hash of OTP (never plain text) |
+| `otp_expiry` | Timestamp | OTP valid 5 minutes |
+| `otp_attempts` | number | Wrong OTP count (max 3) |
+| `last_otp_sent_at` | Timestamp | Resend cooldown 30s |
+| `password_hash` | string | bcrypt hash (replaces plain `password`) |
+| `failed_attempts` | number | Failed login count |
+| `locked_until` | Timestamp | 30 min lock after 5 failures |
+| `password_changed_at` | Timestamp | Last password change |
+| `last_login` | map | `{ at, platform, deviceId, appVersion }` |
+| `force_password_change` | boolean | Admin / reset flow |
+| `session_version` | number | Increment to force logout all devices |
+
+Same fields apply to `vendors/{id}` for the Vendor App login and forgot-password flow.
+
 ```jsonc
 {
   "id": "rider_001",
@@ -181,15 +258,99 @@ User App reads via `orderStreamProvider(orderId)` and `ordersStreamProvider`.
   "heading": 92.3,                  // degrees, 0=N, 90=E
   "speed": 24.5,                    // km/h
   "isOnline": true,
-  "updatedAt": <Timestamp>
+  "online_status": true,
+  "pause_deliveries": false,
+  "updatedAt": <Timestamp>,
+
+  // Earnings & wallet (Delivery App)
+  "wallet_balance": 0,
+  "total_earnings": 0,
+  "pending_payout": 0,
+  "driver_rating": 4.8,
+  "total_deliveries": 0,
+  "completed_orders": 0,
+  "rejected_orders": 0,
+  "incentives_total": 0,
+  "acceptance_rate": 100,
+  "on_time_percent": 92,
+
+  // Profile extensions
+  "vehicle_type": "Bike",
+  "vehicle_number": "KA-01-AB-1234",
+  "bank_account_name": "",
+  "bank_account_number": "",
+  "bank_ifsc": "",
+  "upi_id": "",
+  "documents": {
+    "license": { "url": "", "status": "pending" }
+  }
 }
 ```
+
+Subcollection `delivery_boys/{id}/wallet_transactions/{txId}` — earnings, withdrawals, penalties.
 
 User App reads via `deliveryTrackingProvider(deliveryBoyId)`.
 Throttle writes from the Delivery App to ~ once per 3–5 s to keep
 Firestore costs sane; debounce when speed < 1 km/h.
 
-### 2.7 `notifications/{uid}/items/{notifId}` — in-app feed
+### 2.7 `coupons/{id}` — advanced coupon rules
+
+Managed from **Admin → Coupon Management**. Validated at checkout via Cloud Functions
+`validateCouponCallable` / `redeemCouponCallable`.
+
+```jsonc
+{
+  "code": "FIRST50",
+  "coupon_type": "first_order | special_offer | festival_offer | free_delivery | percentage_discount | flat_discount | vendor_specific | product_specific",
+  "discount": 50,
+  "flat_amount": 0,
+  "minimum_order_amount": 299,
+  "maximum_discount_amount": 150,
+  "minOrderValue": 299,
+  "start_date": <Timestamp>,
+  "expiry_date": <Timestamp>,
+  "usage_limit": 1000,
+  "used_count": 42,
+  "per_user_limit": 1,
+  "applicable_vendor_ids": ["vendor_xyz"],
+  "applicable_product_ids": ["prod_a"],
+  "applicable_category_ids": ["vegetables"],
+  "free_delivery": false,
+  "first_order_only": true,
+  "one_per_device": true,
+  "is_active": true,
+  "description": "50% off your first order",
+  "analytics_total_usage": 42,
+  "analytics_failed_attempts": 8,
+  "analytics_revenue": 12500,
+  "analytics_first_order_users": 38,
+  "createdAt": <Timestamp>
+}
+```
+
+**First-order rules:** no prior non-cancelled `orders` for `uuid` or normalized `phone`;
+optional one redemption per `deviceId` when `one_per_device` is true.
+
+### 2.7b `coupon_usages/{id}` — redemption & failed attempts
+
+```jsonc
+{
+  "couponId": "…",
+  "couponCode": "FIRST50",
+  "userId": "<Firebase Auth uid>",
+  "phone": "9876543210",
+  "deviceId": "qg_…",
+  "success": true,
+  "errorCode": "",
+  "subtotal": 450,
+  "discountApplied": 150,
+  "orderId": "order_abc",
+  "firstOrderCoupon": true,
+  "createdAt": <Timestamp>
+}
+```
+
+### 2.8 `notifications/{uid}/items/{notifId}` — in-app feed
 
 ```jsonc
 {
@@ -374,6 +535,49 @@ must:
   * Updates `orders/{id}.onTheWayTime` and `deliveredTime`, mirrors
     `lat`/`lng`/`current_location` onto the order so the User App's
     map stays in sync without subscribing to the rider doc.
+
+### 2.x `ratings/{id}` (product reviews)
+
+Written by Cloud Functions (`submitProductReview`, etc.) after verified-purchase checks.
+User cannot write directly from the client.
+
+```jsonc
+{
+  "product_id": "prod_abc",
+  "product_name": "Tomatoes",
+  "vendor_id": "vendor_xyz",
+  "order_id": "order_123",
+  "user_id": "uid",
+  "user_name": "Ahmed",
+  "rating": 4.6,                    // overall (avg of category_ratings)
+  "category_ratings": {
+    "product_quality": 5,
+    "freshness": 4,
+    "packaging": 5,
+    "delivery_experience": 4,
+    "value_for_money": 5
+  },
+  "review_text": "Fresh and well packed.",
+  "review_images": ["https://…/1.jpg"],
+  "review_video": "",
+  "verified_purchase": true,
+  "admin_approved": false,
+  "status": "pending",              // pending | approved | rejected | hidden
+  "hidden": false,
+  "is_featured": false,
+  "helpful_count": 0,
+  "reported_count": 0,
+  "vendor_reply": { "text": "Thank you!", "repliedAt": <Timestamp> },
+  "createdAt": <Timestamp>,
+  "updatedAt": <Timestamp>
+}
+```
+
+**Callables:** `canReviewProduct`, `submitProductReview`, `updateProductReview` (24h window),
+`deleteProductReview`, `moderateProductReview` (admin), `vendorReplyProductReview`,
+`markReviewHelpful`, `reportProductReview`.
+
+**Indexes (recommended):** `vendor_id` + `createdAt`; `product_id` + `status`.
 
 ---
 

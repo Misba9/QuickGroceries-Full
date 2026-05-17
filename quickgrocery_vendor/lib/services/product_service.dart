@@ -1,11 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product_model.dart';
+import '../models/product_settings.dart';
+import 'product_settings_service.dart';
 
 class ProductService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  ProductService({
+    FirebaseFirestore? firestore,
+    ProductSettingsService? settingsService,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _settingsService = settingsService ?? ProductSettingsService();
+
+  final FirebaseFirestore _firestore;
+  final ProductSettingsService _settingsService;
   final String _collectionName = 'products';
 
-  /// Get all products for a specific vendor
   Stream<List<ProductModel>> getVendorProducts(String vendorId) {
     return _firestore
         .collection(_collectionName)
@@ -19,63 +27,74 @@ class ProductService {
     });
   }
 
-  /// Get a single product by ID
+  Stream<ProductModel?> watchProduct(String productId) {
+    return _firestore
+        .collection(_collectionName)
+        .doc(productId)
+        .snapshots()
+        .map((snap) {
+      if (!snap.exists) return null;
+      return ProductModel.fromFirestore(snap.data()!, snap.id);
+    });
+  }
+
   Future<ProductModel?> getProductById(String productId) async {
-    try {
-      final doc = await _firestore.collection(_collectionName).doc(productId).get();
-      if (doc.exists) {
-        return ProductModel.fromFirestore(doc.data()!, doc.id);
-      }
-      return null;
-    } catch (e) {
-      rethrow;
+    final doc = await _firestore.collection(_collectionName).doc(productId).get();
+    if (doc.exists) {
+      return ProductModel.fromFirestore(doc.data()!, doc.id);
     }
+    return null;
   }
 
-  /// Add a new product
   Future<String> addProduct(ProductModel product) async {
-    try {
-      final docRef = await _firestore.collection(_collectionName).add(product.toFirestore());
-      return docRef.id;
-    } catch (e) {
-      rethrow;
-    }
+    final docRef =
+        await _firestore.collection(_collectionName).add(product.toCreateMap());
+    await docRef.update({'id': docRef.id});
+    return docRef.id;
   }
 
-  /// Update an existing product
   Future<void> updateProduct(ProductModel product) async {
-    try {
-      await _firestore
-          .collection(_collectionName)
-          .doc(product.id)
-          .update(product.toFirestore());
-    } catch (e) {
-      rethrow;
-    }
+    await _firestore
+        .collection(_collectionName)
+        .doc(product.id)
+        .update(product.toUpdateMap());
+    await _settingsService.patchSettings(
+      productId: product.id,
+      settings: product.settings,
+      existingSpecialCat: product.specialCat,
+    );
   }
 
-  /// Delete a product
+  Future<void> patchSettings({
+    required String productId,
+    required ProductSettings settings,
+    String? specialCat,
+  }) async {
+    await _settingsService.patchSettings(
+      productId: productId,
+      settings: settings,
+      existingSpecialCat: specialCat,
+    );
+  }
+
+  ProductSettingsService get settingsService => _settingsService;
+
   Future<void> deleteProduct(String productId) async {
-    try {
-      await _firestore.collection(_collectionName).doc(productId).delete();
-    } catch (e) {
-      rethrow;
-    }
+    await _firestore.collection(_collectionName).doc(productId).delete();
   }
 
-  /// Toggle product active status
+  Future<void> patchImages(String productId, List<String> urls) async {
+    await _firestore.collection(_collectionName).doc(productId).update({
+      ...ProductModel.imageFieldsForFirestore(urls),
+      'lastEdited': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> toggleProductStatus(String productId, bool isActive) async {
-    try {
-      await _firestore
-          .collection(_collectionName)
-          .doc(productId)
-          .update({
-        'is_active': isActive,
-        'lastEdited': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      rethrow;
-    }
+    final settings = await _settingsService.fetchSettings(productId);
+    await _settingsService.patchSettings(
+      productId: productId,
+      settings: settings.copyWith(isActive: isActive),
+    );
   }
 }
-

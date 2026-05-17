@@ -4,6 +4,8 @@ import '../../models/vendor_model.dart';
 import '../../services/product_service.dart';
 import '../../style/app_color.dart';
 import '../../utils/app_spacing.dart';
+import '../combo/combo_offers_screen.dart';
+import '../reviews/vendor_reviews_screen.dart';
 import 'add_edit_product_screen.dart';
 
 class ProductsScreen extends StatelessWidget {
@@ -34,6 +36,30 @@ class ProductsScreen extends StatelessWidget {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.rate_review_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VendorReviewsScreen(vendorId: vendor.id),
+                ),
+              );
+            },
+            tooltip: 'Reviews',
+          ),
+          IconButton(
+            icon: const Icon(Icons.shopping_basket_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VendorComboOffersScreen(vendor: vendor),
+                ),
+              );
+            },
+            tooltip: 'Combo offers',
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {

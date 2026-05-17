@@ -2,6 +2,7 @@ import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/orders/screens/order_details_screen.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
+import 'package:quick_grocery_admin/view/partner_security/partner_security_sheet.dart';
 import 'package:quick_grocery_admin/view/vendor/services/vendor_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
@@ -159,6 +160,21 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen>
                                                   ),
                                                 ),
                                               ],
+                                            ),
+                                            AppSpacing.h20,
+                                            OutlinedButton.icon(
+                                              onPressed: () {
+                                                final v = provider.vendor!;
+                                                PartnerSecuritySheet.show(
+                                                  context,
+                                                  role: 'vendor',
+                                                  partnerId: v.id,
+                                                  email: v.email,
+                                                  isActive: v.isActive,
+                                                );
+                                              },
+                                              icon: const Icon(Icons.security),
+                                              label: const Text('Account security'),
                                             ),
                                             AppSpacing.h20,
                                             Text('Shop information'),

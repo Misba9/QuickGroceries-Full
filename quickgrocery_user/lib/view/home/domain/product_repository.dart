@@ -52,6 +52,13 @@ class ProductRepository {
         .handleError(_throwHomeFailure('Failed to load featured products.'));
   }
 
+  Stream<List<ProductModel>> watchFlashSale({int limit = 16}) {
+    return _service
+        .watchFlashSale(limit: limit)
+        .map((s) => _mapSnapshot(s, onlyAvailable: true, label: 'flash_sale'))
+        .handleError(_throwHomeFailure('Failed to load flash sale products.'));
+  }
+
   // ── Legacy `special_cat` rails ─────────────────────────────────────────
   Stream<List<ProductModel>> watchBySpecialCat(
     String specialCat, {

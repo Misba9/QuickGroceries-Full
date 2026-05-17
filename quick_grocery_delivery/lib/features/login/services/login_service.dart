@@ -1,52 +1,116 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_delivery/core/auth/delivery_session_prefs.dart';
+import 'package:quick_grocery_delivery/core/auth/partner_auth_api.dart';
 import 'package:quick_grocery_delivery/features/home/screens/home_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:quick_grocery_delivery/features/login/force_password_change_screen.dart';
 
 class LoginService extends ChangeNotifier {
   bool isLoading = false;
+  bool obscurePassword = true;
+
+  void toggleObscurePassword() {
+    obscurePassword = !obscurePassword;
+    notifyListeners();
+  }
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final PartnerAuthApi _api = PartnerAuthApi();
+
+  Future<bool> validateStoredSession() async {
+    final id = await DeliverySessionPrefs.deliveryBoyId();
+    if (id == null || id.isEmpty) return false;
+    final version = await DeliverySessionPrefs.sessionVersion();
+    if (version == null) return true;
+    final check = await _api.checkSession(
+      partnerId: id,
+      sessionVersion: version,
+    );
+    if (check['valid'] == true) return true;
+    await DeliverySessionPrefs.clear();
+    return false;
+  }
 
   Future<void> login(BuildContext context) async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter email and password')),
+      );
+      return;
+    }
+
     try {
       isLoading = true;
       notifyListeners();
-      // Query Firestore to check if the document exists with matching email and password
-      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-          .collection('delivery_boys')
-          .where('email', isEqualTo: emailController.text.trim())
-          .where('password', isEqualTo: passwordController.text.trim())
-          .get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        String deliveryBoyId = querySnapshot.docs.first.id;
-        // Save the delivery boy's ID in shared preferences for later access
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('deliveryBoyId', deliveryBoyId);
-        // Credentials match, proceed with login
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Login successful!")));
-        isLoading = false;
-        notifyListeners();
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-        // Navigate to the home screen or dashboard
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        isLoading = false;
-        notifyListeners();
-        // Credentials do not match
+      final result = await _api.login(email, password);
+      if (!context.mounted) return;
+      if (result['success'] != true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Invalid email or password.")),
+          SnackBar(
+            content: Text(
+              result['error']?.toString() ?? 'Invalid email or password.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final partnerId = result['partnerId'] as String?;
+      if (partnerId == null || partnerId.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid email or password.')),
+        );
+        return;
+      }
+
+      final sessionVersion = (result['sessionVersion'] as num?)?.toInt() ?? 0;
+      final forceChange = result['forcePasswordChange'] == true;
+
+      await DeliverySessionPrefs.saveLogin(
+        deliveryBoyId: partnerId,
+        sessionVersion: sessionVersion,
+        forcePasswordChange: forceChange,
+      );
+
+      if (!context.mounted) return;
+
+      if (forceChange) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ForcePasswordChangeScreen(partnerId: partnerId),
+          ),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login successful!')),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+          ),
         );
       }
-    } catch (e) {
+    } finally {
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> logout() async {
+    await DeliverySessionPrefs.clear();
+    emailController.clear();
+    passwordController.clear();
+    notifyListeners();
   }
 }

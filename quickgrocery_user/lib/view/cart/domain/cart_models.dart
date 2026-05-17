@@ -22,6 +22,9 @@ class CartItem {
   final int itemCount;
   final int selectedWeightInGrams;
   final bool isVegetable;
+  /// Set when line is part of a combo bundle.
+  final String? comboId;
+  final String? comboGroupKey;
 
   const CartItem({
     required this.productId,
@@ -39,7 +42,12 @@ class CartItem {
     required this.itemCount,
     required this.selectedWeightInGrams,
     required this.isVegetable,
+    this.comboId,
+    this.comboGroupKey,
   });
+
+  bool get isComboLine =>
+      comboGroupKey != null && comboGroupKey!.isNotEmpty;
 
   factory CartItem.fromProduct(ProductModel p, {int? itemCount}) {
     return CartItem(
@@ -78,6 +86,8 @@ class CartItem {
         selectedWeightInGrams:
             (data['selectedWeightInGrams'] as num?)?.toInt() ?? 1000,
         isVegetable: data['isVegetable'] as bool? ?? false,
+        comboId: data['comboId']?.toString(),
+        comboGroupKey: data['comboGroupKey']?.toString(),
       );
 
   Map<String, dynamic> toMap() => {
@@ -96,6 +106,8 @@ class CartItem {
         'itemCount': itemCount,
         'selectedWeightInGrams': selectedWeightInGrams,
         'isVegetable': isVegetable,
+        if (comboId != null) 'comboId': comboId,
+        if (comboGroupKey != null) 'comboGroupKey': comboGroupKey,
       };
 
   /// Per-item price after weight-variant adjustment.
@@ -130,6 +142,8 @@ class CartItem {
     int? stock,
     double? price,
     double? slashedPrice,
+    String? comboId,
+    String? comboGroupKey,
   }) =>
       CartItem(
         productId: productId,
@@ -148,6 +162,8 @@ class CartItem {
         selectedWeightInGrams:
             selectedWeightInGrams ?? this.selectedWeightInGrams,
         isVegetable: isVegetable,
+        comboId: comboId ?? this.comboId,
+        comboGroupKey: comboGroupKey ?? this.comboGroupKey,
       );
 
   /// Builds a (lossy but safe) [ProductModel] from this cart line so that
@@ -185,23 +201,46 @@ class AppliedCoupon {
   final String id;
   final String code;
   final int discountPercent;
+  final double flatAmount;
+  final double maxDiscountAmount;
+  final bool freeDelivery;
+  final String couponType;
+  final bool firstOrderOnly;
+  final double savingsPreview;
 
   const AppliedCoupon({
     required this.id,
     required this.code,
     required this.discountPercent,
+    this.flatAmount = 0,
+    this.maxDiscountAmount = 0,
+    this.freeDelivery = false,
+    this.couponType = '',
+    this.firstOrderOnly = false,
+    this.savingsPreview = 0,
   });
+
+  bool get isFirstOrderOffer =>
+      firstOrderOnly || couponType == 'first_order';
 
   Map<String, dynamic> toMap() => {
         'id': id,
         'code': code,
         'discount': discountPercent,
+        'flat_amount': flatAmount,
+        'free_delivery': freeDelivery,
+        'coupon_type': couponType,
       };
 
   factory AppliedCoupon.fromMap(Map<String, dynamic> m) => AppliedCoupon(
         id: (m['id'] ?? '').toString(),
         code: (m['code'] ?? '').toString(),
         discountPercent: (m['discount'] as num?)?.toInt() ?? 0,
+        flatAmount: (m['flat_amount'] as num?)?.toDouble() ?? 0,
+        maxDiscountAmount: (m['max_discount'] as num?)?.toDouble() ?? 0,
+        freeDelivery: m['free_delivery'] as bool? ?? false,
+        couponType: (m['coupon_type'] ?? '').toString(),
+        firstOrderOnly: m['first_order_only'] as bool? ?? false,
       );
 }
 

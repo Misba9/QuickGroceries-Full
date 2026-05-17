@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:quick_grocery_admin/core/responsive/admin_layout_widgets.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/push_notifications/models/notification_models.dart';
 import 'package:quick_grocery_admin/view/push_notifications/presentation/widgets/push_access_gate.dart';
@@ -190,8 +191,7 @@ class NotificationTemplatesScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(existing == null ? 'New template' : 'Edit template'),
-        content: SizedBox(
-          width: 480,
+        content: AdminDialogBody(
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,

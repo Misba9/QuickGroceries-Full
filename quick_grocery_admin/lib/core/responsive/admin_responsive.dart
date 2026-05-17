@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_admin/core/responsive/admin_content_scope.dart';
 
 /// Breakpoints for Flutter Web admin (Shopify / Blinkit–style dashboards).
 class AdminBreakpoints {
@@ -61,6 +62,21 @@ Widget adminConstrainContentWidth({
       constraints: BoxConstraints(maxWidth: maxWidth),
       child: child,
     ),
+  );
+}
+
+/// Root wrapper for every admin route — clips overflow and exposes content width.
+Widget adminRouteBody({required Widget child}) {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final w = constraints.maxWidth.isFinite ? constraints.maxWidth : 1200.0;
+      return AdminContentScope(
+        maxWidth: w,
+        child: ClipRect(
+          child: SizedBox(width: w, child: child),
+        ),
+      );
+    },
   );
 }
 

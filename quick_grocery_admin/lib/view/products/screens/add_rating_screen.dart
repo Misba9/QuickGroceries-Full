@@ -1,4 +1,5 @@
 import 'package:quick_grocery_admin/model/product_model.dart';
+import 'package:quick_grocery_admin/core/responsive/admin_layout_widgets.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
@@ -104,12 +105,9 @@ class _AddRatingScreenState extends State<AddRatingScreen> {
                         children: [
                           Text('User Name *'),
                           AppSpacing.h10,
-                          SizedBox(
-                            width: MediaQuery.of(context).size.width * .4,
-                            child: PrimaryTextField(
-                              controller: provider.userNameController,
-                              hintText: 'Enter user name',
-                            ),
+                          PrimaryTextField(
+                            controller: provider.userNameController,
+                            hintText: 'Enter user name',
                           ),
                         ],
                       ),
@@ -190,36 +188,15 @@ class _AddRatingScreenState extends State<AddRatingScreen> {
                   ),
                 ),
                 AppSpacing.h20,
-                Align(
-                  alignment: Alignment.topRight,
-                  child: Padding(
-                    padding: const EdgeInsets.all(15.0),
-                    child: SizedBox(
-                      height: 40,
-                      width: 300,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: AppColor.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () => provider.addRating(
-                          context,
-                          widget.product.id,
-                          widget.product.name,
-                        ),
-                        child: provider.isLoading
-                            ? Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 1,
-                                ),
-                              )
-                            : Text('Submit Rating'),
-                      ),
+                Padding(
+                  padding: const EdgeInsets.all(15),
+                  child: AdminPrimaryButton(
+                    label: 'Submit rating',
+                    isLoading: provider.isLoading,
+                    onPressed: () => provider.addRating(
+                      context,
+                      widget.product.id,
+                      widget.product.name,
                     ),
                   ),
                 ),

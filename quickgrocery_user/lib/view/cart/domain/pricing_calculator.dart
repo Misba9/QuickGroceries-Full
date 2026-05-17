@@ -46,8 +46,18 @@ class PricingCalculator {
 
     final itemSavings = (slashedSubtotal - subtotal).clamp(0.0, double.infinity);
 
-    final couponPercent = coupon?.discountPercent ?? 0;
-    final couponDiscount = subtotal * (couponPercent / 100.0);
+    double couponDiscount = 0;
+    if (coupon != null) {
+      if (coupon.flatAmount > 0) {
+        couponDiscount = coupon.flatAmount;
+      } else if (coupon.discountPercent > 0) {
+        couponDiscount = subtotal * (coupon.discountPercent / 100.0);
+      }
+      if (coupon.maxDiscountAmount > 0) {
+        couponDiscount = couponDiscount.clamp(0.0, coupon.maxDiscountAmount);
+      }
+      couponDiscount = couponDiscount.clamp(0.0, subtotal);
+    }
 
     final taxableAmount = (subtotal - couponDiscount).clamp(0.0, double.infinity);
     final tax = taxableAmount * (config.taxPercent / 100.0);
@@ -56,7 +66,9 @@ class PricingCalculator {
     final freeDeliveryThreshold = config.isFreeDeliveryEnabled
         ? config.freeDeliveryThreshold.toDouble()
         : double.infinity;
-    final isFreeDelivery = taxedSubtotal >= freeDeliveryThreshold;
+    final couponFreeDelivery = coupon?.freeDelivery == true;
+    final isFreeDelivery =
+        couponFreeDelivery || taxedSubtotal >= freeDeliveryThreshold;
 
     final baseDelivery = (deliveryChargeOverride ??
             (config.standardDeliveryCharge > 0

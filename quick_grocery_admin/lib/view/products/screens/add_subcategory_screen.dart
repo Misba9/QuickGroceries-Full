@@ -1,4 +1,5 @@
 import 'package:quick_grocery_admin/model/catrgory_model.dart';
+import 'package:quick_grocery_admin/core/responsive/admin_layout_widgets.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
@@ -54,7 +55,6 @@ class _AddSubCategoryScreenState extends State<AddSubCategoryScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            PrimaryAppBar(),
             AppSpacing.h20,
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,190 +86,95 @@ class _AddSubCategoryScreenState extends State<AddSubCategoryScreen> {
                         ],
                       ),
                       AppSpacing.h20,
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      AdminResponsiveRow(
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                AppSpacing.h20,
-                                Text('Select Main Category'),
-                                AppSpacing.h10,
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12.0,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(6.0),
-                                    border: Border.all(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                  ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      value: provider
-                                          .selectedMainCategoryForSubCategory,
-                                      icon: const Icon(Icons.arrow_drop_down),
-                                      iconSize: 24,
-                                      isExpanded: true,
-                                      style: const TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 16,
-                                      ),
-                                      hint: const Text("Select Main Category"),
-                                      onChanged: (String? newValue) {
-                                        provider
-                                            .onMainCategoryForSubCategoryChanged(
-                                              newValue,
-                                            );
-                                      },
-                                      items: mainCategories
-                                          ?.map<DropdownMenuItem<String>>((
-                                            CategoryModel category,
-                                          ) {
-                                            return DropdownMenuItem<String>(
-                                              value: category.name,
-                                              child: Text(category.name),
-                                            );
-                                          })
-                                          .toList(),
-                                    ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const Text('Select main category'),
+                              AppSpacing.h10,
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                          AppSpacing.w15,
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              AppSpacing.h20,
-                              Text('Subcategory name'),
-                              AppSpacing.h10,
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width * .24,
-                                child: PrimaryTextField(
-                                  controller: provider.subCategoryController,
-                                  hintText: 'Ex: Laptop',
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: provider
+                                        .selectedMainCategoryForSubCategory,
+                                    isExpanded: true,
+                                    hint: const Text('Select main category'),
+                                    onChanged: (v) => provider
+                                        .onMainCategoryForSubCategoryChanged(v),
+                                    items: mainCategories
+                                        ?.map(
+                                          (c) => DropdownMenuItem<String>(
+                                            value: c.name,
+                                            child: Text(c.name),
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          AppSpacing.w15,
                           Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              AppSpacing.h20,
-                              Text(
-                                'Subcategory order number ( based on index number)',
-                              ),
+                              const Text('Subcategory name'),
                               AppSpacing.h10,
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width * .24,
-                                child: PrimaryTextField(
-                                  controller:
-                                      provider.subCategoryOrderController,
-                                  hintText: 'Ex: 1',
-                                ),
+                              PrimaryTextField(
+                                controller: provider.subCategoryController,
+                                hintText: 'Ex: Laptop',
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const Text('Subcategory order (index)'),
+                              AppSpacing.h10,
+                              PrimaryTextField(
+                                controller: provider.subCategoryOrderController,
+                                hintText: 'Ex: 1',
                               ),
                             ],
                           ),
                         ],
                       ),
                       AppSpacing.h20,
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Subcategory Image'),
-                              AppSpacing.h10,
-                              Container(
-                                height: MediaQuery.of(context).size.width * .08,
-                                width: MediaQuery.of(context).size.width * .08,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Colors.grey.shade300,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: provider.imageBytes == null
-                                      ? (provider.editingSubCategoryId != null &&
-                                              provider.editingSubCategoryImage != null
-                                          ? Image.network(
-                                              provider.editingSubCategoryImage!,
-                                              fit: BoxFit.cover,
-                                            )
-                                          : Icon(
-                                              Icons.image,
-                                              size: 40,
-                                              color: Colors.grey.shade300,
-                                            ))
-                                      : Image.memory(provider.imageBytes!),
-                                ),
-                              ),
-                              AppSpacing.h20,
-                              GestureDetector(
-                                onTap: () {
-                                  provider.pickImage();
-                                },
-                                child: Container(
-                                  width:
-                                      MediaQuery.of(context).size.width * .12,
-                                  padding: EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.add),
-                                      AppSpacing.w10,
-                                      Text('Upload Image'),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                      AdminUploadSection(
+                        label: 'Subcategory image',
+                        buttonLabel: 'Upload image',
+                        onTap: provider.pickImage,
+                        preview: provider.imageBytes != null
+                            ? Image.memory(
+                                provider.imageBytes!,
+                                fit: BoxFit.cover,
+                              )
+                            : provider.editingSubCategoryImage != null
+                                ? Image.network(
+                                    provider.editingSubCategoryImage!,
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
                       ),
                     ],
                   ),
                 ),
                 AppSpacing.h20,
-                Align(
-                  alignment: Alignment.topRight,
-                  child: Padding(
-                    padding: const EdgeInsets.all(15.0),
-                    child: SizedBox(
-                      height: 40,
-                      width: 300,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: AppColor.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () => provider.addSubCategory(context),
-                        child: provider.isLoading
-                            ? Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 1,
-                                ),
-                              )
-                            : Text('Submit'),
-                      ),
-                    ),
+                Padding(
+                  padding: const EdgeInsets.all(15),
+                  child: AdminPrimaryButton(
+                    label: 'Submit',
+                    isLoading: provider.isLoading,
+                    onPressed: () => provider.addSubCategory(context),
                   ),
                 ),
                 AppSpacing.h20,

@@ -4,18 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
-import 'package:quickgrocery/core/design/responsive.dart';
 
-/// **FallbackBannerSlider** — branded gradient hero shown when Firestore
-/// has no banners yet (fresh installs, empty admin panel, etc).
-///
-/// Shape matches [HomeBannerSlider] exactly (16:7 ratio, soft shadows,
-/// worm indicator) so layout doesn't shift the moment the admin uploads
-/// the first real banner.
-///
-/// The slides are entirely composed of design-system tokens — no
-/// network images, no plugin lookups — so this widget is also a safe
-/// "skeleton" if a CDN ever goes down.
+/// Branded gradient hero when Firestore has no banners — matches
+/// [HomeBannerSlider] layout (16:7, peek slides, worm indicator).
 class FallbackBannerSlider extends StatefulWidget {
   const FallbackBannerSlider({super.key});
 
@@ -24,6 +15,10 @@ class FallbackBannerSlider extends StatefulWidget {
 }
 
 class _FallbackBannerSliderState extends State<FallbackBannerSlider> {
+  static const double _aspectRatio = 16 / 7;
+  static const double _viewportFraction = 0.926;
+  static const double _slideGap = 12;
+
   static final List<_FallbackSlide> _slides = [
     _FallbackSlide(
       title: 'Free delivery',
@@ -50,61 +45,71 @@ class _FallbackBannerSliderState extends State<FallbackBannerSlider> {
 
   @override
   Widget build(BuildContext context) {
-    final responsive = Responsive.of(context);
-    final width = MediaQuery.of(context).size.width - 2 * responsive.gutter();
-    final height = (width * 7 / 16).clamp(168.0, 280.0);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportW = constraints.maxWidth;
+        final slideW = viewportW * _viewportFraction;
+        final carouselH = slideW / _aspectRatio;
 
-    return Column(
-      children: [
-        CarouselSlider.builder(
-          carouselController: _controller,
-          itemCount: _slides.length,
-          itemBuilder: (context, i, _) =>
-              _FallbackSlideCard(slide: _slides[i]),
-          options: CarouselOptions(
-            height: height,
-            viewportFraction: 1,
-            enlargeCenterPage: false,
-            enlargeFactor: 0,
-            autoPlay: true,
-            autoPlayInterval: const Duration(seconds: 4),
-            autoPlayAnimationDuration: AppMotion.medium,
-            autoPlayCurve: AppMotion.emphasized,
-            pauseAutoPlayOnTouch: true,
-            pauseAutoPlayOnManualNavigate: true,
-            enableInfiniteScroll: true,
-            onPageChanged: (i, _) => setState(() => _index = i),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(_slides.length, (i) {
-            final active = i == _index;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 3),
-              child: GestureDetector(
-                onTap: () => _controller.animateToPage(
-                  i,
-                  duration: AppMotion.medium,
-                  curve: AppMotion.emphasized,
-                ),
-                behavior: HitTestBehavior.opaque,
-                child: AnimatedContainer(
-                  duration: AppMotion.short,
-                  curve: AppMotion.emphasized,
-                  height: 6,
-                  width: active ? 22 : 6,
-                  decoration: BoxDecoration(
-                    color: active ? AppColor.primary : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: carouselH,
+              child: CarouselSlider.builder(
+                carouselController: _controller,
+                itemCount: _slides.length,
+                itemBuilder: (context, i, _) =>
+                    _FallbackSlideCard(slide: _slides[i]),
+                options: CarouselOptions(
+                  height: carouselH,
+                  viewportFraction: _viewportFraction,
+                  padEnds: true,
+                  enlargeCenterPage: true,
+                  enlargeFactor: 0.06,
+                  autoPlay: true,
+                  autoPlayInterval: const Duration(seconds: 4),
+                  autoPlayAnimationDuration: AppMotion.medium,
+                  autoPlayCurve: AppMotion.emphasized,
+                  pauseAutoPlayOnTouch: true,
+                  pauseAutoPlayOnManualNavigate: true,
+                  enableInfiniteScroll: true,
+                  scrollPhysics: const BouncingScrollPhysics(),
+                  onPageChanged: (i, _) => setState(() => _index = i),
                 ),
               ),
-            );
-          }),
-        ),
-      ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_slides.length, (i) {
+                final active = i == _index;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: GestureDetector(
+                    onTap: () => _controller.animateToPage(
+                      i,
+                      duration: AppMotion.medium,
+                      curve: AppMotion.emphasized,
+                    ),
+                    behavior: HitTestBehavior.opaque,
+                    child: AnimatedContainer(
+                      duration: AppMotion.short,
+                      curve: AppMotion.emphasized,
+                      height: 6,
+                      width: active ? 22 : 6,
+                      decoration: BoxDecoration(
+                        color: active ? AppColor.primary : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -129,97 +134,102 @@ class _FallbackSlideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadii.lg);
+    final radius = BorderRadius.circular(AppRadii.banner);
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _FallbackBannerSliderState._slideGap / 2,
+      ),
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: radius,
           gradient: slide.gradient,
-          boxShadow: AppShadow.dim,
+          boxShadow: AppShadow.card,
         ),
         child: ClipRRect(
           borderRadius: radius,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Soft white spotlight on the right for depth.
-              Positioned(
-                right: -40,
-                top: -40,
-                child: Container(
-                  width: 200,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.10),
+          child: AspectRatio(
+            aspectRatio: _FallbackBannerSliderState._aspectRatio,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Positioned(
+                  right: -40,
+                  top: -40,
+                  child: Container(
+                    width: 200,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.10),
+                    ),
                   ),
                 ),
-              ),
-              Positioned(
-                right: 16,
-                bottom: -20,
-                child: Icon(
-                  slide.icon,
-                  size: 130,
-                  color: Colors.white.withValues(alpha: 0.18),
+                Positioned(
+                  right: 16,
+                  bottom: -20,
+                  child: Icon(
+                    slide.icon,
+                    size: 130,
+                    color: Colors.white.withValues(alpha: 0.18),
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.20),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'QUICK GROCERY',
-                        style: GoogleFonts.poppins(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 1.2,
-                          height: 1,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.20),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'QUICK GROCERY',
+                          style: GoogleFonts.poppins(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 1.2,
+                            height: 1,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      slide.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                        height: 1.1,
+                      const SizedBox(height: 10),
+                      Text(
+                        slide.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                          height: 1.1,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      slide.subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white.withValues(alpha: 0.92),
-                        height: 1.3,
+                      const SizedBox(height: 4),
+                      Text(
+                        slide.subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withValues(alpha: 0.92),
+                          height: 1.3,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

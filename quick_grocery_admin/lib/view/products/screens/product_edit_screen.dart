@@ -1,10 +1,13 @@
 import 'package:quick_grocery_admin/model/catrgory_model.dart';
 import 'package:quick_grocery_admin/model/product_model.dart';
 import 'package:quick_grocery_admin/model/vendor_model.dart';
+import 'package:quick_grocery_admin/core/responsive/admin_layout_widgets.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
 import 'package:quick_grocery_admin/view/products/screens/add_rating_screen.dart';
+import 'package:quick_grocery_admin/view/products/widgets/admin_product_settings_panel.dart';
+import 'package:quick_grocery_admin/view/products/widgets/product_quality_panel.dart';
 import 'package:quick_grocery_admin/view/products/services/product_service.dart';
 import 'package:quick_grocery_admin/view/products/services/rating_service.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
@@ -57,52 +60,38 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                         ],
                       ),
                       AppSpacing.h20,
-                      Row(
+                      AdminResponsiveRow(
                         children: [
                           Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              AppSpacing.h20,
-                              Text('Product name'),
+                              const Text('Product name'),
                               AppSpacing.h10,
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width * .24,
-                                child: PrimaryTextField(
-                                  controller: provider.productNamecontroller,
-                                  hintText: 'Ex: engi oil',
-                                ),
+                              PrimaryTextField(
+                                controller: provider.productNamecontroller,
+                                hintText: 'Ex: engi oil',
                               ),
                             ],
                           ),
-                          AppSpacing.w15,
                           Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              AppSpacing.h20,
-                              Text('Product MRP'),
+                              const Text('Product MRP'),
                               AppSpacing.h10,
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width * .24,
-                                child: PrimaryTextField(
-                                  controller: provider.mrpcontroller,
-                                  hintText: 'Ex: 120.00',
-                                ),
+                              PrimaryTextField(
+                                controller: provider.mrpcontroller,
+                                hintText: 'Ex: 120.00',
                               ),
                             ],
                           ),
-                          AppSpacing.w15,
                           Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              AppSpacing.h20,
-                              Text('Price (Selling price)'),
+                              const Text('Price (Selling price)'),
                               AppSpacing.h10,
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width * .24,
-                                child: PrimaryTextField(
-                                  controller: provider.pricecontroller,
-                                  hintText: 'Ex: 110.00',
-                                ),
+                              PrimaryTextField(
+                                controller: provider.pricecontroller,
+                                hintText: 'Ex: 110.00',
                               ),
                             ],
                           ),
@@ -415,108 +404,40 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                         ],
                       ),
                       AppSpacing.h10,
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      AdminResponsiveRow(
+                        breakpoint: 640,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              AppSpacing.h20,
-                              Text('Product Image'),
-                              AppSpacing.h10,
-                              provider.selectedImage == ''
-                                  ? Container(
-                                      height:
-                                          MediaQuery.of(context).size.width *
-                                          .15,
-                                      width:
-                                          MediaQuery.of(context).size.width *
-                                          .15,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: Colors.grey.shade300,
-                                        ),
-                                      ),
-                                      child: Center(
-                                        child: provider.imageBytes == null
-                                            ? Icon(
-                                                Icons.image,
-                                                size: 40,
-                                                color: Colors.grey.shade300,
-                                              )
-                                            : Image.memory(
-                                                provider.imageBytes!,
-                                              ),
-                                      ),
-                                    )
-                                  : Container(
-                                      height:
-                                          MediaQuery.of(context).size.width *
-                                          .15,
-                                      width:
-                                          MediaQuery.of(context).size.width *
-                                          .15,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: Colors.grey.shade300,
-                                        ),
-                                      ),
-                                      child: Center(
-                                        child: Image.network(
-                                          provider.selectedImage,
-                                        ),
-                                      ),
-                                    ),
-                              AppSpacing.h20,
-                              GestureDetector(
-                                onTap: () {
-                                  provider.pickImage();
-                                },
-                                child: Container(
-                                  width:
-                                      MediaQuery.of(context).size.width * .12,
-                                  padding: EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.add),
-                                      AppSpacing.w10,
-                                      Text('Upload Image'),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                          AdminUploadSection(
+                            label: 'Product image',
+                            buttonLabel: 'Upload image',
+                            onTap: provider.pickImage,
+                            preview: provider.imageBytes != null
+                                ? Image.memory(
+                                    provider.imageBytes!,
+                                    fit: BoxFit.cover,
+                                  )
+                                : provider.selectedImage.isNotEmpty
+                                    ? Image.network(
+                                        provider.selectedImage,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null,
                           ),
-                          AppSpacing.w20,
-                          AppSpacing.w20,
                           Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              AppSpacing.h20,
-                              AppSpacing.h20,
-                              Text('Todays Best Deal'),
+                              const Text('Today\'s best deal'),
                               AppSpacing.h10,
                               Switch(
                                 value: provider.isTodaysBest,
-                                onChanged: (v) => provider.onTodaysBest(v),
+                                onChanged: provider.onTodaysBest,
                               ),
                               AppSpacing.h20,
-                              AppSpacing.h20,
-                              AppSpacing.h20,
-                              Text('Most Selling Product'),
+                              const Text('Most selling product'),
                               AppSpacing.h10,
                               Switch(
                                 value: provider.isMostSelling,
-                                onChanged: (v) =>
-                                    provider.onMostSellingChange(v),
+                                onChanged: provider.onMostSellingChange,
                               ),
                             ],
                           ),
@@ -544,66 +465,38 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                         ],
                       ),
                       AppSpacing.h20,
-                      SizedBox(
-                        height: 40,
-                        width: 300,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: AppColor.primary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ChangeNotifierProvider(
-                                  create: (_) => RatingService(),
-                                  child: AddRatingScreen(
-                                    product: widget.product,
-                                  ),
+                      AdminPrimaryButton(
+                        label: 'Add product rating',
+                        icon: Icons.add,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChangeNotifierProvider(
+                                create: (_) => RatingService(),
+                                child: AddRatingScreen(
+                                  product: widget.product,
                                 ),
                               ),
-                            );
-                          },
-                          icon: Icon(Icons.add),
-                          label: Text('Product Rating Add'),
-                        ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
                 ),
                 AppSpacing.h20,
-                Align(
-                  alignment: Alignment.topRight,
-                  child: Padding(
-                    padding: const EdgeInsets.all(15.0),
-                    child: SizedBox(
-                      height: 40,
-                      width: 300,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: AppColor.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () =>
-                            provider.updateProduct(context, widget.product.id),
-                        child: provider.isLoading
-                            ? Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 1,
-                                ),
-                              )
-                            : Text('Submit'),
-                      ),
-                    ),
+                AdminProductSettingsPanel(productId: widget.product.id),
+                AppSpacing.h20,
+                ProductQualityPanel(productId: widget.product.id),
+                AppSpacing.h20,
+                Padding(
+                  padding: const EdgeInsets.all(15),
+                  child: AdminPrimaryButton(
+                    label: 'Update product',
+                    isLoading: provider.isLoading,
+                    onPressed: () =>
+                        provider.updateProduct(context, widget.product.id),
                   ),
                 ),
                 AppSpacing.h20,

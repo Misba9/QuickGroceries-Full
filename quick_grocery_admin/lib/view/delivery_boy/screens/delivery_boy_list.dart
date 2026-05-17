@@ -2,6 +2,7 @@ import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/services/delivery_boy_service.dart';
+import 'package:quick_grocery_admin/view/partner_security/partner_security_sheet.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
 import 'package:flutter/material.dart';
@@ -26,7 +27,6 @@ class _DeliveryBoysScreenState extends State<DeliveryBoysScreen> {
     return Scaffold(
       body: Column(
         children: [
-          PrimaryAppBar(),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(15.0),
@@ -277,6 +277,23 @@ class _DeliveryBoysScreenState extends State<DeliveryBoysScreen> {
                                   DataCell(
                                     Row(
                                       children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.security,
+                                            color: Colors.blueGrey,
+                                          ),
+                                          tooltip: 'Account security',
+                                          onPressed: () {
+                                            final d = p.deliveryBoys![index];
+                                            PartnerSecuritySheet.show(
+                                              context,
+                                              role: 'delivery',
+                                              partnerId: d.id,
+                                              email: d.email,
+                                              isActive: d.isActive,
+                                            );
+                                          },
+                                        ),
                                         IconButton(
                                           icon: Icon(
                                             Icons.delete,

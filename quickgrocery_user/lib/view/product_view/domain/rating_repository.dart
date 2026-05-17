@@ -29,6 +29,8 @@ class RatingSummary {
     final count = distribution[star] ?? 0;
     return count / total;
   }
+
+  int get qualityScorePercent => ((average / 5) * 100).round();
 }
 
 class RatingRepository {
@@ -42,8 +44,14 @@ class RatingRepository {
         .map((snap) {
           final items = snap.docs
               .map((d) => RatingModel.fromFirestore(d.data(), d.id))
+              .where((r) => r.isPublicVisible)
               .toList();
-          items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          items.sort((a, b) {
+            if (a.isFeatured != b.isFeatured) {
+              return a.isFeatured ? -1 : 1;
+            }
+            return b.createdAt.compareTo(a.createdAt);
+          });
           return items;
         })
         .handleError(_throwFailure('Failed to load reviews.'));

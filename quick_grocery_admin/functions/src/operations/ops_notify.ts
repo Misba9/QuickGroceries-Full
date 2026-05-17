@@ -10,21 +10,82 @@ export type OpsCategory =
   | "payments"
   | "stock"
   | "delivery"
-  | "system";
+  | "system"
+  | "security"
+  | "promotions";
 
 export type OpsNotificationType =
   | "new_order"
+  | "order_accepted"
   | "order_cancelled"
+  | "order_delayed"
   | "order_delivered"
+  | "cod_received"
+  | "payment_success"
+  | "payment_failed"
   | "payment_released"
+  | "refund_request"
+  | "withdrawal_request"
   | "user_registered"
   | "vendor_registered"
+  | "vendor_approval"
   | "delivery_registered"
+  | "driver_assigned"
+  | "driver_rejected"
+  | "driver_offline"
+  | "delivery_delayed"
   | "low_stock"
   | "out_of_stock"
-  | "driver_assigned"
   | "abandoned_cart"
-  | "daily_summary";
+  | "daily_summary"
+  | "password_reset_requested"
+  | "password_reset_completed"
+  | "failed_login_spike"
+  | "fraud_alert"
+  | "system_error";
+
+export type OpsPriority = "low" | "normal" | "high" | "urgent";
+
+function soundTypeForCategory(category: OpsCategory): string {
+  switch (category) {
+    case "users":
+      return "users";
+    case "vendors":
+      return "vendors";
+    case "payments":
+      return "payments";
+    case "stock":
+      return "stock";
+    case "delivery":
+      return "delivery";
+    case "security":
+      return "security";
+    case "promotions":
+      return "promotions";
+    default:
+      return "orders";
+  }
+}
+
+function priorityForType(type: OpsNotificationType): OpsPriority {
+  if (
+    type === "payment_failed" ||
+    type === "fraud_alert" ||
+    type === "system_error" ||
+    type === "out_of_stock"
+  ) {
+    return "urgent";
+  }
+  if (
+    type === "new_order" ||
+    type === "order_cancelled" ||
+    type === "low_stock" ||
+    type === "failed_login_spike"
+  ) {
+    return "high";
+  }
+  return "normal";
+}
 
 export function str(v: unknown): string {
   if (v == null) return "";
@@ -54,17 +115,29 @@ export async function writeAdminNotification(opts: {
   metadata?: Record<string, unknown>;
   targetAdminId?: string;
   soundAlert?: boolean;
+  priority?: OpsPriority;
+  sticky?: boolean;
 }): Promise<string> {
+  const priority = opts.priority ?? priorityForType(opts.type);
+  const soundType = soundTypeForCategory(opts.category);
   const ref = await db.collection("admin_notifications").add({
     title: opts.title,
     message: opts.message,
     type: opts.type,
     category: opts.category,
+    notification_type: opts.type,
+    notification_title: opts.title,
+    notification_message: opts.message,
     read: false,
-    soundAlert: opts.soundAlert ?? false,
+    is_read: false,
+    soundAlert: opts.soundAlert ?? priority === "high" || priority === "urgent",
+    sound_type: soundType,
+    priority_level: priority,
+    sticky: opts.sticky === true,
     targetAdminId: opts.targetAdminId || "",
     metadata: opts.metadata || {},
     createdAt: FieldValue.serverTimestamp(),
+    created_at: FieldValue.serverTimestamp(),
   });
   return ref.id;
 }
@@ -191,11 +264,12 @@ export async function notifyAdmins(opts: {
     summary: opts.message,
     metadata: opts.metadata,
   });
+  const soundType = soundTypeForCategory(opts.category);
   await sendPushToTopic({
     topic: "admin_ops",
     title: opts.title,
     body: opts.message,
-    soundType: "orders",
+    soundType,
     deepLink: str(opts.metadata?.deepLink || "/orders"),
   });
   const admins = await db.collection("admins").get();
@@ -206,10 +280,23 @@ export async function notifyAdmins(opts: {
         token,
         title: opts.title,
         body: opts.message,
-        soundType: "orders",
+        soundType,
       });
     }
   }
+}
+
+/** Callable test hook — writes a sample notification (deploy functions). */
+export async function seedTestAdminNotification(): Promise<string> {
+  return writeAdminNotification({
+    title: "Test notification",
+    message: "Real-time admin notification system is connected.",
+    type: "daily_summary",
+    category: "system",
+    soundAlert: true,
+    priority: "normal",
+    metadata: { test: true },
+  });
 }
 
 export async function getOpsSettings(): Promise<Record<string, unknown>> {

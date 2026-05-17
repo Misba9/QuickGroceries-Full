@@ -1,48 +1,53 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/auth/partner_auth_api.dart';
 import '../models/vendor_model.dart';
 import 'preference_service.dart';
 
 class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final PartnerAuthApi _partnerApi = PartnerAuthApi();
   final String _collectionName = 'vendors';
 
-  /// Authenticate vendor by email and password
-  /// Returns VendorModel if credentials are valid, null otherwise
+  /// Authenticate via Cloud Function (bcrypt, lockout, session).
   Future<VendorModel?> loginVendor(String email, String password) async {
-    try {
-      // Query Firestore for vendor with matching email
-      final querySnapshot = await _firestore
-          .collection(_collectionName)
-          .where('email', isEqualTo: email.toLowerCase().trim())
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isEmpty) {
-        return null; // No vendor found with this email
-      }
-
-      final doc = querySnapshot.docs.first;
-      final vendor = VendorModel.fromFirestore(doc.data(), doc.id);
-
-      // Check if password matches
-      if (vendor.password == password) {
-        // Check if vendor is active
-        if (vendor.isActive) {
-          // Save vendor ID to SharedPreferences
-          await PreferenceService.saveVendorId(vendor.id);
-          return vendor;
-        } else {
-          throw Exception('Vendor account is inactive');
-        }
-      } else {
-        return null; // Password doesn't match
-      }
-    } catch (e) {
-      rethrow;
+    final result = await _partnerApi.login(email, password);
+    if (result['success'] != true) {
+      return null;
     }
+
+    final partnerId = result['partnerId'] as String?;
+    if (partnerId == null || partnerId.isEmpty) return null;
+
+    final profile = result['profile'] as Map<String, dynamic>? ?? {};
+    final vendor = VendorModel.fromFirestore(profile, partnerId);
+
+    if (!vendor.isActive) {
+      throw Exception('Vendor account is inactive');
+    }
+
+    final sessionVersion = (result['sessionVersion'] as num?)?.toInt() ?? 0;
+    final forceChange = result['forcePasswordChange'] == true;
+
+    await PreferenceService.saveVendorId(vendor.id);
+    await PreferenceService.saveSessionVersion(sessionVersion);
+    await PreferenceService.setForcePasswordChange(forceChange);
+
+    return vendor;
   }
 
-  /// Get vendor by ID
+  Future<bool> shouldForcePasswordChange() =>
+      PreferenceService.getForcePasswordChange();
+
+  Future<bool> isSessionValid(String vendorId) async {
+    final version = await PreferenceService.getSessionVersion();
+    if (version == null) return true;
+    final check = await _partnerApi.checkSession(
+      partnerId: vendorId,
+      sessionVersion: version,
+    );
+    return check['valid'] == true;
+  }
+
   Future<VendorModel?> getVendorById(String vendorId) async {
     try {
       final doc = await _firestore.collection(_collectionName).doc(vendorId).get();
@@ -55,21 +60,17 @@ class AuthService {
     }
   }
 
-  /// Update vendor profile
   Future<void> updateVendor(VendorModel vendor) async {
     try {
-      await _firestore
-          .collection(_collectionName)
-          .doc(vendor.id)
-          .update(vendor.toFirestore());
+      final data = vendor.toFirestore();
+      data.remove('password');
+      await _firestore.collection(_collectionName).doc(vendor.id).update(data);
     } catch (e) {
       rethrow;
     }
   }
 
-  /// Logout vendor (clear SharedPreferences)
   Future<void> logout() async {
     await PreferenceService.clearVendorData();
   }
 }
-

@@ -8,7 +8,11 @@ enum OpsNotificationCategory {
   stock,
   delivery,
   system,
+  security,
+  promotions,
 }
+
+enum OpsNotificationPriority { low, normal, high, urgent }
 
 OpsNotificationCategory categoryFromString(String? raw) {
   switch (raw?.toLowerCase()) {
@@ -24,8 +28,25 @@ OpsNotificationCategory categoryFromString(String? raw) {
       return OpsNotificationCategory.delivery;
     case 'system':
       return OpsNotificationCategory.system;
+    case 'security':
+      return OpsNotificationCategory.security;
+    case 'promotions':
+      return OpsNotificationCategory.promotions;
     default:
       return OpsNotificationCategory.orders;
+  }
+}
+
+OpsNotificationPriority priorityFromString(String? raw) {
+  switch (raw?.toLowerCase()) {
+    case 'low':
+      return OpsNotificationPriority.low;
+    case 'high':
+      return OpsNotificationPriority.high;
+    case 'urgent':
+      return OpsNotificationPriority.urgent;
+    default:
+      return OpsNotificationPriority.normal;
   }
 }
 
@@ -39,6 +60,9 @@ class OpsNotificationModel {
     required this.read,
     required this.createdAt,
     this.soundAlert = false,
+    this.soundType = 'orders',
+    this.priority = OpsNotificationPriority.normal,
+    this.sticky = false,
     this.metadata = const {},
     this.targetAdminId = '',
   });
@@ -50,9 +74,14 @@ class OpsNotificationModel {
   final OpsNotificationCategory category;
   final bool read;
   final bool soundAlert;
+  final String soundType;
+  final OpsNotificationPriority priority;
+  final bool sticky;
   final DateTime? createdAt;
   final Map<String, dynamic> metadata;
   final String targetAdminId;
+
+  bool get isUrgent => priority == OpsNotificationPriority.urgent;
 
   String? get orderId => metadata['orderId']?.toString();
 
@@ -63,13 +92,19 @@ class OpsNotificationModel {
     final meta = d['metadata'];
     return OpsNotificationModel(
       id: doc.id,
-      title: d['title']?.toString() ?? '',
-      message: d['message']?.toString() ?? '',
-      type: d['type']?.toString() ?? '',
+      title: (d['notification_title'] ?? d['title'])?.toString() ?? '',
+      message: (d['notification_message'] ?? d['message'])?.toString() ?? '',
+      type: (d['notification_type'] ?? d['type'])?.toString() ?? '',
       category: categoryFromString(d['category']?.toString()),
-      read: d['read'] == true,
+      read: d['is_read'] == true || d['read'] == true,
       soundAlert: d['soundAlert'] == true,
-      createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
+      soundType: d['sound_type']?.toString() ?? 'orders',
+      priority: priorityFromString(
+        d['priority_level']?.toString(),
+      ),
+      sticky: d['sticky'] == true,
+      createdAt: (d['createdAt'] as Timestamp?)?.toDate() ??
+          (d['created_at'] as Timestamp?)?.toDate(),
       metadata: meta is Map
           ? Map<String, dynamic>.from(meta as Map)
           : const {},

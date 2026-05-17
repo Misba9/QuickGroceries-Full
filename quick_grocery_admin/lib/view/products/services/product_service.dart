@@ -413,6 +413,9 @@ class ProductService extends ChangeNotifier {
         'shop_name': selectedVendor,
         'is_most_selling': isMostSelling,
         'is_todays_best': isTodaysBest,
+        'most_sold': isMostSelling,
+        'isAvailable': true,
+        'is_active': true,
       };
 
       // If a new image is selected, upload it

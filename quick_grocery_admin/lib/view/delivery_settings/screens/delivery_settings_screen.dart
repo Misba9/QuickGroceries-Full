@@ -41,7 +41,6 @@ class _DeliverySettingsScreenState extends State<DeliverySettingsScreen> {
 
           return Column(
             children: [
-              const PrimaryAppBar(),
               AppSpacing.h20,
               Expanded(
                 child: SingleChildScrollView(

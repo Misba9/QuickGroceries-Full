@@ -1,7 +1,10 @@
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/add_banner.dart';
-import 'package:quick_grocery_admin/view/coupon_screen.dart';
+import 'package:quick_grocery_admin/view/combo_offers/screens/combo_offers_screen.dart';
+import 'package:quick_grocery_admin/view/coupons/screens/coupon_management_screen.dart';
+import 'package:quick_grocery_admin/view/reviews/screens/review_analytics_screen.dart';
+import 'package:quick_grocery_admin/view/reviews/screens/review_management_screen.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/screens/add_delivery_boy.dart';
 import 'package:quick_grocery_admin/view/platform_fee/screens/platform_fee_screen.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/screens/delivery_boy_list.dart';
@@ -26,7 +29,7 @@ import 'package:quick_grocery_admin/view/push_notifications/presentation/screens
 import 'package:quick_grocery_admin/view/app_content_management/screens/app_content_management_screen.dart';
 import 'package:quick_grocery_admin/view/support_settings/screens/support_settings_screen.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
-import 'package:quick_grocery_admin/view/operations/widgets/admin_notification_bell.dart';
+import 'package:quick_grocery_admin/view/home/widgets/admin_global_top_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
@@ -152,6 +155,8 @@ class _HomeScreenState extends State<HomeScreen> {
               "Add Products",
               "Add Category",
               "Add Subcategory",
+              "Review Management",
+              "Review Analytics",
             ],
             onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
           ),
@@ -166,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
             selectedSubcategory: selectedScreen,
             icon: 'assets/icons/coupon.svg',
             title: "Coupon",
-            subcategories: const ["Add Coupon"],
+            subcategories: const ["Add Coupon", "Combo Offers"],
             onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
           ),
           HoverExpansionTile(
@@ -198,55 +203,62 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, constraints) {
         final w = constraints.maxWidth;
         final compact = adminIsMobileWidth(w);
-        final content = ColoredBox(
-          color: const Color(0xFFFFFAF0),
-          child: adminConstrainContentWidth(
-            maxWidth: 1440,
-            child: _getSelectedScreen(selectedScreen),
+        final pageContent = adminRouteBody(
+          child: ColoredBox(
+            color: const Color(0xFFFFFAF0),
+            child: adminConstrainContentWidth(
+              maxWidth: 1440,
+              child: _getSelectedScreen(selectedScreen),
+            ),
           ),
+        );
+
+        final mainColumn = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AdminGlobalTopBar(
+              title: selectedScreen,
+              leading: compact
+                  ? IconButton(
+                      icon: const Icon(Icons.menu_rounded),
+                      color: AppColor.primary,
+                      tooltip: 'Menu',
+                      onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                    )
+                  : null,
+            ),
+            Expanded(child: pageContent),
+          ],
         );
 
         if (compact) {
           return Scaffold(
             key: _scaffoldKey,
             backgroundColor: const Color(0xFFFFFAF0),
-            appBar: AppBar(
-              elevation: 0,
-              backgroundColor: Colors.white,
-              foregroundColor: AppColor.primary,
-              title: const Text(
-                'Quick Grocery Admin',
-                overflow: TextOverflow.ellipsis,
-              ),
-              leading: IconButton(
-                icon: const Icon(Icons.menu_rounded),
-                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-              ),
-              actions: const [AdminNotificationBell()],
-            ),
             drawer: Drawer(
               width: adminSidebarWidth(w),
               child: _sideMenu(closeDrawerOnSelect: true),
             ),
-            body: SafeArea(child: content),
+            body: mainColumn,
           );
         }
 
         final sidebarW = adminSidebarWidth(w);
         return Scaffold(
           backgroundColor: const Color(0xFFFFFAF0),
-          body: SafeArea(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  width: sidebarW,
+          body: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: sidebarW,
+                child: SafeArea(
+                  right: false,
                   child: _sideMenu(closeDrawerOnSelect: false),
                 ),
-                VerticalDivider(width: 1, color: Colors.grey.shade200),
-                Expanded(child: content),
-              ],
-            ),
+              ),
+              VerticalDivider(width: 1, color: Colors.grey.shade200),
+              Expanded(child: mainColumn),
+            ],
           ),
         );
       },
@@ -287,10 +299,16 @@ class _HomeScreenState extends State<HomeScreen> {
         return AddSubCategoryScreen();
       case "Add Products":
         return ProductAddScreen();
+      case "Review Management":
+        return const ReviewManagementScreen();
+      case "Review Analytics":
+        return const ReviewAnalyticsScreen();
       case "Add Banner":
         return AddBannerScreen();
       case "Add Coupon":
-        return CouponScreen();
+        return const CouponManagementScreen();
+      case "Combo Offers":
+        return const ComboOffersScreen();
       case "Platform Fee & Charges":
         return PlatformFeeScreen();
       case "Push Notifications":

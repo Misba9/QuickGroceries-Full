@@ -10,6 +10,7 @@ class RatingModel {
   final String userId;
   final Timestamp createdAt;
   final Timestamp updatedAt;
+  final bool verifiedPurchase;
 
   RatingModel({
     required this.id,
@@ -21,6 +22,7 @@ class RatingModel {
     required this.userId,
     required this.createdAt,
     required this.updatedAt,
+    this.verifiedPurchase = false,
   });
 
   factory RatingModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -29,11 +31,12 @@ class RatingModel {
       productId: data['product_id'] ?? '',
       productName: data['product_name'] ?? '',
       rating: (data['rating'] ?? 0.0).toDouble(),
-      review: data['review'] ?? '',
+      review: (data['review_text'] ?? data['review'] ?? '').toString(),
       userName: data['user_name'] ?? '',
       userId: data['user_id'] ?? '',
       createdAt: data['created_at'] ?? Timestamp.now(),
       updatedAt: data['updated_at'] ?? Timestamp.now(),
+      verifiedPurchase: data['verified_purchase'] == true,
     );
   }
 

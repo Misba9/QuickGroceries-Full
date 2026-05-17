@@ -86,20 +86,46 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
 
   @override
   Widget build(BuildContext context) {
+    final flashSale = ref.watch(flashSaleProductsStreamProvider);
     final trending = ref.watch(trendingProductsStreamProvider);
     final featured = ref.watch(featuredProductsStreamProvider);
 
-    final loading = trending.isLoading || featured.isLoading;
-    final List<ProductModel> pool = [
+    final loading =
+        flashSale.isLoading || trending.isLoading || featured.isLoading;
+
+    final seen = <String>{};
+    final flagged = flashSale.asData?.value ?? const <ProductModel>[];
+    final pool = <ProductModel>[
+      ...flagged,
       ...trending.asData?.value ?? const [],
       ...featured.asData?.value ?? const [],
     ];
 
-    final seen = <String>{};
     final discounted = pool
-        .where((p) => p.discountPercent >= widget.minDiscountPercent)
         .where((p) => seen.add(p.id))
+        .where(
+          (p) =>
+              p.isFlashSaleLive ||
+              p.discountPercent >= widget.minDiscountPercent,
+        )
         .toList();
+
+    if (discounted.isNotEmpty) {
+      final nearestEnd = discounted
+          .map((p) => p.flashSaleEnd)
+          .whereType<DateTime>()
+          .where((d) => d.isAfter(DateTime.now()))
+          .fold<DateTime?>(null, (a, b) => a == null || b.isBefore(a) ? b : a);
+      if (nearestEnd != null && nearestEnd != _endTime) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(() {
+            _endTime = nearestEnd;
+            _remaining = _endTime.difference(DateTime.now());
+          });
+        });
+      }
+    }
 
     final title = widget.heading ?? 'Flash deals';
 

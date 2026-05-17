@@ -15,6 +15,9 @@ class OrderService extends ChangeNotifier {
   List<OrderModel>? orders;
   List<OrderModel> newOrders = [];
   List<OrderModel> myTransistOrders = [];
+  List<OrderModel> myAcceptedOrders = [];
+  List<OrderModel> myPickedOrders = [];
+  List<OrderModel> myCancelledOrders = [];
   List<OrderModel> myCompletedOrders = [];
   List<OrderModel> totalOrders = [];
   OrderModel? selectedOrder;
@@ -239,6 +242,9 @@ class OrderService extends ChangeNotifier {
     orders = null;
     newOrders.clear();
     myTransistOrders.clear();
+    myAcceptedOrders.clear();
+    myPickedOrders.clear();
+    myCancelledOrders.clear();
     myCompletedOrders.clear();
     final pref = await SharedPreferences.getInstance();
     String id = pref.getString('deliveryBoyId') ?? "";
@@ -263,14 +269,21 @@ class OrderService extends ChangeNotifier {
             notifyListeners();
           }
           log(newOrders.length.toString());
-          if (item.deliveryBoyId == id && item.isDelivered == false) {
-            myTransistOrders.add(item);
-            notifyListeners();
-          }
-          if (item.deliveryBoyId == id && item.isDelivered == true) {
+          if (item.deliveryBoyId == id && item.isCancelled) {
+            myCancelledOrders.add(item);
+          } else if (item.deliveryBoyId == id && item.isDelivered) {
             myCompletedOrders.add(item);
-            notifyListeners();
+          } else if (item.deliveryBoyId == id) {
+            final st = item.orderStatus.toLowerCase();
+            if (st.contains('picked') || st.contains('on the way')) {
+              myPickedOrders.add(item);
+              myTransistOrders.add(item);
+            } else {
+              myAcceptedOrders.add(item);
+              myTransistOrders.add(item);
+            }
           }
+          notifyListeners();
         }
       }
     } catch (e) {
@@ -348,16 +361,59 @@ class OrderService extends ChangeNotifier {
   }
 
   Future<void> completeOrder(BuildContext context, String id) async {
+    OrderModel? order = selectedOrder;
+    if (orders != null) {
+      for (final o in orders!) {
+        if (o.id == id) {
+          order = o;
+          break;
+        }
+      }
+    }
+    if (order == null) return;
+    final earning = order.deliveryCharge > 0
+        ? order.deliveryCharge.toDouble()
+        : order.products.fold<double>(
+            0,
+            (s, p) => s + ((p.price ?? 0) * (p.itemCount ?? 0)) * 0.05,
+          );
+
     await FirebaseFirestore.instance.collection('orders').doc(id).set({
       "isDelivered": true,
       "isPaid": true,
       "order_status": "Order Delivered",
       "deliveredTime": DateTime.now().toString(),
     }, SetOptions(merge: true));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Order Delivered by you!")));
-    Navigator.pop(context);
+
+    final pref = await SharedPreferences.getInstance();
+    final riderId = pref.getString('deliveryBoyId') ?? '';
+    if (riderId.isNotEmpty && earning > 0) {
+      await FirebaseFirestore.instance.collection('delivery_boys').doc(riderId).set({
+        'wallet_balance': FieldValue.increment(earning),
+        'total_earnings': FieldValue.increment(earning),
+        'completed_orders': FieldValue.increment(1),
+        'total_deliveries': FieldValue.increment(1),
+      }, SetOptions(merge: true));
+      await FirebaseFirestore.instance
+          .collection('delivery_boys')
+          .doc(riderId)
+          .collection('wallet_transactions')
+          .add({
+        'type': 'delivery_earning',
+        'amount': earning,
+        'order_id': id,
+        'note': 'Delivery completed',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    getOrders();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Order delivered! Earnings credited to wallet.')),
+      );
+      Navigator.pop(context);
+    }
   }
 
   void getCashByCustomer(BuildContext context, String amount, String id) {

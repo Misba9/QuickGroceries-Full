@@ -47,6 +47,11 @@ class HomeProductService {
         .snapshots();
   }
 
+  // ── Flash sale (vendor-flagged) ─────────────────────────────────────────
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchFlashSale({int limit = 24}) {
+    return _ref.where('is_flash_sale', isEqualTo: true).limit(limit).snapshots();
+  }
+
   // ── Legacy `special_cat` rails ─────────────────────────────────────────
   Stream<QuerySnapshot<Map<String, dynamic>>> watchBySpecialCat(
     String specialCat, {

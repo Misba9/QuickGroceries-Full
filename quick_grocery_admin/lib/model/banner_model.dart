@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class BannerModel {
   final String image;
   final String video;
@@ -19,6 +21,11 @@ class BannerModel {
   final bool loop;
   final bool muted;
   final int popupAutoCloseSeconds;
+  final int viewCount;
+  final int clickCount;
+  final int orderCount;
+  final DateTime? startsAt;
+  final DateTime? endsAt;
 
   BannerModel({
     required this.image,
@@ -41,6 +48,11 @@ class BannerModel {
     this.loop = true,
     this.muted = true,
     this.popupAutoCloseSeconds = 12,
+    this.viewCount = 0,
+    this.clickCount = 0,
+    this.orderCount = 0,
+    this.startsAt,
+    this.endsAt,
   });
 
   factory BannerModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -76,12 +88,40 @@ class BannerModel {
       loop: data['loop'] as bool? ?? true,
       muted: data['muted'] as bool? ?? true,
       popupAutoCloseSeconds: _int(data['popupAutoCloseSeconds'], 12),
+      viewCount: _int(data['viewCount'], 0),
+      clickCount: _int(data['clickCount'], 0),
+      orderCount: _int(data['orderCount'], 0),
+      startsAt: _date(data['startsAt'] ?? data['startDate']),
+      endsAt: _date(data['endsAt'] ?? data['endDate']),
     );
   }
 
   String get mediaUrl => type == 'video' ? video : image;
   bool get isVideo => type == 'video';
   bool get isImage => type == 'image';
+
+  double get ctrPercent =>
+      viewCount > 0 ? (clickCount / viewCount) * 100 : 0;
+
+  /// Active / scheduled / inactive for admin badges.
+  BannerLifecycleStatus get lifecycleStatus {
+    final now = DateTime.now();
+    if (!isActive) return BannerLifecycleStatus.inactive;
+    if (startsAt != null && now.isBefore(startsAt!)) {
+      return BannerLifecycleStatus.scheduled;
+    }
+    if (endsAt != null && now.isAfter(endsAt!)) {
+      return BannerLifecycleStatus.inactive;
+    }
+    return BannerLifecycleStatus.active;
+  }
+
+  static DateTime? _date(dynamic v) {
+    if (v == null) return null;
+    if (v is DateTime) return v;
+    if (v is Timestamp) return v.toDate();
+    return DateTime.tryParse(v.toString());
+  }
 
   static int _int(dynamic v, [int fallback = 0]) {
     if (v == null) return fallback;
@@ -90,3 +130,5 @@ class BannerModel {
     return int.tryParse(v.toString()) ?? fallback;
   }
 }
+
+enum BannerLifecycleStatus { active, inactive, scheduled }

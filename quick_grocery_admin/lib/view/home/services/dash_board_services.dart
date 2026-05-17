@@ -17,6 +17,7 @@ class DashBoardServices extends ChangeNotifier {
   List<OrderModel>? orders;
   List<ProductModel>? products;
   List<BannerModel>? banners;
+  bool bannersLoading = false;
   List<RevenueData> revenueList = [];
   Map<String, int> monthlyRevenue = {};
   Uint8List? imageBytes;
@@ -35,6 +36,21 @@ class DashBoardServices extends ChangeNotifier {
     videoPath = null;
     thumbnailBytes = null;
     notifyListeners();
+  }
+
+  /// Clears picked media only (keeps banner type).
+  void clearPickedMedia() {
+    imageBytes = null;
+    videoBytes = null;
+    videoPath = null;
+    thumbnailBytes = null;
+    notifyListeners();
+  }
+
+  /// Resets form media and type to defaults.
+  void resetBannerFormMedia() {
+    bannerType = 'image';
+    clearPickedMedia();
   }
 
   Future<void> pickImage() async {
@@ -204,6 +220,8 @@ class DashBoardServices extends ChangeNotifier {
   }
 
   Future<void> fetchBanners() async {
+    bannersLoading = true;
+    notifyListeners();
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('banners')
@@ -214,15 +232,27 @@ class DashBoardServices extends ChangeNotifier {
           doc.data() as Map<String, dynamic>,
           doc.id,
         );
-      }).toList();
-
+      }).toList()
+        ..sort((a, b) => b.priority.compareTo(a.priority));
+    } catch (e) {
+      print('Error fetching banners: $e');
+    } finally {
+      bannersLoading = false;
       notifyListeners();
-    } catch (_) {}
+    }
   }
 
   Future<void> deleteBanner(String id) async {
-    FirebaseFirestore.instance.collection('banners').doc(id).delete();
-    fetchBanners();
+    await FirebaseFirestore.instance.collection('banners').doc(id).delete();
+    await fetchBanners();
+  }
+
+  Future<void> toggleBannerActive(String id, bool isActive) async {
+    await FirebaseFirestore.instance
+        .collection('banners')
+        .doc(id)
+        .update({'isActive': isActive});
+    await fetchBanners();
   }
 
   Future<String> uploadImageToStorage(Uint8List imageData) async {
@@ -374,6 +404,110 @@ class DashBoardServices extends ChangeNotifier {
           SnackBar(content: Text('Error adding banner: ${e.toString()}')),
         );
       }
+    }
+  }
+
+  Future<void> updateBanner(
+    BuildContext context,
+    String bannerId, {
+    required String existingImageUrl,
+    required String existingVideoUrl,
+    required String existingThumbnailUrl,
+    String title = '',
+    String subtitle = '',
+    String ctaText = 'Shop now',
+    String redirectType = 'none',
+    String redirectId = '',
+    int priority = 10,
+    bool isActive = true,
+    bool showInHome = true,
+    bool showInOffers = true,
+    bool showAsPopup = false,
+    bool autoplay = true,
+    bool loop = true,
+    bool muted = true,
+    int popupAutoCloseSeconds = 12,
+    String startsAtRaw = '',
+    String endsAtRaw = '',
+  }) async {
+    try {
+      isLoading = true;
+      notifyListeners();
+
+      var imageUrl = existingImageUrl;
+      var videoUrl = existingVideoUrl;
+      var thumbnailUrl = existingThumbnailUrl;
+
+      if (bannerType == 'image' && imageBytes != null) {
+        imageUrl = await uploadImageToStorage(imageBytes!);
+      } else if (bannerType == 'video' && videoBytes != null) {
+        videoUrl = await uploadVideoToStorage(videoBytes!);
+        if (thumbnailBytes != null) {
+          thumbnailUrl = await uploadImageToStorage(thumbnailBytes!);
+        }
+      }
+
+      final startsAt = DateTime.tryParse(startsAtRaw.trim());
+      final endsAt = DateTime.tryParse(endsAtRaw.trim());
+
+      final payload = <String, dynamic>{
+        'image': imageUrl,
+        'video': videoUrl,
+        'videoUrl': videoUrl,
+        'type': bannerType,
+        'bannerType': bannerType,
+        'thumbnailUrl': thumbnailUrl,
+        'title': title,
+        'subtitle': subtitle,
+        'ctaText': ctaText,
+        'redirectType': redirectType,
+        'redirectId': redirectId,
+        'isActive': isActive,
+        'showInHome': showInHome,
+        'showInOffers': showInOffers,
+        'showAsPopup': showAsPopup,
+        'priority': priority,
+        'autoplay': autoplay,
+        'loop': loop,
+        'muted': muted,
+        'popupAutoCloseSeconds': popupAutoCloseSeconds,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (startsAt != null) {
+        payload['startsAt'] = Timestamp.fromDate(startsAt);
+      } else {
+        payload['startsAt'] = FieldValue.delete();
+      }
+      if (endsAt != null) {
+        payload['endsAt'] = Timestamp.fromDate(endsAt);
+      } else {
+        payload['endsAt'] = FieldValue.delete();
+      }
+
+      await FirebaseFirestore.instance
+          .collection('banners')
+          .doc(bannerId)
+          .update(payload);
+
+      resetBannerFormMedia();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Banner updated successfully')),
+        );
+      }
+      await fetchBanners();
+    } catch (e) {
+      print('Error updating banner: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating banner: $e')),
+        );
+      }
+    } finally {
+      isLoading = false;
+      notifyListeners();
     }
   }
 }

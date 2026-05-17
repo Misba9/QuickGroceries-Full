@@ -22,8 +22,10 @@ import 'package:quickgrocery/view/home/presentation/widgets/recommendations_sect
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/offers/presentation/providers/offer_providers.dart';
+import 'package:quickgrocery/view/combo/presentation/providers/combo_providers.dart';
+import 'package:quickgrocery/view/combo/presentation/widgets/combo_offers_section.dart';
+import 'package:quickgrocery/view/offers/presentation/widgets/offer_category_chips.dart';
 import 'package:quickgrocery/view/offers/presentation/widgets/offer_promo_video_card.dart';
-import 'package:quickgrocery/view/offers/presentation/widgets/offer_story_strip.dart';
 
 /// Dedicated Offers hub — hero video carousel, stories, flash deals,
 /// coupons, and curated product rails (Blinkit / Zepto style).
@@ -37,6 +39,20 @@ class OffersScreen extends ConsumerStatefulWidget {
 class _OffersScreenState extends ConsumerState<OffersScreen> {
   int _heroIndex = 0;
   final CarouselSliderController _heroCtrl = CarouselSliderController();
+  final ScrollController _scrollCtrl = ScrollController();
+  OfferHubCategory _selectedChip = OfferHubCategory.megaSale;
+
+  final _keyMega = GlobalKey();
+  final _keyCombo = GlobalKey();
+  final _keyFlash = GlobalKey();
+  final _keyFresh = GlobalKey();
+  final _keyLimited = GlobalKey();
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _refresh() async {
     HapticFeedback.selectionClick();
@@ -48,7 +64,28 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
     ref.invalidate(featuredProductsStreamProvider);
     ref.invalidate(couponsStreamProvider);
     ref.invalidate(bannersStreamProvider);
+    ref.invalidate(activeComboOffersProvider);
     await Future<void>.delayed(const Duration(milliseconds: 450));
+  }
+
+  void _scrollToCategory(OfferHubCategory cat) {
+    setState(() => _selectedChip = cat);
+    final key = switch (cat) {
+      OfferHubCategory.megaSale => _keyMega,
+      OfferHubCategory.comboOffers => _keyCombo,
+      OfferHubCategory.flashSale => _keyFlash,
+      OfferHubCategory.freshDeals => _keyFresh,
+      OfferHubCategory.limited => _keyLimited,
+    };
+    final ctx = key.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: AppMotion.medium,
+        curve: AppMotion.emphasized,
+        alignment: 0.08,
+      );
+    }
   }
 
   OfferBannerModel? _fallbackFromHomeBanners(List<BannerModel>? list) {
@@ -66,16 +103,6 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
     return null;
   }
 
-  List<OfferBannerModel> _storyOffers(
-    AsyncValue<List<OfferBannerModel>> storiesAsync,
-    AsyncValue<List<OfferBannerModel>> pageAsync,
-  ) {
-    final dedicated = storiesAsync.valueOrNull ?? const [];
-    if (dedicated.isNotEmpty) return dedicated;
-    final page = pageAsync.valueOrNull ?? const [];
-    return page.take(10).toList();
-  }
-
   List<OfferBannerModel> _endingSoon(List<OfferBannerModel> all) {
     return all
         .where((o) => o.endsAt != null && !o.isExpired && o.timeRemaining != null)
@@ -88,7 +115,6 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
     final gutter = Responsive.of(context).gutter();
     final pageAsync = ref.watch(offersPageBannersProvider);
     final bannersRawAsync = ref.watch(bannersStreamProvider);
-    final storiesAsync = ref.watch(offersStoriesProvider);
     final List<OfferBannerModel> primary =
         pageAsync.value ?? const <OfferBannerModel>[];
     final fallback =
@@ -98,7 +124,6 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
         : (fallback != null ? <OfferBannerModel>[fallback] : const []);
     final heroLoading =
         pageAsync.isLoading && primary.isEmpty && fallback == null;
-    final storyOffers = _storyOffers(storiesAsync, pageAsync);
     final endingSoon = _endingSoon(banners);
     final couponsAsync = ref.watch(couponsStreamProvider);
     final pricing = ref.watch(pricingConfigProvider).asData?.value;
@@ -116,6 +141,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
           color: AppColor.primary,
           onRefresh: _refresh,
           child: CustomScrollView(
+            controller: _scrollCtrl,
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
@@ -135,10 +161,14 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
                 ),
               ),
               SliverToBoxAdapter(
-                child: OfferStoryStrip(offers: storyOffers),
+                child: OfferCategoryChips(
+                  selected: _selectedChip,
+                  onSelected: _scrollToCategory,
+                ),
               ),
               SliverToBoxAdapter(
                 child: Padding(
+                  key: _keyMega,
                   padding: EdgeInsets.fromLTRB(gutter, 4, gutter, 8),
                   child: _OffersHeroCarousel(
                     banners: banners,
@@ -176,6 +206,14 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
                 ),
               SliverToBoxAdapter(
                 child: Padding(
+                  key: _keyCombo,
+                  padding: EdgeInsets.fromLTRB(gutter, 12, gutter, 0),
+                  child: const ComboOffersSection(),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  key: _keyFlash,
                   padding: EdgeInsets.symmetric(horizontal: gutter),
                   child: const FlashSaleSection(
                     cardMargin: EdgeInsets.only(top: 8),
@@ -215,7 +253,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
                   child: FeaturedProductsSection(
-                    title: 'Trending offers',
+                    title: 'Trending deals',
                     subtitle: 'Most-loved picks right now',
                     icon: Icons.local_fire_department_rounded,
                     provider: trendingProductsStreamProvider,
@@ -241,9 +279,10 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
               ),
               SliverToBoxAdapter(
                 child: Padding(
+                  key: _keyLimited,
                   padding: EdgeInsets.symmetric(horizontal: gutter),
                   child: FeaturedProductsSection(
-                    title: 'Limited stock deals',
+                    title: 'Limited offers',
                     subtitle: 'Selling fast',
                     icon: Icons.inventory_2_outlined,
                     provider: specialCatProductsProvider('Epic price drop items'),
@@ -252,11 +291,12 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
               ),
               SliverToBoxAdapter(
                 child: Padding(
+                  key: _keyFresh,
                   padding: EdgeInsets.symmetric(horizontal: gutter),
                   child: FeaturedProductsSection(
-                    title: 'Festival offers',
-                    subtitle: 'Seasonal savings',
-                    icon: Icons.celebration_outlined,
+                    title: 'Fresh deals',
+                    subtitle: 'Farm-fresh savings',
+                    icon: Icons.eco_outlined,
                     provider: specialCatProductsProvider('Festival offers'),
                   ),
                 ),

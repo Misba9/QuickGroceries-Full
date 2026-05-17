@@ -53,6 +53,7 @@ class OrderRepository {
 
     final productItems = items
         .map((item) => ProductItem(
+              productId: item.productId,
               name: item.name,
               image: item.image,
               description: '',

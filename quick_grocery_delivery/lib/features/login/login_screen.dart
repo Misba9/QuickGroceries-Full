@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:quick_grocery_delivery/constants/app_icons.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/constants/primary_button.dart';
+import 'package:quick_grocery_delivery/features/login/forgot_password/forgot_password_email_screen.dart';
 import 'package:quick_grocery_delivery/features/login/services/login_service.dart';
-import 'package:quick_grocery_delivery/features/login/widgets/social_media_card.dart';
-import 'package:quick_grocery_delivery/features/otp_auth/otp_auth_screen.dart';
 import 'package:provider/provider.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -12,7 +10,16 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final povider = Provider.of<LoginService>(context);
+    return const _LoginScreenBody();
+  }
+}
+
+class _LoginScreenBody extends StatelessWidget {
+  const _LoginScreenBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = Provider.of<LoginService>(context);
     final width = MediaQuery.of(context).size.width;
     final height = MediaQuery.of(context).size.height;
     return Scaffold(
@@ -83,8 +90,9 @@ class LoginScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: TextField(
-                      controller: povider.emailController,
-                      decoration: InputDecoration(
+                      controller: provider.emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
                         hintText: 'Email',
                         border: InputBorder.none,
                       ),
@@ -92,7 +100,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                     height: height * .06,
                     width: width,
@@ -101,14 +109,49 @@ class LoginScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: TextField(
-                      controller: povider.passwordController,
+                      controller: provider.passwordController,
+                      obscureText: provider.obscurePassword,
                       decoration: InputDecoration(
                         hintText: 'Password',
                         border: InputBorder.none,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            provider.obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: provider.toggleObscurePassword,
+                        ),
                       ),
                     ),
                   ),
-                  SizedBox(height: height * .03),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 20, top: 8),
+                      child: TextButton(
+                        onPressed: provider.isLoading
+                            ? null
+                            : () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const ForgotPasswordEmailScreen(),
+                                  ),
+                                );
+                              },
+                        child: const Text(
+                          'Forgot Password?',
+                          style: TextStyle(
+                            color: GlobalVariables.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: height * .02),
                   Consumer<LoginService>(
                     builder: (context, p, _) {
                       return Padding(
@@ -117,68 +160,12 @@ class LoginScreen extends StatelessWidget {
                           height: height,
                           width: width,
                           title: 'Continue',
-                          isLoading: false,
+                          isLoading: p.isLoading,
                           onTap: () => p.login(context),
-                          // Navigator.push(
-                          //     context,
-                          //     MaterialPageRoute(
-                          //         builder: (context) => const OtpAuthScreen()));
                         ),
                       );
                     },
                   ),
-                  SizedBox(height: height * .03),
-                  // const Row(
-                  //   children: [
-                  //     SizedBox(
-                  //       width: 20,
-                  //     ),
-                  //     Expanded(
-                  //       child: Divider(
-                  //         thickness: 1,
-                  //         color: GlobalVariables.lightGrey,
-                  //       ),
-                  //     ),
-                  //     SizedBox(
-                  //       width: 10,
-                  //     ),
-                  //     Text(
-                  //       'or',
-                  //       style: TextStyle(color: GlobalVariables.darkGrey),
-                  //     ),
-                  //     SizedBox(
-                  //       width: 10,
-                  //     ),
-                  //     Expanded(
-                  //       child: Divider(
-                  //         thickness: 1,
-                  //         color: GlobalVariables.lightGrey,
-                  //       ),
-                  //     ),
-                  //     SizedBox(
-                  //       width: 20,
-                  //     ),
-                  //   ],
-                  // ),
-                  // SizedBox(
-                  //   height: height * .03,
-                  // ),
-                  // Row(
-                  //   mainAxisAlignment: MainAxisAlignment.center,
-                  //   children: [
-                  //     SocialMediaIcon(
-                  //       width: width,
-                  //       icon: AppIcons.google,
-                  //     ),
-                  //     SizedBox(
-                  //       width: width * .17,
-                  //     ),
-                  //     SocialMediaIcon(
-                  //       width: width,
-                  //       icon: AppIcons.facebook,
-                  //     ),
-                  //   ],
-                  // ),
                 ],
               ),
             ),

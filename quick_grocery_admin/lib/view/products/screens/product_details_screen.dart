@@ -1,3 +1,4 @@
+import 'package:quick_grocery_admin/core/responsive/admin_layout_widgets.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:flutter/material.dart';
@@ -86,123 +87,96 @@ class _ProductDetailsState extends State<ProductDetails> {
                     AppSpacing.h10,
                     Divider(color: Colors.grey.shade300),
                     AppSpacing.h10,
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    AdminResponsiveRow(
+                      breakpoint: 640,
                       children: [
                         Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text('Category * '),
+                            const Text('Category *'),
                             AppSpacing.h10,
-                            SizedBox(
-                              width: 300,
-                              child: DropdownButtonFormField<String>(
-                                decoration: InputDecoration(
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(
-                                      color: Colors.grey,
-                                      width:
-                                          0.5, // Border thickness when not focused
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(
-                                      color: AppColor.primary,
-                                      width: 0.8,
-                                    ),
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderSide: BorderSide(
-                                      color: Colors.grey,
-                                      width: 0.5,
-                                    ),
+                            DropdownButtonFormField<String>(
+                              decoration: InputDecoration(
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey,
+                                    width: 0.5,
                                   ),
                                 ),
-                                value: selectedValue,
-                                onChanged: (String? newValue) {
-                                  setState(() {
-                                    selectedValue = newValue!;
-                                  });
-                                },
-                                items: items.map<DropdownMenuItem<String>>((
-                                  String value,
-                                ) {
-                                  return DropdownMenuItem<String>(
-                                    value: value,
-                                    child: Text(value),
-                                  );
-                                }).toList(),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: AppColor.primary,
+                                    width: 0.8,
+                                  ),
+                                ),
+                                border: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Colors.grey,
+                                    width: 0.5,
+                                  ),
+                                ),
                               ),
+                              value: selectedValue,
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  selectedValue = newValue!;
+                                });
+                              },
+                              items: items.map<DropdownMenuItem<String>>((
+                                String value,
+                              ) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
                             ),
                           ],
                         ),
-                        AppSpacing.w20,
-                        // Column(
-                        //   crossAxisAlignment: CrossAxisAlignment.start,
-                        //   children: [
-                        //     Text('Minimum order qty *'),
-                        //     AppSpacing.h10,
-                        //     SizedBox(width: 300, child: PrimaryTextField())
-                        //   ],
-                        // ),
-                        // AppSpacing.w20,
-                        // Column(
-                        //   crossAxisAlignment: CrossAxisAlignment.start,
-                        //   children: [
-                        //     Text('Current stock qty *'),
-                        //     AppSpacing.h10,
-                        //     SizedBox(width: 300, child: PrimaryTextField())
-                        //   ],
-                        // ),
-                        AppSpacing.w20,
                         Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text('Discount Type'),
+                            const Text('Discount type'),
                             AppSpacing.h10,
-                            SizedBox(
-                              width: 300,
-                              child: DropdownButtonFormField<String>(
-                                decoration: InputDecoration(
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(
-                                      color: Colors.grey,
-                                      width:
-                                          0.5, // Border thickness when not focused
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(
-                                      color: AppColor.primary,
-                                      width: 0.8,
-                                    ),
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderSide: BorderSide(
-                                      color: Colors.grey,
-                                      width: 0.5,
-                                    ),
+                            DropdownButtonFormField<String>(
+                              decoration: InputDecoration(
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey,
+                                    width: 0.5,
                                   ),
                                 ),
-                                value: selectedValue,
-                                onChanged: (String? newValue) {
-                                  setState(() {
-                                    selectedValue = newValue!;
-                                  });
-                                },
-                                items: items.map<DropdownMenuItem<String>>((
-                                  String value,
-                                ) {
-                                  return DropdownMenuItem<String>(
-                                    value: value,
-                                    child: Text(value),
-                                  );
-                                }).toList(),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(
+                                    color: AppColor.primary,
+                                    width: 0.8,
+                                  ),
+                                ),
+                                border: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Colors.grey,
+                                    width: 0.5,
+                                  ),
+                                ),
                               ),
+                              value: selectedValue,
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  selectedValue = newValue!;
+                                });
+                              },
+                              items: items.map<DropdownMenuItem<String>>((
+                                String value,
+                              ) {
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(value),
+                                );
+                              }).toList(),
                             ),
                           ],
                         ),
@@ -241,41 +215,18 @@ class _ProductDetailsState extends State<ProductDetails> {
                     AppSpacing.h10,
                     Divider(color: Colors.grey.shade300),
                     AppSpacing.h20,
-                    Container(
-                      height: 150,
-                      width: 150,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Center(
-                        child: IconButton(
-                          onPressed: () {},
-                          icon: Icon(Icons.upload_file),
-                        ),
-                      ),
+                    AdminUploadSection(
+                      label: 'Product media',
+                      buttonLabel: 'Upload file',
+                      onTap: () {},
                     ),
                   ],
                 ),
               ),
               AppSpacing.h20,
-              Align(
-                alignment: Alignment.topRight,
-                child: SizedBox(
-                  height: 40,
-                  width: 200,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor: AppColor.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () {},
-                    child: Text('Submit'),
-                  ),
-                ),
+              AdminPrimaryButton(
+                label: 'Submit',
+                onPressed: () {},
               ),
               AppSpacing.h20,
               AppSpacing.h20,
@@ -298,8 +249,8 @@ class WrapperWidget extends StatelessWidget {
         final w = constraints.maxWidth;
         return Container(
           padding: const EdgeInsets.all(15),
-          width: w.isFinite ? w : null,
-          constraints: const BoxConstraints(minWidth: 0),
+          width: w.isFinite ? w : double.infinity,
+          constraints: BoxConstraints(minWidth: 0, maxWidth: w.isFinite ? w : double.infinity),
           decoration: BoxDecoration(
             boxShadow: [
               BoxShadow(
@@ -311,6 +262,7 @@ class WrapperWidget extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
           ),
+          clipBehavior: Clip.hardEdge,
           child: child,
         );
       },

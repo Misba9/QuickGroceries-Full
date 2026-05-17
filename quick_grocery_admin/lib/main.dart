@@ -20,6 +20,7 @@ import 'package:quick_grocery_admin/view/support_settings/services/support_setti
 import 'package:quick_grocery_admin/view/operations/services/admin_notification_service.dart';
 import 'package:quick_grocery_admin/view/operations/services/ops_dashboard_service.dart';
 import 'package:quick_grocery_admin/view/operations/services/ops_sound_prefs.dart';
+import 'package:quick_grocery_admin/view/operations/widgets/admin_notification_realtime_host.dart';
 import 'package:quick_grocery_admin/view/auth/screens/login_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -84,7 +85,9 @@ class MyApp extends StatelessWidget {
               );
             }
             if (snap.hasData && snap.data != null) {
-              return const HomeScreen();
+              return const AdminNotificationRealtimeHost(
+                child: HomeScreen(),
+              );
             }
             return const LoginScreen();
           },

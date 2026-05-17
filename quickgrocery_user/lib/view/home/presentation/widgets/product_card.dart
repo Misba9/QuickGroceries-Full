@@ -7,6 +7,7 @@ import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/product/product_quantity_label.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/widgets/discount_badge.dart';
+import 'package:quickgrocery/core/widgets/product_badges.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
@@ -235,6 +236,12 @@ class _ImageWithDiscount extends StatelessWidget {
                 left: 0,
                 child: DiscountBadge(percent: product.discountPercent),
               ),
+            Positioned(
+              left: 4,
+              bottom: 4,
+              right: 4,
+              child: ProductBadgesRow(product: product, maxBadges: 2),
+            ),
           ],
         ),
       ),

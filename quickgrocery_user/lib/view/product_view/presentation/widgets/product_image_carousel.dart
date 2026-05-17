@@ -54,8 +54,10 @@ class _ProductImageCarouselState extends State<ProductImageCarousel> {
     final images = <String>[];
     if (widget.product.images.isNotEmpty) {
       images.addAll(widget.product.images.map((e) => e.toString()));
-    } else if (widget.product.image.isNotEmpty) {
-      images.add(widget.product.image);
+    }
+    if (widget.product.image.isNotEmpty &&
+        !images.contains(widget.product.image)) {
+      images.insert(0, widget.product.image);
     }
     _images = images;
     _videos = widget.product.videos.map((e) => e.toString()).toList();
@@ -128,8 +130,39 @@ class _ProductImageCarouselState extends State<ProductImageCarousel> {
             ),
           ),
         ),
+        if (_images.length > 1) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 52,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: _images.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final active = i == _index && i < _images.length;
+                return GestureDetector(
+                  onTap: () => _controller.animateToPage(i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 48,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: active ? AppColor.primary : Colors.grey.shade300,
+                        width: active ? 2 : 1,
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: CachedImage(url: _images[i], fit: BoxFit.cover),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
         if (total > 1) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(total, (i) {
@@ -166,9 +199,12 @@ class _ProductImageCarouselState extends State<ProductImageCarousel> {
           child: image,
         );
       }
-      return Padding(
-        padding: const EdgeInsets.all(12),
-        child: image,
+      return GestureDetector(
+        onTap: () => _openFullscreen(index),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: image,
+        ),
       );
     }
     final controller = _videoControllers[index];
@@ -219,11 +255,93 @@ class _ProductImageCarouselState extends State<ProductImageCarousel> {
     );
   }
 
+  void _openFullscreen(int index) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => _FullscreenImageViewer(
+        urls: _images,
+        initialIndex: index,
+      ),
+    );
+  }
+
   bool _listEquals(List a, List b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return false;
     }
     return true;
+  }
+}
+
+class _FullscreenImageViewer extends StatefulWidget {
+  const _FullscreenImageViewer({
+    required this.urls,
+    required this.initialIndex,
+  });
+
+  final List<String> urls;
+  final int initialIndex;
+
+  @override
+  State<_FullscreenImageViewer> createState() => _FullscreenImageViewerState();
+}
+
+class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
+  late final PageController _controller;
+  late int _index;
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex;
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _controller,
+            itemCount: widget.urls.length,
+            onPageChanged: (i) => setState(() => _index = i),
+            itemBuilder: (_, i) => InteractiveViewer(
+              minScale: 0.8,
+              maxScale: 4,
+              child: Center(
+                child: CachedImage(url: widget.urls[i], fit: BoxFit.contain),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Spacer(),
+                Text(
+                  '${_index + 1}/${widget.urls.length}',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                const SizedBox(width: 48),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

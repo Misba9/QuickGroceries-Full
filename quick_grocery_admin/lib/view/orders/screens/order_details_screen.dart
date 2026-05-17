@@ -396,7 +396,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           );
                         },
                         icon: Icon(Icons.print),
-                        label: Text('Print Invoice'),
+                        label: Text('Print receipt'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
@@ -421,7 +421,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           );
                         },
                         icon: Icon(Icons.share),
-                        label: Text('Share Invoice'),
+                        label: Text('Share receipt'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,

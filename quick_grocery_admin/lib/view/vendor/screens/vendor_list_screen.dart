@@ -1,7 +1,10 @@
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
+import 'package:quick_grocery_admin/view/home/widgets/admin_global_top_bar.dart';
+import 'package:quick_grocery_admin/view/home/widgets/admin_top_bar_actions.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
+import 'package:quick_grocery_admin/view/partner_security/partner_security_sheet.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_details.dart';
 import 'package:quick_grocery_admin/view/vendor/services/vendor_service.dart';
 import 'package:flutter/material.dart';
@@ -28,7 +31,6 @@ class _VendorListScreenState extends State<VendorListScreen> {
       backgroundColor: Color(0xFFFFFAF0),
       body: Column(
         children: [
-          PrimaryAppBar(),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(15.0),
@@ -207,6 +209,23 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                       children: [
                                         IconButton(
                                           icon: Icon(
+                                            Icons.security,
+                                            color: Colors.blueGrey,
+                                          ),
+                                          tooltip: 'Account security',
+                                          onPressed: () {
+                                            final v = p.vendors![index];
+                                            PartnerSecuritySheet.show(
+                                              context,
+                                              role: 'vendor',
+                                              partnerId: v.id,
+                                              email: v.email,
+                                              isActive: v.isActive,
+                                            );
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: Icon(
                                             Icons.visibility_outlined,
                                             color: AppColor.primary,
                                           ),
@@ -252,60 +271,53 @@ class _VendorListScreenState extends State<VendorListScreen> {
 }
 
 class PrimaryAppBar extends StatelessWidget {
-  const PrimaryAppBar({super.key, this.isBackButton = false});
+  const PrimaryAppBar({super.key, this.isBackButton = false, this.title});
   final bool isBackButton;
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(10),
-      decoration: BoxDecoration(color: Colors.white),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Visibility(
-            visible: isBackButton,
-            child: IconButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              icon: Icon(Icons.arrow_back_ios),
-            ),
-          ),
-          SizedBox(width: 100),
-          Row(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+    return Material(
+      color: Colors.white,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: SizedBox(
+            height: AdminGlobalTopBar.barHeight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Admin',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text('Super Admin', style: TextStyle()),
-                        ],
+                  if (isBackButton)
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                      tooltip: 'Back',
+                    )
+                  else
+                    const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title ?? (isBackButton ? 'Details' : 'Quick Grocery Admin'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: AppColor.primary,
                       ),
-                      AppSpacing.w10,
-                      CircleAvatar(
-                        backgroundImage: AssetImage('assets/images/logo.png'),
-                      ),
-                    ],
+                    ),
                   ),
+                  const AdminTopBarActions(),
                 ],
               ),
-            ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
