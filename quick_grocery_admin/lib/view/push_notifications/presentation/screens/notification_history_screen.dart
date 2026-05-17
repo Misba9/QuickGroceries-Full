@@ -83,11 +83,11 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: Consumer<NotificationAdminService>(
-                builder: (context, svc, _) {
-                  return StreamBuilder<List<NotificationLog>>(
-                    stream: svc.watchLogs(limit: 500),
-                    builder: (context, snap) {
+              child: StreamBuilder<List<NotificationLog>>(
+                stream: context
+                    .read<NotificationAdminService>()
+                    .watchLogs(limit: 500),
+                builder: (context, snap) {
                       if (!snap.hasData) {
                         return const Center(child: CircularProgressIndicator());
                       }
@@ -228,9 +228,7 @@ class _NotificationHistoryScreenState extends State<NotificationHistoryScreen> {
                         ],
                       );
                     },
-                  );
-                },
-              ),
+                  ),
             ),
           ],
         ),

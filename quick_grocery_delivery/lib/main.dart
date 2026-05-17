@@ -1,4 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
+import 'package:quick_grocery_delivery/core/fcm_bootstrap.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 // import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:quick_grocery_delivery/features/home/screens/home_screen.dart';
@@ -26,6 +28,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
+  if (kDebugMode) {
+    debugPrint('[DeliveryFCM:bg] ${message.notification?.title}');
+  }
 }
 
 Future<void> main() async {
@@ -55,9 +60,12 @@ Future<void> main() async {
     sound: true,
   );
   final pref = await SharedPreferences.getInstance();
-  String isLogged = pref.getString('deliveryBoyId') ?? '';
+  final riderId = pref.getString('deliveryBoyId') ?? '';
+  if (riderId.isNotEmpty) {
+    await DeliveryFcmBootstrap.configureForRider(riderId);
+  }
 
-  runApp(MyApp(isLogged: isLogged != ''));
+  runApp(MyApp(isLogged: riderId.isNotEmpty));
 }
 
 class MyApp extends StatelessWidget {

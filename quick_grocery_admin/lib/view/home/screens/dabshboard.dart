@@ -2,6 +2,8 @@ import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/analytics/screens/advanced_analytics_dashboard.dart';
+import 'package:quick_grocery_admin/view/operations/widgets/admin_notification_bell.dart';
+import 'package:quick_grocery_admin/view/operations/widgets/ops_live_panel.dart';
 import 'package:quick_grocery_admin/view/home/services/dash_board_services.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
 import 'package:flutter/material.dart';
@@ -75,6 +77,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const AdminOpsTopBar(
+                title: 'Operations dashboard',
+                subtitle: 'Live updates — no refresh needed',
+              ),
+              const OpsLivePanel(),
+              AppSpacing.h20,
               Row(
                 children: [
                   SvgPicture.asset('assets/icons/chart.svg'),

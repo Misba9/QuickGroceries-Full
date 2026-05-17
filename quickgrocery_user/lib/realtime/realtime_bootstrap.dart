@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quickgrocery/core/firestore/firestore_retry.dart';
+import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
 
@@ -92,28 +93,14 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
     }
   }
 
-  static const _defaultFcmTopics = <String>[
-    'all_users',
-    'offers',
-    'vegetables',
-    'dairy',
-    'premium_users',
-  ];
-
-  Future<void> _subscribeDefaultTopics() async {
-    if (kIsWeb) return;
-    for (final t in _defaultFcmTopics) {
-      try {
-        await FirebaseMessaging.instance.subscribeToTopic(t);
-      } catch (e) {
-        if (kDebugMode) debugPrint('[Realtime] subscribe $t: $e');
-      }
-    }
-  }
-
   void _attachFcm() {
     _onMessageSub = FirebaseMessaging.onMessage.listen((msg) async {
       if (!mounted) return;
+      if (kDebugMode) {
+        debugPrint(
+          '[FCM:fg] ${msg.notification?.title} | ${msg.notification?.body}',
+        );
+      }
       await _persistInboxFromMessage(msg);
       final n = msg.notification;
       final title = n?.title ?? (msg.data['title']?.toString() ?? 'Update');
@@ -157,9 +144,12 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
       // Persist initial token on sign-in so server can address us.
       try {
         final token = await FirebaseMessaging.instance.getToken();
-        if (token != null) await _persistFcmToken(token);
+        if (token != null) {
+          if (kDebugMode) debugPrint('[FCM] auth token persist uid=${user.uid}');
+          await _persistFcmToken(token);
+        }
       } catch (e) {
-        if (kDebugMode) debugPrint('[Realtime] FCM token fetch failed: $e');
+        if (kDebugMode) debugPrint('[FCM] token fetch failed: $e');
       }
     });
   }
@@ -175,14 +165,14 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
             'fcm_token': token,
             'fcmPlatform': defaultTargetPlatform.name,
             'fcmUpdatedAt': FieldValue.serverTimestamp(),
-            'fcmTopics': FieldValue.arrayUnion(_defaultFcmTopics),
+            'fcmTopics': FieldValue.arrayUnion(FcmBootstrap.defaultTopics),
           },
           SetOptions(merge: true),
         ),
       );
-      await _subscribeDefaultTopics();
+      await FcmBootstrap.subscribeDefaultTopics();
     } catch (e) {
-      if (kDebugMode) debugPrint('[Realtime] FCM token write failed: $e');
+      if (kDebugMode) debugPrint('[FCM] token write failed: $e');
     }
   }
 

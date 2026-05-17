@@ -17,6 +17,9 @@ import 'package:quick_grocery_admin/view/analytics/services/analytics_service.da
 import 'package:quick_grocery_admin/view/push_notifications/services/notification_admin_service.dart';
 import 'package:quick_grocery_admin/view/app_content_management/services/app_content_management_service.dart';
 import 'package:quick_grocery_admin/view/support_settings/services/support_settings_service.dart';
+import 'package:quick_grocery_admin/view/operations/services/admin_notification_service.dart';
+import 'package:quick_grocery_admin/view/operations/services/ops_dashboard_service.dart';
+import 'package:quick_grocery_admin/view/operations/services/ops_sound_prefs.dart';
 import 'package:quick_grocery_admin/view/auth/screens/login_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -60,6 +63,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) => SupportSettingsService(),
         ),
+        ChangeNotifierProvider(create: (_) => AdminNotificationService()),
+        ChangeNotifierProvider(create: (_) => OpsDashboardService()),
+        ChangeNotifierProvider(create: (_) => OpsSoundPrefs()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

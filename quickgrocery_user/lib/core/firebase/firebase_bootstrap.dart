@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:quickgrocery/core/firebase/firebase_options.dart';
+
 /// Initializes Firebase with bounded retries (transient startup / network).
 ///
 /// Uses default native options from `google-services.json` / `GoogleService-Info.plist`.
@@ -17,7 +19,21 @@ Future<void> initializeFirebaseWithRetry({
   for (var attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp();
+        if (kIsWeb) {
+          await Firebase.initializeApp();
+        } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+          try {
+            await Firebase.initializeApp();
+          } catch (_) {
+            await Firebase.initializeApp(
+              options: DefaultFirebaseOptions.ios,
+            );
+          }
+        } else {
+          await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.android,
+          );
+        }
       }
       return;
     } catch (e, st) {

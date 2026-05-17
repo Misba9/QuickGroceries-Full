@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quickgrocery_vendor/core/fcm_bootstrap.dart';
 import '../../services/auth_service.dart';
 import '../../style/app_color.dart';
 import '../../utils/app_spacing.dart';
@@ -39,6 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
         if (vendor != null) {
+          await VendorFcmBootstrap.configureForVendor(vendor.id);
           // Login successful
           if (mounted) {
             Navigator.pushReplacement(

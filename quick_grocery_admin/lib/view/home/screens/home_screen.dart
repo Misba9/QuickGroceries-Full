@@ -26,6 +26,7 @@ import 'package:quick_grocery_admin/view/push_notifications/presentation/screens
 import 'package:quick_grocery_admin/view/app_content_management/screens/app_content_management_screen.dart';
 import 'package:quick_grocery_admin/view/support_settings/screens/support_settings_screen.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
+import 'package:quick_grocery_admin/view/operations/widgets/admin_notification_bell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
@@ -221,6 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.menu_rounded),
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
+              actions: const [AdminNotificationBell()],
             ),
             drawer: Drawer(
               width: adminSidebarWidth(w),

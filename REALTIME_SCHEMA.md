@@ -30,6 +30,13 @@ gets a snapshot tick within ~ms — no manual refresh.
 | `orders/{id}`                    | User (create), Admin / Vendor / Delivery (status updates) | All four            |
 | `delivery_boys/{id}`             | Admin (create), Delivery (live telemetry)  | User, Admin                    |
 | `notifications/{uid}/items/{}`   | Cloud Functions / Admin                    | User                           |
+| `admin_notifications/{id}`         | Cloud Functions (ops triggers)           | Admin Panel                    |
+| `activity_logs/{id}`             | Cloud Functions                            | Admin Panel                    |
+| `stock_alerts/{id}`              | Cloud Functions                            | Admin, Vendor (via push)       |
+| `abandoned_carts/{id}`           | Cloud Functions (cart reminder job)      | Admin (read)                   |
+| `delivery_tracking/{orderId}/events/{}` | Cloud Functions + Delivery App   | Admin, User                    |
+| `daily_summaries/{id}`           | Cloud Functions (scheduled)                | Admin                          |
+| `settings/ops_settings`          | Admin                                      | Cloud Functions                |
 | `coupons/{id}`                   | Admin                                      | User, Admin                    |
 | `delivery_zones/{id}`            | Admin                                      | User                           |
 | `delivery_slots/{id}`            | Admin                                      | User                           |
@@ -204,6 +211,54 @@ Firestore costs sane; debounce when speed < 1 km/h.
 
 User App reads via `notificationsStreamProvider` and
 `unreadNotificationsCountProvider`.
+
+### 2.8 `admin_notifications/{id}` — admin ops inbox
+
+```jsonc
+{
+  "title": "New order",
+  "message": "#a1b2c3 · Ahmed · ₹420 · COD",
+  "type": "new_order",
+  "category": "orders",
+  "read": false,
+  "soundAlert": true,
+  "targetAdminId": "",
+  "metadata": {
+    "orderId": "…",
+    "customerName": "…",
+    "amount": 420,
+    "paymentType": "COD",
+    "vendorName": "Fresh Mart"
+  },
+  "createdAt": <Timestamp>
+}
+```
+
+Written by Cloud Functions (`functions/src/operations/*`). Admin Panel
+subscribes with `orderBy('createdAt', descending: true)` for the bell +
+notification center.
+
+### 2.9 `settings/ops_settings` — automation knobs
+
+```jsonc
+{
+  "lowStockThreshold": 10,
+  "autoDisableOutOfStock": true,
+  "abandonedCartDelayHours": 24,
+  "abandonedCartEnabled": true,
+  "autoAssignDriver": true,
+  "adminSoundEnabled": true
+}
+```
+
+### 2.10 FCM topics (operations)
+
+| Topic | Subscribers |
+| ----- | ----------- |
+| `admin_ops` | Admin mobile builds (optional) |
+| `vendor_{vendorId}` | Vendor app after login |
+| `delivery_{riderId}` | Delivery app after login |
+| `all_users` | Customer app (marketing) |
 
 ---
 

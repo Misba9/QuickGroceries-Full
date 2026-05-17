@@ -23,3 +23,5 @@
 # Firebase / Play Services — libraries ship their own rules; keep broad warnings off noise
 -dontwarn com.google.android.gms.**
 -dontwarn com.google.firebase.**
+-keep class com.google.firebase.messaging.** { *; }
+-keep class com.google.firebase.iid.** { *; }

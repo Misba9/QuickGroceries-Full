@@ -131,12 +131,6 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final preview = renderNotificationTemplate(_broadcastMsg.text, {
-      'userName': 'Priya',
-      'orderId': 'QG-48291',
-      'userId': 'cust_demo',
-    });
-
     return PushAccessGate(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -160,9 +154,9 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
                   style: TextStyle(color: Colors.grey.shade700),
                 ),
                 const SizedBox(height: 20),
-                _analyticsRow(context),
+                const _NotificationAnalyticsRow(),
                 const SizedBox(height: 20),
-                _campaignsStrip(context),
+                const _NotificationCampaignsStrip(),
                 const SizedBox(height: 20),
                 _smartTargetingCard(context),
                 const SizedBox(height: 20),
@@ -173,7 +167,7 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(child: _broadcastCard(context, preview)),
+                          Expanded(child: _broadcastCard(context)),
                           const SizedBox(width: 20),
                           Expanded(child: _singleUserCard(context)),
                         ],
@@ -181,7 +175,7 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
                     }
                     return Column(
                       children: [
-                        _broadcastCard(context, preview),
+                        _broadcastCard(context),
                         const SizedBox(height: 20),
                         _singleUserCard(context),
                       ],
@@ -210,115 +204,7 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
     );
   }
 
-  Widget _analyticsRow(BuildContext context) {
-    return Consumer<NotificationAdminService>(
-      builder: (context, svc, _) {
-        return StreamBuilder<List<NotificationLog>>(
-          stream: svc.watchLogs(limit: 500),
-          builder: (context, snap) {
-            final logs = snap.data ?? const <NotificationLog>[];
-            final sent = logs.where((e) => e.status == 'sent').length;
-            final failed = logs.where((e) => e.status == 'failed').length;
-            final opens =
-                logs.fold<int>(0, (a, e) => a + (e.openedCount ?? 0));
-            return Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _statChip('Recent logs', '${logs.length}', Icons.list_alt),
-                _statChip('Sent', '$sent', Icons.check_circle_outline),
-                _statChip('Failed', '$failed', Icons.error_outline),
-                _statChip('Opens (sum)', '$opens', Icons.ads_click_outlined),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _statChip(String label, String value, IconData icon) {
-    return Container(
-      width: 200,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColor.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _campaignsStrip(BuildContext context) {
-    return Consumer<NotificationAdminService>(
-      builder: (context, svc, _) {
-        return StreamBuilder<List<NotificationCampaign>>(
-          stream: svc.watchRecentCampaigns(),
-          builder: (context, snap) {
-            final list = snap.data ?? const [];
-            if (list.isEmpty) return const SizedBox.shrink();
-            return PushAdminCard(
-              title: 'Recent campaigns',
-              subtitle: 'Scheduled topic or single-user sends tracked in Firestore.',
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: list.map((c) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: Chip(
-                        avatar: Icon(
-                          c.status == 'completed'
-                              ? Icons.check_circle
-                              : c.status == 'failed'
-                                  ? Icons.error_outline
-                                  : Icons.schedule,
-                          size: 18,
-                        ),
-                        label: Text(
-                          '${c.title} · ${c.status} · sent ${c.sentCount}',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _broadcastCard(BuildContext context, String preview) {
+  Widget _broadcastCard(BuildContext context) {
     return PushAdminCard(
       title: 'Broadcast & topic push',
       subtitle:
@@ -332,7 +218,6 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
               labelText: 'Notification title',
               border: OutlineInputBorder(),
             ),
-            onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -343,7 +228,6 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
               alignLabelWithHint: true,
               border: OutlineInputBorder(),
             ),
-            onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -456,51 +340,11 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
                 setState(() => _targetAudience = s.first),
           ),
           const SizedBox(height: 12),
-          Text(
-            'Preview (sample names)',
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          const SizedBox(height: 6),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: SelectableText(
-                preview.isEmpty ? '…' : preview,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  height: 1.35,
-                ),
-              ),
-            ),
-          ),
+          _BroadcastMessagePreview(controller: _broadcastMsg),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            children: [
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColor.primary,
-                  foregroundColor: Colors.black87,
-                ),
-                onPressed: context.watch<NotificationAdminService>().busy
-                    ? null
-                    : () => _sendBroadcast(context, schedule: false),
-                icon: const Icon(Icons.send_rounded),
-                label: const Text('Send notification'),
-              ),
-              OutlinedButton.icon(
-                onPressed: context.watch<NotificationAdminService>().busy
-                    ? null
-                    : () => _sendBroadcast(context, schedule: true),
-                icon: const Icon(Icons.schedule_rounded),
-                label: const Text('Schedule notification'),
-              ),
-            ],
+          _BroadcastSendActions(
+            onSendNow: () => _sendBroadcast(context, schedule: false),
+            onSchedule: () => _sendBroadcast(context, schedule: true),
           ),
         ],
       ),
@@ -588,6 +432,7 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
             decoration: InputDecoration(
               labelText: 'Search user',
               border: const OutlineInputBorder(),
+              helperText: 'Type 2+ characters, then search',
               suffixIcon: IconButton(
                 icon: const Icon(Icons.search),
                 onPressed: () => _pickUserSheet(context),
@@ -631,71 +476,56 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
           const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColor.primary,
-                foregroundColor: Colors.black87,
-              ),
-              onPressed: context.watch<NotificationAdminService>().busy
-                  ? null
-                  : () async {
-                      final svc = context.read<NotificationAdminService>();
-                      final uid = _pickedDocId ?? _picked?.id;
-                      final title = _singleTitle.text.trim();
-                      final message = _singleMsg.text.trim();
-                      if (uid == null || uid.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Pick a user first')),
-                        );
-                        return;
-                      }
-                      if (title.isEmpty || message.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Title and message required')),
-                        );
-                        return;
-                      }
-                      final body = renderNotificationTemplate(message, {
-                        'userName': _picked?.name ?? 'there',
-                        'orderId': '—',
-                        'userId': uid,
-                      });
-                      try {
-                        await svc.sendSingleUserPush(
-                          userId: uid,
-                          title: title,
-                          message: body,
-                          imageUrl: _bannerUrl,
-                          deepLink: _deepLink.text.trim().isEmpty
-                              ? null
-                              : _deepLink.text.trim(),
-                          redirectType: _redirectType,
-                          ctaLabel: _ctaLabel.text.trim().isEmpty
-                              ? null
-                              : _ctaLabel.text.trim(),
-                          soundType:
-                              _soundType == 'default' ? null : _soundType,
-                        );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Push sent')),
-                          );
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('$e')),
-                          );
-                        }
-                      }
-                    },
-              icon: const Icon(Icons.notifications_active_outlined),
-              label: const Text('Send push'),
+            child: _SingleUserSendButton(
+              onSend: () => _sendSingleUser(context),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _sendSingleUser(BuildContext context) async {
+    final svc = context.read<NotificationAdminService>();
+    final uid = _pickedDocId ?? _picked?.id;
+    final title = _singleTitle.text.trim();
+    final message = _singleMsg.text.trim();
+    if (uid == null || uid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pick a user first')),
+      );
+      return;
+    }
+    if (title.isEmpty || message.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Title and message required')),
+      );
+      return;
+    }
+    final body = renderNotificationTemplate(message, {
+      'userName': _picked?.name ?? 'there',
+      'orderId': '—',
+      'userId': uid,
+    });
+    try {
+      await svc.sendSingleUserPush(
+        userId: uid,
+        title: title,
+        message: body,
+        imageUrl: _bannerUrl,
+        deepLink: _deepLink.text.trim().isEmpty ? null : _deepLink.text.trim(),
+        redirectType: _redirectType,
+        ctaLabel: _ctaLabel.text.trim().isEmpty ? null : _ctaLabel.text.trim(),
+        soundType: _soundType == 'default' ? null : _soundType,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Push sent')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
   }
 
   Future<void> _pickUserSheet(BuildContext context) async {
@@ -764,6 +594,290 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
     return ActionChip(
       label: Text(label),
       onPressed: () => _applyQuick(key),
+    );
+  }
+}
+
+/// Analytics chips — isolated from form [setState] and service [busy] updates.
+class _NotificationAnalyticsRow extends StatelessWidget {
+  const _NotificationAnalyticsRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final stream =
+        context.read<NotificationAdminService>().watchLogs(limit: 500);
+    return StreamBuilder<List<NotificationLog>>(
+      stream: stream,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
+          return const SizedBox(
+            height: 72,
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        }
+        final logs = snap.data ?? const <NotificationLog>[];
+        final sent = logs.where((e) => e.status == 'sent').length;
+        final failed = logs.where((e) => e.status == 'failed').length;
+        final opens = logs.fold<int>(0, (a, e) => a + (e.openedCount ?? 0));
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _AnalyticsStatChip(
+              label: 'Recent logs',
+              value: '${logs.length}',
+              icon: Icons.list_alt,
+            ),
+            _AnalyticsStatChip(
+              label: 'Sent',
+              value: '$sent',
+              icon: Icons.check_circle_outline,
+            ),
+            _AnalyticsStatChip(
+              label: 'Failed',
+              value: '$failed',
+              icon: Icons.error_outline,
+            ),
+            _AnalyticsStatChip(
+              label: 'Opens (sum)',
+              value: '$opens',
+              icon: Icons.ads_click_outlined,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _AnalyticsStatChip extends StatelessWidget {
+  const _AnalyticsStatChip({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 200,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColor.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotificationCampaignsStrip extends StatelessWidget {
+  const _NotificationCampaignsStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    final stream =
+        context.read<NotificationAdminService>().watchRecentCampaigns();
+    return StreamBuilder<List<NotificationCampaign>>(
+      stream: stream,
+      builder: (context, snap) {
+        final list = snap.data ?? const [];
+        if (list.isEmpty) return const SizedBox.shrink();
+        return PushAdminCard(
+          title: 'Recent campaigns',
+          subtitle:
+              'Scheduled topic or single-user sends tracked in Firestore.',
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: list.map((c) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Chip(
+                    avatar: Icon(
+                      c.status == 'completed'
+                          ? Icons.check_circle
+                          : c.status == 'failed'
+                              ? Icons.error_outline
+                              : Icons.schedule,
+                      size: 18,
+                    ),
+                    label: Text(
+                      '${c.title} · ${c.status} · sent ${c.sentCount}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Rebuilds only the preview box when the message controller changes.
+class _BroadcastMessagePreview extends StatefulWidget {
+  const _BroadcastMessagePreview({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  State<_BroadcastMessagePreview> createState() =>
+      _BroadcastMessagePreviewState();
+}
+
+class _BroadcastMessagePreviewState extends State<_BroadcastMessagePreview> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onTextChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onTextChanged);
+    super.dispose();
+  }
+
+  void _onTextChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = renderNotificationTemplate(widget.controller.text, {
+      'userName': 'Priya',
+      'orderId': 'QG-48291',
+      'userId': 'cust_demo',
+    });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Preview (sample names)',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 6),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: SelectableText(
+              preview.isEmpty ? '…' : preview,
+              style: const TextStyle(fontFamily: 'monospace', height: 1.35),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BroadcastSendActions extends StatelessWidget {
+  const _BroadcastSendActions({
+    required this.onSendNow,
+    required this.onSchedule,
+  });
+
+  final VoidCallback onSendNow;
+  final VoidCallback onSchedule;
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<NotificationAdminService, bool>(
+      selector: (_, s) => s.busy,
+      builder: (context, busy, _) {
+        return Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          children: [
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColor.primary,
+                foregroundColor: Colors.black87,
+              ),
+              onPressed: busy ? null : onSendNow,
+              icon: busy
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.send_rounded),
+              label: Text(busy ? 'Sending…' : 'Send notification'),
+            ),
+            OutlinedButton.icon(
+              onPressed: busy ? null : onSchedule,
+              icon: const Icon(Icons.schedule_rounded),
+              label: const Text('Schedule notification'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SingleUserSendButton extends StatelessWidget {
+  const _SingleUserSendButton({required this.onSend});
+
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<NotificationAdminService, bool>(
+      selector: (_, s) => s.busy,
+      builder: (context, busy, _) {
+        return FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColor.primary,
+            foregroundColor: Colors.black87,
+          ),
+          onPressed: busy ? null : onSend,
+          icon: busy
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.notifications_active_outlined),
+          label: Text(busy ? 'Sending…' : 'Send push'),
+        );
+      },
     );
   }
 }

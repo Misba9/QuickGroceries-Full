@@ -17,6 +17,7 @@ import 'package:quickgrocery/core/widgets/startup_failure_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'
     show ProviderScope, Consumer;
 import 'package:quickgrocery/core/design/app_theme.dart';
+import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/realtime/realtime_bootstrap.dart';
@@ -45,6 +46,16 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeFirebaseWithRetry(maxAttempts: 4);
   RealtimeBootstrap.configureFirestore();
+  if (kDebugMode) {
+    debugPrint(
+      '[FCM:bg] received title=${message.notification?.title} '
+      'body=${message.notification?.body} data=${message.data}',
+    );
+  }
+  if (!kIsWeb) {
+    await FcmPushInitializer.ensureInitialized();
+    await FcmPushInitializer.showForeground(message);
+  }
 }
 
 /// App Check must be active when enforcement is on in Firebase Console.
@@ -181,25 +192,7 @@ Future<void> _bootstrap() async {
 
     // Initialize EasyLocalization
     await EasyLocalization.ensureInitialized();
-    await FcmPushInitializer.ensureInitialized();
-    FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-    // ignore: unused_local_variable
-    NotificationSettings settings = await messaging.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
-
-    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    await FcmBootstrap.configure();
 
     _configureProductionErrorPresentation();
 

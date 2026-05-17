@@ -43,11 +43,11 @@ class NotificationTemplatesScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: Consumer<NotificationAdminService>(
-                builder: (context, svc, _) {
-                  return StreamBuilder<List<NotificationTemplate>>(
-                    stream: svc.watchTemplates(),
-                    builder: (context, snap) {
+              child: StreamBuilder<List<NotificationTemplate>>(
+                stream: context
+                    .read<NotificationAdminService>()
+                    .watchTemplates(),
+                builder: (context, snap) {
                       if (!snap.hasData) {
                         return const Center(child: CircularProgressIndicator());
                       }
@@ -114,7 +114,9 @@ class NotificationTemplatesScreen extends StatelessWidget {
                                           ),
                                         );
                                         if (ok == true) {
-                                          await svc.deleteTemplate(t.id);
+                                          await context
+                                              .read<NotificationAdminService>()
+                                              .deleteTemplate(t.id);
                                           if (!context.mounted) return;
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(
@@ -167,9 +169,7 @@ class NotificationTemplatesScreen extends StatelessWidget {
                         },
                       );
                     },
-                  );
-                },
-              ),
+                  ),
             ),
           ],
         ),

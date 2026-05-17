@@ -1,0 +1,43 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
+
+/// Firebase project `quikgroceries` — must match admin panel & Cloud Functions.
+///
+/// Android uses values from `android/app/google-services.json`.
+/// iOS requires `ios/Runner/GoogleService-Info.plist` from Firebase Console
+/// (same project). Run `flutterfire configure` if you add the plist.
+class DefaultFirebaseOptions {
+  static FirebaseOptions get currentPlatform {
+    if (kIsWeb) {
+      throw UnsupportedError('Web uses firebase_bootstrap web options.');
+    }
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return android;
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return ios;
+      default:
+        return android;
+    }
+  }
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyBd3A_4BYlsczbs76kU30p11o4-cwkFDK8',
+    appId: '1:970937777233:android:bd216adee4a01c456e0c70',
+    messagingSenderId: '970937777233',
+    projectId: 'quikgroceries',
+    storageBucket: 'quikgroceries.firebasestorage.app',
+  );
+
+  /// Placeholder — [Firebase.initializeApp] on iOS reads
+  /// `GoogleService-Info.plist` when present. Replace via `flutterfire configure`.
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyBd3A_4BYlsczbs76kU30p11o4-cwkFDK8',
+    appId: '1:970937777233:ios:0000000000000000000000',
+    messagingSenderId: '970937777233',
+    projectId: 'quikgroceries',
+    storageBucket: 'quikgroceries.firebasestorage.app',
+    iosBundleId: 'com.quickgrocery.io',
+  );
+}
