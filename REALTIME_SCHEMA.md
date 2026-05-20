@@ -24,7 +24,7 @@ gets a snapshot tick within ~ms — no manual refresh.
 | -------------------------------- | ------------------------------------------ | ------------------------------ |
 | `products/{id}`                  | Admin (create/update), Vendor (stock/price) | User, Admin, Vendor            |
 | `categories/{id}`                | Admin                                      | User, Admin, Vendor            |
-| `banners/{id}`                   | Admin                                      | User                           |
+| `banners/{id}`                   | Admin                                      | User                          |
 | `customers/{uid}`                | User (self), Admin                         | User, Admin                    |
 | `customers/{uid}/cart_items/{}`  | User (self)                                | User                           |
 | `orders/{id}`                    | User (create), Admin / Vendor / Delivery (status updates) | All four            |

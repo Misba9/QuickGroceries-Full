@@ -14,7 +14,7 @@ flutter pub get
 flutter run
 
 
-#for apk build
+ #for apk build
 
  flutter pub get 
  flutter build apk --release
