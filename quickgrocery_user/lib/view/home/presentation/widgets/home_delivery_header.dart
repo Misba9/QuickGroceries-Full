@@ -15,6 +15,7 @@ import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
 import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
 import 'package:quickgrocery/view/app_content/models/app_content_config.dart';
 import 'package:quickgrocery/view/app_content/presentation/providers/app_content_providers.dart';
+import 'package:quickgrocery/constants/home_branding.dart';
 import 'package:quickgrocery/view/app_content/presentation/widgets/animated_app_heading.dart';
 import 'package:quickgrocery/view/home/screens/location_selector.dart';
 
@@ -124,8 +125,8 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     AnimatedAppGreeting(
-                                      text: appContent.homeGreeting,
-                                      isLoading: contentLoading,
+                                      text: HomeBranding.tagline,
+                                      isLoading: false,
                                     ),
                                     const SizedBox(height: 2),
                                     Row(

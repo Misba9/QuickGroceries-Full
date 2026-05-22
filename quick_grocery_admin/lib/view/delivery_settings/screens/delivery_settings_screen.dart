@@ -33,8 +33,9 @@ class _DeliverySettingsScreenState extends State<DeliverySettingsScreen> {
   Widget build(BuildContext context) {
     final service = context.watch<DeliverySettingsService>();
 
-    return Scaffold(
-      body: LayoutBuilder(
+    return ColoredBox(
+      color: const Color(0xFFFFFAF0),
+      child: LayoutBuilder(
         builder: (context, constraints) {
           final w = constraints.maxWidth;
           final pad = adminResponsivePadding(w);

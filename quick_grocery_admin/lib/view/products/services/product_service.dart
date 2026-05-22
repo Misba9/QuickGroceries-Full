@@ -86,6 +86,7 @@ class ProductService extends ChangeNotifier {
 
   TextEditingController cutcontroller = TextEditingController();
   TextEditingController quantitycontroller = TextEditingController();
+  TextEditingController minOrdercontroller = TextEditingController();
 
   TextEditingController categoryController = TextEditingController();
   TextEditingController categoryOrderController = TextEditingController();
@@ -98,6 +99,11 @@ class ProductService extends ChangeNotifier {
   String? editingSubCategoryId;
   String? editingCategoryImage; // Store existing image when editing
   String? editingSubCategoryImage; // Store existing image when editing
+
+  int _inventoryInt(String raw, {int fallback = 0}) {
+    final v = int.tryParse(raw.trim());
+    return v ?? fallback;
+  }
 
   String getVendorIdByShopName(List<VendorModel> vendors, String shopName) {
     VendorModel? vendor = vendors.firstWhere(
@@ -262,8 +268,10 @@ class ProductService extends ChangeNotifier {
             'description': descriptioncontroller.text,
             'category': selectedItem,
             'unit': selectedunit,
-            'stock': stockcontroller.text,
-            'maxOrder': quantitycontroller.text,
+            'stock': _inventoryInt(stockcontroller.text),
+            'maxOrder': _inventoryInt(quantitycontroller.text),
+            'minOrder': _inventoryInt(minOrdercontroller.text, fallback: 1),
+            'isAvailable': _inventoryInt(stockcontroller.text) > 0,
             'price': pricecontroller.text,
             'slashedPrice': mrpcontroller.text,
             'totalSold': 0,
@@ -309,6 +317,7 @@ class ProductService extends ChangeNotifier {
     unitcontroller.clear();
     stockcontroller.clear();
     quantitycontroller.clear();
+    minOrdercontroller.clear();
 
     notifyListeners();
   }
@@ -344,6 +353,7 @@ class ProductService extends ChangeNotifier {
     unitcontroller.text = product.unitPerItem;
     stockcontroller.text = product.stock;
     quantitycontroller.text = product.maxOrder;
+    minOrdercontroller.text = product.minOrder;
     selectedImage = product.image;
     isMostSelling = product.isMostSelling;
     isTodaysBest = product.isTodaysBest;
@@ -403,8 +413,10 @@ class ProductService extends ChangeNotifier {
         'description': descriptioncontroller.text,
         'category': selectedItem,
         'unit': selectedunit,
-        'stock': stockcontroller.text,
-        'maxOrder': quantitycontroller.text,
+        'stock': _inventoryInt(stockcontroller.text),
+        'maxOrder': _inventoryInt(quantitycontroller.text),
+        'minOrder': _inventoryInt(minOrdercontroller.text, fallback: 1),
+        'isAvailable': _inventoryInt(stockcontroller.text) > 0,
         'price': pricecontroller.text,
         'slashedPrice': mrpcontroller.text,
         'vendor_id': getVendorIdByShopName(vendors!, selectedVendor!),

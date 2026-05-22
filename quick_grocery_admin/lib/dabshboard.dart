@@ -5,6 +5,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:quick_grocery_admin/dash_board_services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:quick_grocery_admin/core/widgets/safe_syncfusion_chart.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -28,7 +29,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<DashBoardServices>(context);
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(15.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,24 +226,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
           AppSpacing.h10,
           WrapperWidget(
             child: provider.revenueList.isEmpty
-                ? Center(child: CircularProgressIndicator())
-                : SfCartesianChart(
+                ? const SizedBox(
+                    height: 280,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : SafeSfCartesianChart(
+                    height: 280,
+                    dataKey: provider.revenueList.length,
                     backgroundColor: Colors.white,
                     title: ChartTitle(
-                      text: "Monthly Revenue",
-                      textStyle: TextStyle(
+                      text: 'Monthly Revenue',
+                      textStyle: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    legend: Legend(isVisible: true),
+                    legend: const Legend(isVisible: true),
                     tooltipBehavior: TooltipBehavior(enable: true),
                     primaryXAxis: CategoryAxis(
-                      labelStyle: TextStyle(
+                      labelStyle: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
-                      majorGridLines: MajorGridLines(width: 0),
+                      majorGridLines: const MajorGridLines(width: 0),
                     ),
                     primaryYAxis: NumericAxis(
                       numberFormat: NumberFormat.currency(
@@ -250,21 +256,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         symbol: '₹',
                         decimalDigits: 0,
                       ),
-                      labelStyle: TextStyle(
+                      labelStyle: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
-                      majorGridLines: MajorGridLines(width: 0.5),
+                      majorGridLines: const MajorGridLines(width: 0.5),
                     ),
-                    series: <CartesianSeries>[
+                    series: <CartesianSeries<RevenueData, String>>[
                       SplineAreaSeries<RevenueData, String>(
-                        dataSource: provider.revenueList, // Use fetched data
+                        animationDuration: 0,
+                        dataSource: provider.revenueList,
                         xValueMapper: (RevenueData data, _) => data.month,
                         yValueMapper: (RevenueData data, _) => data.revenue,
-                        color: AppColor.primary.withOpacity(0.3),
+                        color: AppColor.primary.withValues(alpha: 0.3),
                         borderColor: AppColor.primary,
                         borderWidth: 4,
-                        dataLabelSettings: DataLabelSettings(isVisible: true),
+                        dataLabelSettings:
+                            const DataLabelSettings(isVisible: true),
                       ),
                     ],
                   ),

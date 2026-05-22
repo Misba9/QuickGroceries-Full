@@ -3,6 +3,8 @@ import 'package:quick_grocery_admin/model/customer_model.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/model/vendor_model.dart';
 import 'package:quick_grocery_admin/view/orders/models/order_list_preset.dart';
+import 'package:quick_grocery_admin/view/orders/widgets/refund_stats_row.dart';
+import 'package:quick_grocery_admin/view/orders/utils/order_eta_utils.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_status_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -20,8 +22,15 @@ class OrderAnalyticsSnapshot {
     required this.deliveredOrders,
     required this.cancelledOrders,
     required this.revenue,
+    required this.revenueToday,
     required this.revenueTrendPct,
     required this.ordersTrendPct,
+    required this.avgDeliveryMinutes,
+    required this.codPct,
+    required this.onlinePaymentPct,
+    required this.pendingDeliveryCount,
+    required this.unassignedRiderCount,
+    required this.delayedOrdersCount,
   });
 
   final int totalOrders;
@@ -29,8 +38,54 @@ class OrderAnalyticsSnapshot {
   final int deliveredOrders;
   final int cancelledOrders;
   final double revenue;
+  final double revenueToday;
   final double revenueTrendPct;
   final double ordersTrendPct;
+  final double avgDeliveryMinutes;
+  final double codPct;
+  final double onlinePaymentPct;
+  final int pendingDeliveryCount;
+  final int unassignedRiderCount;
+  final int delayedOrdersCount;
+}
+
+/// Live stats for the New Orders dispatch page.
+class NewOrdersLiveStats {
+  const NewOrdersLiveStats({
+    required this.newToday,
+    required this.pendingAssignment,
+    required this.delayed,
+    required this.ridersAvailable,
+    required this.avgDispatchMinutes,
+  });
+
+  final int newToday;
+  final int pendingAssignment;
+  final int delayed;
+  final int ridersAvailable;
+  final String avgDispatchMinutes;
+}
+
+class OrderOperationalInsights {
+  const OrderOperationalInsights({
+    required this.peakOrderingHour,
+    required this.avgDeliveryMinutes,
+    required this.mostActiveArea,
+    required this.topCategory,
+    required this.pendingDeliveryCount,
+    required this.riderUtilizationPct,
+    required this.codRiskCount,
+    required this.isPeakTraffic,
+  });
+
+  final String peakOrderingHour;
+  final String avgDeliveryMinutes;
+  final String mostActiveArea;
+  final String topCategory;
+  final int pendingDeliveryCount;
+  final double riderUtilizationPct;
+  final int codRiskCount;
+  final bool isPeakTraffic;
 }
 
 class OrderService extends ChangeNotifier {
@@ -38,14 +93,11 @@ class OrderService extends ChangeNotifier {
   VendorModel? vendor;
   AddressModel? address;
   List<OrderModel>? orders;
-  List<OrderModel>? newOrders;
-  List<OrderModel>? cancelledOrders;
-  List<OrderModel>? deliveredOrders;
 
   bool isLoading = false;
   String searchQuery = '';
   OrderQuickFilter quickFilter = OrderQuickFilter.allOrders;
-  OrderListPreset listPreset = OrderListPreset.all;
+  OrderModulePage modulePage = OrderModulePage.manage;
   int pageSize = 15;
   int visibleCount = 15;
 
@@ -59,9 +111,12 @@ class OrderService extends ChangeNotifier {
     super.dispose();
   }
 
-  void setListPreset(OrderListPreset preset) {
-    listPreset = preset;
+  void setModulePage(OrderModulePage page) {
+    modulePage = page;
     visibleCount = pageSize;
+    if (page == OrderModulePage.refund) {
+      quickFilter = OrderQuickFilter.allOrders;
+    }
     notifyListeners();
   }
 
@@ -179,22 +234,7 @@ class OrderService extends ChangeNotifier {
 
       _allOrdersCache = allOrders;
 
-      final today = DateTime.now();
-      final todayDateString = _dateKey(today);
-
-      newOrders = allOrders.where((order) {
-        final orderDate = DateTime.tryParse(order.createdDate);
-        if (orderDate == null) return false;
-        return _dateKey(orderDate) == todayDateString && !order.isCancelled;
-      }).toList();
-
-      cancelledOrders =
-          allOrders.where((order) => order.isCancelled).toList();
-
-      deliveredOrders =
-          allOrders.where((order) => order.isDelivered && !order.isCancelled).toList();
-
-      orders = allOrders.where((order) => !order.isCancelled).toList();
+      orders = allOrders;
     } catch (e) {
       debugPrint('Error fetching orders: $e');
     } finally {
@@ -203,48 +243,75 @@ class OrderService extends ChangeNotifier {
     }
   }
 
-  List<OrderModel> baseListForPreset(OrderListPreset preset) {
-    final all = _allOrdersCache ?? orders ?? [];
-    switch (preset) {
-      case OrderListPreset.newToday:
-        return newOrders ?? [];
-      case OrderListPreset.delivered:
-        return deliveredOrders ?? [];
-      case OrderListPreset.cancelled:
-        return cancelledOrders ?? [];
-      case OrderListPreset.all:
-        return orders ?? all;
-    }
+  /// Cancelled orders for refund review (refund/dispute flagged first in UI sort).
+  List<OrderModel> _refundOrders(List<OrderModel> all) {
+    final cancelled = all.where((o) => o.isCancelled).toList();
+    cancelled.sort((a, b) {
+      final aFlag = _isRefundFlagged(a) ? 0 : 1;
+      final bFlag = _isRefundFlagged(b) ? 0 : 1;
+      if (aFlag != bFlag) return aFlag.compareTo(bFlag);
+      return b.createdDate.compareTo(a.createdDate);
+    });
+    return cancelled;
+  }
+
+  static bool _isRefundFlagged(OrderModel o) {
+    final s = o.orderStatus.toLowerCase();
+    return s.contains('refund') || s.contains('dispute');
+  }
+
+  RefundStats get refundStats {
+    final all = _allOrdersCache ?? [];
+    final cancelled = all.where((o) => o.isCancelled).toList();
+    final flagged = cancelled.where(_isRefundFlagged).length;
+    return RefundStats(
+      totalCancelled: cancelled.length,
+      refundFlagged: flagged,
+      pendingReview: cancelled.length - flagged,
+      codRefunds: cancelled.where((o) => !o.isPaid).length,
+    );
+  }
+
+  List<OrderModel> get ordersToday {
+    final all = _allOrdersCache ?? [];
+    final todayKey = _dateKey(DateTime.now());
+    return all.where((o) {
+      final dt = DateTime.tryParse(o.createdDate);
+      return dt != null && _dateKey(dt) == todayKey && !o.isCancelled;
+    }).toList();
+  }
+
+  /// Active today orders needing a rider.
+  List<OrderModel> get dispatchQueue {
+    return ordersToday
+        .where((o) => !o.isDelivered && o.deliveryBoyId.isEmpty)
+        .toList();
+  }
+
+  NewOrdersLiveStats get newOrdersLiveStats {
+    final today = ordersToday;
+    final pending = today.where((o) => !o.isDelivered).length;
+    final unassigned = dispatchQueue.length;
+    final delayed = today.where(OrderEtaUtils.isDelayed).length;
+    return NewOrdersLiveStats(
+      newToday: today.length,
+      pendingAssignment: unassigned,
+      delayed: delayed,
+      ridersAvailable: 0,
+      avgDispatchMinutes:
+          '${_avgDeliveryMinutes(_allOrdersCache ?? []).toStringAsFixed(0)}m',
+    );
   }
 
   List<OrderModel> get filteredOrders {
-    var list = baseListForPreset(listPreset);
+    var list = List<OrderModel>.from(_allOrdersCache ?? orders ?? []);
 
-    switch (quickFilter) {
-      case OrderQuickFilter.today:
-        list = list.where(_isToday).toList();
-        break;
-      case OrderQuickFilter.thisWeek:
-        list = list.where(_isThisWeek).toList();
-        break;
-      case OrderQuickFilter.cod:
-        list = list.where((o) => !o.isPaid).toList();
-        break;
-      case OrderQuickFilter.paid:
-        list = list.where((o) => o.isPaid).toList();
-        break;
-      case OrderQuickFilter.highValue:
-        list = list.where((o) => o.getTotalAmount() >= 999).toList();
-        break;
-      case OrderQuickFilter.delivered:
-        list = list.where((o) => o.isDelivered && !o.isCancelled).toList();
-        break;
-      case OrderQuickFilter.cancelled:
-        list = list.where((o) => o.isCancelled).toList();
-        break;
-      case OrderQuickFilter.allOrders:
-      case OrderQuickFilter.none:
-        break;
+    if (modulePage == OrderModulePage.refund) {
+      list = _refundOrders(list);
+    } else if (modulePage == OrderModulePage.newOrders) {
+      list = ordersToday.where((o) => !o.isDelivered).toList();
+    } else {
+      list = _applyQuickFilter(list, quickFilter);
     }
 
     if (searchQuery.isNotEmpty) {
@@ -269,9 +336,8 @@ class OrderService extends ChangeNotifier {
 
   OrderAnalyticsSnapshot get analytics {
     final all = _allOrdersCache ?? [];
-    final pending = all
-        .where((o) => !o.isCancelled && !o.isDelivered)
-        .length;
+    final active = all.where((o) => !o.isCancelled && !o.isDelivered);
+    final pending = active.length;
     final delivered = all.where((o) => o.isDelivered && !o.isCancelled).length;
     final cancelled = all.where((o) => o.isCancelled).length;
     final revenue = all
@@ -279,6 +345,17 @@ class OrderService extends ChangeNotifier {
         .fold<double>(0, (s, o) => s + o.getTotalAmount());
 
     final now = DateTime.now();
+    final todayKey = _dateKey(now);
+    final revenueToday = all
+        .where((o) {
+          final dt = DateTime.tryParse(o.createdDate);
+          return dt != null &&
+              _dateKey(dt) == todayKey &&
+              o.isDelivered &&
+              !o.isCancelled;
+        })
+        .fold<double>(0, (s, o) => s + o.getTotalAmount());
+
     final thisWeek = all.where((o) => _inRange(o, now.subtract(const Duration(days: 7)), now));
     final prevWeek = all.where((o) => _inRange(
           o,
@@ -293,15 +370,99 @@ class OrderService extends ChangeNotifier {
         .where((o) => o.isDelivered)
         .fold<double>(0, (s, o) => s + o.getTotalAmount());
 
+    final paidCount = all.where((o) => o.isPaid).length;
+    final codPct = all.isEmpty ? 0.0 : ((all.length - paidCount) / all.length) * 100;
+    final onlinePct = all.isEmpty ? 0.0 : (paidCount / all.length) * 100;
+
+    final unassigned = active.where((o) => o.deliveryBoyId.isEmpty).length;
+    final delayed = active.where(OrderEtaUtils.isDelayed).length;
+
     return OrderAnalyticsSnapshot(
       totalOrders: all.length,
       pendingOrders: pending,
       deliveredOrders: delivered,
       cancelledOrders: cancelled,
       revenue: revenue,
+      revenueToday: revenueToday,
       revenueTrendPct: _pctChange(prevRev, weekRev),
       ordersTrendPct: _pctChange(prevWeek.length.toDouble(), thisWeek.length.toDouble()),
+      avgDeliveryMinutes: _avgDeliveryMinutes(all),
+      codPct: codPct,
+      onlinePaymentPct: onlinePct,
+      pendingDeliveryCount: pending,
+      unassignedRiderCount: unassigned,
+      delayedOrdersCount: delayed,
     );
+  }
+
+  OrderOperationalInsights get operationalInsights {
+    final all = _allOrdersCache ?? [];
+    final peak = peakHoursToday();
+    final peakEntry = peak.isEmpty
+        ? null
+        : peak.reduce((a, b) => a.value >= b.value ? a : b);
+
+    final areas = <String, int>{};
+    for (final o in all) {
+      final key = o.address.trim().isEmpty ? 'Unknown' : o.address.split(',').first.trim();
+      areas[key] = (areas[key] ?? 0) + 1;
+    }
+    final topArea = areas.entries.isEmpty
+        ? '—'
+        : areas.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+
+    final categories = <String, int>{};
+    for (final o in all) {
+      for (final p in o.products) {
+        final cat = p.category.trim().isEmpty ? 'General' : p.category;
+        categories[cat] = (categories[cat] ?? 0) + p.itemCount;
+      }
+    }
+    final topCat = categories.entries.isEmpty
+        ? '—'
+        : categories.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+
+    final active = all.where((o) => !o.isCancelled && !o.isDelivered).toList();
+    final assigned = active.where((o) => o.deliveryBoyId.isNotEmpty).length;
+    final utilization = active.isEmpty ? 0.0 : (assigned / active.length) * 100;
+
+    final codRisk = all
+        .where((o) => !o.isPaid && !o.isDelivered && !o.isCancelled && o.getTotalAmount() >= 1500)
+        .length;
+
+    final peakHourLabel = peakEntry == null || peakEntry.value <= 0
+        ? '—'
+        : peakEntry.label;
+
+    return OrderOperationalInsights(
+      peakOrderingHour: peakHourLabel,
+      avgDeliveryMinutes: '${_avgDeliveryMinutes(all).toStringAsFixed(0)} min',
+      mostActiveArea: topArea,
+      topCategory: topCat,
+      pendingDeliveryCount: active.length,
+      riderUtilizationPct: utilization,
+      codRiskCount: codRisk,
+      isPeakTraffic: (peakEntry?.value ?? 0) >= 3,
+    );
+  }
+
+  List<OrderModel> get recentOrdersForOverview {
+    final all = _allOrdersCache ?? [];
+    return all.take(8).toList();
+  }
+
+  static double _avgDeliveryMinutes(List<OrderModel> all) {
+    final durations = <double>[];
+    for (final o in all) {
+      if (!o.isDelivered) continue;
+      final start = DateTime.tryParse(o.createdDate);
+      final end = DateTime.tryParse(o.orderDeliveredTime);
+      if (start == null || end == null) continue;
+      final mins = end.difference(start).inMinutes;
+      if (mins > 0 && mins < 24 * 60) durations.add(mins.toDouble());
+    }
+    if (durations.isEmpty) return 0;
+    return durations.reduce((a, b) => a + b) / durations.length;
   }
 
   List<OrderChartPoint> ordersTrendLast7Days() {
@@ -367,18 +528,57 @@ class OrderService extends ChangeNotifier {
     return '${days[d.weekday - 1]} ${d.day}';
   }
 
-  static bool _isToday(OrderModel o) {
-    final dt = DateTime.tryParse(o.createdDate);
-    if (dt == null) return false;
-    final now = DateTime.now();
-    return _dateKey(dt) == _dateKey(now);
-  }
-
-  static bool _isThisWeek(OrderModel o) {
-    final dt = DateTime.tryParse(o.createdDate);
-    if (dt == null) return false;
-    final now = DateTime.now();
-    return dt.isAfter(now.subtract(const Duration(days: 7)));
+  static List<OrderModel> _applyQuickFilter(
+    List<OrderModel> list,
+    OrderQuickFilter filter,
+  ) {
+    switch (filter) {
+      case OrderQuickFilter.allOrders:
+        return list;
+      case OrderQuickFilter.pending:
+        return list
+            .where(
+              (o) =>
+                  !o.isCancelled &&
+                  !o.isDelivered &&
+                  (o.orderStatus.isEmpty ||
+                      o.orderStatus.toLowerCase().contains('pending')),
+            )
+            .toList();
+      case OrderQuickFilter.assigned:
+        return list
+            .where(
+              (o) =>
+                  !o.isCancelled &&
+                  !o.isDelivered &&
+                  o.deliveryBoyId.isNotEmpty,
+            )
+            .toList();
+      case OrderQuickFilter.waiting:
+        return list
+            .where(
+              (o) =>
+                  !o.isCancelled &&
+                  !o.isDelivered &&
+                  (o.orderStatus.toLowerCase().contains('wait') ||
+                      o.orderStatus.toLowerCase().contains('confirm')),
+            )
+            .toList();
+      case OrderQuickFilter.delivered:
+        return list.where((o) => o.isDelivered && !o.isCancelled).toList();
+      case OrderQuickFilter.cancelled:
+        return list.where((o) => o.isCancelled).toList();
+      case OrderQuickFilter.cod:
+        return list.where((o) => !o.isPaid).toList();
+      case OrderQuickFilter.online:
+        return list.where((o) => o.isPaid).toList();
+      case OrderQuickFilter.highValue:
+        return list.where((o) => o.getTotalAmount() >= 999).toList();
+      case OrderQuickFilter.scheduled:
+        return list
+            .where((o) => o.deliveryType.toLowerCase().contains('schedule'))
+            .toList();
+    }
   }
 
   static bool _inRange(OrderModel o, DateTime start, DateTime end) {

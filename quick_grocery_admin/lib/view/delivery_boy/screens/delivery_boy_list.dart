@@ -4,7 +4,6 @@ import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/services/delivery_boy_service.dart';
 import 'package:quick_grocery_admin/view/partner_security/partner_security_sheet.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
-import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -24,8 +23,10 @@ class _DeliveryBoysScreenState extends State<DeliveryBoysScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
+    return ColoredBox(
+      color: const Color(0xFFFFFAF0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             child: SingleChildScrollView(

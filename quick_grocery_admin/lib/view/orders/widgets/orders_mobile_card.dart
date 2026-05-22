@@ -80,7 +80,6 @@ class OrdersMobileCard extends StatelessWidget {
                   OrderRowActions(
                     order: order,
                     onView: onView,
-                    compact: true,
                   ),
                 ],
               ),

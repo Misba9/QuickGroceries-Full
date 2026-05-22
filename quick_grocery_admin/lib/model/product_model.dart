@@ -11,6 +11,7 @@ class ProductModel {
   final String unit;
   final String stock;
   final String maxOrder;
+  final String minOrder;
   final String price;
   final String slashedPrice;
   final int totalSold;
@@ -37,6 +38,7 @@ class ProductModel {
     required this.unit,
     required this.stock,
     required this.maxOrder,
+    this.minOrder = '1',
     required this.price,
     required this.slashedPrice,
     required this.totalSold,
@@ -63,8 +65,9 @@ class ProductModel {
       category: data['category'] ?? '',
       subcategory: data['subcategory'],
       unit: data['unit'] ?? '',
-      stock: data['stock'] ?? '',
-      maxOrder: data['maxOrder'] ?? '',
+      stock: data['stock']?.toString() ?? '',
+      maxOrder: data['maxOrder']?.toString() ?? '',
+      minOrder: data['minOrder']?.toString() ?? '1',
       price: data['price'] ?? '',
       slashedPrice: data['slashedPrice'] ?? '',
       totalSold: data['totalSold'] ?? 0,

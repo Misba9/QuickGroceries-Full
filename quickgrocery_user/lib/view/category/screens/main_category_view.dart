@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy;
 
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/constants/home_branding.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
@@ -268,12 +269,6 @@ class _Greeting extends ConsumerWidget {
     final addressService = legacy.Provider.of<AddressService>(context);
     final categoriesAsync = ref.watch(categoriesStreamProvider);
     final categoryCount = (categoriesAsync.value ?? const []).length;
-    final appContentAsync = ref.watch(appContentStreamProvider);
-    final greeting =
-        appContentAsync.value?.homeGreeting ?? AppContentConfig.defaults.homeGreeting;
-    final greetingLoading =
-        appContentAsync.isLoading && !appContentAsync.hasValue;
-
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -299,8 +294,8 @@ class _Greeting extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               AnimatedAppGreeting(
-                text: greeting,
-                isLoading: greetingLoading,
+                text: HomeBranding.tagline,
+                isLoading: false,
                 style: GoogleFonts.poppins(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,

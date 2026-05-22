@@ -106,6 +106,9 @@ class RealtimeProductRepository {
           slashedPrice: p.slashedPrice,
           stock: p.stock,
           isAvailable: p.isAvailable,
+          maxOrder: p.maxOrder,
+          minOrderQuantity: p.minOrderQuantity,
+          stockStatus: p.stockStatus,
         );
       } catch (_) {
         // single-doc parse failures are silent — see watchProduct for

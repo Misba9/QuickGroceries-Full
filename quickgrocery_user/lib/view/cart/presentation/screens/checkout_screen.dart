@@ -1,5 +1,6 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart' as legacy_provider;
 
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/maintenance/presentation/providers/maintenance_providers.dart';
+import 'package:quickgrocery/maintenance/presentation/widgets/maintenance_gate.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/address_model.dart';
 import 'package:quickgrocery/view/address/screens/add_address_screen.dart';
@@ -84,10 +87,37 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     required LatLng coords,
     required String readableAddress,
   }) async {
+    final maintenance = ref.read(maintenanceStatusProvider).valueOrNull;
+    if (maintenance != null && !maintenance.canPlaceOrders) {
+      showMaintenanceOrderBlocked(context);
+      return;
+    }
+    if (maintenance != null &&
+        paymentMethod == PaymentMethod.cod &&
+        !maintenance.codAllowed) {
+      showMaintenanceOrderBlocked(
+        context,
+        message: 'Cash on delivery is temporarily unavailable.',
+      );
+      return;
+    }
+
     final checkoutNotifier = ref.read(checkoutControllerProvider.notifier);
     final cartNotifier = ref.read(cartProvider.notifier);
     final payment =
         legacy_provider.Provider.of<PaymentService>(context, listen: false);
+
+    final inventoryError = await ref
+        .read(orderInventoryValidatorProvider)
+        .validateLines(cart.items);
+    if (inventoryError != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(inventoryError)),
+        );
+      }
+      return;
+    }
 
     checkoutNotifier.setPlacingOrder(true);
 
@@ -100,18 +130,41 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final bill = _bill(cart, zoneCharge);
 
     Future<void> finalize({String? paymentRef}) async {
-      final orderId = await ref.read(orderRepositoryProvider).placeOrder(
-            items: cart.items,
-            coupon: cart.coupon,
-            bill: bill,
-            address: address,
-            currentAddressString: readableAddress,
-            currentLatLng: coords,
-            slot: slot,
-            instructions: _instructions.text.trim(),
-            paymentMethod: paymentMethod,
-            paymentRef: paymentRef,
-          );
+      String orderId;
+      try {
+        orderId = await ref.read(orderPlacementClientProvider).placeOrder(
+              items: cart.items,
+              coupon: cart.coupon,
+              bill: bill,
+              address: address,
+              currentAddressString: readableAddress,
+              currentLatLng: coords,
+              slot: slot,
+              instructions: _instructions.text.trim(),
+              paymentMethod: paymentMethod,
+              paymentRef: paymentRef,
+            );
+      } on FirebaseFunctionsException catch (e) {
+        final msg = e.message ?? 'Some items are out of stock';
+        checkoutNotifier.setPlacingOrder(false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        }
+        return;
+      } catch (_) {
+        orderId = await ref.read(orderRepositoryProvider).placeOrder(
+              items: cart.items,
+              coupon: cart.coupon,
+              bill: bill,
+              address: address,
+              currentAddressString: readableAddress,
+              currentLatLng: coords,
+              slot: slot,
+              instructions: _instructions.text.trim(),
+              paymentMethod: paymentMethod,
+              paymentRef: paymentRef,
+            );
+      }
       if (cart.coupon != null) {
         try {
           final deviceId = await DeviceIdService.getOrCreate();
@@ -194,7 +247,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final bill = _bill(cart, zoneCharge);
 
     final hasAddr = addresses.isNotEmpty && selectedAddr != null;
-    final oos = cart.items.any((e) => e.stock <= 0);
+    final oos = cart.items.any((e) => e.isUnavailable);
     final canPay =
         hasAddr && bill.meetsMinimumOrder && !oos && checkout.slot != null;
 

@@ -282,6 +282,7 @@ class _MyAppState extends State<MyApp> {
               Locale('en', 'US'),
               Locale('hi', 'IN'),
               Locale('te', 'IN'),
+              Locale('ar', 'SA'),
             ],
             path: 'assets/translations',
             fallbackLocale: const Locale('en', 'US'),

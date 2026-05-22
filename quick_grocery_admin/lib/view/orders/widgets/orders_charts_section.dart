@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:quick_grocery_admin/core/widgets/safe_syncfusion_chart.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/orders/services/order_service.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
@@ -10,66 +11,54 @@ class OrdersChartsSection extends StatelessWidget {
     super.key,
     required this.ordersTrend,
     required this.revenueTrend,
-    required this.peakHours,
   });
 
   final List<OrderChartPoint> ordersTrend;
   final List<OrderChartPoint> revenueTrend;
-  final List<OrderChartPoint> peakHours;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, c) {
-        final narrow = c.maxWidth < 720;
-        final chartW = narrow ? c.maxWidth : (c.maxWidth - 12) / 2;
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
+        final narrow = c.maxWidth < 900;
+        final gap = 20.0;
+        final chartW = narrow ? c.maxWidth : (c.maxWidth - gap) / 2;
+
+        final ordersChart = _ChartCard(
+          width: chartW,
+          title: 'Orders trend',
+          subtitle: 'Last 7 days',
+          child: _lineChart(ordersTrend, AppColor.primary),
+        );
+        final revenueChart = _ChartCard(
+          width: chartW,
+          title: 'Revenue trend',
+          subtitle: 'Last 7 days',
+          child: _lineChart(
+            revenueTrend,
+            const Color(0xFF2563EB),
+            isCurrency: true,
+          ),
+        );
+
+        if (narrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ordersChart,
+              SizedBox(height: gap),
+              revenueChart,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _ChartPanel(
-              width: chartW,
-              title: 'Orders trend (7 days)',
-              child: _lineChart(ordersTrend, AppColor.primary),
-            ),
-            _ChartPanel(
-              width: chartW,
-              title: 'Revenue trend (7 days)',
-              child: _lineChart(
-                revenueTrend,
-                const Color(0xFF2563EB),
-                isCurrency: true,
-              ),
-            ),
-            _ChartPanel(
-              width: narrow ? c.maxWidth : c.maxWidth,
-              height: 240,
-              title: 'Peak order times (today)',
-              child: SfCartesianChart(
-                plotAreaBorderWidth: 0,
-                primaryXAxis: CategoryAxis(
-                  majorGridLines: const MajorGridLines(width: 0),
-                  labelRotation: narrow ? 45 : 0,
-                ),
-                primaryYAxis: NumericAxis(
-                  decimalPlaces: 0,
-                  majorGridLines: MajorGridLines(
-                    color: Colors.grey.shade200,
-                    width: 0.5,
-                  ),
-                ),
-                tooltipBehavior: TooltipBehavior(enable: true),
-                series: <CartesianSeries<OrderChartPoint, String>>[
-                  ColumnSeries<OrderChartPoint, String>(
-                    dataSource: peakHours,
-                    xValueMapper: (d, _) => d.label,
-                    yValueMapper: (d, _) => d.value,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                    color: AppColor.primary.withValues(alpha: 0.85),
-                  ),
-                ],
-              ),
-            ),
+            ordersChart,
+            SizedBox(width: gap),
+            revenueChart,
           ],
         );
       },
@@ -82,9 +71,12 @@ class OrdersChartsSection extends StatelessWidget {
     bool isCurrency = false,
   }) {
     if (data.every((e) => e.value == 0)) {
-      return const Center(child: Text('No data yet'));
+      return const Center(
+        child: Text('No data yet', style: TextStyle(color: Colors.grey)),
+      );
     }
-    return SfCartesianChart(
+    return SafeSfCartesianChart(
+      height: 260,
       plotAreaBorderWidth: 0,
       primaryXAxis: CategoryAxis(majorGridLines: const MajorGridLines(width: 0)),
       primaryYAxis: NumericAxis(
@@ -99,12 +91,13 @@ class OrdersChartsSection extends StatelessWidget {
       tooltipBehavior: TooltipBehavior(enable: true),
       series: <CartesianSeries<OrderChartPoint, String>>[
         SplineAreaSeries<OrderChartPoint, String>(
+          animationDuration: 0,
           dataSource: data,
           xValueMapper: (d, _) => d.label,
           yValueMapper: (d, _) => d.value,
           gradient: LinearGradient(
             colors: [
-              color.withValues(alpha: 0.4),
+              color.withValues(alpha: 0.35),
               color.withValues(alpha: 0.05),
             ],
             begin: Alignment.topCenter,
@@ -118,30 +111,29 @@ class OrdersChartsSection extends StatelessWidget {
   }
 }
 
-class _ChartPanel extends StatelessWidget {
-  const _ChartPanel({
+class _ChartCard extends StatelessWidget {
+  const _ChartCard({
     required this.width,
     required this.title,
+    required this.subtitle,
     required this.child,
-    this.height = 260,
   });
 
   final double width;
   final String title;
+  final String subtitle;
   final Widget child;
-  final double height;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
-      height: height,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -152,16 +144,21 @@ class _ChartPanel extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               title,
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w700,
-                fontSize: 14,
+                fontSize: 15,
               ),
             ),
-            const SizedBox(height: 8),
-            Expanded(child: child),
+            Text(
+              subtitle,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(height: 260, child: child),
           ],
         ),
       ),

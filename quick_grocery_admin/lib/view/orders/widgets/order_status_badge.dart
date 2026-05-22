@@ -26,16 +26,14 @@ class OrderStatusBadge extends StatelessWidget {
         children: [
           Icon(style.icon, size: compact ? 14 : 16, color: style.foreground),
           SizedBox(width: compact ? 4 : 6),
-          Flexible(
-            child: Text(
-              style.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: style.foreground,
-                fontWeight: FontWeight.w600,
-                fontSize: compact ? 11 : 12,
-              ),
+          Text(
+            style.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: style.foreground,
+              fontWeight: FontWeight.w600,
+              fontSize: compact ? 11 : 12,
             ),
           ),
         ],

@@ -49,10 +49,15 @@ class BannerFormPanel extends StatelessWidget {
         BannerAdminCard(
           title: 'Banner type',
           subtitle: 'Choose image or video creative',
-          child: Row(
-            children: [
-              Expanded(
-                child: _TypeTile(
+          child: LayoutBuilder(
+            builder: (context, c) {
+              final half = (c.maxWidth - 12) / 2;
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: half,
+                    child: _TypeTile(
                   selected: provider.bannerType == 'image',
                   icon: Icons.image_outlined,
                   label: 'Image',
@@ -61,20 +66,23 @@ class BannerFormPanel extends StatelessWidget {
                     onChanged();
                   },
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _TypeTile(
-                  selected: provider.bannerType == 'video',
-                  icon: Icons.play_circle_outline,
-                  label: 'Video',
-                  onTap: () {
-                    provider.setBannerType('video');
-                    onChanged();
-                  },
-                ),
-              ),
-            ],
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: half,
+                    child: _TypeTile(
+                      selected: provider.bannerType == 'video',
+                      icon: Icons.play_circle_outline,
+                      label: 'Video',
+                      onTap: () {
+                        provider.setBannerType('video');
+                        onChanged();
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 16),
@@ -287,6 +295,7 @@ class BannerFormPanel extends StatelessWidget {
                     );
                   }
                   return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(child: start),
                       const SizedBox(width: 12),
@@ -324,10 +333,16 @@ class BannerFormPanel extends StatelessWidget {
                   },
                 ),
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
                 children: BannerPriorityTier.values
-                    .map((t) => Text(t.label, style: const TextStyle(fontSize: 12)))
+                    .map(
+                      (t) => Text(
+                        t.label,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    )
                     .toList(),
               ),
             ],
@@ -366,9 +381,10 @@ class BannerFormPanel extends StatelessWidget {
                   label: const Text('Duplicate'),
                 ),
                 OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red.shade700,
-                    side: BorderSide(color: Colors.red.shade200),
+                  style: BannerTheme.outlineButtonStyle(
+                    sideColor: Colors.red.shade300,
+                  ).copyWith(
+                    foregroundColor: WidgetStatePropertyAll(Colors.red.shade700),
                   ),
                   onPressed: onDelete,
                   icon: const Icon(Icons.delete_outline, size: 18),
@@ -405,22 +421,35 @@ class _TypeTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
+          width: double.infinity,
+          height: 72,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected ? AppColor.primary : const Color(0xFFE8EAED),
+              color: selected ? AppColor.primary : BannerTheme.borderColor,
               width: selected ? 2 : 1,
             ),
           ),
-          child: Column(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: selected ? const Color(0xFF1A1A1A) : Colors.grey),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              Icon(
+                icon,
+                size: 22,
+                color: selected ? const Color(0xFF1A1A1A) : Colors.grey,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
                 ),
               ),
             ],
@@ -446,17 +475,23 @@ class _ToggleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-      value: value,
-      activeTrackColor: AppColor.primary.withValues(alpha: 0.4),
-      thumbColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) return AppColor.primary;
-        return null;
-      }),
-      onChanged: onChanged,
+    return Material(
+      color: Colors.transparent,
+      child: SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+        value: value,
+        activeTrackColor: AppColor.primary.withValues(alpha: 0.4),
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return AppColor.primary;
+          return null;
+        }),
+        onChanged: onChanged,
+      ),
     );
   }
 }
@@ -479,40 +514,46 @@ class _DateField extends StatelessWidget {
     final text = value != null
         ? '${value!.year}-${value!.month.toString().padLeft(2, '0')}-${value!.day.toString().padLeft(2, '0')}'
         : '';
-    return InkWell(
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: value ?? DateTime.now(),
-          firstDate: DateTime(2020),
-          lastDate: DateTime(2035),
-        );
-        if (picked != null) onPick(picked);
-      },
-      child: InputDecorator(
-        decoration: BannerTheme.fieldDecoration(
-          label: label,
-          hint: 'Optional',
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                text.isEmpty ? 'Select date' : text,
-                style: TextStyle(
-                  color: text.isEmpty ? Colors.grey.shade500 : null,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () async {
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: value ?? DateTime.now(),
+            firstDate: DateTime(2020),
+            lastDate: DateTime(2035),
+          );
+          if (picked != null) onPick(picked);
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: InputDecorator(
+          decoration: BannerTheme.fieldDecoration(
+            label: label,
+            hint: 'Optional',
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  text.isEmpty ? 'Select date' : text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: text.isEmpty ? Colors.grey.shade500 : null,
+                  ),
                 ),
               ),
-            ),
-            if (value != null)
-              IconButton(
-                icon: const Icon(Icons.clear, size: 18),
-                onPressed: onClear,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            const Icon(Icons.calendar_today_outlined, size: 18),
-          ],
+              if (value != null)
+                IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: onClear,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+              const Icon(Icons.calendar_today_outlined, size: 18),
+            ],
+          ),
         ),
       ),
     );

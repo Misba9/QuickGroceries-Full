@@ -26,52 +26,50 @@ class PushAdminCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(width: 4, color: AppColor.primary),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(color: AppColor.primary, width: 4),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  title,
-                                  style: Theme.of(context).textTheme.titleLarge
-                                      ?.copyWith(fontWeight: FontWeight.w700),
-                                ),
-                                if (subtitle != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    subtitle!,
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
+                          Text(
+                            title,
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w700),
                           ),
-                          if (trailing != null) trailing!,
+                          if (subtitle != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              subtitle!,
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      child,
-                    ],
-                  ),
+                    ),
+                    if (trailing != null) trailing!,
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                child,
+              ],
+            ),
           ),
         ),
       ),

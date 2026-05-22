@@ -6,6 +6,8 @@ import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/push_notifications/domain/notification_template_renderer.dart';
 import 'package:quick_grocery_admin/view/push_notifications/models/notification_models.dart';
 import 'package:quick_grocery_admin/view/push_notifications/presentation/widgets/push_access_gate.dart';
+import 'package:quick_grocery_admin/core/layout/admin_page_wrapper.dart';
+import 'package:quick_grocery_admin/core/widgets/admin_list_tile.dart';
 import 'package:quick_grocery_admin/view/push_notifications/presentation/widgets/push_admin_card.dart';
 import 'package:quick_grocery_admin/view/push_notifications/services/notification_admin_service.dart'
     show NotificationAdminService, NotificationUserSearchRow;
@@ -132,63 +134,74 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return PushAccessGate(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Push Notifications',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'FCM topic sends one message to every device subscribed to that topic. '
-                  'Scheduled jobs run from Cloud Functions on a 2-minute cadence.',
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-                const SizedBox(height: 20),
-                const _NotificationAnalyticsRow(),
-                const SizedBox(height: 20),
-                const _NotificationCampaignsStrip(),
-                const SizedBox(height: 20),
-                _smartTargetingCard(context),
-                const SizedBox(height: 20),
-                LayoutBuilder(
-                  builder: (context, c) {
-                    final wide = c.maxWidth > 900;
-                    if (wide) {
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: _broadcastCard(context)),
-                          const SizedBox(width: 20),
-                          Expanded(child: _singleUserCard(context)),
-                        ],
-                      );
-                    }
-                    return Column(
-                      children: [
-                        _broadcastCard(context),
-                        const SizedBox(height: 20),
-                        _singleUserCard(context),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 20),
-                _quickActions(context),
-              ],
+      child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Push Notifications',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
-          ),
+            const SizedBox(height: 6),
+            Text(
+              'Send broadcast or single-user messages via FCM topics.',
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 24),
+            const _NotificationAnalyticsRow(),
+            const SizedBox(height: 20),
+            const _NotificationCampaignsStrip(),
+            const SizedBox(height: 20),
+            _smartTargetingCard(context),
+            const SizedBox(height: 20),
+            LayoutBuilder(
+              builder: (context, c) {
+                final wide = c.maxWidth >= 900;
+                if (wide) {
+                  final half = (c.maxWidth - 20) / 2;
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(width: half, child: _broadcastCard(context)),
+                      const SizedBox(width: 20),
+                      SizedBox(width: half, child: _singleUserCard(context)),
+                    ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _broadcastCard(context),
+                    const SizedBox(height: 20),
+                    _singleUserCard(context),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            _quickActions(context),
+            const SizedBox(height: 20),
+            AdminSectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Notification history',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Open Notification History in the sidebar for delivery logs and CTR.',
+                    style: TextStyle(color: Colors.grey.shade700, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ),
     );
   }
 
@@ -442,8 +455,7 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
           ),
           if (_picked != null) ...[
             const SizedBox(height: 8),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
+            AdminListTile(
               title: Text(_picked!.name),
               subtitle: Text('${_picked!.email} · ${_picked!.phoneNumber}'),
               trailing: IconButton(
@@ -554,7 +566,7 @@ class _PushNotificationsScreenState extends State<PushNotificationsScreen> {
           itemBuilder: (ctx, i) {
             final row = list[i];
             final c = row.customer;
-            return ListTile(
+            return AdminListTile(
               title: Text(c.name),
               subtitle: Text('${c.phoneNumber} · ${c.email}'),
               onTap: () => Navigator.pop(ctx, row),

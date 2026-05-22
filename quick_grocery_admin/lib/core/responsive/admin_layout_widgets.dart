@@ -19,7 +19,8 @@ class AdminOverflowSafe extends StatelessWidget {
   }
 }
 
-/// Scrollable admin body with horizontal clip.
+/// Scrollable admin body — use only on standalone routes, not inside [AdminPageWrapper].
+@Deprecated('Prefer AdminPageSlot scroll; nested scroll causes infinite layout on web.')
 class AdminScrollBody extends StatelessWidget {
   const AdminScrollBody({
     super.key,
@@ -37,7 +38,12 @@ class AdminScrollBody extends StatelessWidget {
         return SingleChildScrollView(
           padding: padding,
           child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: 0, maxWidth: constraints.maxWidth),
+            constraints: BoxConstraints(
+              minWidth: 0,
+              maxWidth: constraints.maxWidth.isFinite
+                  ? constraints.maxWidth
+                  : double.infinity,
+            ),
             child: child,
           ),
         );
@@ -73,7 +79,9 @@ class AdminResponsiveRow extends StatelessWidget {
           );
         }
         return Row(
-          crossAxisAlignment: crossAxisAlignment,
+          crossAxisAlignment: crossAxisAlignment == CrossAxisAlignment.stretch
+              ? CrossAxisAlignment.start
+              : crossAxisAlignment,
           children: children
               .map(
                 (w) => Expanded(
@@ -335,12 +343,14 @@ class AdminLegacyFormSplit extends StatelessWidget {
             ],
           );
         }
+        final gap = 16.0;
+        final colW = (c.maxWidth - gap) / 2;
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: left),
-            const SizedBox(width: 16),
-            Expanded(child: right),
+            SizedBox(width: colW, child: left),
+            SizedBox(width: gap),
+            SizedBox(width: colW, child: right),
           ],
         );
       },

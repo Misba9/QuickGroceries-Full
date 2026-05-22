@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:quick_grocery_admin/view/banners/banner_theme.dart';
+import 'package:quick_grocery_admin/view/banners/banner_theme.dart' show BannerTheme;
 
 Future<bool?> showBannerDeleteDialog(BuildContext context) {
   return showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BannerTheme.cardRadius,
+        side: const BorderSide(color: BannerTheme.borderColor),
+      ),
       title: const Text('Delete banner?'),
       content: const Text(
         'This banner will be removed from the app immediately. This action cannot be undone.',
@@ -32,7 +35,10 @@ void showBannerPreviewDialog(BuildContext context, {required Widget preview}) {
   showDialog<void>(
     context: context,
     builder: (ctx) => Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BannerTheme.cardRadius,
+        side: const BorderSide(color: BannerTheme.borderColor),
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
         child: Padding(

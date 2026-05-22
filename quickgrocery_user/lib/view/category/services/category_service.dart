@@ -1,6 +1,7 @@
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/inventory/inventory_limits.dart';
 import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/home/screens/addon_screen.dart';
@@ -195,48 +196,101 @@ class CategoryService extends ChangeNotifier {
   // ─────────────────────────────
   // 🔹 Add a product
   // ─────────────────────────────
-  void addProduct(BuildContext context, ProductModel product) {
+  /// Returns false when add was blocked (OOS / max order).
+  bool addProduct(BuildContext context, ProductModel product) {
+    if (product.isOutOfStock) return false;
+
     final index = selectedProduct.indexWhere((p) => p.id == product.id);
+    final cap = product.effectiveMaxQuantity;
 
     if (index != -1) {
-      // If product already exists, increment count
-      selectedProduct[index].itemCount++;
+      final cur = selectedProduct[index];
+      if (cur.itemCount >= cap) return false;
+      cur.itemCount = (cur.itemCount + 1).clamp(1, cap);
       notifyListeners();
-    } else {
-      // For new products, directly show addon popup (no weight selector)
-      showAddonPopupIfNeeded(context, product);
-      product.itemCount = 1;
-      selectedProduct.add(product);
-      notifyListeners();
+      return true;
     }
+
+    showAddonPopupIfNeeded(context, product);
+    final qty = InventoryLimits.clampQuantity(
+      requested: product.minOrderQuantity > 1 ? product.minOrderQuantity : 1,
+      stock: product.stock,
+      maxOrder: product.maxOrder,
+      minOrder: product.minOrderQuantity,
+    );
+    if (qty <= 0) return false;
+    product.itemCount = qty;
+    selectedProduct.add(product);
+    notifyListeners();
+    return true;
   }
 
   // ─────────────────────────────
   // 🔹 Add product directly without weight selector (for Buy Now flow)
   // ─────────────────────────────
-  void addProductDirectly(ProductModel product) {
+  bool addProductDirectly(ProductModel product) {
+    if (product.isOutOfStock) return false;
+
     final index = selectedProduct.indexWhere((p) => p.id == product.id);
+    final cap = product.effectiveMaxQuantity;
+    final requested = product.itemCount < 1 ? 1 : product.itemCount;
+    final qty = InventoryLimits.clampQuantity(
+      requested: requested,
+      stock: product.stock,
+      maxOrder: product.maxOrder,
+      minOrder: product.minOrderQuantity,
+    );
+    if (qty <= 0) return false;
 
     if (index != -1) {
-      // If product already exists, increment count
-      selectedProduct[index].itemCount += product.itemCount;
+      final cur = selectedProduct[index];
+      final next = (cur.itemCount + qty).clamp(1, cap);
+      if (next == cur.itemCount) return false;
+      cur.itemCount = next;
     } else {
-      // Add new product
+      product.itemCount = qty;
       selectedProduct.add(product);
     }
 
     notifyListeners();
+    return true;
   }
 
   // ─────────────────────────────
   // 🔹 Increment/Decrement product count
   // ─────────────────────────────
-  void addProductCount(String id) {
-    ProductModel product = selectedProduct.firstWhere(
-      (product) => product.id == id,
+  /// Returns false when increment was blocked (max / stock).
+  bool addProductCount(String id, {ProductModel? catalogProduct}) {
+    final index = selectedProduct.indexWhere((p) => p.id == id);
+    if (index == -1) return false;
+
+    final line = selectedProduct[index];
+    final stock = catalogProduct?.stock ?? line.stock;
+    final maxOrder = catalogProduct?.maxOrder ?? line.maxOrder;
+    final available = catalogProduct?.isAvailable ?? line.isAvailable;
+
+    if (InventoryLimits.isOutOfStock(
+      stock: stock,
+      isAvailable: available,
+      stockStatus: catalogProduct?.stockStatus,
+    )) {
+      return false;
+    }
+
+    final cap = InventoryLimits.effectiveMaxQuantity(
+      stock: stock,
+      maxOrder: maxOrder,
     );
-    product.itemCount++;
+    if (line.itemCount >= cap) return false;
+
+    line.itemCount++;
+    if (catalogProduct != null) {
+      line.stock = catalogProduct.stock;
+      line.maxOrder = catalogProduct.maxOrder;
+      line.isAvailable = catalogProduct.isAvailable;
+    }
     notifyListeners();
+    return true;
   }
 
   void removeProductCount(String id) {

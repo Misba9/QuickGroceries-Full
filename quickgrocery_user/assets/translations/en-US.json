@@ -155,5 +155,19 @@
     "items_in_category": "{count} items",
     "shop_now_cta": "Shop now",
     "explore_cta": "Explore",
-    "promo_more_soon": "Offer link coming soon — check the home page for deals."
+    "promo_more_soon": "Offer link coming soon — check the home page for deals.",
+    "maintenance_reopens_in": "Reopens in",
+    "maintenance_hours": "Hours",
+    "maintenance_minutes": "Minutes",
+    "maintenance_seconds": "Seconds",
+    "maintenance_retry": "Try again",
+    "maintenance_contact_support": "Contact support",
+    "maintenance_offline": "No internet — we'll refresh when you're back online",
+    "maintenance_while_you_wait": "While you wait",
+    "maintenance_offers_hint": "Exclusive offers when we reopen",
+    "maintenance_coupons": "Save with these codes",
+    "maintenance_referral": "Refer & earn",
+    "maintenance_referral_hint": "Invite friends and earn rewards",
+    "maintenance_coming_soon": "Coming soon",
+    "maintenance_coming_soon_hint": "New products launching soon"
 }

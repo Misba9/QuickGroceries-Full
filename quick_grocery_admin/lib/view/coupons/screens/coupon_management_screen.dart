@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_admin/core/layout/admin_page_wrapper.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
@@ -89,7 +90,9 @@ class _CouponManagementScreenState extends State<CouponManagementScreen> {
             stream: _service.watchCoupons(),
             builder: (context, snap) {
               if (!snap.hasData) {
-                return const Center(child: CircularProgressIndicator());
+                return const AdminBoundedCenter(
+                  child: CircularProgressIndicator(),
+                );
               }
               final all = snap.data!;
               final summary = _service.summarize(all);
@@ -99,12 +102,14 @@ class _CouponManagementScreenState extends State<CouponManagementScreen> {
                 filter: _filter,
               );
 
-              return SingleChildScrollView(
+              return Padding(
                 padding: EdgeInsets.all(pad),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Text(
@@ -157,6 +162,7 @@ class _CouponManagementScreenState extends State<CouponManagementScreen> {
                             ),
                           ] else
                             Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Expanded(
                                   flex: 2,

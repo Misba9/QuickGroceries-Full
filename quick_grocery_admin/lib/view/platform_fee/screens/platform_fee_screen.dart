@@ -4,7 +4,6 @@ import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/platform_fee/services/platform_fee_service.dart';
 import 'package:quick_grocery_admin/view/platform_fee/widgets/free_delivery_settings_card.dart';
-import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -35,8 +34,10 @@ class _PlatformFeeScreenState extends State<PlatformFeeScreen> {
   Widget build(BuildContext context) {
     final p = context.watch<PlatformFeeService>();
 
-    return Scaffold(
-      body: Column(
+    return ColoredBox(
+      color: const Color(0xFFFFFAF0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AppSpacing.h20,
           Expanded(

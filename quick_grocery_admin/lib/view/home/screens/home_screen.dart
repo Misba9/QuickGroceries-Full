@@ -1,38 +1,44 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:quick_grocery_admin/core/layout/admin_page_wrapper.dart';
+import 'package:quick_grocery_admin/core/layout/admin_routes.dart';
+
+export 'package:quick_grocery_admin/core/layout/admin_routes.dart';
+import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/add_banner.dart';
+import 'package:quick_grocery_admin/view/app_content_management/screens/app_content_management_screen.dart';
 import 'package:quick_grocery_admin/view/combo_offers/screens/combo_offers_screen.dart';
 import 'package:quick_grocery_admin/view/coupons/screens/coupon_management_screen.dart';
-import 'package:quick_grocery_admin/view/reviews/screens/review_analytics_screen.dart';
-import 'package:quick_grocery_admin/view/reviews/screens/review_management_screen.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/screens/add_delivery_boy.dart';
-import 'package:quick_grocery_admin/view/platform_fee/screens/platform_fee_screen.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/screens/delivery_boy_list.dart';
 import 'package:quick_grocery_admin/view/delivery_location/screens/delivery_location_list_screen.dart';
 import 'package:quick_grocery_admin/view/delivery_settings/screens/delivery_settings_screen.dart';
 import 'package:quick_grocery_admin/view/home/screens/dabshboard.dart';
-import 'package:quick_grocery_admin/view/orders/screens/all_orders_screen.dart';
-import 'package:quick_grocery_admin/view/orders/screens/cancelled_orders_screen.dart';
-import 'package:quick_grocery_admin/view/orders/screens/delivered_orders_screen.dart';
+import 'package:quick_grocery_admin/view/home/widgets/admin_global_top_bar.dart';
+import 'package:quick_grocery_admin/view/home/widgets/admin_sidebar.dart';
+import 'package:quick_grocery_admin/view/maintenance/screens/maintenance_management_screen.dart';
+import 'package:quick_grocery_admin/view/orders/orders_navigation.dart';
+import 'package:quick_grocery_admin/view/orders/screens/manage_orders_screen.dart';
 import 'package:quick_grocery_admin/view/orders/screens/new_orders_screen.dart';
+import 'package:quick_grocery_admin/view/orders/screens/orders_overview_screen.dart';
+import 'package:quick_grocery_admin/view/orders/screens/refund_requests_screen.dart';
+import 'package:quick_grocery_admin/view/platform_fee/screens/platform_fee_screen.dart';
 import 'package:quick_grocery_admin/view/products/screens/add_category_screen.dart';
 import 'package:quick_grocery_admin/view/products/screens/add_subcategory_screen.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_add_screen.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_list.dart';
 import 'package:quick_grocery_admin/view/products/services/product_service.dart';
-import 'package:quick_grocery_admin/view/users/screens/user_screen.dart';
-import 'package:quick_grocery_admin/view/vendor/screens/vendor_add_screen.dart';
-import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
 import 'package:quick_grocery_admin/view/push_notifications/presentation/screens/notification_history_screen.dart';
 import 'package:quick_grocery_admin/view/push_notifications/presentation/screens/notification_templates_screen.dart';
 import 'package:quick_grocery_admin/view/push_notifications/presentation/screens/push_notifications_screen.dart';
-import 'package:quick_grocery_admin/view/app_content_management/screens/app_content_management_screen.dart';
+import 'package:quick_grocery_admin/view/reviews/screens/review_analytics_screen.dart';
+import 'package:quick_grocery_admin/view/reviews/screens/review_management_screen.dart';
 import 'package:quick_grocery_admin/view/support_settings/screens/support_settings_screen.dart';
-import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
-import 'package:quick_grocery_admin/view/home/widgets/admin_global_top_bar.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:provider/provider.dart';
+import 'package:quick_grocery_admin/view/users/screens/user_screen.dart';
+import 'package:quick_grocery_admin/view/vendor/screens/vendor_add_screen.dart';
+import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,287 +49,140 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  String _selectedScreen = AdminRoutes.dashboard;
+  late final List<Widget> _pages;
+  late final Map<String, int> _routeIndex;
+
+  /// Only the active route is laid out — avoids [IndexedStack] laying out all pages.
+  final Map<int, Widget> _pageCache = {};
 
   @override
   void initState() {
     super.initState();
-    Provider.of<ProductService>(context, listen: false).fetchProducts();
-  }
-
-  String selectedScreen = "Dashboard";
-
-  void _navigateTo(String subcategory, {bool closeDrawer = false}) {
-    setState(() => selectedScreen = subcategory);
-    if (closeDrawer) {
-      _scaffoldKey.currentState?.closeDrawer();
+    if (!AdminRoutes.all.contains(_selectedScreen)) {
+      _selectedScreen = AdminRoutes.dashboard;
     }
+    Provider.of<ProductService>(context, listen: false).fetchProducts();
+    _routeIndex = {
+      for (var i = 0; i < AdminRoutes.all.length; i++) AdminRoutes.all[i]: i,
+    };
+    _pages = _buildPages();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      syncOrderServiceForRoute(context, _selectedScreen);
+    });
   }
 
-  Widget _sideMenu({required bool closeDrawerOnSelect}) {
-    return ColoredBox(
-      color: const Color(0xFFF5F5F5),
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: 24),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-            child: Text(
-              'Quick Grocery',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 22,
-                color: AppColor.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(10, 0, 10, 8),
-            child: Text(
-              'MANAGEMENT',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          HoverExpansionTile(
-            selectedSubcategory: selectedScreen,
-            icon: 'assets/icons/dashboard.svg',
-            title: "Dashboard",
-            subcategories: const ["Dashboard"],
-            onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
-          ),
-          HoverExpansionTile(
-            selectedSubcategory: selectedScreen,
-            icon: 'assets/icons/user.svg',
-            title: "User",
-            subcategories: const ["User List"],
-            onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
-          ),
-          HoverExpansionTile(
-            selectedSubcategory: selectedScreen,
-            icon: 'assets/icons/shop.svg',
-            title: "Vendor",
-            subcategories: const ["Vendor Add", "Vendor List"],
-            onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
-          ),
-          HoverExpansionTile(
-            selectedSubcategory: selectedScreen,
-            icon: 'assets/icons/cart.svg',
-            title: "Orders",
-            subcategories: const [
-              "New Orders",
-              "All Orders",
-              "Cancelled Orders",
-              "Delivered Orders",
-            ],
-            onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
-          ),
-          HoverExpansionTile(
-            selectedSubcategory: selectedScreen,
-            icon: 'assets/icons/del.svg',
-            title: "Delivery Boys",
-            subcategories: const ["Add Delivery Boy", "Delivery Boy List"],
-            onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
-          ),
-          HoverExpansionTile(
-            selectedSubcategory: selectedScreen,
-            icon: 'assets/icons/location.svg',
-            title: "Delivery Location",
-            subcategories: const ["Delivery Zones"],
-            onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
-          ),
-          HoverExpansionTile(
-            selectedSubcategory: selectedScreen,
-            icon: 'assets/icons/chart.svg',
-            title: "Platform Fee",
-            subcategories: const [
-              "Delivery Settings",
-              "Platform Fee & Charges",
-            ],
-            onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
-          ),
-          HoverExpansionTile(
-            selectedSubcategory: selectedScreen,
-            icon: 'assets/icons/box.svg',
-            title: "Products",
-            subcategories: const [
-              "Product List",
-              "Add Products",
-              "Add Category",
-              "Add Subcategory",
-              "Review Management",
-              "Review Analytics",
-            ],
-            onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
-          ),
-          HoverExpansionTile(
-            selectedSubcategory: selectedScreen,
-            icon: 'assets/icons/image.svg',
-            title: "Banner",
-            subcategories: const ["Add Banner"],
-            onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
-          ),
-          HoverExpansionTile(
-            selectedSubcategory: selectedScreen,
-            icon: 'assets/icons/coupon.svg',
-            title: "Coupon",
-            subcategories: const ["Add Coupon", "Combo Offers"],
-            onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
-          ),
-          HoverExpansionTile(
-            selectedSubcategory: selectedScreen,
-            icon: 'assets/icons/sms.svg',
-            title: "Push Notifications",
-            subcategories: const [
-              "Push Notifications",
-              "Notification Templates",
-              "Notification History",
-            ],
-            onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
-          ),
-          HoverExpansionTile(
-            selectedSubcategory: selectedScreen,
-            icon: 'assets/icons/user.svg',
-            title: "Settings",
-            subcategories: const ["App Content", "Support Settings"],
-            onTap: (s) => _navigateTo(s, closeDrawer: closeDrawerOnSelect),
-          ),
-        ],
-      ),
-    );
+  List<Widget> _buildPages() {
+    Widget slot(String route, Widget child) => AdminPageSlot(
+          key: PageStorageKey<String>(route),
+          route: route,
+          flexLayout: AdminFlexRoutes.routes.contains(route),
+          child: child,
+        );
+
+    return [
+      slot(AdminRoutes.dashboard, const DashboardScreen()),
+      slot(AdminRoutes.userList, UsersScreen()),
+      slot(AdminRoutes.vendorAdd, VendorAddScreen()),
+      slot(AdminRoutes.vendorList, VendorListScreen()),
+      slot(AdminRoutes.ordersOverview, const OrdersOverviewScreen()),
+      slot(AdminRoutes.newOrders, const NewOrdersScreen()),
+      slot(AdminRoutes.manageOrders, const ManageOrdersScreen()),
+      slot(AdminRoutes.refundRequests, const RefundRequestsScreen()),
+      slot(AdminRoutes.addDeliveryBoy, AddDeliveryScreen()),
+      slot(AdminRoutes.deliveryBoyList, DeliveryBoysScreen()),
+      slot(AdminRoutes.deliveryZones, DeliveryLocationListScreen()),
+      slot(AdminRoutes.deliverySettings, DeliverySettingsScreen()),
+      slot(AdminRoutes.productList, ProductListScreen()),
+      slot(AdminRoutes.addCategory, AddCategoryScreen()),
+      slot(AdminRoutes.addSubcategory, AddSubCategoryScreen()),
+      slot(AdminRoutes.addProducts, ProductAddScreen()),
+      slot(AdminRoutes.reviewManagement, const ReviewManagementScreen()),
+      slot(AdminRoutes.reviewAnalytics, const ReviewAnalyticsScreen()),
+      slot(AdminRoutes.addBanner, const AddBannerScreen()),
+      slot(AdminRoutes.addCoupon, const CouponManagementScreen()),
+      slot(AdminRoutes.comboOffers, const ComboOffersScreen()),
+      slot(AdminRoutes.platformFee, PlatformFeeScreen()),
+      slot(AdminRoutes.pushNotifications, const PushNotificationsScreen()),
+      slot(AdminRoutes.notificationTemplates, const NotificationTemplatesScreen()),
+      slot(AdminRoutes.notificationHistory, const NotificationHistoryScreen()),
+      slot(AdminRoutes.appContent, const AppContentManagementScreen()),
+      slot(AdminRoutes.supportSettings, const SupportSettingsScreen()),
+      slot(AdminRoutes.maintenance, const MaintenanceManagementScreen()),
+    ];
+  }
+
+  int get _selectedIndex => _routeIndex[_selectedScreen] ?? 0;
+
+  Widget _activePage() {
+    final i = _selectedIndex;
+    return _pageCache.putIfAbsent(i, () => _pages[i]);
+  }
+
+  void _navigateTo(String route, {bool closeDrawer = false}) {
+    if (!_routeIndex.containsKey(route)) {
+      route = AdminRoutes.dashboard;
+    }
+    if (_selectedScreen == route) {
+      if (closeDrawer) _scaffoldKey.currentState?.closeDrawer();
+      return;
+    }
+    _pageCache.remove(_routeIndex[AdminRoutes.dashboard]);
+    if (isOrdersRoute(_selectedScreen) || isOrdersRoute(route)) {
+      for (final r in [
+        AdminRoutes.ordersOverview,
+        AdminRoutes.newOrders,
+        AdminRoutes.manageOrders,
+        AdminRoutes.refundRequests,
+      ]) {
+        final idx = _routeIndex[r];
+        if (idx != null) _pageCache.remove(idx);
+      }
+    }
+    syncOrderServiceForRoute(context, route);
+    setState(() => _selectedScreen = route);
+    if (closeDrawer) _scaffoldKey.currentState?.closeDrawer();
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final compact = adminIsMobileWidth(w);
-        final pageContent = adminRouteBody(
-          child: ColoredBox(
-            color: const Color(0xFFFFFAF0),
-            child: adminConstrainContentWidth(
-              maxWidth: 1440,
-              child: _getSelectedScreen(selectedScreen),
-            ),
+    final width = MediaQuery.sizeOf(context).width;
+    final compact = adminIsMobileWidth(width);
+
+    return AdminDashboardShell(
+      scaffoldKey: _scaffoldKey,
+      compact: compact,
+      drawer: Drawer(
+        width: adminSidebarWidth(width),
+        child: SafeArea(
+          child: AdminSidebar(
+            width: adminSidebarWidth(width),
+            selectedRoute: _selectedScreen,
+            onSelect: (r) => _navigateTo(r, closeDrawer: true),
           ),
-        );
-
-        final mainColumn = Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AdminGlobalTopBar(
-              title: selectedScreen,
-              leading: compact
-                  ? IconButton(
-                      icon: const Icon(Icons.menu_rounded),
-                      color: AppColor.primary,
-                      tooltip: 'Menu',
-                      onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                    )
-                  : null,
-            ),
-            Expanded(child: pageContent),
-          ],
-        );
-
-        if (compact) {
-          return Scaffold(
-            key: _scaffoldKey,
-            backgroundColor: const Color(0xFFFFFAF0),
-            drawer: Drawer(
-              width: adminSidebarWidth(w),
-              child: _sideMenu(closeDrawerOnSelect: true),
-            ),
-            body: mainColumn,
-          );
-        }
-
-        final sidebarW = adminSidebarWidth(w);
-        return Scaffold(
-          backgroundColor: const Color(0xFFFFFAF0),
-          body: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                width: sidebarW,
-                child: SafeArea(
-                  right: false,
-                  child: _sideMenu(closeDrawerOnSelect: false),
-                ),
-              ),
-              VerticalDivider(width: 1, color: Colors.grey.shade200),
-              Expanded(child: mainColumn),
-            ],
-          ),
-        );
-      },
+        ),
+      ),
+      sidebar: AdminSidebar(
+        selectedRoute: _selectedScreen,
+        onSelect: _navigateTo,
+      ),
+      topBar: AdminGlobalTopBar(
+        title: _selectedScreen,
+        leading: compact
+            ? IconButton(
+                icon: const Icon(Icons.menu_rounded),
+                color: AppColor.primary,
+                tooltip: 'Menu',
+                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+              )
+            : null,
+      ),
+      body: KeyedSubtree(
+        key: ValueKey<int>(_selectedIndex),
+        child: _activePage(),
+      ),
     );
-  }
-
-  Widget _getSelectedScreen(String screen) {
-    switch (screen) {
-      case "Dashboard":
-        return DashboardScreen();
-      case "User List":
-        return UsersScreen();
-      case "Vendor Add":
-        return VendorAddScreen();
-      case "Vendor List":
-        return VendorListScreen();
-      case "New Orders":
-        return NewOrdersScreeen();
-      case "All Orders":
-        return AllOrdersScreeen();
-      case "Cancelled Orders":
-        return CancelledOrdersScreeen();
-      case "Delivered Orders":
-        return DeliveredOrdersScreeen();
-      case "Add Delivery Boy":
-        return AddDeliveryScreen();
-      case "Delivery Boy List":
-        return DeliveryBoysScreen();
-      case "Delivery Zones":
-        return DeliveryLocationListScreen();
-      case "Delivery Settings":
-        return DeliverySettingsScreen();
-      case "Product List":
-        return ProductListScreen();
-      case "Add Category":
-        return AddCategoryScreen();
-      case "Add Subcategory":
-        return AddSubCategoryScreen();
-      case "Add Products":
-        return ProductAddScreen();
-      case "Review Management":
-        return const ReviewManagementScreen();
-      case "Review Analytics":
-        return const ReviewAnalyticsScreen();
-      case "Add Banner":
-        return AddBannerScreen();
-      case "Add Coupon":
-        return const CouponManagementScreen();
-      case "Combo Offers":
-        return const ComboOffersScreen();
-      case "Platform Fee & Charges":
-        return PlatformFeeScreen();
-      case "Push Notifications":
-        return const PushNotificationsScreen();
-      case "Notification Templates":
-        return const NotificationTemplatesScreen();
-      case "Notification History":
-        return const NotificationHistoryScreen();
-      case "App Content":
-        return const AppContentManagementScreen();
-      case "Support Settings":
-        return const SupportSettingsScreen();
-      default:
-        return Center(child: Text("Select a category"));
-    }
   }
 }
 
@@ -358,95 +217,6 @@ class NamedFieldWidget extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class HoverExpansionTile extends StatefulWidget {
-  final String icon;
-  final String title;
-  final List<String> subcategories;
-  final Function(String) onTap;
-  final String selectedSubcategory; // Add selectedSubcategory
-
-  const HoverExpansionTile({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.subcategories,
-    required this.onTap,
-    required this.selectedSubcategory, // Pass selectedSubcategory
-  });
-
-  @override
-  _HoverExpansionTileState createState() => _HoverExpansionTileState();
-}
-
-class _HoverExpansionTileState extends State<HoverExpansionTile> {
-  bool isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => isHovered = true),
-      onExit: (_) => setState(() => isHovered = false),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(
-            isHovered ? 12.0 : 0.0,
-          ), // Adjust radius
-
-          child: Material(
-            color: isHovered ? Colors.grey.shade100 : Colors.transparent,
-            child: ExpansionTile(
-              tilePadding: EdgeInsets.symmetric(horizontal: 16),
-              leading: SvgPicture.asset(
-                widget.icon,
-                color: isHovered ? AppColor.primary : Colors.black,
-              ),
-              title: Text(
-                widget.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: isHovered ? AppColor.primary : Colors.black,
-                ),
-              ),
-              children: widget.subcategories.map((sub) {
-                bool isSelected =
-                    widget.selectedSubcategory == sub; // Check if selected
-                return Padding(
-                  padding: EdgeInsets.only(left: 32),
-                  child: ListTile(
-                    leading: Container(
-                      height: 5,
-                      width: 5,
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColor.primary : Colors.grey,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    title: Text(
-                      sub,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: isSelected
-                            ? AppColor.primary
-                            : Colors.black, // Change color if selected
-                      ),
-                    ),
-                    onTap: () {
-                      widget.onTap(sub);
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
       ),
     );
   }

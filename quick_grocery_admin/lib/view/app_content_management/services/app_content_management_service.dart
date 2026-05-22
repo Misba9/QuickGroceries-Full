@@ -19,7 +19,6 @@ class AppContentManagementService extends ChangeNotifier {
   bool saving = false;
   String? error;
 
-  final homeGreetingController = TextEditingController();
   final trendingHeadingController = TextEditingController();
   final shopCategoryHeadingController = TextEditingController();
   final flashDealHeadingController = TextEditingController();
@@ -46,7 +45,6 @@ class AppContentManagementService extends ChangeNotifier {
   }
 
   void _syncControllers() {
-    homeGreetingController.text = content.homeGreeting;
     trendingHeadingController.text = content.trendingHeading;
     shopCategoryHeadingController.text = content.shopCategoryHeading;
     flashDealHeadingController.text = content.flashDealHeading;
@@ -81,7 +79,6 @@ class AppContentManagementService extends ChangeNotifier {
     notifyListeners();
     try {
       final next = content.copyWith(
-        homeGreeting: homeGreetingController.text,
         trendingHeading: trendingHeadingController.text,
         shopCategoryHeading: shopCategoryHeadingController.text,
         flashDealHeading: flashDealHeadingController.text,
@@ -101,7 +98,6 @@ class AppContentManagementService extends ChangeNotifier {
 
   @override
   void dispose() {
-    homeGreetingController.dispose();
     trendingHeadingController.dispose();
     shopCategoryHeadingController.dispose();
     flashDealHeadingController.dispose();

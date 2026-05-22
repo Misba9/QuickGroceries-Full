@@ -39,7 +39,9 @@ export { onProductStockUpdated } from "./operations/stock_triggers";
 export { abandonedCartReminder } from "./operations/abandoned_cart";
 export { dailySalesSummary } from "./operations/daily_summary";
 export { seedAdminTestNotification } from "./operations/ops_callables";
+export { placeOrderCallable } from "./operations/place_order_callable";
 export { onDeliveryBoyStatusUpdated } from "./operations/delivery_status_triggers";
+export { onMaintenanceConfigChange } from "./operations/maintenance_triggers";
 
 /** Vendor & delivery partner auth: login, OTP password reset, admin controls. */
 export {

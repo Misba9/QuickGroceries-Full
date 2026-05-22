@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery_vendor/core/fcm_bootstrap.dart';
 import 'package:quickgrocery_vendor/services/preference_service.dart';
+import 'package:quickgrocery_vendor/maintenance/maintenance_gate.dart';
 import 'view/auth/auth_wrapper.dart';
 import 'style/app_color.dart';
 
@@ -46,7 +47,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const AuthWrapper(),
+      home: const VendorMaintenanceGate(child: AuthWrapper()),
     );
   }
 }

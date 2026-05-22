@@ -3,7 +3,6 @@ import 'package:quickgrocery/view/app_content/models/app_content_defaults.dart';
 /// Remote copy for homepage headings and delivery ETA — `app_content/main`.
 class AppContentConfig {
   const AppContentConfig({
-    this.homeGreeting = AppContentDefaults.homeGreeting,
     this.trendingHeading = AppContentDefaults.trendingHeading,
     this.shopCategoryHeading = AppContentDefaults.shopCategoryHeading,
     this.flashDealHeading = AppContentDefaults.flashDealHeading,
@@ -15,7 +14,6 @@ class AppContentConfig {
 
   static const defaults = AppContentConfig();
 
-  final String homeGreeting;
   final String trendingHeading;
   final String shopCategoryHeading;
   final String flashDealHeading;
@@ -27,7 +25,6 @@ class AppContentConfig {
   factory AppContentConfig.fromMap(Map<String, dynamic>? raw) {
     if (raw == null || raw.isEmpty) return defaults;
     return AppContentConfig(
-      homeGreeting: _str(raw['home_greeting'], defaults.homeGreeting),
       trendingHeading: _str(raw['trending_heading'], defaults.trendingHeading),
       shopCategoryHeading:
           _str(raw['shop_category_heading'], defaults.shopCategoryHeading),

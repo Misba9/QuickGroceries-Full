@@ -32,11 +32,15 @@ class _BannerVideoPlayerDialogState extends State<BannerVideoPlayerDialog> {
         return;
       }
       _controller = c;
+      if (!mounted) {
+        c.dispose();
+        return;
+      }
       setState(() {
         _isInitialized = true;
         _isLoading = false;
       });
-      c.play();
+      await c.play();
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -90,29 +94,37 @@ class _BannerVideoPlayerDialogState extends State<BannerVideoPlayerDialog> {
             ),
             if (_isInitialized && !_hasError && _controller != null)
               Center(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () async {
+                      if (!mounted || _controller == null) return;
                       final c = _controller!;
                       if (c.value.isPlaying) {
-                        c.pause();
+                        await c.pause();
                       } else {
-                        c.play();
+                        await c.play();
                       }
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _controller!.value.isPlaying
-                          ? Icons.pause
-                          : Icons.play_arrow,
-                      color: Colors.white,
-                      size: 36,
+                      if (!mounted) return;
+                      setState(() {});
+                    },
+                    child: SizedBox(
+                      width: 64,
+                      height: 64,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _controller!.value.isPlaying
+                              ? Icons.pause
+                              : Icons.play_arrow,
+                          color: Colors.white,
+                          size: 36,
+                        ),
+                      ),
                     ),
                   ),
                 ),

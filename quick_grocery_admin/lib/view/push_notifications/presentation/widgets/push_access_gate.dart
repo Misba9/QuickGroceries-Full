@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:quick_grocery_admin/core/layout/admin_page_wrapper.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/push_notifications/services/admin_roles.dart';
 import 'package:quick_grocery_admin/view/push_notifications/services/notification_panel_auth.dart';
@@ -104,7 +105,7 @@ class _PushAccessGateState extends State<PushAccessGate> {
   @override
   Widget build(BuildContext context) {
     if (_loading && _snapshot == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const AdminBoundedCenter(child: CircularProgressIndicator());
     }
 
     final data = _snapshot;
@@ -113,7 +114,7 @@ class _PushAccessGateState extends State<PushAccessGate> {
     }
 
     if (data == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const AdminBoundedCenter(child: CircularProgressIndicator());
     }
 
     return _AccessDeniedPanel(
@@ -140,15 +141,14 @@ class _AccessDeniedPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
@@ -403,7 +403,6 @@ class _AccessDeniedPanel extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 

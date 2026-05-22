@@ -41,8 +41,12 @@ class PremiumProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final discount = _discountPct();
+    final outOfStock = product.isOutOfStock;
+    final maxQty = product.effectiveMaxQuantity;
 
-    return Material(
+    return Opacity(
+      opacity: outOfStock ? 0.55 : 1,
+      child: Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(AppRadii.md),
       child: InkWell(
@@ -108,14 +112,15 @@ class PremiumProductCard extends StatelessWidget {
                             slashed: product.slashedPrice,
                           ),
                         ),
-                        AnimatedAddButton(
-                          count: count,
-                          onAdd: onAdd,
-                          onIncrement: onIncrement,
-                          onDecrement: onDecrement,
-                          maxQuantity:
-                              product.maxOrder > 0 ? product.maxOrder : null,
-                        ),
+                        outOfStock
+                            ? _OutOfStockPill()
+                            : AnimatedAddButton(
+                                count: count,
+                                onAdd: onAdd,
+                                onIncrement: onIncrement,
+                                onDecrement: onDecrement,
+                                maxQuantity: maxQty > 0 ? maxQty : null,
+                              ),
                       ],
                     ),
                   ],
@@ -125,6 +130,7 @@ class PremiumProductCard extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -303,4 +309,25 @@ class _PriceColumn extends StatelessWidget {
 
   String _fmt(double v) =>
       v == v.truncateToDouble() ? v.toInt().toString() : v.toStringAsFixed(2);
+}
+
+class _OutOfStockPill extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        'OUT',
+        style: GoogleFonts.poppins(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: Colors.grey.shade600,
+        ),
+      ),
+    );
+  }
 }

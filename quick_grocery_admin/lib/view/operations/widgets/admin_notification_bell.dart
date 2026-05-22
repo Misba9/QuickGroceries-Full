@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/operations/screens/admin_notification_center_screen.dart';
@@ -34,57 +33,52 @@ class AdminNotificationBell extends StatelessWidget {
               ),
             );
           },
-          icon: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Icon(
-                Icons.notifications_outlined,
-                color: hasUrgent ? Colors.red.shade700 : null,
-              )
-                  .animate(
-                    target: count > 0 ? 1 : 0,
-                    onPlay: (c) => c.repeat(reverse: true),
-                  )
-                  .shake(hz: 2, duration: 600.ms),
-              if (count > 0)
-                Positioned(
-                  right: -4,
-                  top: -4,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: hasUrgent ? Colors.red : AppColor.primary,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (hasUrgent ? Colors.red : AppColor.primary)
-                              .withValues(alpha: 0.4),
-                          blurRadius: 6,
-                        ),
-                      ],
-                    ),
-                    constraints: const BoxConstraints(minWidth: 18),
-                    child: Text(
-                      count > 99 ? '99+' : '$count',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  )
-                      .animate(onPlay: (c) => c.repeat(reverse: true))
-                      .scale(
-                        begin: const Offset(1, 1),
-                        end: const Offset(1.15, 1.15),
-                        duration: 800.ms,
-                      ),
+          icon: SizedBox(
+            width: 28,
+            height: 28,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  Icons.notifications_outlined,
+                  size: 24,
+                  color: hasUrgent ? Colors.red.shade700 : null,
                 ),
-            ],
+                if (count > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: hasUrgent ? Colors.red : AppColor.primary,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (hasUrgent ? Colors.red : AppColor.primary)
+                                .withValues(alpha: 0.4),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      constraints: const BoxConstraints(minWidth: 18),
+                      child: Text(
+                        count > 99 ? '99+' : '$count',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         );
       },

@@ -6,7 +6,7 @@ import 'package:quick_grocery_admin/view/banners/models/banner_form_state.dart';
 import 'package:quick_grocery_admin/view/banners/services/banner_asset_downloader.dart';
 import 'package:quick_grocery_admin/view/banners/widgets/banner_video_player_dialog.dart';
 
-/// Grid of existing banners with compact cards.
+/// Existing banners list — shrink-wrapped inside [AdminPageWrapper] scroll.
 class BannerExistingSection extends StatelessWidget {
   const BannerExistingSection({
     super.key,
@@ -66,6 +66,7 @@ class BannerExistingSection extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           'Existing banners',
@@ -80,31 +81,23 @@ class BannerExistingSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         if (loading && banners.isEmpty)
-          const _BannerSkeletonGrid()
+          const _BannerListSkeleton()
         else if (filtered.isEmpty)
           const _EmptyBanners()
         else
-          LayoutBuilder(
-            builder: (context, c) {
-              final w = c.maxWidth;
-              final cols = w >= 900 ? 3 : (w >= 560 ? 2 : 1);
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: cols,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 14,
-                  childAspectRatio: cols == 1 ? 1.35 : 0.82,
-                ),
-                itemCount: filtered.length,
-                itemBuilder: (context, i) => _BannerListCard(
-                  banner: filtered[i],
-                  onEdit: () => onEdit(filtered[i]),
-                  onDuplicate: () => onDuplicate(filtered[i]),
-                  onDelete: () => onDelete(filtered[i]),
-                  onToggleActive: (v) => onToggleActive(filtered[i], v),
-                ),
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: filtered.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final b = filtered[index];
+              return _BannerListRow(
+                banner: b,
+                onEdit: () => onEdit(b),
+                onDuplicate: () => onDuplicate(b),
+                onDelete: () => onDelete(b),
+                onToggleActive: (v) => onToggleActive(b, v),
               );
             },
           ),
@@ -113,8 +106,8 @@ class BannerExistingSection extends StatelessWidget {
   }
 }
 
-class _BannerListCard extends StatefulWidget {
-  const _BannerListCard({
+class _BannerListRow extends StatefulWidget {
+  const _BannerListRow({
     required this.banner,
     required this.onEdit,
     required this.onDuplicate,
@@ -129,11 +122,10 @@ class _BannerListCard extends StatefulWidget {
   final ValueChanged<bool> onToggleActive;
 
   @override
-  State<_BannerListCard> createState() => _BannerListCardState();
+  State<_BannerListRow> createState() => _BannerListRowState();
 }
 
-class _BannerListCardState extends State<_BannerListCard> {
-  bool _hover = false;
+class _BannerListRowState extends State<_BannerListRow> {
   bool _downloading = false;
 
   bool get _hasDownloadableMedia {
@@ -177,139 +169,153 @@ class _BannerListCardState extends State<_BannerListCard> {
     final b = widget.banner;
     final status = b.lifecycleStatus;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BannerTheme.cardDecoration(hovered: _hover),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                child: GestureDetector(
-                  onTap: b.isVideo && b.video.isNotEmpty
-                      ? () => showDialog<void>(
-                            context: context,
-                            builder: (_) => BannerVideoPlayerDialog(
-                              videoUrl: b.video,
-                            ),
-                          )
-                      : null,
-                  child: _Thumb(banner: b),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    b.title.isEmpty ? 'Untitled banner' : b.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      _Badge(
-                        label: switch (status) {
-                          BannerLifecycleStatus.active => 'Active',
-                          BannerLifecycleStatus.inactive => 'Inactive',
-                          BannerLifecycleStatus.scheduled => 'Scheduled',
-                        },
-                        color: switch (status) {
-                          BannerLifecycleStatus.active => Colors.green,
-                          BannerLifecycleStatus.inactive => Colors.grey,
-                          BannerLifecycleStatus.scheduled => Colors.orange,
-                        },
-                      ),
-                      if (b.showInHome) const _Badge(label: 'Home', color: Colors.blue),
-                      if (b.showInOffers) const _Badge(label: 'Offers', color: Colors.purple),
-                      if (b.showAsPopup) const _Badge(label: 'Popup', color: Colors.teal),
-                      _Badge(
-                        label: 'P${b.priority}',
-                        color: AppColor.primary,
-                        textDark: true,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${_fmt(b.viewCount)} views · ${_fmt(b.clickCount)} clicks · ${b.ctrPercent.toStringAsFixed(1)}% CTR',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Wrap(
-                          children: [
-                            IconButton(
-                              tooltip: 'Edit',
-                              visualDensity: VisualDensity.compact,
-                              onPressed: widget.onEdit,
-                              icon: const Icon(Icons.edit_outlined, size: 20),
-                            ),
-                            IconButton(
-                              tooltip: 'Duplicate',
-                              visualDensity: VisualDensity.compact,
-                              onPressed: widget.onDuplicate,
-                              icon: const Icon(Icons.copy_outlined, size: 20),
-                            ),
-                            IconButton(
-                              tooltip: 'Download',
-                              visualDensity: VisualDensity.compact,
-                              onPressed: _hasDownloadableMedia && !_downloading
-                                  ? _download
-                                  : null,
-                              icon: _downloading
-                                  ? SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    )
-                                  : Icon(
-                                      Icons.download_outlined,
-                                      size: 20,
-                                      color: _hasDownloadableMedia
-                                          ? null
-                                          : Colors.grey.shade400,
-                                    ),
-                            ),
-                            IconButton(
-                              tooltip: 'Delete',
-                              visualDensity: VisualDensity.compact,
-                              onPressed: widget.onDelete,
-                              icon: Icon(
-                                Icons.delete_outline,
-                                size: 20,
-                                color: Colors.red.shade400,
+    return Material(
+      color: BannerTheme.cardBackground,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BannerTheme.cardRadius,
+        side: const BorderSide(color: BannerTheme.borderColor),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: widget.onEdit,
+        borderRadius: BannerTheme.cardRadius,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 80,
+                height: 80,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: b.isVideo && b.video.isNotEmpty
+                      ? Material(
+                          color: Colors.black12,
+                          child: InkWell(
+                            onTap: () => showDialog<void>(
+                              context: context,
+                              builder: (_) => BannerVideoPlayerDialog(
+                                videoUrl: b.video,
                               ),
                             ),
-                          ],
+                            child: _Thumb(banner: b),
+                          ),
+                        )
+                      : _Thumb(banner: b),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      b.title.isEmpty ? 'Untitled banner' : b.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _Badge(
+                          label: switch (status) {
+                            BannerLifecycleStatus.active => 'Active',
+                            BannerLifecycleStatus.inactive => 'Inactive',
+                            BannerLifecycleStatus.scheduled => 'Scheduled',
+                          },
+                          color: switch (status) {
+                            BannerLifecycleStatus.active => Colors.green,
+                            BannerLifecycleStatus.inactive => Colors.grey,
+                            BannerLifecycleStatus.scheduled => Colors.orange,
+                          },
                         ),
+                        if (b.showInHome) const _Badge(label: 'Home', color: Colors.blue),
+                        if (b.showInOffers) const _Badge(label: 'Offers', color: Colors.purple),
+                        if (b.showAsPopup) const _Badge(label: 'Popup', color: Colors.teal),
+                        _Badge(
+                          label: 'P${b.priority}',
+                          color: AppColor.primary,
+                          textDark: true,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${_fmt(b.viewCount)} views · ${_fmt(b.clickCount)} clicks · ${b.ctrPercent.toStringAsFixed(1)}% CTR',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Switch(
+                    value: b.isActive,
+                    activeThumbColor: AppColor.primary,
+                    onChanged: widget.onToggleActive,
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Edit',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: widget.onEdit,
+                        icon: const Icon(Icons.edit_outlined, size: 20),
                       ),
-                      Switch(
-                        value: b.isActive,
-                        activeThumbColor: AppColor.primary,
-                        onChanged: widget.onToggleActive,
+                      IconButton(
+                        tooltip: 'Duplicate',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: widget.onDuplicate,
+                        icon: const Icon(Icons.copy_outlined, size: 20),
+                      ),
+                      IconButton(
+                        tooltip: 'Download',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: _hasDownloadableMedia && !_downloading
+                            ? _download
+                            : null,
+                        icon: _downloading
+                            ? SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.grey.shade600,
+                                ),
+                              )
+                            : Icon(
+                                Icons.download_outlined,
+                                size: 20,
+                                color: _hasDownloadableMedia
+                                    ? null
+                                    : Colors.grey.shade400,
+                              ),
+                      ),
+                      IconButton(
+                        tooltip: 'Delete',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: widget.onDelete,
+                        icon: Icon(
+                          Icons.delete_outline,
+                          size: 20,
+                          color: Colors.red.shade400,
+                        ),
                       ),
                     ],
                   ),
                 ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -319,9 +325,6 @@ class _BannerListCardState extends State<_BannerListCard> {
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
     return '$n';
   }
-
-  String _downloadLabel(BannerModel b) =>
-      b.isVideo ? 'video' : 'image';
 }
 
 class _Thumb extends StatelessWidget {
@@ -339,7 +342,7 @@ class _Thumb extends StatelessWidget {
           else
             Container(color: Colors.black87),
           const Center(
-            child: Icon(Icons.play_circle_fill, color: Colors.white, size: 40),
+            child: Icon(Icons.play_circle_fill, color: Colors.white, size: 32),
           ),
         ],
       );
@@ -348,6 +351,8 @@ class _Thumb extends StatelessWidget {
       return Image.network(
         banner.image,
         fit: BoxFit.cover,
+        width: 80,
+        height: 80,
         errorBuilder: (_, __, ___) => _placeholder(),
       );
     }
@@ -356,7 +361,7 @@ class _Thumb extends StatelessWidget {
 
   Widget _placeholder() => Container(
         color: const Color(0xFFE8EAED),
-        child: const Icon(Icons.image_outlined, size: 40, color: Colors.grey),
+        child: const Icon(Icons.image_outlined, size: 32, color: Colors.grey),
       );
 }
 
@@ -397,9 +402,11 @@ class _EmptyBanners extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 48),
       decoration: BannerTheme.cardDecoration(),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.campaign_outlined, size: 48, color: Colors.grey.shade400),
           const SizedBox(height: 12),
@@ -418,50 +425,19 @@ class _EmptyBanners extends StatelessWidget {
   }
 }
 
-class _BannerSkeletonGrid extends StatelessWidget {
-  const _BannerSkeletonGrid();
+class _BannerListSkeleton extends StatelessWidget {
+  const _BannerListSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
+    return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 14,
-        crossAxisSpacing: 14,
-        childAspectRatio: 0.85,
-      ),
-      itemCount: 4,
+      itemCount: 3,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (_, __) => Container(
+        height: 112,
         decoration: BannerTheme.cardDecoration(),
-        child: Column(
-          children: [
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  Container(
-                    height: 12,
-                    width: double.infinity,
-                    color: Colors.grey.shade200,
-                  ),
-                  const SizedBox(height: 8),
-                  Container(height: 10, width: 120, color: Colors.grey.shade100),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

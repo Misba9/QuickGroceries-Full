@@ -247,10 +247,11 @@ class WrapperWidget extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
+        final maxW = w.isFinite ? w : 1200.0;
         return Container(
           padding: const EdgeInsets.all(15),
-          width: w.isFinite ? w : double.infinity,
-          constraints: BoxConstraints(minWidth: 0, maxWidth: w.isFinite ? w : double.infinity),
+          width: maxW,
+          constraints: BoxConstraints(minWidth: 0, maxWidth: maxW),
           decoration: BoxDecoration(
             boxShadow: [
               BoxShadow(

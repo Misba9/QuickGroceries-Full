@@ -155,5 +155,19 @@
     "items_in_category": "{count} आइटम",
     "shop_now_cta": "अभी खरीदें",
     "explore_cta": "देखें",
-    "promo_more_soon": "लिंक जल्द आएगा — होम पर ऑफ़र देखें।"
+    "promo_more_soon": "लिंक जल्द आएगा — होम पर ऑफ़र देखें।",
+    "maintenance_reopens_in": "फिर खुलेगा",
+    "maintenance_hours": "घंटे",
+    "maintenance_minutes": "मिनट",
+    "maintenance_seconds": "सेकंड",
+    "maintenance_retry": "पुनः प्रयास करें",
+    "maintenance_contact_support": "सहायता से संपर्क करें",
+    "maintenance_offline": "इंटरनेट नहीं — ऑनलाइन होते ही रिफ्रेश होगा",
+    "maintenance_while_you_wait": "इंतज़ार के दौरान",
+    "maintenance_offers_hint": "खुलने पर खास ऑफ़र",
+    "maintenance_coupons": "कूपन कोड",
+    "maintenance_referral": "रेफर करें और कमाएं",
+    "maintenance_referral_hint": "दोस्तों को आमंत्रित करें",
+    "maintenance_coming_soon": "जल्द आ रहा है",
+    "maintenance_coming_soon_hint": "नए उत्पाद जल्द"
 }

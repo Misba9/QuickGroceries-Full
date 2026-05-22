@@ -7,12 +7,23 @@ abstract final class BannerTheme {
   static const Color cardBackground = Colors.white;
   static const Color accent = AppColor.primary;
 
+  /// Uniform border color — required when using [BorderRadius] on decorations.
+  static const Color borderColor = Color(0xFFE5E7EB);
+
+  static const BorderRadius cardRadius = BorderRadius.all(Radius.circular(16));
+  static const BorderRadius fieldRadius = BorderRadius.all(Radius.circular(12));
+
+  static const OutlineInputBorder outlineBorder = OutlineInputBorder(
+    borderRadius: fieldRadius,
+    borderSide: BorderSide(color: borderColor),
+  );
+
   static BoxDecoration cardDecoration({bool hovered = false}) {
     return BoxDecoration(
       color: cardBackground,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: cardRadius,
       border: Border.all(
-        color: hovered ? accent.withValues(alpha: 0.45) : const Color(0xFFE8EAED),
+        color: hovered ? accent.withValues(alpha: 0.45) : borderColor,
       ),
       boxShadow: [
         BoxShadow(
@@ -38,37 +49,36 @@ abstract final class BannerTheme {
       prefixIcon: prefixIcon,
       filled: true,
       fillColor: const Color(0xFFFAFAFB),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE8EAED)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE8EAED)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: accent, width: 1.5),
-      ),
+      border: outlineBorder,
+      enabledBorder: outlineBorder,
+      focusedBorder: outlineBorder,
+      errorBorder: outlineBorder,
+      focusedErrorBorder: outlineBorder,
+      disabledBorder: outlineBorder,
     );
   }
+
+  /// Minimum tap height for web admin buttons (avoids RenderFlex overflow).
+  static const Size buttonMinSize = Size(64, 52);
 
   static ButtonStyle primaryButtonStyle() {
     return ElevatedButton.styleFrom(
       backgroundColor: accent,
       foregroundColor: const Color(0xFF1A1A1A),
       elevation: 0,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      minimumSize: buttonMinSize,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      shape: const RoundedRectangleBorder(borderRadius: fieldRadius),
     );
   }
 
-  static ButtonStyle outlineButtonStyle() {
+  static ButtonStyle outlineButtonStyle({Color? sideColor}) {
     return OutlinedButton.styleFrom(
       foregroundColor: const Color(0xFF1A1A1A),
-      side: const BorderSide(color: Color(0xFFE8EAED)),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      side: BorderSide(color: sideColor ?? borderColor),
+      minimumSize: buttonMinSize,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      shape: const RoundedRectangleBorder(borderRadius: fieldRadius),
     );
   }
 }

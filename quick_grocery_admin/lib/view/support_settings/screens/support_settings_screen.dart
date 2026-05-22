@@ -31,8 +31,9 @@ class _SupportSettingsScreenState extends State<SupportSettingsScreen> {
   Widget build(BuildContext context) {
     final service = context.watch<SupportSettingsService>();
 
-    return Scaffold(
-      body: LayoutBuilder(
+    return ColoredBox(
+      color: const Color(0xFFFFFAF0),
+      child: LayoutBuilder(
         builder: (context, constraints) {
           final pad = adminResponsivePadding(constraints.maxWidth);
 

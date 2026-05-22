@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quickgrocery/core/inventory/inventory_limits.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 
@@ -40,19 +41,29 @@ class ReorderController {
         final doc = query.docs.first;
         final product = ProductModel.fromFirestore(doc.data(), doc.id);
 
-        if (!product.isAvailable || product.stock <= 0) {
+        if (product.isOutOfStock) {
           unavailable.add(item.name);
           continue;
         }
 
-        final cap = product.maxOrder == 0 ? 999 : product.maxOrder;
-        final qty = item.itemCount.clamp(1, cap);
+        final cap = product.effectiveMaxQuantity;
+        final qty = InventoryLimits.clampQuantity(
+          requested: item.itemCount,
+          stock: product.stock,
+          maxOrder: product.maxOrder,
+          minOrder: product.minOrderQuantity,
+        );
+        if (qty <= 0) {
+          unavailable.add(item.name);
+          continue;
+        }
 
-        // Reuse cart's add-then-increment so stock + maxOrder caps fire
-        // exactly the same way as a normal add.
-        cart.addProduct(product);
+        if (!cart.addProduct(product)) {
+          unavailable.add(item.name);
+          continue;
+        }
         for (var i = 1; i < qty; i++) {
-          cart.increment(product.id);
+          if (!cart.increment(product.id)) break;
         }
         added.add(item.name);
       } catch (_) {

@@ -10,6 +10,9 @@ class InventorySnapshot {
     required this.slashedPrice,
     required this.stock,
     required this.isAvailable,
+    this.maxOrder = 0,
+    this.minOrderQuantity = 1,
+    this.stockStatus,
   });
 
   final String id;
@@ -17,6 +20,12 @@ class InventorySnapshot {
   final double slashedPrice;
   final int stock;
   final bool isAvailable;
+  final int maxOrder;
+  final int minOrderQuantity;
+  final String? stockStatus;
 
-  bool get inStock => isAvailable && stock > 0;
+  bool get inStock =>
+      isAvailable &&
+      stock > 0 &&
+      stockStatus != 'out_of_stock';
 }

@@ -24,7 +24,7 @@ class BannerAnalyticsRow extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: cols == 2 ? 1.6 : 2.2,
+          childAspectRatio: cols == 2 ? 1.35 : 1.85,
           children: [
             _StatCard(
               label: 'Total views',
@@ -78,9 +78,10 @@ class _StatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 22, color: Colors.grey.shade700),
-          const Spacer(),
+          const SizedBox(height: 12),
           Text(
             value,
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),

@@ -5,7 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quickgrocery/core/inventory/inventory_limits.dart';
 import 'package:quickgrocery/models/product.dart';
+import 'package:quickgrocery/realtime/models/inventory_snapshot.dart';
+import 'package:quickgrocery/view/cart/presentation/providers/cart_feedback_provider.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/delivery_location/services/delivery_zone_service.dart';
 
@@ -266,21 +269,45 @@ class CartNotifier extends Notifier<CartState> {
 
   // ── Public API ───────────────────────────────────────────────────────
 
-  void addProduct(ProductModel product) {
-    if (_disposed) return;
+  bool addProduct(ProductModel product) {
+    if (_disposed) return false;
+    if (product.isOutOfStock) {
+      _feedback('This item is out of stock');
+      return false;
+    }
+    final cap = product.effectiveMaxQuantity;
+    if (cap <= 0) {
+      _feedback('This item is out of stock');
+      return false;
+    }
     final items = [...state.items];
     final idx = items.indexWhere(
       (c) => c.productId == product.id && !c.isComboLine,
     );
     if (idx == -1) {
-      items.add(CartItem.fromProduct(product, itemCount: 1));
+      final qty = InventoryLimits.clampQuantity(
+        requested: product.minOrderQuantity > 1 ? product.minOrderQuantity : 1,
+        stock: product.stock,
+        maxOrder: product.maxOrder,
+        minOrder: product.minOrderQuantity,
+      );
+      items.add(CartItem.fromProduct(product, itemCount: qty));
     } else {
       final cur = items[idx];
-      final cap = cur.maxOrder == 0 ? 999 : cur.maxOrder;
+      if (cur.itemCount >= cap) {
+        _feedback('Maximum order limit reached');
+        return false;
+      }
       final next = (cur.itemCount + 1).clamp(1, cap);
-      items[idx] = cur.copyWith(itemCount: next);
+      items[idx] = cur.copyWith(
+        itemCount: next,
+        stock: product.stock,
+        maxOrder: product.maxOrder,
+        isAvailable: product.isAvailable,
+      );
     }
     _writeLocal(items);
+    return true;
   }
 
   /// Adds all combo products with proportional combo pricing locked in.
@@ -312,20 +339,28 @@ class CartNotifier extends Notifier<CartState> {
     _writeLocal(items);
   }
 
-  void increment(String productId) {
-    if (_disposed) return;
+  bool increment(String productId) {
+    if (_disposed) return false;
     final items = [...state.items];
     final idx = items.indexWhere((c) => c.productId == productId);
-    if (idx == -1) return;
+    if (idx == -1) return false;
     final cur = items[idx];
     if (cur.isComboLine) {
       _adjustComboGroup(cur.comboGroupKey!, 1);
-      return;
+      return true;
     }
-    final cap = cur.maxOrder == 0 ? 999 : cur.maxOrder;
-    if (cur.itemCount >= cap) return;
+    if (cur.isUnavailable && cur.stock <= 0) {
+      _feedback('This item is out of stock');
+      return false;
+    }
+    final cap = cur.effectiveMaxQuantity;
+    if (cap <= 0 || cur.itemCount >= cap) {
+      _feedback('Maximum order limit reached');
+      return false;
+    }
     items[idx] = cur.copyWith(itemCount: cur.itemCount + 1);
     _writeLocal(items);
+    return true;
   }
 
   void decrement(String productId) {
@@ -452,7 +487,63 @@ class CartNotifier extends Notifier<CartState> {
     _onUserChanged(FirebaseAuth.instance.currentUser);
   }
 
+  /// Patches cart lines from a live inventory stream (vendor/admin updates).
+  void applyLiveInventory(Map<String, InventorySnapshot> live) {
+    if (_disposed || live.isEmpty || state.items.isEmpty) return;
+
+    var changed = false;
+    final items = [...state.items];
+    for (var i = 0; i < items.length; i++) {
+      final snap = live[items[i].productId];
+      if (snap == null) continue;
+
+      var line = items[i].copyWith(
+        stock: snap.stock,
+        maxOrder: snap.maxOrder > 0 ? snap.maxOrder : items[i].maxOrder,
+        isAvailable: snap.isAvailable,
+        price: snap.price,
+        slashedPrice: snap.slashedPrice,
+      );
+
+      final cap = line.effectiveMaxQuantity;
+      if (cap <= 0) {
+        line = line.copyWith(stock: 0, itemCount: line.itemCount);
+        changed = true;
+      } else if (line.itemCount > cap) {
+        line = line.copyWith(itemCount: cap);
+        changed = true;
+      }
+
+      if (line.stock != items[i].stock ||
+          line.itemCount != items[i].itemCount ||
+          line.isAvailable != items[i].isAvailable ||
+          line.maxOrder != items[i].maxOrder) {
+        items[i] = line;
+        changed = true;
+      }
+    }
+
+    if (changed) _writeLocal(items);
+  }
+
+  /// Removes lines that are out of stock or no longer exist in catalog.
+  int removeUnavailableItems() {
+    if (_disposed) return 0;
+    final before = state.items.length;
+    final kept = state.items.where((e) => !e.isUnavailable).toList();
+    if (kept.length == before) return 0;
+    _writeLocal(kept);
+    return before - kept.length;
+  }
+
+  bool get hasUnavailableItems =>
+      state.items.any((e) => e.isUnavailable);
+
   // ── Internals ────────────────────────────────────────────────────────
+
+  void _feedback(String message) {
+    ref.read(cartFeedbackProvider.notifier).state = message;
+  }
 
   void _writeLocal(List<CartItem> items) {
     state = state.copyWith(items: items, clearError: true);

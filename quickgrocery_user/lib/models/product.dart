@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quickgrocery/core/inventory/inventory_limits.dart';
 
 /// ProductModel — extended schema for the dynamic homepage.
 ///
@@ -24,6 +25,8 @@ class ProductModel {
   String unit;
   int stock;
   int maxOrder;
+  int minOrderQuantity;
+  String? stockStatus;
   double price;
   double slashedPrice;
   String vendorId;
@@ -71,6 +74,8 @@ class ProductModel {
     required this.unit,
     required this.stock,
     required this.maxOrder,
+    this.minOrderQuantity = 1,
+    this.stockStatus,
     required this.price,
     required this.slashedPrice,
     required this.vendorId,
@@ -118,8 +123,13 @@ class ProductModel {
       category: data['category']?.toString() ?? '',
       subcategory: data['subcategory']?.toString() ?? '',
       unit: data['unit']?.toString() ?? '',
-      stock: _asInt(data['stock']),
-      maxOrder: _asInt(data['maxOrder']),
+      stock: _asInt(data['stock'] ?? data['stock_quantity']),
+      maxOrder: _asInt(data['maxOrder'] ?? data['max_order_quantity']),
+      minOrderQuantity: _asInt(
+        data['minOrder'] ?? data['min_order_quantity'],
+        fallback: 1,
+      ),
+      stockStatus: data['stockStatus']?.toString(),
       price: _asDouble(data['price']),
       // 'discountPrice' is the new schema name; fall back to legacy
       // 'slashedPrice' so old documents keep working.
@@ -188,6 +198,8 @@ class ProductModel {
     'unit': unit,
     'stock': stock,
     'maxOrder': maxOrder,
+    'minOrder': minOrderQuantity,
+    if (stockStatus != null) 'stockStatus': stockStatus,
     'price': price,
     'discountPrice': slashedPrice,
     'slashedPrice': slashedPrice,
@@ -222,6 +234,8 @@ class ProductModel {
     String? unit,
     int? stock,
     int? maxOrder,
+    int? minOrderQuantity,
+    String? stockStatus,
     double? price,
     double? slashedPrice,
     String? vendorId,
@@ -254,6 +268,8 @@ class ProductModel {
       unit: unit ?? this.unit,
       stock: stock ?? this.stock,
       maxOrder: maxOrder ?? this.maxOrder,
+      minOrderQuantity: minOrderQuantity ?? this.minOrderQuantity,
+      stockStatus: stockStatus ?? this.stockStatus,
       price: price ?? this.price,
       slashedPrice: slashedPrice ?? this.slashedPrice,
       vendorId: vendorId ?? this.vendorId,
@@ -290,6 +306,17 @@ class ProductModel {
     if (!hasDiscount || price <= 0) return 0;
     return (((price - slashedPrice) / price) * 100).round();
   }
+
+  bool get isOutOfStock => InventoryLimits.isOutOfStock(
+        stock: stock,
+        isAvailable: isAvailable,
+        stockStatus: stockStatus,
+      );
+
+  int get effectiveMaxQuantity => InventoryLimits.effectiveMaxQuantity(
+        stock: stock,
+        maxOrder: maxOrder,
+      );
 
   bool get isFlashSaleLive {
     if (!isFlashSale) return false;

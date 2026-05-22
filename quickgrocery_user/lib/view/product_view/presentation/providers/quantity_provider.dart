@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quickgrocery/core/inventory/inventory_limits.dart';
 
 /// Composite key for [productQuantityProvider] — public so the family
 /// can be referenced from other libraries without leaking private types.
@@ -32,8 +33,11 @@ class QuantityNotifier extends AutoDisposeFamilyNotifier<int, QuantityKey> {
 
   void increment() {
     final next = state + 1;
-    if (arg.maxOrder > 0 && next > arg.maxOrder) return;
-    if (arg.stock > 0 && next > arg.stock) return;
+    final cap = InventoryLimits.effectiveMaxQuantity(
+      stock: arg.stock,
+      maxOrder: arg.maxOrder,
+    );
+    if (cap <= 0 || next > cap) return;
     state = next;
   }
 
@@ -47,12 +51,12 @@ class QuantityNotifier extends AutoDisposeFamilyNotifier<int, QuantityKey> {
       state = 1;
       return;
     }
-    if (arg.maxOrder > 0 && value > arg.maxOrder) {
-      state = arg.maxOrder;
-      return;
-    }
-    if (arg.stock > 0 && value > arg.stock) {
-      state = arg.stock;
+    final cap = InventoryLimits.effectiveMaxQuantity(
+      stock: arg.stock,
+      maxOrder: arg.maxOrder,
+    );
+    if (cap > 0 && value > cap) {
+      state = cap;
       return;
     }
     state = value;

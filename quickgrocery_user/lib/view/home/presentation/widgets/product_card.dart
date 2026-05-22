@@ -9,6 +9,8 @@ import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/widgets/discount_badge.dart';
 import 'package:quickgrocery/core/widgets/product_badges.dart';
 import 'package:quickgrocery/models/product.dart';
+import 'package:quickgrocery/view/cart/presentation/providers/cart_feedback_provider.dart';
+import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
@@ -38,12 +40,12 @@ class HomeProductCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cartService = legacy.Provider.of<CategoryService>(context);
-    final selected = cartService.selectedProduct.firstWhere(
-      (p) => p.id == product.id,
-      orElse: () => product,
-    );
-    final inCart = cartService.selectedProduct.any((p) => p.id == product.id);
-    final count = inCart ? selected.itemCount : 0;
+    final cart = ref.watch(cartProvider);
+    final cartLine = cart.items
+        .where((e) => e.productId == product.id && !e.isComboLine)
+        .firstOrNull;
+    final count = cartLine?.itemCount ?? 0;
+    final outOfStock = product.isOutOfStock;
 
     return SizedBox(
       width: width,
@@ -69,7 +71,9 @@ class HomeProductCard extends ConsumerWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(_radius),
           clipBehavior: Clip.antiAlias,
-          child: InkWell(
+          child: Opacity(
+            opacity: outOfStock ? 0.55 : 1,
+            child: InkWell(
             borderRadius: BorderRadius.circular(_radius),
             onTap: () async {
               HapticFeedback.selectionClick();
@@ -139,12 +143,39 @@ class HomeProductCard extends ConsumerWidget {
                           _CartControl(
                             product: product,
                             count: count,
-                            onAdd: () =>
-                                cartService.addProduct(context, product),
-                            onIncrement: () =>
-                                cartService.addProductCount(product.id),
-                            onDecrement: () =>
-                                cartService.removeProductCount(product.id),
+                            onAdd: () {
+                              final wasEmpty = count == 0;
+                              final ok = ref
+                                  .read(cartProvider.notifier)
+                                  .addProduct(product);
+                              if (!ok) return;
+                              if (wasEmpty) {
+                                cartService.showAddonPopupIfNeeded(
+                                  context,
+                                  product,
+                                );
+                              }
+                            },
+                            onIncrement: () {
+                              if (!ref
+                                  .read(cartProvider.notifier)
+                                  .increment(product.id)) {
+                                final ok = cartService.addProductCount(
+                                  product.id,
+                                  catalogProduct: product,
+                                );
+                                if (!ok) {
+                                  showCartFeedback(
+                                    ref,
+                                    'Maximum order limit reached',
+                                  );
+                                }
+                              }
+                            },
+                            onDecrement: () {
+                              ref.read(cartProvider.notifier).decrement(product.id);
+                              cartService.removeProductCount(product.id);
+                            },
                           ),
                         ],
                       ),
@@ -154,6 +185,7 @@ class HomeProductCard extends ConsumerWidget {
               ),
             ),
           ),
+        ),
         ),
       ),
     );
@@ -378,7 +410,7 @@ class _CartControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!product.isAvailable || product.stock == 0) {
+    if (product.isOutOfStock) {
       return Container(
         height: _h,
         padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -388,7 +420,7 @@ class _CartControl extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
-          'OUT',
+          'OUT OF STOCK',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
@@ -399,6 +431,9 @@ class _CartControl extends StatelessWidget {
         ),
       );
     }
+
+    final maxQty = product.effectiveMaxQuantity;
+    final atMax = count >= maxQty;
 
     if (count == 0) {
       return Material(
@@ -470,7 +505,11 @@ class _CartControl extends StatelessWidget {
               ),
             ),
           ),
-          _StepBtn(icon: Icons.add, onTap: onIncrement),
+          _StepBtn(
+            icon: Icons.add,
+            onTap: atMax ? null : onIncrement,
+            disabled: atMax,
+          ),
         ],
       ),
     );
@@ -478,21 +517,32 @@ class _CartControl extends StatelessWidget {
 }
 
 class _StepBtn extends StatelessWidget {
-  const _StepBtn({required this.icon, required this.onTap});
+  const _StepBtn({
+    required this.icon,
+    required this.onTap,
+    this.disabled = false,
+  });
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool disabled;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
+      onTap: disabled || onTap == null
+          ? null
+          : () {
+              HapticFeedback.selectionClick();
+              onTap!();
+            },
       child: SizedBox(
         width: 28,
         height: _CartControl._h,
-        child: Icon(icon, color: Colors.white, size: 16),
+        child: Icon(
+          icon,
+          color: disabled ? Colors.white54 : Colors.white,
+          size: 16,
+        ),
       ),
     );
   }

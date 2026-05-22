@@ -81,7 +81,10 @@ class _CardSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     final saved =
         (item.lineSlashedTotal - item.lineTotal).clamp(0.0, double.infinity);
-    final outOfStock = item.stock <= 0;
+    final outOfStock = item.isUnavailable;
+    final stepperMax = item.effectiveMaxQuantity > 0
+        ? item.effectiveMaxQuantity
+        : null;
     final lineTotal = item.lineTotal;
     final lineMrp = item.lineSlashedTotal;
     final hasSlash = lineMrp > lineTotal + 0.5;
@@ -184,9 +187,7 @@ class _CardSurface extends StatelessWidget {
                                 onIncrement: onIncrement,
                                 onDecrement: onDecrement,
                                 size: QuantityStepperSize.medium,
-                                maxQuantity: item.maxOrder > 0
-                                    ? item.maxOrder
-                                    : null,
+                                maxQuantity: stepperMax,
                               ),
                             ),
                           ),
@@ -284,7 +285,7 @@ class _OutOfStockChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        'Out of stock',
+        'Item unavailable',
         style: GoogleFonts.poppins(
           fontSize: 10.5,
           fontWeight: FontWeight.w700,

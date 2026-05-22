@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:quick_grocery_admin/view/banners/banner_theme.dart';
+import 'package:quick_grocery_admin/view/banners/banner_theme.dart' show BannerTheme;
 import 'package:quick_grocery_admin/view/banners/models/banner_form_state.dart';
 import 'package:quick_grocery_admin/view/banners/widgets/banner_admin_card.dart';
 
@@ -82,10 +82,12 @@ class _MobileMockup extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE8EAED)),
+        border: Border.all(color: BannerTheme.borderColor),
       ),
       padding: const EdgeInsets.all(12),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
@@ -131,7 +133,7 @@ class _MobileMockup extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE8EAED)),
+                    border: Border.all(color: BannerTheme.borderColor),
                   ),
                 ),
               ),
@@ -151,9 +153,13 @@ class _DesktopBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: Stack(
-        children: [
-          _BannerMedia(data: data, height: 120, borderRadius: 0),
+      child: SizedBox(
+        width: double.infinity,
+        height: 120,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _BannerMedia(data: data, height: 120, borderRadius: 0),
           Positioned(
             left: 16,
             bottom: 16,
@@ -199,7 +205,8 @@ class _DesktopBanner extends StatelessWidget {
                 ),
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -217,12 +224,14 @@ class _PopupPreview extends StatelessWidget {
         color: Colors.black.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
+      child: SizedBox(
+        width: double.infinity,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
@@ -266,8 +275,9 @@ class _PopupPreview extends StatelessWidget {
                   ),
               ],
             ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

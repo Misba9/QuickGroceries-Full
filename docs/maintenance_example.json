@@ -1,0 +1,32 @@
+{
+  "maintenance": true,
+  "enabled": true,
+  "mode": "soft",
+  "affectedApps": {
+    "user": true,
+    "vendor": false,
+    "driver": false,
+    "admin": false
+  },
+  "title": {
+    "en": "Quick Groceries Under Maintenance",
+    "te": "క్విక్ గ్రోసరీస్ నిర్వహణలో",
+    "hi": "क्विक ग्रोसरीज रखरखाव में",
+    "ar": "كويك جروسريز تحت الصيانة"
+  },
+  "subtitle": {
+    "en": "We'll be back soon"
+  },
+  "message": {
+    "en": "We are upgrading servers"
+  },
+  "allowBrowsing": true,
+  "allowOrders": false,
+  "allowCart": false,
+  "allowPayments": false,
+  "reopenTime": "2026-05-21T08:00:00.000Z",
+  "supportPhone": "+919999999999",
+  "supportEmail": "support@quickgroceries.com",
+  "showRetryButton": true,
+  "showSupportButton": true
+}

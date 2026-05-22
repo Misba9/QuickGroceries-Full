@@ -12,6 +12,7 @@ class ProductModel {
   final String unit;
   final String stock;
   final String maxOrder;
+  final String minOrder;
   final String price;
   final String slashedPrice;
   final int totalSold;
@@ -36,6 +37,7 @@ class ProductModel {
     required this.unit,
     required this.stock,
     required this.maxOrder,
+    this.minOrder = '1',
     required this.price,
     required this.slashedPrice,
     required this.totalSold,
@@ -111,6 +113,7 @@ class ProductModel {
       unit: data['unit'] ?? '',
       stock: data['stock']?.toString() ?? '',
       maxOrder: data['maxOrder']?.toString() ?? '',
+      minOrder: data['minOrder']?.toString() ?? '1',
       price: data['price']?.toString() ?? '',
       slashedPrice: data['slashedPrice']?.toString() ?? '',
       totalSold: (data['totalSold'] as num?)?.toInt() ?? 0,
@@ -148,8 +151,10 @@ class ProductModel {
       'category': category,
       if (subcategory != null) 'subcategory': subcategory,
       'unit': unit,
-      'stock': stock,
-      'maxOrder': maxOrder,
+      'stock': _stockInt(),
+      'maxOrder': _orderInt(maxOrder),
+      'minOrder': _orderInt(minOrder, fallback: 1),
+      'isAvailable': _stockInt() > 0,
       'price': price,
       'slashedPrice': slashedPrice,
       'totalSold': totalSold,
@@ -171,8 +176,10 @@ class ProductModel {
       'category': category,
       if (subcategory != null) 'subcategory': subcategory,
       'unit': unit,
-      'stock': stock,
-      'maxOrder': maxOrder,
+      'stock': _stockInt(),
+      'maxOrder': _orderInt(maxOrder),
+      'minOrder': _orderInt(minOrder, fallback: 1),
+      'isAvailable': _stockInt() > 0,
       'price': price,
       'slashedPrice': slashedPrice,
       'totalSold': totalSold,
@@ -184,6 +191,11 @@ class ProductModel {
       'lastEdited': FieldValue.serverTimestamp(),
     };
   }
+
+  int _stockInt() => int.tryParse(stock.trim()) ?? 0;
+
+  int _orderInt(String raw, {int fallback = 0}) =>
+      int.tryParse(raw.trim()) ?? fallback;
 
   ProductModel copyWith({
     String? name,

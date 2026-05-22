@@ -5,19 +5,21 @@ class OrdersEmptyState extends StatelessWidget {
   const OrdersEmptyState({
     super.key,
     this.onRefresh,
+    this.title,
     this.message = 'No orders match your filters',
   });
 
   final VoidCallback? onRefresh;
+  final String? title;
   final String message;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
               padding: const EdgeInsets.all(20),
@@ -32,6 +34,17 @@ class OrdersEmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+            if (title != null) ...[
+              Text(
+                title!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             Text(
               message,
               textAlign: TextAlign.center,
@@ -54,8 +67,7 @@ class OrdersEmptyState extends StatelessWidget {
                 label: const Text('Refresh orders'),
               ),
             ],
-          ],
-        ),
+        ],
       ),
     );
   }

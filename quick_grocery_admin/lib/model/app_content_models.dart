@@ -5,7 +5,6 @@ import 'package:quick_grocery_admin/model/app_content_defaults.dart';
 /// Firestore `app_content/main` — synced live to the customer app.
 class AppContentModel {
   const AppContentModel({
-    this.homeGreeting = AppContentDefaults.homeGreeting,
     this.trendingHeading = AppContentDefaults.trendingHeading,
     this.shopCategoryHeading = AppContentDefaults.shopCategoryHeading,
     this.flashDealHeading = AppContentDefaults.flashDealHeading,
@@ -18,7 +17,6 @@ class AppContentModel {
 
   static const defaults = AppContentModel();
 
-  final String homeGreeting;
   final String trendingHeading;
   final String shopCategoryHeading;
   final String flashDealHeading;
@@ -35,7 +33,6 @@ class AppContentModel {
     if (ts is Timestamp) updated = ts.toDate();
 
     return AppContentModel(
-      homeGreeting: _str(raw['home_greeting'], defaults.homeGreeting),
       trendingHeading: _str(raw['trending_heading'], defaults.trendingHeading),
       shopCategoryHeading:
           _str(raw['shop_category_heading'], defaults.shopCategoryHeading),
@@ -52,7 +49,7 @@ class AppContentModel {
   }
 
   Map<String, dynamic> toWriteMap() => {
-        'home_greeting': homeGreeting.trim(),
+        'home_greeting': FieldValue.delete(),
         'trending_heading': trendingHeading.trim(),
         'shop_category_heading': shopCategoryHeading.trim(),
         'flash_deal_heading': flashDealHeading.trim(),
@@ -64,7 +61,6 @@ class AppContentModel {
       };
 
   AppContentModel copyWith({
-    String? homeGreeting,
     String? trendingHeading,
     String? shopCategoryHeading,
     String? flashDealHeading,
@@ -75,7 +71,6 @@ class AppContentModel {
     DateTime? updatedAt,
   }) {
     return AppContentModel(
-      homeGreeting: homeGreeting ?? this.homeGreeting,
       trendingHeading: trendingHeading ?? this.trendingHeading,
       shopCategoryHeading: shopCategoryHeading ?? this.shopCategoryHeading,
       flashDealHeading: flashDealHeading ?? this.flashDealHeading,

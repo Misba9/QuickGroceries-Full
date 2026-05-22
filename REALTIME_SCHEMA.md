@@ -37,6 +37,8 @@ gets a snapshot tick within ~ms — no manual refresh.
 | `delivery_tracking/{orderId}/events/{}` | Cloud Functions + Delivery App   | Admin, User                    |
 | `daily_summaries/{id}`           | Cloud Functions (scheduled)                | Admin                          |
 | `settings/ops_settings`          | Admin                                      | Cloud Functions                |
+| `app_config/maintenance`         | Admin                                      | User, Vendor, Driver (realtime) |
+| `maintenance_logs/{id}`          | Admin                                      | Admin (analytics)              |
 | `coupons/{id}`                   | Admin                                      | User, Admin                    |
 | `coupon_usages/{id}`             | Cloud Functions (`validateCoupon` / `redeemCoupon`) | Admin (analytics) |
 | `combo_offers/{id}`              | Admin, Vendor (own vendorId)               | User, Admin, Vendor            |

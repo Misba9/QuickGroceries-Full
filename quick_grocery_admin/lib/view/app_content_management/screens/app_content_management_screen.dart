@@ -7,9 +7,8 @@ import 'package:quick_grocery_admin/model/app_content_defaults.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/app_content_management/services/app_content_management_service.dart';
-import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
 
-/// **Settings → App Content** — homepage headings, greeting, delivery ETA.
+/// **Settings → App Content** — homepage headings and delivery ETA.
 class AppContentManagementScreen extends StatefulWidget {
   const AppContentManagementScreen({super.key});
 
@@ -32,8 +31,9 @@ class _AppContentManagementScreenState extends State<AppContentManagementScreen>
   Widget build(BuildContext context) {
     final service = context.watch<AppContentManagementService>();
 
-    return Scaffold(
-      body: LayoutBuilder(
+    return ColoredBox(
+      color: const Color(0xFFFFFAF0),
+      child: LayoutBuilder(
         builder: (context, constraints) {
           final w = constraints.maxWidth;
           final pad = adminResponsivePadding(w);
@@ -72,7 +72,7 @@ class _AppContentManagementScreenState extends State<AppContentManagementScreen>
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Customize homepage headings, greeting, and delivery time. '
+                                  'Customize homepage headings and delivery time. '
                                   'Changes appear instantly in the customer app.',
                                   style: GoogleFonts.poppins(
                                     fontSize: 13,
@@ -105,17 +105,6 @@ class _AppContentManagementScreenState extends State<AppContentManagementScreen>
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
-                                      _ContentField(
-                                        label: 'Home Greeting',
-                                        controller: service.homeGreetingController,
-                                        presets: const [
-                                          'Good Morning',
-                                          'Welcome Back',
-                                          'Hello',
-                                          'Fresh Grocery Delivered',
-                                          'Good Evening',
-                                        ],
-                                      ),
                                       _ContentField(
                                         label: 'Trending Categories Heading',
                                         controller:
@@ -218,15 +207,6 @@ class _AppContentManagementScreenState extends State<AppContentManagementScreen>
                                     crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
                                       _PreviewChip(
-                                        label: 'Greeting',
-                                        text: service.homeGreetingController.text
-                                            .trim()
-                                            .isEmpty
-                                            ? AppContentDefaults.homeGreeting
-                                            : service.homeGreetingController.text,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      _PreviewChip(
                                         label: 'Delivery',
                                         text: service.deliveryTimeTextController.text
                                             .trim()
@@ -312,8 +292,6 @@ class _AppContentManagementScreenState extends State<AppContentManagementScreen>
                                   onPressed: service.saving
                                       ? null
                                       : () async {
-                                          service.homeGreetingController.text =
-                                              AppContentDefaults.homeGreeting;
                                           service.trendingHeadingController.text =
                                               AppContentDefaults.trendingHeading;
                                           service.shopCategoryHeadingController.text =

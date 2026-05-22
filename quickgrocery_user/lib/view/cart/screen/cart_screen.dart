@@ -130,11 +130,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               itemCount: cart.totalUnits,
               savings: bill.totalSavings,
               enabled: bill.meetsMinimumOrder &&
-                  !cart.items.any((e) => e.stock <= 0),
+                  !cart.items.any((e) => e.isUnavailable),
               isLoading: cart.isSyncing,
               helperText: _helperText(cart, bill),
               helperIsError: !bill.meetsMinimumOrder ||
-                  cart.items.any((e) => e.stock <= 0),
+                  cart.items.any((e) => e.isUnavailable),
               onCheckout: () {
                 Navigator.push(
                   context,
@@ -148,8 +148,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   String? _helperText(CartState cart, BillBreakdown bill) {
-    if (cart.items.any((e) => e.stock <= 0)) {
-      return 'Some items in your bag are out of stock';
+    if (cart.items.any((e) => e.isUnavailable)) {
+      return 'Some items in your bag are unavailable — remove them to checkout';
     }
     if (!bill.meetsMinimumOrder) {
       final delta =
@@ -259,6 +259,28 @@ class _CartBody extends StatelessWidget {
                 child: LinearProgressIndicator(
                   minHeight: 2,
                   backgroundColor: AppSurface.subtle,
+                ),
+              ),
+            ),
+          if (cart.items.any((e) => e.isUnavailable))
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                child: _UnavailableCartBanner(
+                  onRemoveUnavailable: () {
+                    final n = notifier.removeUnavailableItems();
+                    if (context.mounted && n > 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            n == 1
+                                ? 'Removed 1 unavailable item'
+                                : 'Removed $n unavailable items',
+                          ),
+                        ),
+                      );
+                    }
+                  },
                 ),
               ),
             ),
@@ -550,6 +572,50 @@ class _YouMightAlsoLikeRail extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _UnavailableCartBanner extends StatelessWidget {
+  const _UnavailableCartBanner({required this.onRemoveUnavailable});
+
+  final VoidCallback onRemoveUnavailable;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppSurface.danger.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: AppSurface.danger.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: AppSurface.danger, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Some items are unavailable. Remove them to continue checkout.',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppSurface.danger,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onRemoveUnavailable,
+            child: Text(
+              'Remove',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w700,
+                color: AppSurface.danger,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:quick_grocery_admin/core/theme/app_text_styles.dart';
 import 'package:quick_grocery_admin/model/catrgory_model.dart';
 import 'package:quick_grocery_admin/model/vendor_model.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_layout_widgets.dart';
@@ -5,7 +6,6 @@ import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
 import 'package:quick_grocery_admin/view/products/services/product_service.dart';
-import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
@@ -20,22 +20,26 @@ class ProductAddScreen extends StatefulWidget {
 class _ProductAddScreenState extends State<ProductAddScreen> {
   @override
   void initState() {
-    Provider.of<ProductService>(context, listen: false).fetchCategory();
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<ProductService>(context, listen: false).fetchCategory();
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<ProductService>(context);
-    return Scaffold(
-      backgroundColor: Color(0xFFFFFAF0),
-      body: Column(
+    return ColoredBox(
+      color: const Color(0xFFFFFAF0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          AppSpacing.h20,
-          Expanded(
-            child: ListView(
-              children: [
-                WrapperWidget(
+          Text('Add Products', style: AppTextStyles.heading),
+          const SizedBox(height: 20),
+          WrapperWidget(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -705,11 +709,7 @@ class _ProductAddScreenState extends State<ProductAddScreen> {
                       onPressed: () => provider.addProduct(context),
                     ),
                   ),
-                AppSpacing.h20,
-                AppSpacing.h20,
-              ],
-            ),
-          ),
+          const SizedBox(height: 20),
         ],
       ),
     );

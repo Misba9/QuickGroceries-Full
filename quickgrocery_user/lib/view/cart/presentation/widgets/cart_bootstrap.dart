@@ -6,6 +6,7 @@ import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/delivery_location/services/delivery_zone_service.dart';
 
 import '../providers/cart_notifier.dart';
+import 'cart_inventory_listener.dart';
 
 /// Bridges Riverpod's [CartNotifier] with the legacy `package:provider`
 /// services it needs to talk to:
@@ -73,5 +74,7 @@ class _CartBootstrapState extends ConsumerState<CartBootstrap> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    return CartInventoryListener(child: widget.child);
+  }
 }

@@ -1,0 +1,18 @@
+{
+    "maintenance_reopens_in": "يعود الفتح خلال",
+    "maintenance_hours": "ساعات",
+    "maintenance_minutes": "دقائق",
+    "maintenance_seconds": "ثوانٍ",
+    "maintenance_retry": "حاول مرة أخرى",
+    "maintenance_contact_support": "اتصل بالدعم",
+    "maintenance_offline": "لا يوجد اتصال — سيتم التحديث عند عودة الشبكة",
+    "maintenance_while_you_wait": "أثناء الانتظار",
+    "maintenance_offers_hint": "عروض حصرية عند إعادة الفتح",
+    "maintenance_coupons": "أكواد الخصم",
+    "maintenance_referral": "ادعُ واربح",
+    "maintenance_referral_hint": "ادعُ الأصدقاء واحصل على مكافآت",
+    "maintenance_coming_soon": "قريباً",
+    "maintenance_coming_soon_hint": "منتجات جديدة قريباً",
+    "we_are_closed": "نحن مغلقون",
+    "store_offline_message": "المتجر غير متاح مؤقتاً. حاول لاحقاً."
+}

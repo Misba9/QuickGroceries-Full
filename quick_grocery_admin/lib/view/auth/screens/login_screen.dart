@@ -478,9 +478,8 @@ class _GradientLoginButtonState extends State<_GradientLoginButton> {
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
+    return SizedBox(
+      width: double.infinity,
       child: AnimatedScale(
         scale: _hover && widget.onPressed != null && !widget.loading ? 1.02 : 1,
         duration: const Duration(milliseconds: 160),
@@ -491,6 +490,7 @@ class _GradientLoginButtonState extends State<_GradientLoginButton> {
             color: Colors.transparent,
             child: InkWell(
               onTap: widget.onPressed,
+              onHover: (v) => setState(() => _hover = v),
               child: Ink(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(

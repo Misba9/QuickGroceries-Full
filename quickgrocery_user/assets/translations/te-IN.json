@@ -154,5 +154,19 @@
     "items_in_category": "{count} ఐటమ్‌లు",
     "shop_now_cta": "ఇప్పుడే కొనండి",
     "explore_cta": "చూడండి",
-    "promo_more_soon": "లింక్ త్వరలో వస్తుంది — ఆఫర్ల కోసం హోమ్ చూడండి."
+    "promo_more_soon": "లింక్ త్వరలో వస్తుంది — ఆఫర్ల కోసం హోమ్ చూడండి.",
+    "maintenance_reopens_in": "తిరిగి తెరుస్తాం",
+    "maintenance_hours": "గంటలు",
+    "maintenance_minutes": "నిమిషాలు",
+    "maintenance_seconds": "సెకన్లు",
+    "maintenance_retry": "మళ్లీ ప్రయత్నించండి",
+    "maintenance_contact_support": "సపోర్ట్‌ను సంప్రదించండి",
+    "maintenance_offline": "ఇంటర్నెట్ లేదు — కనెక్ట్ అయిన తర్వాత రిఫ్రెష్",
+    "maintenance_while_you_wait": "వేచి ఉన్నప్పుడు",
+    "maintenance_offers_hint": "తెరిచిన తర్వాత ప్రత్యేక ఆఫర్లు",
+    "maintenance_coupons": "కూపన్ కోడ్‌లు",
+    "maintenance_referral": "రెఫర్ చేసి సంపాదించండి",
+    "maintenance_referral_hint": "స్నేహితులను ఆహ్వానించండి",
+    "maintenance_coming_soon": "త్వరలో వస్తుంది",
+    "maintenance_coming_soon_hint": "కొత్త ఉత్పత్తులు త్వరలో"
 }

@@ -27,9 +27,10 @@ class _VendorListScreenState extends State<VendorListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xFFFFFAF0),
-      body: Column(
+    return ColoredBox(
+      color: const Color(0xFFFFFAF0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             child: SingleChildScrollView(

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/inventory/inventory_limits.dart';
 import 'package:quickgrocery/models/product.dart';
 
 /// A single line in the cart — flat, serializable, and decoupled from
@@ -19,6 +20,8 @@ class CartItem {
   final double slashedPrice;
   final int stock;
   final int maxOrder;
+  final int minOrderQuantity;
+  final bool isAvailable;
   final int itemCount;
   final int selectedWeightInGrams;
   final bool isVegetable;
@@ -39,6 +42,8 @@ class CartItem {
     required this.slashedPrice,
     required this.stock,
     required this.maxOrder,
+    this.minOrderQuantity = 1,
+    this.isAvailable = true,
     required this.itemCount,
     required this.selectedWeightInGrams,
     required this.isVegetable,
@@ -48,6 +53,18 @@ class CartItem {
 
   bool get isComboLine =>
       comboGroupKey != null && comboGroupKey!.isNotEmpty;
+
+  bool get isUnavailable => InventoryLimits.isCartLineBlocked(
+        stock: stock,
+        itemCount: itemCount,
+        maxOrder: maxOrder,
+        isAvailable: isAvailable,
+      );
+
+  int get effectiveMaxQuantity => InventoryLimits.effectiveMaxQuantity(
+        stock: stock,
+        maxOrder: maxOrder,
+      );
 
   factory CartItem.fromProduct(ProductModel p, {int? itemCount}) {
     return CartItem(
@@ -63,6 +80,8 @@ class CartItem {
       slashedPrice: p.slashedPrice,
       stock: p.stock,
       maxOrder: p.maxOrder,
+      minOrderQuantity: p.minOrderQuantity,
+      isAvailable: p.isAvailable,
       itemCount: itemCount ?? (p.itemCount <= 0 ? 1 : p.itemCount),
       selectedWeightInGrams: p.selectedWeightInGrams,
       isVegetable: p.isVegetable,
@@ -82,6 +101,8 @@ class CartItem {
         slashedPrice: (data['slashedPrice'] as num?)?.toDouble() ?? 0,
         stock: (data['stock'] as num?)?.toInt() ?? 0,
         maxOrder: (data['maxOrder'] as num?)?.toInt() ?? 0,
+        minOrderQuantity: (data['minOrder'] as num?)?.toInt() ?? 1,
+        isAvailable: data['isAvailable'] as bool? ?? true,
         itemCount: (data['itemCount'] as num?)?.toInt() ?? 1,
         selectedWeightInGrams:
             (data['selectedWeightInGrams'] as num?)?.toInt() ?? 1000,
@@ -103,6 +124,8 @@ class CartItem {
         'slashedPrice': slashedPrice,
         'stock': stock,
         'maxOrder': maxOrder,
+        'minOrder': minOrderQuantity,
+        'isAvailable': isAvailable,
         'itemCount': itemCount,
         'selectedWeightInGrams': selectedWeightInGrams,
         'isVegetable': isVegetable,
@@ -140,6 +163,9 @@ class CartItem {
     int? itemCount,
     int? selectedWeightInGrams,
     int? stock,
+    int? maxOrder,
+    int? minOrderQuantity,
+    bool? isAvailable,
     double? price,
     double? slashedPrice,
     String? comboId,
@@ -157,7 +183,9 @@ class CartItem {
         price: price ?? this.price,
         slashedPrice: slashedPrice ?? this.slashedPrice,
         stock: stock ?? this.stock,
-        maxOrder: maxOrder,
+        maxOrder: maxOrder ?? this.maxOrder,
+        minOrderQuantity: minOrderQuantity ?? this.minOrderQuantity,
+        isAvailable: isAvailable ?? this.isAvailable,
         itemCount: itemCount ?? this.itemCount,
         selectedWeightInGrams:
             selectedWeightInGrams ?? this.selectedWeightInGrams,

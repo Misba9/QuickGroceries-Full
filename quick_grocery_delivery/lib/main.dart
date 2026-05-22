@@ -4,6 +4,7 @@ import 'package:quick_grocery_delivery/core/fcm_bootstrap.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 // import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:quick_grocery_delivery/features/login/auth_gate.dart';
+import 'package:quick_grocery_delivery/maintenance/maintenance_gate.dart';
 import 'package:quick_grocery_delivery/features/login/services/login_service.dart';
 import 'package:quick_grocery_delivery/features/orders/services/order_service.dart';
 import 'package:quick_grocery_delivery/services/driver_profile_service.dart';
@@ -87,7 +88,7 @@ class MyApp extends StatelessWidget {
           textTheme: GoogleFonts.nunitoTextTheme(Theme.of(context).textTheme),
           colorScheme: ColorScheme.fromSeed(seedColor: GlobalVariables.primary),
         ),
-        home: const AuthGate(),
+        home: const DriverMaintenanceGate(child: AuthGate()),
       ),
     );
   }

@@ -9,80 +9,33 @@ import 'package:provider/provider.dart';
 
 typedef OrderDrawerCallback = void Function(OrderModel order);
 
+/// Grouped order actions — single popup menu per row.
 class OrderRowActions extends StatelessWidget {
   const OrderRowActions({
     super.key,
     required this.order,
     required this.onView,
-    this.compact = false,
   });
 
   final OrderModel order;
   final OrderDrawerCallback onView;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    if (compact) {
-      return PopupMenuButton<String>(
-        tooltip: 'Actions',
-        onSelected: (v) => _handle(context, v),
-        itemBuilder: (_) => _menuItems(),
-        child: Icon(Icons.more_horiz_rounded, color: AppColor.primary),
-      );
-    }
-
-    return Wrap(
-      spacing: 4,
-      runSpacing: 4,
-      children: [
-        _ActionBtn(
-          icon: Icons.visibility_outlined,
-          tooltip: 'View',
-          onTap: () => onView(order),
-        ),
-        _ActionBtn(
-          icon: Icons.receipt_long_outlined,
-          tooltip: 'Receipt',
-          onTap: () => InvoiceService.printInvoice(order: order, context: context),
-        ),
-        _ActionBtn(
-          icon: Icons.delivery_dining_outlined,
-          tooltip: 'Assign delivery',
-          onTap: () => _assignDelivery(context),
-        ),
-        _ActionBtn(
-          icon: Icons.call_outlined,
-          tooltip: 'Call',
-          onTap: () => OrderContactActions.callCustomer(context, order.phone),
-        ),
-        _ActionBtn(
-          icon: Icons.chat_outlined,
-          tooltip: 'WhatsApp',
-          onTap: () => OrderContactActions.whatsAppCustomer(
-            context,
-            order.phone,
-            message: 'Hi ${order.customerName}, regarding order #${order.id}',
-          ),
-        ),
-        _ActionBtn(
-          icon: Icons.map_outlined,
-          tooltip: 'Track',
-          onTap: () =>
-              OrderContactActions.trackOrder(context, order.lat, order.lng),
-        ),
+    return PopupMenuButton<String>(
+      tooltip: 'Order actions',
+      icon: Icon(Icons.more_horiz_rounded, color: AppColor.primary),
+      onSelected: (v) => _handle(context, v),
+      itemBuilder: (_) => const [
+        PopupMenuItem(value: 'view', child: Text('View Details')),
+        PopupMenuItem(value: 'assign', child: Text('Assign Rider')),
+        PopupMenuItem(value: 'track', child: Text('Track Order')),
+        PopupMenuItem(value: 'invoice', child: Text('Generate Invoice')),
+        PopupMenuItem(value: 'call', child: Text('Call Customer')),
+        PopupMenuItem(value: 'wa', child: Text('WhatsApp')),
       ],
     );
   }
-
-  List<PopupMenuEntry<String>> _menuItems() => const [
-        PopupMenuItem(value: 'view', child: Text('View details')),
-        PopupMenuItem(value: 'invoice', child: Text('Print receipt')),
-        PopupMenuItem(value: 'assign', child: Text('Assign delivery')),
-        PopupMenuItem(value: 'call', child: Text('Call customer')),
-        PopupMenuItem(value: 'wa', child: Text('WhatsApp')),
-        PopupMenuItem(value: 'track', child: Text('Track order')),
-      ];
 
   void _handle(BuildContext context, String value) {
     switch (value) {
@@ -99,7 +52,11 @@ class OrderRowActions extends StatelessWidget {
         OrderContactActions.callCustomer(context, order.phone);
         break;
       case 'wa':
-        OrderContactActions.whatsAppCustomer(context, order.phone);
+        OrderContactActions.whatsAppCustomer(
+          context,
+          order.phone,
+          message: 'Hi ${order.customerName}, regarding order #${order.id}',
+        );
         break;
       case 'track':
         OrderContactActions.trackOrder(context, order.lat, order.lng);
@@ -147,35 +104,15 @@ class OrderRowActions extends StatelessWidget {
     if (selected == null || !context.mounted) return;
     try {
       await context.read<OrderService>().assignDeliveryBoy(order.id, selected);
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Delivery partner assigned')),
       );
     } catch (_) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to assign delivery partner')),
       );
     }
-  }
-}
-
-class _ActionBtn extends StatelessWidget {
-  const _ActionBtn({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      visualDensity: VisualDensity.compact,
-      tooltip: tooltip,
-      onPressed: onTap,
-      icon: Icon(icon, size: 20, color: AppColor.primary),
-    );
   }
 }

@@ -9,14 +9,15 @@ import 'package:quick_grocery_admin/view/users/services/user_service.dart';
 import 'package:quick_grocery_admin/view/delivery_settings/services/delivery_settings_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quick_grocery_admin/view/vendor/services/vendor_service.dart';
 import 'package:quick_grocery_admin/view/platform_fee/services/platform_fee_service.dart';
-import 'package:quick_grocery_admin/view/analytics/services/analytics_service.dart';
 import 'package:quick_grocery_admin/view/push_notifications/services/notification_admin_service.dart';
 import 'package:quick_grocery_admin/view/app_content_management/services/app_content_management_service.dart';
 import 'package:quick_grocery_admin/view/support_settings/services/support_settings_service.dart';
+import 'package:quick_grocery_admin/view/maintenance/services/maintenance_management_service.dart';
 import 'package:quick_grocery_admin/view/operations/services/admin_notification_service.dart';
 import 'package:quick_grocery_admin/view/operations/services/ops_dashboard_service.dart';
 import 'package:quick_grocery_admin/view/operations/services/ops_sound_prefs.dart';
@@ -26,6 +27,15 @@ import 'package:provider/provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    if (kDebugMode) {
+      debugPrint('FlutterError: ${details.exceptionAsString()}');
+      debugPrint(details.stack?.toString() ?? '');
+    }
+    FlutterError.presentError(details);
+  };
+
   await Firebase.initializeApp(
     options: FirebaseOptions(
       storageBucket: "quikgroceries.firebasestorage.app",
@@ -56,13 +66,15 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => DeliveryZoneService()),
         ChangeNotifierProvider(create: (context) => PlatformFeeService()),
         ChangeNotifierProvider(create: (context) => DeliverySettingsService()),
-        ChangeNotifierProvider(create: (context) => AnalyticsService()),
         ChangeNotifierProvider(create: (context) => NotificationAdminService()),
         ChangeNotifierProvider(
           create: (context) => AppContentManagementService(),
         ),
         ChangeNotifierProvider(
           create: (context) => SupportSettingsService(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => MaintenanceManagementService(),
         ),
         ChangeNotifierProvider(create: (_) => AdminNotificationService()),
         ChangeNotifierProvider(create: (_) => OpsDashboardService()),

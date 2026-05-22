@@ -25,10 +25,10 @@ class _UsersScreenState extends State<UsersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xFFFFFAF0),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return ColoredBox(
+      color: const Color(0xFFFFFAF0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             child: Padding(

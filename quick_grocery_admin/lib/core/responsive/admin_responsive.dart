@@ -7,8 +7,8 @@ import 'package:quick_grocery_admin/core/responsive/admin_content_scope.dart';
 class AdminBreakpoints {
   AdminBreakpoints._();
 
-  /// Handset / narrow browser
-  static const double mobile = 600;
+  /// Handset / narrow browser (< 900px uses drawer layout)
+  static const double mobile = 900;
 
   /// Laptop range
   static const double desktop = 1024;
@@ -44,11 +44,14 @@ int adminResponsiveGridCount(double width) {
   return 3;
 }
 
+/// Fixed sidebar width on desktop (stable hit targets, no flex jitter).
+const double adminDesktopSidebarWidth = 260;
+
 double adminSidebarWidth(double screenWidth) {
   if (screenWidth < AdminBreakpoints.mobile) {
     return math.min(288, screenWidth * 0.88);
   }
-  return (screenWidth * 0.18).clamp(200.0, 280.0);
+  return adminDesktopSidebarWidth;
 }
 
 /// Optional max width for main content on ultra-wide monitors.
@@ -65,15 +68,18 @@ Widget adminConstrainContentWidth({
   );
 }
 
-/// Root wrapper for every admin route — clips overflow and exposes content width.
+/// Bounded viewport for legacy call sites (home shell uses [AdminPageSlot]).
 Widget adminRouteBody({required Widget child}) {
   return LayoutBuilder(
     builder: (context, constraints) {
       final w = constraints.maxWidth.isFinite ? constraints.maxWidth : 1200.0;
+      final h = constraints.maxHeight;
       return AdminContentScope(
         maxWidth: w,
-        child: ClipRect(
-          child: SizedBox(width: w, child: child),
+        child: SizedBox(
+          width: w,
+          height: h.isFinite ? h : null,
+          child: child,
         ),
       );
     },

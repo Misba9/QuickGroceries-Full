@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:quick_grocery_admin/core/widgets/admin_list_tile.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/operations/services/ops_dashboard_service.dart';
 
@@ -44,7 +45,7 @@ class OpsLivePanel extends StatelessWidget {
             final id = o['id']?.toString() ?? '';
             final name = o['customer_name']?.toString() ?? 'Customer';
             final status = o['order_status']?.toString() ?? o['status']?.toString() ?? '';
-            return ListTile(
+            return AdminListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
               leading: CircleAvatar(
