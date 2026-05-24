@@ -7,6 +7,7 @@ import 'package:quickgrocery/models/combo_offer_model.dart';
 import 'package:quickgrocery/view/combo/presentation/providers/combo_providers.dart';
 import 'package:quickgrocery/view/combo/presentation/screens/combo_detail_screen.dart';
 import 'package:quickgrocery/view/combo/presentation/widgets/combo_offer_card.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 
 /// Horizontal list of combo offers for the Offers hub.
 class ComboOffersSection extends ConsumerWidget {
@@ -24,34 +25,12 @@ class ComboOffersSection extends ConsumerWidget {
         return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.shopping_basket_outlined, size: 22, color: Colors.black87),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Combo offers',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          'Curated bundles at best prices',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: AppSurface.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              const SectionHeader(
+                title: 'Combo offers',
+                subtitle: 'Curated bundles at best prices',
+                icon: Icons.shopping_basket_outlined,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               SizedBox(
                 height: 380,
                 child: ListView.separated(

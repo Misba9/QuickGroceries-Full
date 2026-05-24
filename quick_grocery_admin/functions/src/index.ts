@@ -41,6 +41,7 @@ export { dailySalesSummary } from "./operations/daily_summary";
 export { seedAdminTestNotification } from "./operations/ops_callables";
 export { placeOrderCallable } from "./operations/place_order_callable";
 export { onDeliveryBoyStatusUpdated } from "./operations/delivery_status_triggers";
+export { onVendorRequestCreated } from "./operations/vendor_request_triggers";
 export { onMaintenanceConfigChange } from "./operations/maintenance_triggers";
 
 /** Vendor & delivery partner auth: login, OTP password reset, admin controls. */
@@ -53,6 +54,18 @@ export {
   partnerCheckSession,
   adminPartnerAccountAction,
 } from "./partner_auth/partner_callables";
+export { adminCreateVendorAccount, adminRollbackVendorAuth, adminSyncVendorAuthPassword, adminMigrateVendorAuth } from "./partner_auth/admin_create_vendor";
+export {
+  vendorCheckAuthForPasswordReset,
+  vendorDiagnoseLogin,
+} from "./partner_auth/vendor_auth_callables";
+export {
+  submitVendorRequest,
+  uploadVendorSignupImage,
+  adminApproveVendorRequest,
+  adminRejectVendorRequest,
+  adminBlockVendorFromRequest,
+} from "./partner_auth/vendor_requests";
 
 /** Advanced coupon validation, redemption, and checkout listing. */
 export {

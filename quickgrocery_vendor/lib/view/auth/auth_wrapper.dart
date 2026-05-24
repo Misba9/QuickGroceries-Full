@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../../services/auth_service.dart';
-import '../../services/preference_service.dart';
+
+import '../../core/auth/vendor_auth_errors.dart';
+import '../../models/vendor_model.dart';
+import '../../services/vendor_auth_service.dart';
 import 'login_screen.dart';
 import '../main_navigation_screen.dart';
 import 'force_password_change_screen.dart';
@@ -13,7 +16,7 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
-  final AuthService _authService = AuthService();
+  final VendorAuthService _authService = VendorAuthService();
   bool _isLoading = true;
   Widget _initialScreen = const LoginScreen();
 
@@ -25,50 +28,37 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _checkLoginStatus() async {
     try {
-      final isLoggedIn = await PreferenceService.isLoggedIn();
-
-      if (isLoggedIn) {
-        final vendorId = await PreferenceService.getVendorId();
-
-        if (vendorId != null && vendorId.isNotEmpty) {
-          final sessionOk = await _authService.isSessionValid(vendorId);
-          if (!sessionOk) {
-            await PreferenceService.clearVendorData();
-          } else {
-            final vendor = await _authService.getVendorById(vendorId);
-
-            if (vendor != null && vendor.isActive) {
-              final forceChange =
-                  await PreferenceService.getForcePasswordChange();
-              if (mounted) {
-                setState(() {
-                  _initialScreen = forceChange
-                      ? ForcePasswordChangeScreen(vendor: vendor)
-                      : MainNavigationScreen(vendor: vendor);
-                  _isLoading = false;
-                });
-              }
-              return;
-            } else {
-              await PreferenceService.clearVendorData();
-            }
+      final vendor = await _authService.restoreSession();
+      if (vendor != null) {
+        final blocked = VendorModel.loginBlockedReason(vendor.toFirestore());
+        if (blocked == null) {
+          final forceChange = await _authService.shouldForcePasswordChange();
+          if (mounted) {
+            setState(() {
+              _initialScreen = forceChange
+                  ? ForcePasswordChangeScreen(vendor: vendor)
+                  : MainNavigationScreen(vendor: vendor);
+              _isLoading = false;
+            });
           }
+          return;
         }
+        VendorAuthErrors.logDebug('restore blocked: $blocked');
       }
+      await _authService.logout();
+    } catch (e, st) {
+      VendorAuthErrors.logDebug('auth wrapper error: $e');
+      if (kDebugMode) {
+        debugPrintStack(stackTrace: st);
+      }
+      await _authService.logout();
+    }
 
-      if (mounted) {
-        setState(() {
-          _initialScreen = const LoginScreen();
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _initialScreen = const LoginScreen();
-          _isLoading = false;
-        });
-      }
+    if (mounted) {
+      setState(() {
+        _initialScreen = const LoginScreen();
+        _isLoading = false;
+      });
     }
   }
 

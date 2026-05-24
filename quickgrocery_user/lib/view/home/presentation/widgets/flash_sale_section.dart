@@ -214,17 +214,14 @@ class _Card extends StatelessWidget {
                     const Icon(Icons.flash_on_rounded,
                         color: Colors.white, size: 14),
                     const SizedBox(width: 4),
-                    Flexible(
-                      child: AnimatedAppHeading(
-                        text: heading.toUpperCase(),
-                        isLoading: headingLoading,
-                        compact: true,
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 0.6,
-                        ),
+                    Text(
+                      'FLASH DEALS',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 0.6,
+                        height: 1,
                       ),
                     ),
                   ],
@@ -234,14 +231,30 @@ class _Card extends StatelessWidget {
               _Countdown(remaining: end),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: AnimatedAppHeading(
+              text: heading,
+              isLoading: headingLoading,
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 17,
+                height: 1.2,
+                letterSpacing: -0.25,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
           Text(
             'Massive savings, just for now',
+            textAlign: TextAlign.start,
             style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 16,
-              height: 1.2,
+              color: Colors.white.withValues(alpha: 0.92),
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+              height: 1.25,
             ),
           ),
           const SizedBox(height: 12),

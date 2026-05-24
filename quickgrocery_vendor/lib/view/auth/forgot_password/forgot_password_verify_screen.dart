@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:quickgrocery_vendor/core/auth/partner_auth_api.dart';
+import 'package:quickgrocery_vendor/core/auth/vendor_auth_errors.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
 import 'package:quickgrocery_vendor/utils/app_spacing.dart';
 import 'package:quickgrocery_vendor/view/auth/forgot_password/forgot_password_reset_screen.dart';
@@ -80,7 +81,10 @@ class _ForgotPasswordVerifyScreenState extends State<ForgotPasswordVerifyScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+          SnackBar(
+            content: Text(VendorAuthErrors.fromException(e)),
+            backgroundColor: Colors.red.shade700,
+          ),
         );
       }
     } finally {
@@ -102,7 +106,10 @@ class _ForgotPasswordVerifyScreenState extends State<ForgotPasswordVerifyScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+          SnackBar(
+            content: Text(VendorAuthErrors.fromException(e)),
+            backgroundColor: Colors.red.shade700,
+          ),
         );
       }
     } finally {

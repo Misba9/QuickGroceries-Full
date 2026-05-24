@@ -19,10 +19,13 @@ Future<void> _fcmBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  // Email/password must be enabled in Firebase Console → Authentication.
   FirebaseMessaging.onBackgroundMessage(_fcmBackgroundHandler);
   final vendorId = await PreferenceService.getVendorId();
   if (vendorId != null && vendorId.isNotEmpty) {
-    await VendorFcmBootstrap.configureForVendor(vendorId);
+    try {
+      await VendorFcmBootstrap.configureForVendor(vendorId);
+    } catch (_) {}
   }
   FirebaseMessaging.onMessage.listen((msg) {
     if (kDebugMode) {

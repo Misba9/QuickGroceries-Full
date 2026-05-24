@@ -213,6 +213,7 @@ abstract final class AdminFlexRoutes {
   static const Set<String> routes = {
     AdminRoutes.userList,
     AdminRoutes.vendorList,
+    AdminRoutes.vendorRequests,
     AdminRoutes.deliveryBoyList,
     AdminRoutes.deliveryZones,
     AdminRoutes.deliverySettings,

@@ -1,31 +1,28 @@
-import 'package:flutter/services.dart';
+import 'package:quick_grocery_admin/view/operations/services/alert_sound_platform.dart';
 
-/// Plays short system sounds per notification category (no asset files required).
+/// Plays alert sounds per notification category (web + desktop/mobile).
 class AdminAlertSoundService {
   const AdminAlertSoundService._();
+
+  static DateTime? _lastPlayedAt;
+  static String? _lastSoundType;
+  static const _cooldown = Duration(seconds: 4);
 
   static Future<void> playForSoundType(
     String soundType, {
     required bool enabled,
+    double volume = 1.0,
   }) async {
     if (!enabled) return;
-    try {
-      switch (soundType) {
-        case 'payments':
-        case 'security':
-          await SystemSound.play(SystemSoundType.alert);
-          break;
-        case 'stock':
-          await SystemSound.play(SystemSoundType.alert);
-          await Future<void>.delayed(const Duration(milliseconds: 120));
-          await SystemSound.play(SystemSoundType.click);
-          break;
-        default:
-          await SystemSound.play(SystemSoundType.click);
-      }
-    } catch (_) {
-      // Web/desktop may not support all system sounds.
+    final now = DateTime.now();
+    if (_lastPlayedAt != null &&
+        _lastSoundType == soundType &&
+        now.difference(_lastPlayedAt!) < _cooldown) {
+      return;
     }
+    _lastPlayedAt = now;
+    _lastSoundType = soundType;
+    await playPlatformAlert(soundType, volume: volume);
   }
 
   static Future<void> preview(String soundType) =>

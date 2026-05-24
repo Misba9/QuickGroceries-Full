@@ -8,12 +8,10 @@ import 'package:quick_grocery_admin/view/operations/models/ops_notification_mode
 import 'package:quick_grocery_admin/view/operations/services/admin_alert_sound_service.dart';
 import 'package:quick_grocery_admin/view/operations/services/ops_sound_prefs.dart';
 
-/// Real-time admin notification center (`admin_notifications` collection).
+/// Real-time admin notification center — reads `notifications` with legacy fallback.
 class AdminNotificationService extends ChangeNotifier {
-  AdminNotificationService({OpsSoundPrefs? soundPrefs})
-      : _soundPrefs = soundPrefs {
-    _watchUnread();
-    _watchRecent();
+  AdminNotificationService({OpsSoundPrefs? soundPrefs}) : _soundPrefs = soundPrefs {
+    _startWatching();
   }
 
   final _firestore = FirebaseFirestore.instance;
@@ -22,58 +20,93 @@ class AdminNotificationService extends ChangeNotifier {
   OpsSoundPrefs? _soundPrefs;
 
   static const _pageSize = 50;
+  static const _primaryCol = 'notifications';
+  static const _legacyCol = 'admin_notifications';
 
   int unreadCount = 0;
   List<OpsNotificationModel> recent = [];
   bool loading = true;
   String? error;
+  bool usingLegacyCollection = false;
+  bool hasMore = true;
+  bool _triedLegacyFallback = false;
 
   final Queue<OpsNotificationModel> toastQueue = Queue();
   OpsNotificationModel? latestToast;
 
   final Set<String> _seenIds = {};
   bool _skipInitialAlerts = true;
+  DocumentSnapshot<Map<String, dynamic>>? _lastDoc;
 
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _unreadSub;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _recentSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _feedSub;
 
   void attachSoundPrefs(OpsSoundPrefs prefs) => _soundPrefs = prefs;
 
-  void _watchUnread() {
-    _unreadSub = _firestore
-        .collection('admin_notifications')
-        .where('read', isEqualTo: false)
-        .limit(200)
-        .snapshots()
-        .listen((snap) {
-      unreadCount = snap.size;
-      notifyListeners();
-    }, onError: (Object e) {
-      if (kDebugMode) debugPrint('[AdminNotificationService] unread: $e');
-      error = e.toString();
-      notifyListeners();
-    });
+  void _startWatching() {
+    _watchFeed(_primaryCol);
   }
 
-  void _watchRecent() {
-    _recentSub = _firestore
-        .collection('admin_notifications')
+  void _watchFeed(String collection) {
+    _feedSub?.cancel();
+    usingLegacyCollection = collection == _legacyCol;
+    loading = true;
+    notifyListeners();
+
+    _feedSub = _firestore
+        .collection(collection)
         .orderBy('createdAt', descending: true)
         .limit(_pageSize)
         .snapshots()
         .listen((snap) {
-      final items = snap.docs.map(OpsNotificationModel.fromDoc).toList();
+      final items = snap.docs
+          .map(
+            (d) => OpsNotificationModel.fromDoc(
+              d,
+              collectionName: collection,
+            ),
+          )
+          .where((n) => n.target.isEmpty || n.target == 'admin')
+          .toList();
+
+      if (collection == _primaryCol &&
+          items.isEmpty &&
+          !_triedLegacyFallback) {
+        _triedLegacyFallback = true;
+        _watchFeed(_legacyCol);
+        return;
+      }
+
+      _lastDoc = snap.docs.isNotEmpty ? snap.docs.last : null;
+      hasMore = snap.docs.length >= _pageSize;
       _handleIncoming(items);
       recent = items;
+      unreadCount = items.where((n) => !n.read).length;
       loading = false;
       error = null;
       notifyListeners();
     }, onError: (Object e) {
+      if (kDebugMode) {
+        debugPrint('[AdminNotificationService] feed($collection): $e');
+      }
+      if (collection == _primaryCol) {
+        _watchFeed(_legacyCol);
+        return;
+      }
       loading = false;
-      error = e.toString();
-      if (kDebugMode) debugPrint('[AdminNotificationService] recent: $e');
+      error = _friendlyError(e);
       notifyListeners();
     });
+  }
+
+  String _friendlyError(Object e) {
+    final msg = e.toString();
+    if (msg.contains('failed-precondition')) {
+      return 'Firestore index missing. Deploy firestore.indexes.json then retry.';
+    }
+    if (msg.contains('permission-denied')) {
+      return 'Permission denied. Sign in as admin and deploy Firestore rules.';
+    }
+    return msg;
   }
 
   void _handleIncoming(List<OpsNotificationModel> items) {
@@ -101,6 +134,7 @@ class AdminNotificationService extends ChangeNotifier {
       AdminAlertSoundService.playForSoundType(
         soundType,
         enabled: prefs.enabled,
+        volume: prefs.volume,
       ),
     );
   }
@@ -113,23 +147,16 @@ class AdminNotificationService extends ChangeNotifier {
     return n;
   }
 
-  Stream<List<OpsNotificationModel>> streamPage({
+  /// Client-side filter — avoids composite Firestore indexes.
+  List<OpsNotificationModel> filtered({
     OpsNotificationCategory? category,
-    DocumentSnapshot? startAfter,
+    String query = '',
   }) {
-    Query<Map<String, dynamic>> q = _firestore
-        .collection('admin_notifications')
-        .orderBy('createdAt', descending: true)
-        .limit(_pageSize);
+    var items = recent;
     if (category != null) {
-      q = q.where('category', isEqualTo: category.name);
+      items = items.where((n) => n.category == category).toList();
     }
-    if (startAfter != null) {
-      q = q.startAfterDocument(startAfter);
-    }
-    return q.snapshots().map(
-          (s) => s.docs.map(OpsNotificationModel.fromDoc).toList(),
-        );
+    return filterByQuery(items, query);
   }
 
   List<OpsNotificationModel> filterByQuery(
@@ -143,37 +170,83 @@ class AdminNotificationService extends ChangeNotifier {
           (n) =>
               n.title.toLowerCase().contains(q) ||
               n.message.toLowerCase().contains(q) ||
-              n.type.toLowerCase().contains(q),
+              n.type.toLowerCase().contains(q) ||
+              n.sourceApp.toLowerCase().contains(q),
         )
         .toList();
   }
 
-  Future<void> markRead(String id) async {
-    await _firestore.collection('admin_notifications').doc(id).update({
+  CollectionReference<Map<String, dynamic>> _docCollection(
+    OpsNotificationModel n,
+  ) =>
+      _firestore.collection(
+        n.collectionName.isNotEmpty ? n.collectionName : _primaryCol,
+      );
+
+  Future<void> markRead(String id, {String? collectionName}) async {
+    final col = collectionName ?? (usingLegacyCollection ? _legacyCol : _primaryCol);
+    await _firestore.collection(col).doc(id).update({
       'read': true,
       'is_read': true,
+      'isRead': true,
     });
   }
 
   Future<void> markAllRead() async {
-    final snap = await _firestore
-        .collection('admin_notifications')
-        .where('read', isEqualTo: false)
-        .limit(100)
-        .get();
-    if (snap.docs.isEmpty) return;
+    final unread = recent.where((n) => !n.read).toList();
+    if (unread.isEmpty) return;
     final batch = _firestore.batch();
-    for (final doc in snap.docs) {
-      batch.update(doc.reference, {'read': true, 'is_read': true});
+    for (final n in unread) {
+      batch.update(_docCollection(n).doc(n.id), {
+        'read': true,
+        'is_read': true,
+        'isRead': true,
+      });
     }
     await batch.commit();
   }
 
-  Future<void> deleteNotification(String id) async {
-    await _firestore.collection('admin_notifications').doc(id).delete();
-    _seenIds.remove(id);
-    recent = recent.where((n) => n.id != id).toList();
+  Future<void> deleteNotification(OpsNotificationModel n) async {
+    await _docCollection(n).doc(n.id).delete();
+    _seenIds.remove(n.id);
+    recent = recent.where((x) => x.id != n.id).toList();
+    unreadCount = recent.where((x) => !x.read).length;
     notifyListeners();
+  }
+
+  Future<void> loadMore() async {
+    if (!hasMore || _lastDoc == null || loading) return;
+    final col = usingLegacyCollection ? _legacyCol : _primaryCol;
+    try {
+      final snap = await _firestore
+          .collection(col)
+          .orderBy('createdAt', descending: true)
+          .startAfterDocument(_lastDoc!)
+          .limit(_pageSize)
+          .get();
+      if (snap.docs.isEmpty) {
+        hasMore = false;
+        notifyListeners();
+        return;
+      }
+      _lastDoc = snap.docs.last;
+      hasMore = snap.docs.length >= _pageSize;
+      final more = snap.docs
+          .map((d) => OpsNotificationModel.fromDoc(d, collectionName: col))
+          .where((n) => n.target.isEmpty || n.target == 'admin')
+          .toList();
+      final existing = recent.map((e) => e.id).toSet();
+      recent = [
+        ...recent,
+        ...more.where((n) => !existing.contains(n.id)),
+      ];
+      unreadCount = recent.where((n) => !n.read).length;
+      notifyListeners();
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[AdminNotificationService] loadMore: $e\n$st');
+      }
+    }
   }
 
   Future<String?> seedTestNotification() async {
@@ -191,8 +264,7 @@ class AdminNotificationService extends ChangeNotifier {
 
   @override
   void dispose() {
-    _unreadSub?.cancel();
-    _recentSub?.cancel();
+    _feedSub?.cancel();
     super.dispose();
   }
 }

@@ -23,6 +23,7 @@ import 'package:quickgrocery/view/app_content/models/app_content_config.dart';
 import 'package:quickgrocery/view/app_content/presentation/providers/app_content_providers.dart';
 import 'package:quickgrocery/view/app_content/presentation/widgets/animated_app_heading.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_banner_video_rail.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/recommendations_section.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
@@ -422,7 +423,7 @@ class _TrendingCategoriesSectionState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionTitle(
+            SectionHeader(
               title: widget.heading,
               icon: Icons.local_fire_department_rounded,
               isLoading: widget.headingLoading,
@@ -461,7 +462,7 @@ class _TrendingCategoriesSectionState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _SectionTitle(
+              SectionHeader(
                 title: widget.heading,
                 icon: Icons.local_fire_department_rounded,
                 isLoading: widget.headingLoading,
@@ -610,7 +611,7 @@ class _AllCategoriesSection extends ConsumerWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionTitle(
+          SectionHeader(
             title: heading,
             icon: Icons.grid_view_rounded,
             isLoading: headingLoading,
@@ -636,7 +637,7 @@ class _AllCategoriesSection extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionTitle(
+            SectionHeader(
               title: heading,
               icon: Icons.grid_view_rounded,
               isLoading: headingLoading,
@@ -656,57 +657,6 @@ class _AllCategoriesSection extends ConsumerWidget {
           ],
         );
       },
-    );
-  }
-}
-
-// ─── Section title ───────────────────────────────────────────────────────
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({
-    required this.title,
-    required this.icon,
-    this.compact = false,
-    this.isLoading = false,
-  });
-
-  final String title;
-  final IconData icon;
-  final bool compact;
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(0, compact ? 4 : 6, 0, compact ? 8 : 10),
-      child: Row(
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              gradient: AppGradients.brand(),
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: AppShadow.dim,
-            ),
-            child: Icon(icon, color: Colors.white, size: 16),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: AnimatedAppHeading(
-              text: title,
-              isLoading: isLoading,
-              compact: compact,
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: AppSurface.text,
-                letterSpacing: -0.3,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:provider/provider.dart';
 import 'package:quick_grocery_admin/core/layout/admin_routes.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/core/widgets/admin_nav_item.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
+import 'package:quick_grocery_admin/view/operations/services/admin_notification_service.dart';
 
 /// Fixed-width scrollable admin sidebar (Flutter Web safe, explicit hit targets).
 class AdminSidebar extends StatelessWidget {
@@ -32,7 +34,7 @@ class AdminSidebar extends StatelessWidget {
     _SectionDef(
       icon: 'assets/icons/shop.svg',
       title: 'Vendor',
-      routes: [AdminRoutes.vendorAdd, AdminRoutes.vendorList],
+      routes: [AdminRoutes.vendorAdd, AdminRoutes.vendorList, AdminRoutes.vendorRequests],
     ),
     _SectionDef(
       icon: 'assets/icons/cart.svg',
@@ -214,12 +216,16 @@ class _SidebarSectionState extends State<_SidebarSection> {
 
     if (widget.def.routes.length == 1) {
       final route = widget.def.routes.first;
+      final badge = route == AdminRoutes.dashboard
+          ? context.watch<AdminNotificationService>().unreadCount
+          : 0;
       return AdminNavItem(
         label: widget.def.title,
         selected: widget.selectedRoute == route,
         icon: _sectionIcon(active: sectionActive),
         onTap: () => widget.onSelect(route),
         height: 52,
+        badgeCount: badge,
       );
     }
 

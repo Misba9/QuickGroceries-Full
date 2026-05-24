@@ -135,7 +135,10 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final provider = Provider.of<SearchService>(context);
     return Scaffold(
-      appBar: AppBar(title: Text('search'.tr())),
+      appBar: AppBar(
+        centerTitle: false,
+        title: Text('search'.tr()),
+      ),
       body: SafeArea(
         bottom: false,
         child: Stack(
@@ -215,8 +218,8 @@ class _SearchScreenState extends State<SearchScreen> {
                               const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
                             crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: 0.64,
+                            mainAxisSpacing: 9,
+                            childAspectRatio: 0.68,
                           ),
                           itemCount: provider.filteredProductsList!.length,
                           itemBuilder: (context, i) {

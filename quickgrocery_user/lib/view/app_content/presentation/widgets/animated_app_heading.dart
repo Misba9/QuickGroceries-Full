@@ -63,8 +63,9 @@ class AnimatedAppHeading extends StatelessWidget {
       child: Text(
         text,
         key: ValueKey<String>(text),
-        maxLines: 1,
+        maxLines: 2,
         overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.start,
         style: resolved,
       ),
     );
@@ -108,6 +109,7 @@ class AnimatedAppGreeting extends StatelessWidget {
         key: ValueKey<String>(text),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.start,
         style: style ??
             GoogleFonts.poppins(
               fontSize: 11.5,

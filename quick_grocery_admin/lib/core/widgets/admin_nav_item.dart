@@ -12,6 +12,7 @@ class AdminNavItem extends StatelessWidget {
     this.leadingDot = false,
     this.indent = 0,
     this.height = 48,
+    this.badgeCount = 0,
   });
 
   final String label;
@@ -21,6 +22,7 @@ class AdminNavItem extends StatelessWidget {
   final bool leadingDot;
   final double indent;
   final double height;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +75,26 @@ class AdminNavItem extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (badgeCount > 0)
+                    Container(
+                      margin: const EdgeInsets.only(left: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

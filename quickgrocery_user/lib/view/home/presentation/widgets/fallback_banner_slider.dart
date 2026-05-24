@@ -178,7 +178,7 @@ class _FallbackSlideCard extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(

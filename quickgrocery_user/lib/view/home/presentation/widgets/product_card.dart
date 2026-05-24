@@ -35,7 +35,9 @@ class HomeProductCard extends ConsumerWidget {
   final VoidCallback? onAfterProductDetailClosed;
 
   static const double _radius = AppRadii.lg;
-  static const double _elevation = 6;
+  static const double _cardPadding = 8;
+  /// Image area height on horizontal rails (unbounded height parent).
+  static const double _railImageHeightFactor = 0.82;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,26 +48,14 @@ class HomeProductCard extends ConsumerWidget {
         .firstOrNull;
     final count = cartLine?.itemCount ?? 0;
     final outOfStock = product.isOutOfStock;
+    final weightLabel = productQuantityLabel(product);
 
     return SizedBox(
       width: width,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(_radius),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: _elevation * 2,
-              spreadRadius: 0,
-              offset: const Offset(0, 3),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: _elevation,
-              spreadRadius: -1,
-              offset: const Offset(0, 1),
-            ),
-          ],
+          boxShadow: AppShadow.card,
         ),
         child: Material(
           color: Colors.white,
@@ -74,118 +64,110 @@ class HomeProductCard extends ConsumerWidget {
           child: Opacity(
             opacity: outOfStock ? 0.55 : 1,
             child: InkWell(
-            borderRadius: BorderRadius.circular(_radius),
-            onTap: () async {
-              HapticFeedback.selectionClick();
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProductViewScreen(product: product),
+              borderRadius: BorderRadius.circular(_radius),
+              onTap: () async {
+                HapticFeedback.selectionClick();
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProductViewScreen(product: product),
+                  ),
+                );
+                onAfterProductDetailClosed?.call();
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(_radius),
+                  border: Border.all(
+                    color: AppSurface.border.withValues(alpha: 0.55),
+                  ),
                 ),
-              );
-              onAfterProductDetailClosed?.call();
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(_radius),
-                border: Border.all(color: AppSurface.border.withValues(alpha: 0.65)),
-              ),
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final bounded = constraints.hasBoundedHeight &&
-                      constraints.maxHeight < double.infinity;
-                  final image = Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      _ImageWithDiscount(product: product),
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: _FavoriteChip(productId: product.id),
-                      ),
-                    ],
-                  );
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize:
-                        bounded ? MainAxisSize.max : MainAxisSize.min,
-                    children: [
-                      if (bounded)
-                        Expanded(child: image)
-                      else
-                        image,
-                      const SizedBox(height: 8),
-                      _Quantity(text: productQuantityLabel(product)),
-                      const SizedBox(height: 4),
-                      Text(
-                        product.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppSurface.textPrimary,
-                          height: 1.2,
-                        ),
-                      ),
-                      if (product.totalReviews > 0) ...[
-                        const SizedBox(height: 4),
-                        _RatingPill(
-                          rating: product.rating,
-                          reviews: product.totalReviews,
+                padding: const EdgeInsets.all(_cardPadding),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final bounded = constraints.hasBoundedHeight &&
+                        constraints.maxHeight < double.infinity;
+                    final image = Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        _ImageWithDiscount(product: product),
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: _FavoriteChip(productId: product.id),
                         ),
                       ],
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(child: _PriceBlock(product: product)),
-                          _CartControl(
-                            product: product,
-                            count: count,
-                            onAdd: () {
-                              final wasEmpty = count == 0;
-                              final ok = ref
-                                  .read(cartProvider.notifier)
-                                  .addProduct(product);
-                              if (!ok) return;
-                              if (wasEmpty) {
-                                cartService.showAddonPopupIfNeeded(
-                                  context,
-                                  product,
-                                );
-                              }
-                            },
-                            onIncrement: () {
-                              if (!ref
-                                  .read(cartProvider.notifier)
-                                  .increment(product.id)) {
-                                final ok = cartService.addProductCount(
-                                  product.id,
-                                  catalogProduct: product,
-                                );
-                                if (!ok) {
-                                  showCartFeedback(
-                                    ref,
-                                    'Maximum order limit reached',
-                                  );
-                                }
-                              }
-                            },
-                            onDecrement: () {
-                              ref.read(cartProvider.notifier).decrement(product.id);
-                              cartService.removeProductCount(product.id);
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  );
-                },
+                    );
+
+                    final details = _ProductDetails(
+                      product: product,
+                      weightLabel: weightLabel,
+                      count: count,
+                      onAdd: () {
+                        final wasEmpty = count == 0;
+                        final ok = ref
+                            .read(cartProvider.notifier)
+                            .addProduct(product);
+                        if (!ok) return;
+                        if (wasEmpty) {
+                          cartService.showAddonPopupIfNeeded(
+                            context,
+                            product,
+                          );
+                        }
+                      },
+                      onIncrement: () {
+                        if (!ref
+                            .read(cartProvider.notifier)
+                            .increment(product.id)) {
+                          final ok = cartService.addProductCount(
+                            product.id,
+                            catalogProduct: product,
+                          );
+                          if (!ok) {
+                            showCartFeedback(
+                              ref,
+                              'Maximum order limit reached',
+                            );
+                          }
+                        }
+                      },
+                      onDecrement: () {
+                        ref.read(cartProvider.notifier).decrement(product.id);
+                        cartService.removeProductCount(product.id);
+                      },
+                    );
+
+                    if (bounded) {
+                      return SizedBox(
+                        height: constraints.maxHeight,
+                        width: constraints.maxWidth,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: image),
+                            details,
+                          ],
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          height: width * _railImageHeightFactor,
+                          child: image,
+                        ),
+                        details,
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ),
-        ),
         ),
       ),
     );
@@ -194,6 +176,83 @@ class HomeProductCard extends ConsumerWidget {
 
 /// Same widget as [HomeProductCard] — use this name in category/search grids.
 typedef ProductCardWidget = HomeProductCard;
+
+class _ProductDetails extends StatelessWidget {
+  const _ProductDetails({
+    required this.product,
+    required this.weightLabel,
+    required this.count,
+    required this.onAdd,
+    required this.onIncrement,
+    required this.onDecrement,
+  });
+
+  final ProductModel product;
+  final String weightLabel;
+  final int count;
+  final VoidCallback onAdd;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            product.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: AppSurface.textPrimary,
+              height: 1.2,
+            ),
+          ),
+          if (weightLabel.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              weightLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                fontSize: 10.5,
+                color: AppSurface.textSecondary,
+                fontWeight: FontWeight.w500,
+                height: 1.15,
+              ),
+            ),
+          ],
+          if (product.totalReviews > 0) ...[
+            const SizedBox(height: 4),
+            _RatingPill(
+              rating: product.rating,
+              reviews: product.totalReviews,
+            ),
+          ],
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: _PriceBlock(product: product)),
+              _CartControl(
+                product: product,
+                count: count,
+                onAdd: onAdd,
+                onIncrement: onIncrement,
+                onDecrement: onDecrement,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _FavoriteChip extends ConsumerWidget {
   const _FavoriteChip({required this.productId});
@@ -236,66 +295,45 @@ class _ImageWithDiscount extends StatelessWidget {
 
   final ProductModel product;
 
-  static const double _innerR = 14;
+  static const double _innerR = 12;
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(_innerR),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ColoredBox(
-              color: AppSurface.subtle.withValues(alpha: 0.5),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(_innerR),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ColoredBox(
+            color: AppSurface.subtle.withValues(alpha: 0.45),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Center(
                 child: Hero(
                   tag: productHeroTag(product.id),
                   child: CachedImage(
                     url: product.image,
                     fit: BoxFit.contain,
-                    borderRadius: BorderRadius.circular(_innerR - 4),
-                    memCacheWidth: 360,
+                    borderRadius: BorderRadius.circular(_innerR - 2),
+                    memCacheWidth: 400,
                   ),
                 ),
               ),
             ),
-            if (product.hasDiscount)
-              Positioned(
-                top: 0,
-                left: 0,
-                child: DiscountBadge(percent: product.discountPercent),
-              ),
+          ),
+          if (product.hasDiscount)
             Positioned(
-              left: 4,
-              bottom: 4,
-              right: 4,
-              child: ProductBadgesRow(product: product, maxBadges: 2),
+              top: 6,
+              left: 6,
+              child: DiscountBadge(percent: product.discountPercent),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Quantity extends StatelessWidget {
-  const _Quantity({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    if (text.isEmpty) return const SizedBox.shrink();
-    return Text(
-      text,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: GoogleFonts.poppins(
-        fontSize: 10.5,
-        color: AppSurface.textSecondary,
-        fontWeight: FontWeight.w500,
+          Positioned(
+            left: 4,
+            bottom: 4,
+            right: 4,
+            child: ProductBadgesRow(product: product, maxBadges: 2),
+          ),
+        ],
       ),
     );
   }
@@ -371,6 +409,7 @@ class _PriceBlock extends StatelessWidget {
             fontSize: 13.5,
             fontWeight: FontWeight.w700,
             color: AppSurface.textPrimary,
+            height: 1.1,
           ),
         ),
         if (hasDiscount)
@@ -379,16 +418,18 @@ class _PriceBlock extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              fontSize: 11,
+              fontSize: 10.5,
               color: AppSurface.textSecondary,
               decoration: TextDecoration.lineThrough,
+              height: 1.1,
             ),
           ),
       ],
     );
   }
 
-  String _money(double v) => '₹${v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 2)}';
+  String _money(double v) =>
+      '₹${v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 2)}';
 }
 
 class _CartControl extends StatelessWidget {
@@ -438,8 +479,8 @@ class _CartControl extends StatelessWidget {
     if (count == 0) {
       return Material(
         color: Colors.transparent,
-        elevation: 4,
-        shadowColor: AppColor.primary.withValues(alpha: 0.35),
+        elevation: 3,
+        shadowColor: AppColor.primary.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),

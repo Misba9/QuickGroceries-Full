@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:quick_grocery_admin/view/vendor/services/admin_vendor_client.dart';
 
 class VendorService extends ChangeNotifier {
   VendorModel? vendor;
@@ -164,6 +165,8 @@ class VendorService extends ChangeNotifier {
     }
   }
 
+  final AdminVendorClient _adminVendorClient = AdminVendorClient();
+
   Future<void> addVendor(BuildContext context) async {
     if (firstNameController.text.isEmpty) {
       showValidationDialog(context, "First Name cannot be empty.");
@@ -175,8 +178,7 @@ class VendorService extends ChangeNotifier {
       showValidationDialog(context, "Email cannot be empty.");
     } else if (passwordController.text.length < 8) {
       showValidationDialog(context, "Please enter 8 digit password.");
-    } else if (confirmController.text.trim() !=
-        passwordController.text.trim()) {
+    } else if (confirmController.text != passwordController.text) {
       showValidationDialog(context, "Password Not Match");
     } else if (shopNameController.text.isEmpty) {
       showValidationDialog(context, "Shop Name cannot be empty.");
@@ -187,31 +189,41 @@ class VendorService extends ChangeNotifier {
     } else if (imageBytes2 == null) {
       showValidationDialog(context, "Shop logo cannot be empty.");
     } else {
-      String vendorImage = await uploadImageToStorage(imageBytes!);
-      String shopImage = await uploadImageToStorage(imageBytes2!);
-      DocumentReference docRef = await FirebaseFirestore.instance
-          .collection('vendors')
-          .add({
-            "id": "",
-            "first_name": firstNameController.text,
-            "last_name": firstNameController.text,
-            "phone": phoneController.text,
-            "email": emailController.text,
-            "password": passwordController.text,
-            "shop_name": shopNameController.text,
-            "shop_address": shopAddressController.text,
-            "vendor_image": vendorImage,
-            "shop_image": shopImage,
-            "is_active": true,
-          });
-      String vendorId = docRef.id;
+      try {
+        isLoading = true;
+        notifyListeners();
 
-      await docRef.update({"id": vendorId});
-      isLoading = false;
-      showSuccessDialog(context);
-      resetFields();
+        final vendorImage = await uploadImageToStorage(imageBytes!);
+        final shopImage = await uploadImageToStorage(imageBytes2!);
 
-      notifyListeners();
+        final result = await _adminVendorClient.createVendorAccount(
+          email: emailController.text.trim(),
+          password: passwordController.text,
+          firstName: firstNameController.text.trim(),
+          lastName: secondNameController.text.trim(),
+          storeName: shopNameController.text.trim(),
+          phone: phoneController.text.trim(),
+          shopAddress: shopAddressController.text.trim(),
+          vendorImage: vendorImage,
+          shopImage: shopImage,
+        );
+
+        if (context.mounted) {
+          final uid = result['authUid']?.toString() ?? result['vendorId']?.toString() ?? '';
+          showSuccessDialog(context, vendorUid: uid);
+        }
+        resetFields();
+      } catch (e) {
+        if (context.mounted) {
+          showValidationDialog(
+            context,
+            e.toString().replaceFirst('Exception: ', ''),
+          );
+        }
+      } finally {
+        isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -281,7 +293,11 @@ class VendorService extends ChangeNotifier {
     );
   }
 
-  void showSuccessDialog(BuildContext context) {
+  void showSuccessDialog(
+    BuildContext context, {
+    String vendorUid = '',
+    String? message,
+  }) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -296,11 +312,16 @@ class VendorService extends ChangeNotifier {
               Text("Success", style: TextStyle(fontWeight: FontWeight.bold)),
             ],
           ),
-          content: Text("Vendor added successfully!"),
+          content: Text(
+            message ??
+                (vendorUid.isEmpty
+                    ? "Vendor added successfully!"
+                    : "Vendor added successfully!\nFirebase UID: $vendorUid\nFirestore: vendors/$vendorUid"),
+          ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
               child: Text("OK", style: TextStyle(color: Colors.blue)),
             ),
@@ -310,10 +331,49 @@ class VendorService extends ChangeNotifier {
     );
   }
 
+  Future<void> migrateVendorAuth(
+    BuildContext context, {
+    required String vendorDocId,
+    required String password,
+  }) async {
+    try {
+      isLoading = true;
+      notifyListeners();
+      final result = await _adminVendorClient.migrateVendorAuth(
+        vendorDocId: vendorDocId,
+        password: password,
+      );
+      if (context.mounted) {
+        final uid = result['authUid']?.toString() ?? '';
+        showSuccessDialog(
+          context,
+          vendorUid: uid,
+          message: uid.isEmpty
+              ? 'Vendor synced with Firebase Auth.'
+              : 'Firebase Auth synced!\nUID: $uid\nFirestore: vendors/$uid',
+        );
+      }
+      await gettVendors();
+    } catch (e) {
+      if (context.mounted) {
+        showValidationDialog(
+          context,
+          e.toString().replaceFirst('Exception: ', ''),
+        );
+      }
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> changeStatus(String id, bool value) async {
-    await FirebaseFirestore.instance.collection('vendors').doc(id).update(
-      {"is_active": value},
-    );
+    await FirebaseFirestore.instance.collection('vendors').doc(id).update({
+      "is_active": value,
+      "isBlocked": !value,
+      "isApproved": value,
+      "status": value ? "active" : "inactive",
+    });
     
     // Update local vendor if it matches
     if (vendor != null && vendor!.id == id) {

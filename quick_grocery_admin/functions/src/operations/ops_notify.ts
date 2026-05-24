@@ -23,21 +23,31 @@ export type OpsNotificationType =
   | "cod_received"
   | "payment_success"
   | "payment_failed"
+  | "payment_received"
   | "payment_released"
   | "refund_request"
   | "withdrawal_request"
   | "user_registered"
   | "vendor_registered"
+  | "vendor_request"
   | "vendor_approval"
+  | "vendor_approved"
+  | "vendor_rejected"
   | "delivery_registered"
+  | "delivery_assigned"
+  | "delivery_completed"
   | "driver_assigned"
   | "driver_rejected"
   | "driver_offline"
   | "delivery_delayed"
   | "low_stock"
+  | "stock_low"
   | "out_of_stock"
+  | "coupon_used"
   | "abandoned_cart"
   | "daily_summary"
+  | "system_update"
+  | "security_alert"
   | "password_reset_requested"
   | "password_reset_completed"
   | "failed_login_spike"
@@ -106,6 +116,19 @@ function buildDataPayload(parts: Record<string, string>): Record<string, string>
   return out;
 }
 
+function sourceAppForCategory(category: OpsCategory): string {
+  switch (category) {
+    case "users":
+      return "user_app";
+    case "vendors":
+      return "vendor_app";
+    case "delivery":
+      return "delivery_app";
+    default:
+      return "system";
+  }
+}
+
 /** In-app admin feed — real-time bell + history. */
 export async function writeAdminNotification(opts: {
   title: string;
@@ -117,10 +140,13 @@ export async function writeAdminNotification(opts: {
   soundAlert?: boolean;
   priority?: OpsPriority;
   sticky?: boolean;
+  sourceApp?: string;
 }): Promise<string> {
   const priority = opts.priority ?? priorityForType(opts.type);
   const soundType = soundTypeForCategory(opts.category);
-  const ref = await db.collection("admin_notifications").add({
+  const sourceApp = opts.sourceApp ?? sourceAppForCategory(opts.category);
+  const meta = opts.metadata || {};
+  const payload = {
     title: opts.title,
     message: opts.message,
     type: opts.type,
@@ -130,15 +156,23 @@ export async function writeAdminNotification(opts: {
     notification_message: opts.message,
     read: false,
     is_read: false,
-    soundAlert: opts.soundAlert ?? priority === "high" || priority === "urgent",
+    isRead: false,
+    soundAlert: opts.soundAlert ?? (priority === "high" || priority === "urgent"),
     sound_type: soundType,
+    priority,
     priority_level: priority,
     sticky: opts.sticky === true,
     targetAdminId: opts.targetAdminId || "",
-    metadata: opts.metadata || {},
+    target: "admin",
+    sourceApp,
+    metadata: meta,
+    data: meta,
     createdAt: FieldValue.serverTimestamp(),
     created_at: FieldValue.serverTimestamp(),
-  });
+  };
+
+  const ref = await db.collection("admin_notifications").add(payload);
+  await db.collection("notifications").doc(ref.id).set(payload);
   return ref.id;
 }
 

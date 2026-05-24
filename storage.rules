@@ -1,0 +1,12 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+  // Vendor signup images — public write (no Auth), read for admin review.
+    match /vendor_signup/{folder}/{fileName} {
+      allow read: if true;
+      allow write: if request.resource != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

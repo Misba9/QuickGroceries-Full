@@ -15,6 +15,7 @@ import 'package:quickgrocery/view/category/screens/category_screen.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_banner_helpers.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
 import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
@@ -107,26 +108,10 @@ class _HomeBannerVideoRailState extends ConsumerState<HomeBannerVideoRail> {
         if (videos.isEmpty) return const SizedBox.shrink();
 
         final header = widget.showHeader
-            ? Padding(
-                padding: EdgeInsets.only(bottom: widget.snapPaging ? 8 : 10),
-                child: Row(
-                  children: [
-                    Icon(Icons.play_circle_filled_rounded,
-                        color: AppColor.primary, size: 22),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        widget.title,
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
-                          color: AppSurface.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+            ? SectionHeader(
+                title: widget.title,
+                icon: Icons.play_circle_filled_rounded,
+                compact: true,
               )
             : null;
 

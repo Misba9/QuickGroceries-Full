@@ -106,6 +106,12 @@ class _VendorListScreenState extends State<VendorListScreen> {
                               ),
                               DataColumn(
                                 label: Text(
+                                  'Firebase Auth',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
                                   'Action',
                                   style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
@@ -206,8 +212,102 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                     ),
                                   ),
                                   DataCell(
+                                    Container(
+                                      padding: EdgeInsets.all(5),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        color: p.vendors![index].needsFirebaseAuthSync
+                                            ? Colors.orange.shade100
+                                            : Colors.green.shade100,
+                                      ),
+                                      child: Text(
+                                        p.vendors![index].needsFirebaseAuthSync
+                                            ? 'Not synced'
+                                            : 'Synced',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: p.vendors![index].needsFirebaseAuthSync
+                                              ? Colors.orange.shade900
+                                              : Colors.green.shade900,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
                                     Row(
                                       children: [
+                                        if (p.vendors![index].needsFirebaseAuthSync)
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.sync,
+                                              color: Colors.orange.shade800,
+                                            ),
+                                            tooltip: 'Sync Firebase Auth',
+                                            onPressed: () async {
+                                              final v = p.vendors![index];
+                                              final passwordController =
+                                                  TextEditingController();
+                                              final ok = await showDialog<bool>(
+                                                context: context,
+                                                builder: (ctx) => AlertDialog(
+                                                  title: const Text(
+                                                    'Sync Firebase Auth',
+                                                  ),
+                                                  content: Column(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment.stretch,
+                                                    children: [
+                                                      Text(
+                                                        'Create Firebase login for ${v.email}. '
+                                                        'Vendor will use this password in the vendor app.',
+                                                      ),
+                                                      const SizedBox(height: 12),
+                                                      TextField(
+                                                        controller: passwordController,
+                                                        obscureText: true,
+                                                        decoration: const InputDecoration(
+                                                          labelText: 'Password (min 8 chars)',
+                                                          border: OutlineInputBorder(),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(ctx, false),
+                                                      child: const Text('Cancel'),
+                                                    ),
+                                                    FilledButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(ctx, true),
+                                                      child: const Text('Sync'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                              if (ok != true ||
+                                                  passwordController.text.length < 8) {
+                                                passwordController.dispose();
+                                                return;
+                                              }
+                                              if (!context.mounted) {
+                                                passwordController.dispose();
+                                                return;
+                                              }
+                                              await Provider.of<VendorService>(
+                                                context,
+                                                listen: false,
+                                              ).migrateVendorAuth(
+                                                context,
+                                                vendorDocId: v.id,
+                                                password: passwordController.text,
+                                              );
+                                              passwordController.dispose();
+                                            },
+                                          ),
                                         IconButton(
                                           icon: Icon(
                                             Icons.security,

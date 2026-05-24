@@ -4,6 +4,7 @@ abstract final class AdminRoutes {
   static const userList = 'User List';
   static const vendorAdd = 'Vendor Add';
   static const vendorList = 'Vendor List';
+  static const vendorRequests = 'Vendor Requests';
 
   // Orders module
   static const ordersOverview = 'Overview';
@@ -37,6 +38,7 @@ abstract final class AdminRoutes {
     userList,
     vendorAdd,
     vendorList,
+    vendorRequests,
     ordersOverview,
     newOrders,
     manageOrders,

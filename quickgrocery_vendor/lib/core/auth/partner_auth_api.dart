@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import 'vendor_auth_errors.dart';
+
 /// Cloud Functions client for vendor partner auth.
 class PartnerAuthApi {
   PartnerAuthApi({FirebaseFunctions? functions})
@@ -26,11 +28,17 @@ class PartnerAuthApi {
     return {};
   }
 
-  Never _handleError(Object e) {
+  Never _handleError(Object e, {String context = 'request'}) {
     if (e is FirebaseFunctionsException) {
-      throw Exception(e.message ?? 'Request failed');
+      VendorAuthErrors.logDebug(
+        'callable=$context code=${e.code} message=${e.message}',
+      );
+      throw VendorAuthException(
+        VendorAuthErrors.fromFunctionsException(e),
+      );
     }
-    throw Exception(e.toString());
+    VendorAuthErrors.logDebug('callable=$context error=$e');
+    throw VendorAuthException(VendorAuthErrors.fromException(e));
   }
 
   Map<String, dynamic> _deviceInfo() => {
@@ -41,6 +49,7 @@ class PartnerAuthApi {
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
+      VendorAuthErrors.logDebug('partnerLogin email=${email.trim().toLowerCase()}');
       final res = await _callable('partnerLogin').call({
         'role': _role,
         'email': email.trim().toLowerCase(),
@@ -49,7 +58,7 @@ class PartnerAuthApi {
       });
       return _map(res.data);
     } catch (e) {
-      _handleError(e);
+      _handleError(e, context: 'partnerLogin');
     }
   }
 
@@ -60,7 +69,7 @@ class PartnerAuthApi {
         'email': email.trim().toLowerCase(),
       });
     } catch (e) {
-      _handleError(e);
+      _handleError(e, context: 'partnerRequestPasswordReset');
     }
   }
 
@@ -72,7 +81,7 @@ class PartnerAuthApi {
         'otp': otp.trim(),
       });
     } catch (e) {
-      _handleError(e);
+      _handleError(e, context: 'partnerVerifyResetOtp');
     }
   }
 
@@ -84,7 +93,7 @@ class PartnerAuthApi {
         'newPassword': newPassword,
       });
     } catch (e) {
-      _handleError(e);
+      _handleError(e, context: 'partnerCompletePasswordReset');
     }
   }
 
@@ -103,7 +112,7 @@ class PartnerAuthApi {
       final data = _map(res.data);
       return (data['sessionVersion'] as num?)?.toInt() ?? 0;
     } catch (e) {
-      _handleError(e);
+      _handleError(e, context: 'partnerUpdatePassword');
     }
   }
 
@@ -119,7 +128,7 @@ class PartnerAuthApi {
       });
       return _map(res.data);
     } catch (e) {
-      _handleError(e);
+      _handleError(e, context: 'partnerCheckSession');
     }
   }
 }

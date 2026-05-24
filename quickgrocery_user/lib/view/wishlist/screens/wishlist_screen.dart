@@ -30,7 +30,10 @@ class _WishlistScreenState extends State<WishlistScreen> {
     final wishlistProvider = Provider.of<WishlistService>(context);
 
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: Text('wishlist'.tr())),
+      appBar: AppBar(
+        centerTitle: false,
+        title: Text('wishlist'.tr()),
+      ),
       body: wishlistProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
           : wishlistProvider.wishlistProducts == null ||
@@ -57,8 +60,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.64,
+                  mainAxisSpacing: 9,
+                  childAspectRatio: 0.68,
                 ),
                 itemCount: wishlistProvider.wishlistProducts!.length,
                 itemBuilder: (context, i) {

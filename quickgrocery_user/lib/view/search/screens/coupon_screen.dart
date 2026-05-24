@@ -30,7 +30,10 @@ class _CouponScreenState extends State<CouponScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('coupons'.tr()), centerTitle: true),
+      appBar: AppBar(
+        centerTitle: false,
+        title: Text('coupons'.tr()),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

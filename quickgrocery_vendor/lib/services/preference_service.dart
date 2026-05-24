@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PreferenceService {
   static const String _vendorIdKey = 'vendor_id';
+  static const String _vendorProfileKey = 'vendor_profile_cache';
   static const String _isLoggedInKey = 'is_logged_in';
   static const String _sessionVersionKey = 'session_version';
   static const String _forcePasswordChangeKey = 'force_password_change';
@@ -10,6 +13,26 @@ class PreferenceService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_vendorIdKey, vendorId);
     await prefs.setBool(_isLoggedInKey, true);
+  }
+
+  static Future<void> saveVendorProfileCache(
+    Map<String, dynamic> profile,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_vendorProfileKey, jsonEncode(profile));
+  }
+
+  static Future<Map<String, dynamic>?> getVendorProfileCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_vendorProfileKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+    } catch (_) {}
+    return null;
   }
 
   static Future<String?> getVendorId() async {
@@ -45,6 +68,7 @@ class PreferenceService {
   static Future<void> clearVendorData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_vendorIdKey);
+    await prefs.remove(_vendorProfileKey);
     await prefs.remove(_isLoggedInKey);
     await prefs.remove(_sessionVersionKey);
     await prefs.remove(_forcePasswordChangeKey);

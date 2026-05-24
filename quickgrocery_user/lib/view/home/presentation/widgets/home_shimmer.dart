@@ -225,16 +225,16 @@ class HomeShimmer {
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 0.56,
+        mainAxisSpacing: 8,
+        childAspectRatio: 0.60,
       ),
       itemCount: count,
       itemBuilder: (_, __) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.max,
         children: [
-          Expanded(child: AspectRatio(aspectRatio: 1, child: _box(radius: 12))),
-          const SizedBox(height: 8),
+          Expanded(child: _box(radius: 12)),
+          const SizedBox(height: 6),
           _box(height: 10, width: 80),
           const SizedBox(height: 6),
           _box(height: 10, width: 120),

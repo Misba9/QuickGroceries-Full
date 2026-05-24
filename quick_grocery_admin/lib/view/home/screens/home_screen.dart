@@ -39,6 +39,7 @@ import 'package:quick_grocery_admin/view/support_settings/screens/support_settin
 import 'package:quick_grocery_admin/view/users/screens/user_screen.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_add_screen.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
+import 'package:quick_grocery_admin/view/vendor/screens/vendor_requests_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -86,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
       slot(AdminRoutes.userList, UsersScreen()),
       slot(AdminRoutes.vendorAdd, VendorAddScreen()),
       slot(AdminRoutes.vendorList, VendorListScreen()),
+      slot(AdminRoutes.vendorRequests, const VendorRequestsScreen()),
       slot(AdminRoutes.ordersOverview, const OrdersOverviewScreen()),
       slot(AdminRoutes.newOrders, const NewOrdersScreen()),
       slot(AdminRoutes.manageOrders, const ManageOrdersScreen()),

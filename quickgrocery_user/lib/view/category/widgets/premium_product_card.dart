@@ -168,15 +168,20 @@ class _ImageSurface extends StatelessWidget {
           children: [
             ColoredBox(
               color: AppSurface.subtle,
-              child: Hero(
-                tag: heroTag,
-                child: CachedImage(url: imageUrl, fit: BoxFit.cover),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Center(
+                  child: Hero(
+                    tag: heroTag,
+                    child: CachedImage(url: imageUrl, fit: BoxFit.contain),
+                  ),
+                ),
               ),
             ),
             if (discountPct > 0)
               Positioned(
-                top: 0,
-                left: 0,
+                top: 6,
+                left: 6,
                 child: DiscountBadge(percent: discountPct),
               ),
           ],

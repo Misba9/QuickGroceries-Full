@@ -1,20 +1,42 @@
 # quickgrocery_vendor
 
-A new Flutter project.
+## Run
 
-## Getting Started
-
+```bash
 flutter clean
-flutter pub get 
+flutter pub get
 flutter run
+```
 
-#for apk build
+## Vendor signup → approval → login
 
- flutter pub get 
- flutter build apk --release
+1. **Sign up** (Vendor app) → saves to `vendor_requests/` + pending flag (no Firebase Auth, no Cloud Functions).
+2. **Admin** → Vendor → **Vendor Requests** → Approve / Reject / Delete.
+3. **Approve** creates Firebase Auth + `vendors/{auth.uid}` with the same email/password from the request.
+4. **Login** with that email/password after approval.
 
+### Deploy rules (required once)
 
-#vendor login
+From `quick_grocery_admin/`:
 
-test@test.com
-Test@123
+```bash
+firebase deploy --only firestore:rules,storage
+```
+
+## Login messages
+
+| Case | Message |
+|------|---------|
+| Pending signup | Waiting for admin approval |
+| Wrong password | Invalid password |
+| No Auth account | Vendor account not approved yet |
+| Blocked | Your account is blocked |
+
+## Forgot password
+
+`sendPasswordResetEmail` — only works after admin approval (Firebase Auth exists).
+
+## Firebase Console
+
+- Enable **Email/Password** authentication
+- Project: `quikgroceries`

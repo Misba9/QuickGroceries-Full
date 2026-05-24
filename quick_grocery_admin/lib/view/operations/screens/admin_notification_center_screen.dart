@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:quick_grocery_admin/core/layout/admin_routes.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/operations/models/ops_notification_model.dart';
@@ -11,6 +11,7 @@ import 'package:quick_grocery_admin/view/operations/services/admin_alert_sound_s
 import 'package:quick_grocery_admin/view/operations/services/admin_notification_service.dart';
 import 'package:quick_grocery_admin/view/operations/services/ops_sound_prefs.dart';
 import 'package:quick_grocery_admin/view/orders/screens/order_details_screen.dart';
+import 'package:quick_grocery_admin/view/vendor/services/vendor_request_service.dart';
 
 class AdminNotificationCenterScreen extends StatefulWidget {
   const AdminNotificationCenterScreen({super.key});
@@ -38,6 +39,10 @@ class _AdminNotificationCenterScreenState
     final svc = context.watch<AdminNotificationService>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF121212) : const Color(0xFFFFFAF0);
+    final items = svc.filtered(category: _filter, query: _search);
+    final sticky = items.where((n) => n.sticky && !n.read).toList();
+    final normal = items.where((n) => !n.sticky || n.read).toList();
+    final grouped = _groupByDay(normal);
 
     return Scaffold(
       backgroundColor: bg,
@@ -121,63 +126,54 @@ class _AdminNotificationCenterScreenState
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Text(
-                    'Firestore error: ${svc.error}\n'
-                    'Deploy rules/indexes and Cloud Functions, then retry.',
+                    svc.error!,
                     style: TextStyle(color: Colors.red.shade900, fontSize: 12),
                   ),
                 ),
               ),
             ),
           Expanded(
-            child: StreamBuilder<List<OpsNotificationModel>>(
-              stream: svc.streamPage(category: _filter),
-              builder: (context, snap) {
-                if (snap.connectionState == ConnectionState.waiting &&
-                    !snap.hasData) {
-                  return _skeletonList();
-                }
-                if (snap.hasError) {
-                  return Center(child: Text('Error: ${snap.error}'));
-                }
-                var items = svc.filterByQuery(snap.data ?? [], _search);
-                final sticky = items
-                    .where((n) => n.sticky && !n.read)
-                    .toList();
-                items = items.where((n) => !n.sticky || n.read).toList();
-                final grouped = _groupByDay(items);
-
-                if (sticky.isEmpty && grouped.isEmpty) {
-                  return _emptyState(context);
-                }
-
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
-                  children: [
-                    if (sticky.isNotEmpty) ...[
-                      _sectionTitle('Important'),
-                      ...sticky.map(
-                        (n) => _NotificationTile(
-                          notification: n,
-                          onTap: () => _open(context, n),
-                          onDelete: () => svc.deleteNotification(n.id),
-                        ),
+            child: svc.loading
+                ? _skeletonList()
+                : sticky.isEmpty && grouped.isEmpty
+                    ? _emptyState(context)
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
+                        children: [
+                          if (sticky.isNotEmpty) ...[
+                            _sectionTitle('Important'),
+                            ...sticky.map(
+                              (n) => _NotificationTile(
+                                notification: n,
+                                onTap: () => _open(context, n),
+                                onDelete: () => svc.deleteNotification(n),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          for (final entry in grouped.entries) ...[
+                            _sectionTitle(entry.key),
+                            ...entry.value.map(
+                              (n) => _NotificationTile(
+                                notification: n,
+                                onTap: () => _open(context, n),
+                                onDelete: () => svc.deleteNotification(n),
+                              ),
+                            ),
+                          ],
+                          if (svc.hasMore)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Center(
+                                child: OutlinedButton.icon(
+                                  onPressed: svc.loadMore,
+                                  icon: const Icon(Icons.expand_more),
+                                  label: const Text('Load older'),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                    ],
-                    for (final entry in grouped.entries) ...[
-                      _sectionTitle(entry.key),
-                      ...entry.value.map(
-                        (n) => _NotificationTile(
-                          notification: n,
-                          onTap: () => _open(context, n),
-                          onDelete: () => svc.deleteNotification(n.id),
-                        ),
-                      ),
-                    ],
-                  ],
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -189,11 +185,14 @@ class _AdminNotificationCenterScreenState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.notifications_none_outlined,
-              size: 64, color: Colors.grey.shade400),
+          Icon(
+            Icons.notifications_none_outlined,
+            size: 64,
+            color: Colors.grey.shade400,
+          ),
           const SizedBox(height: 12),
           Text(
-            'No notifications yet',
+            'No Notifications Yet',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -202,7 +201,7 @@ class _AdminNotificationCenterScreenState
           ),
           const SizedBox(height: 8),
           Text(
-            'Place an order or tap “Test alert” after deploying functions.',
+            'Activity from user, vendor, and delivery apps appears here in real time.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
           ),
@@ -216,7 +215,7 @@ class _AdminNotificationCenterScreenState
       padding: const EdgeInsets.all(16),
       itemCount: 6,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => Container(
+      itemBuilder: (_, __) => Container(
         height: 72,
         decoration: BoxDecoration(
           color: Colors.grey.shade200,
@@ -245,7 +244,7 @@ class _AdminNotificationCenterScreenState
         } else if (diff.inDays == 1) {
           key = 'Yesterday';
         } else {
-          key = DateFormat('MMM d, yyyy').format(d);
+          key = '${d.day}/${d.month}/${d.year}';
         }
       }
       map.putIfAbsent(key, () => []).add(n);
@@ -280,7 +279,9 @@ class _AdminNotificationCenterScreenState
     } on FirebaseFunctionsException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Deploy seedAdminTestNotification')),
+          SnackBar(
+            content: Text(e.message ?? 'Deploy seedAdminTestNotification'),
+          ),
         );
       }
     } catch (e) {
@@ -321,7 +322,10 @@ class _AdminNotificationCenterScreenState
                     value: prefs.volume,
                     onChanged: prefs.enabled ? prefs.setVolume : null,
                   ),
-                  const Text('Preview', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const Text(
+                    'Preview',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -329,14 +333,15 @@ class _AdminNotificationCenterScreenState
                       for (final s in [
                         'orders',
                         'users',
+                        'vendors',
                         'payments',
                         'stock',
                         'delivery',
+                        'security',
                       ])
                         ActionChip(
                           label: Text(s),
-                          onPressed: () =>
-                              AdminAlertSoundService.preview(s),
+                          onPressed: () => AdminAlertSoundService.preview(s),
                         ),
                     ],
                   ),
@@ -368,24 +373,167 @@ class _AdminNotificationCenterScreenState
 
   Future<void> _open(BuildContext context, OpsNotificationModel n) async {
     final svc = context.read<AdminNotificationService>();
-    await svc.markRead(n.id);
-    final orderId = n.orderId;
-    if (orderId != null && orderId.isNotEmpty && context.mounted) {
-      final doc = await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(orderId)
-          .get();
-      if (doc.exists && context.mounted) {
-        final order = OrderModel.fromFirestore(doc.data()!, doc.id);
-        if (context.mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => OrderDetailsScreen(order: order),
-            ),
-          );
-        }
+    await svc.markRead(n.id, collectionName: n.collectionName);
+
+    if (!context.mounted) return;
+
+  final type = n.type.toLowerCase();
+  if (type.contains('vendor') && n.requestId != null) {
+    await _showVendorRequestActions(context, n);
+    return;
+  }
+
+  final orderId = n.orderId;
+  if (orderId != null && orderId.isNotEmpty) {
+    final doc = await FirebaseFirestore.instance
+        .collection('orders')
+        .doc(orderId)
+        .get();
+    if (doc.exists && context.mounted) {
+      final order = OrderModel.fromFirestore(doc.data()!, doc.id);
+      if (context.mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => OrderDetailsScreen(order: order),
+          ),
+        );
       }
     }
+    return;
+  }
+
+  if (n.category == OpsNotificationCategory.users && context.mounted) {
+    _popToHomeRoute(context, AdminRoutes.userList);
+    return;
+  }
+
+  if (n.category == OpsNotificationCategory.delivery && context.mounted) {
+    _popToHomeRoute(context, AdminRoutes.deliveryBoyList);
+    return;
+  }
+
+  if (context.mounted) {
+    _showDetailSheet(context, n);
+  }
+  }
+
+  void _popToHomeRoute(BuildContext context, String route) {
+    Navigator.of(context).popUntil((r) => r.isFirst);
+    // HomeScreen uses internal navigation — show snackbar hint.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Open “$route” from the sidebar.')),
+    );
+  }
+
+  Future<void> _showVendorRequestActions(
+    BuildContext context,
+    OpsNotificationModel n,
+  ) async {
+    final requestId = n.requestId;
+    if (requestId == null) return;
+    final requestService = context.read<VendorRequestService>();
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                n.title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(n.message),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).popUntil((r) => r.isFirst);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Open Vendor Requests from the sidebar.'),
+                    ),
+                  );
+                },
+                child: const Text('View vendor requests'),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: requestService.isActionLoading
+                          ? null
+                          : () async {
+                              Navigator.pop(ctx);
+                              await requestService.reject(
+                                requestId,
+                                'Rejected from notification',
+                              );
+                            },
+                      child: const Text('Reject'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: requestService.isActionLoading
+                          ? null
+                          : () async {
+                              Navigator.pop(ctx);
+                              await requestService.approve(requestId);
+                            },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColor.primary,
+                      ),
+                      child: const Text('Approve'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDetailSheet(BuildContext context, OpsNotificationModel n) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              n.title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(n.message),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: [
+                Chip(label: Text(n.category.name)),
+                Chip(label: Text(n.type)),
+                if (n.sourceApp.isNotEmpty) Chip(label: Text(n.sourceApp)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -426,9 +574,7 @@ class _NotificationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final n = notification;
-    final time = n.createdAt != null
-        ? DateFormat('HH:mm').format(n.createdAt!)
-        : '';
+    final time = relativeTimestamp(n.createdAt);
     final accent = _categoryColor(n.category);
     final urgent = n.isUrgent && !n.read;
 
@@ -468,12 +614,17 @@ class _NotificationTile extends StatelessWidget {
               children: [
                 CircleAvatar(
                   backgroundColor: accent.withValues(alpha: 0.12),
-                  child: Icon(_iconData(n.category), color: accent, size: 20),
+                  child: Icon(
+                    iconForCategory(n.category),
+                    color: accent,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
                         children: [
@@ -497,14 +648,21 @@ class _NotificationTile extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(n.message),
+                      Text(n.message, maxLines: 3, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 6),
                       Wrap(
                         spacing: 6,
+                        runSpacing: 4,
                         children: [
                           _tag(n.category.name, accent),
+                          if (n.sourceApp.isNotEmpty &&
+                              n.sourceApp != 'system')
+                            _tag(n.sourceApp, Colors.blueGrey),
                           if (n.priority != OpsNotificationPriority.normal)
-                            _tag(n.priority.name, urgent ? Colors.red : accent),
+                            _tag(
+                              n.priority.name,
+                              urgent ? Colors.red : accent,
+                            ),
                         ],
                       ),
                     ],
@@ -543,31 +701,12 @@ class _NotificationTile extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          fontSize: 10,
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
-  }
-
-  IconData _iconData(OpsNotificationCategory c) {
-    switch (c) {
-      case OpsNotificationCategory.users:
-        return Icons.person_add_outlined;
-      case OpsNotificationCategory.vendors:
-        return Icons.storefront_outlined;
-      case OpsNotificationCategory.stock:
-        return Icons.inventory_2_outlined;
-      case OpsNotificationCategory.delivery:
-        return Icons.delivery_dining_outlined;
-      case OpsNotificationCategory.payments:
-        return Icons.payments_outlined;
-      case OpsNotificationCategory.security:
-        return Icons.shield_outlined;
-      case OpsNotificationCategory.promotions:
-        return Icons.campaign_outlined;
-      case OpsNotificationCategory.system:
-        return Icons.insights_outlined;
-      default:
-        return Icons.shopping_bag_outlined;
-    }
   }
 }

@@ -148,6 +148,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
             slivers: [
               SliverAppBar(
                 pinned: true,
+                centerTitle: false,
                 elevation: 0,
                 backgroundColor: AppSurface.background,
                 surfaceTintColor: Colors.transparent,
@@ -312,12 +313,13 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
               if (pageAsync.hasError && primary.isEmpty && fallback == null)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: Center(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
                     child: Padding(
                       padding: EdgeInsets.all(gutter),
                       child: Text(
                         'Could not load offers. Pull to retry.',
-                        textAlign: TextAlign.center,
+                        textAlign: TextAlign.start,
                         style: GoogleFonts.poppins(
                           color: AppSurface.textSecondary,
                         ),
@@ -368,7 +370,7 @@ class _OffersHeroCarousel extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         child: Container(
           height: 200,
-          alignment: Alignment.center,
+          alignment: Alignment.centerLeft,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -381,7 +383,7 @@ class _OffersHeroCarousel extends StatelessWidget {
           child: Text(
             'No active promo in Offers yet. Add a video or image banner in '
             'Admin → Banner (enable “Show on Offers page”).',
-            textAlign: TextAlign.center,
+            textAlign: TextAlign.start,
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w600,
               color: AppSurface.textSecondary,

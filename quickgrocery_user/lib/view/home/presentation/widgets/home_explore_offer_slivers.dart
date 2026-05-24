@@ -120,8 +120,8 @@ List<Widget> buildHomeExploreOfferSlivers({
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: cols,
                 crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: cols >= 4 ? 0.62 : 0.56,
+                mainAxisSpacing: 8,
+                childAspectRatio: cols >= 4 ? 0.66 : 0.60,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, i) => HomeProductCard(product: slice[i]),

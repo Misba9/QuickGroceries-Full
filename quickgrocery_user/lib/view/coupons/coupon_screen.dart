@@ -7,6 +7,7 @@ import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
 import 'package:quickgrocery/view/cart/data/coupon_service.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 
 class CouponScreen extends ConsumerStatefulWidget {
   const CouponScreen({super.key, this.checkoutPhone});
@@ -166,10 +167,10 @@ class _CouponScreenState extends ConsumerState<CouponScreen> {
                     return ListView(
                       children: [
                         if (firstOrder.isNotEmpty) ...[
-                          _SectionTitle(
+                          SectionHeader(
                             title: 'First Order Offer',
                             icon: Icons.celebration_outlined,
-                            color: Colors.deepOrange,
+                            compact: true,
                           ),
                           ...firstOrder.map(
                             (c) => _CouponTile(
@@ -185,9 +186,10 @@ class _CouponScreenState extends ConsumerState<CouponScreen> {
                           const SizedBox(height: 12),
                         ],
                         if (others.isNotEmpty) ...[
-                          const _SectionTitle(
+                          const SectionHeader(
                             title: 'More offers',
                             icon: Icons.local_offer_outlined,
+                            compact: true,
                           ),
                           ...others.map(
                             (c) => _CouponTile(
@@ -217,39 +219,6 @@ class _CouponScreenState extends ConsumerState<CouponScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({
-    required this.title,
-    required this.icon,
-    this.color,
-  });
-
-  final String title;
-  final IconData icon;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: color ?? Colors.grey.shade700),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 15,
-              color: color ?? Colors.black87,
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:quick_grocery_admin/core/firebase/admin_firebase_options.dart';
 import 'package:quick_grocery_admin/view/auth/services/login_service.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/services/delivery_boy_service.dart';
 import 'package:quick_grocery_admin/view/delivery_location/services/delivery_zone_service.dart';
@@ -12,6 +13,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:quick_grocery_admin/view/vendor/services/vendor_request_service.dart';
 import 'package:quick_grocery_admin/view/vendor/services/vendor_service.dart';
 import 'package:quick_grocery_admin/view/platform_fee/services/platform_fee_service.dart';
 import 'package:quick_grocery_admin/view/push_notifications/services/notification_admin_service.dart';
@@ -37,13 +39,7 @@ Future<void> main() async {
   };
 
   await Firebase.initializeApp(
-    options: FirebaseOptions(
-      storageBucket: "quikgroceries.firebasestorage.app",
-      apiKey: "AIzaSyAP3YkC0R7qvX28VbNZ2L486lRCA4hRH4c",
-      appId: "1:970937777233:web:5a78d782494d55836e0c70",
-      messagingSenderId: "970937777233",
-      projectId: "quikgroceries",
-    ),
+    options: AdminFirebaseOptions.current,
   );
   runApp(const MyApp());
 }
@@ -59,6 +55,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => ProductService()),
         ChangeNotifierProvider(create: (context) => UserService()),
         ChangeNotifierProvider(create: (context) => VendorService()),
+        ChangeNotifierProvider(create: (context) => VendorRequestService()),
         ChangeNotifierProvider(create: (context) => OrderService()),
         ChangeNotifierProvider(create: (context) => LoginService()),
         ChangeNotifierProvider(create: (context) => DeliveryBoyService()),
