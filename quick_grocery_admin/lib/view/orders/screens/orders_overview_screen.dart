@@ -2,16 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/view/orders/services/order_service.dart';
-import 'package:quick_grocery_admin/view/orders/widgets/order_details_drawer.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/orders_charts_section.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/orders_kpi_section.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/orders_loading_skeleton.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/orders_operational_insights.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/orders_overview_header.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/orders_page_shell.dart';
-import 'package:quick_grocery_admin/view/orders/widgets/orders_recent_section.dart';
 
 /// Orders dashboard — KPIs, charts, insights (no order table).
 class OrdersOverviewScreen extends StatefulWidget {
@@ -48,8 +45,6 @@ class _OrdersOverviewScreenState extends State<OrdersOverviewScreen> {
     if (mounted) setState(() => _lastRefreshed = DateTime.now());
   }
 
-  void _openOrder(OrderModel order) => showOrderDetailsDrawer(context, order);
-
   @override
   Widget build(BuildContext context) {
     final svc = context.watch<OrderService>();
@@ -70,19 +65,41 @@ class _OrdersOverviewScreenState extends State<OrdersOverviewScreen> {
           else ...[
             OrdersKpiSection(analytics: svc.analytics),
             const SizedBox(height: 24),
-            OrdersChartsSection(
-              ordersTrend: svc.ordersTrendLast7Days(),
-              revenueTrend: svc.revenueTrendLast7Days(),
-            ),
-            const SizedBox(height: 24),
-            OrdersOperationalInsightsSection(
-              insights: svc.operationalInsights,
-              analytics: svc.analytics,
-            ),
-            const SizedBox(height: 24),
-            OrdersRecentSection(
-              orders: svc.recentOrdersForOverview,
-              onView: _openOrder,
+            LayoutBuilder(
+              builder: (context, c) {
+                final wide = c.maxWidth >= 1100;
+                final charts = OrdersChartsSection(
+                  ordersTrend: svc.ordersTrendLast7Days(),
+                  revenueTrend: svc.revenueTrendLast7Days(),
+                  chartHeight: wide ? 300 : 280,
+                );
+                final insights = OrdersOperationalInsightsSection(
+                  insights: svc.operationalInsights,
+                  analytics: svc.analytics,
+                  expanded: wide,
+                );
+
+                if (wide) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 3, child: charts),
+                      const SizedBox(width: 24),
+                      Expanded(flex: 2, child: insights),
+                    ],
+                  );
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    charts,
+                    const SizedBox(height: 24),
+                    insights,
+                  ],
+                );
+              },
             ),
           ],
         ],

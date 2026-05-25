@@ -24,34 +24,18 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final DashboardService _dashboardService = DashboardService();
-  DashboardStats? _stats;
-  bool _isLoading = true;
-  String? _error;
+  Stream<DashboardStats>? _statsStream;
 
   @override
   void initState() {
     super.initState();
-    _loadStats();
+    _statsStream = _dashboardService.watchVendorStats(widget.vendor.id);
   }
 
-  Future<void> _loadStats() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final stats = await _dashboardService.getVendorStats(widget.vendor.id);
-      setState(() {
-        _stats = stats;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
+  @override
+  void dispose() {
+    _dashboardService.stopWatching();
+    super.dispose();
   }
 
   String _formatCurrency(double amount) {
@@ -88,57 +72,65 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadStats,
+            onPressed: () {
+              _dashboardService.stopWatching();
+              setState(() {
+                _statsStream =
+                    _dashboardService.watchVendorStats(widget.vendor.id);
+              });
+            },
             tooltip: 'Refresh',
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red[300],
-                      ),
-                      AppSpacing.h20,
-                      Text(
-                        'Error loading statistics',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                      AppSpacing.h10,
-                      Text(
-                        _error!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      AppSpacing.h20,
-                      ElevatedButton(
-                        onPressed: _loadStats,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColor.primary,
-                          foregroundColor: Colors.black,
-                        ),
-                        child: const Text('Retry'),
-                      ),
-                    ],
+      body: StreamBuilder<DashboardStats>(
+        stream: _statsStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                  AppSpacing.h20,
+                  Text('Error loading statistics',
+                      style: TextStyle(fontSize: 18, color: Colors.grey[700])),
+                  AppSpacing.h10,
+                  Text('${snapshot.error}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[600])),
+                  AppSpacing.h20,
+                  ElevatedButton(
+                    onPressed: () {
+                      _dashboardService.stopWatching();
+                      setState(() {
+                        _statsStream = _dashboardService
+                            .watchVendorStats(widget.vendor.id);
+                      });
+                    },
+                    child: const Text('Retry'),
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadStats,
-                  child: SingleChildScrollView(
+                ],
+              ),
+            );
+          }
+
+          final stats = snapshot.data ?? DashboardStats.empty;
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              _dashboardService.stopWatching();
+              setState(() {
+                _statsStream =
+                    _dashboardService.watchVendorStats(widget.vendor.id);
+              });
+              await Future<void>.delayed(const Duration(milliseconds: 400));
+            },
+            child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -194,27 +186,27 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             _StatCard(
                               title: 'Total Orders',
-                              value: '${_stats?.totalOrders ?? 0}',
+                              value: '${stats.totalOrders}',
                               icon: Icons.shopping_cart_outlined,
                               color: Colors.blue,
                               onTap: widget.onNavigateToOrders,
                             ),
                             _StatCard(
                               title: 'Active Orders',
-                              value: '${_stats?.activeOrders ?? 0}',
+                              value: '${stats.activeOrders}',
                               icon: Icons.pending_actions_outlined,
                               color: Colors.orange,
                             ),
                             _StatCard(
-                              title: 'Total Products',
-                              value: '${_stats?.totalProducts ?? 0}',
+                              title: 'Active Products',
+                              value: '${stats.activeProducts}',
                               icon: Icons.inventory_2_outlined,
                               color: Colors.green,
                               onTap: widget.onNavigateToProducts,
                             ),
                             _StatCard(
                               title: 'Total Revenue',
-                              value: _formatCurrency(_stats?.totalRevenue ?? 0.0),
+                              value: _formatCurrency(stats.totalRevenue),
                               icon: Icons.currency_rupee,
                               color: Colors.purple,
                             ),
@@ -235,21 +227,21 @@ class _HomeScreenState extends State<HomeScreen> {
                         _DetailCard(
                           icon: Icons.check_circle_outline,
                           title: 'Completed Orders',
-                          value: '${_stats?.completedOrders ?? 0}',
+                          value: '${stats.completedOrders}',
                           color: Colors.green,
                         ),
                         AppSpacing.h10,
                         _DetailCard(
                           icon: Icons.hourglass_empty_outlined,
                           title: 'Pending Orders',
-                          value: '${_stats?.pendingOrders ?? 0}',
+                          value: '${stats.pendingOrders}',
                           color: Colors.orange,
                         ),
                         AppSpacing.h10,
                         _DetailCard(
                           icon: Icons.cancel_outlined,
                           title: 'Cancelled Orders',
-                          value: '${_stats?.cancelledOrders ?? 0}',
+                          value: '${stats.cancelledOrders}',
                           color: Colors.red,
                         ),
                         AppSpacing.h20,
@@ -292,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               AppSpacing.h15,
                               Text(
-                                _formatCurrency(_stats?.todayRevenue ?? 0.0),
+                                _formatCurrency(stats.todayRevenue),
                                 style: TextStyle(
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold,
@@ -302,11 +294,27 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
+                        AppSpacing.h10,
+                        _DetailCard(
+                          icon: Icons.date_range_outlined,
+                          title: 'This Week',
+                          value: _formatCurrency(stats.weeklyRevenue),
+                          color: Colors.indigo,
+                        ),
+                        AppSpacing.h10,
+                        _DetailCard(
+                          icon: Icons.calendar_month_outlined,
+                          title: 'This Month',
+                          value: _formatCurrency(stats.monthlyRevenue),
+                          color: Colors.deepPurple,
+                        ),
                         AppSpacing.h20,
                       ],
                     ),
                   ),
-                ),
+                );
+        },
+      ),
       bottomNavigationBar: widget.bottomNavigationBar,
     );
   }

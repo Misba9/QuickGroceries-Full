@@ -1,8 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:quickgrocery_vendor/models/rating_model.dart';
+import 'package:quickgrocery_vendor/services/vendor_review_service.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
 
 class VendorReviewsScreen extends StatefulWidget {
@@ -22,89 +22,181 @@ class VendorReviewsScreen extends StatefulWidget {
 }
 
 class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
+  final _reviewService = VendorReviewService();
+  late final Stream<List<RatingModel>> _reviewsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _reviewsStream = _reviewService.watchVendorReviews(widget.vendorId);
+  }
+
+  List<RatingModel> _filter(List<RatingModel> all) {
+    if (widget.productId == null) return all;
+    return all.where((r) => r.productId == widget.productId).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
-        .collection('ratings')
-        .where('vendor_id', isEqualTo: widget.vendorId);
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.productName ?? 'Customer reviews'),
         backgroundColor: AppColor.primary,
         foregroundColor: Colors.black,
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: query.snapshots(),
+      body: StreamBuilder<List<RatingModel>>(
+        stream: _reviewsStream,
         builder: (context, snap) {
-          if (!snap.hasData) {
+          if (snap.connectionState == ConnectionState.waiting &&
+              !snap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          var docs = snap.data!.docs;
-          if (widget.productId != null) {
-            docs = docs
-                .where((d) => d.data()['product_id'] == widget.productId)
-                .toList();
+          if (snap.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 12),
+                  Text('Could not load reviews\n${snap.error}',
+                      textAlign: TextAlign.center),
+                ],
+              ),
+            );
           }
-          docs = docs.where((d) {
-            final status = (d.data()['status'] ?? 'approved').toString();
-            return status == 'approved' && d.data()['hidden'] != true;
-          }).toList();
 
+          final docs = _filter(snap.data ?? []);
           if (docs.isEmpty) {
-            return const Center(child: Text('No reviews yet'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.rate_review_outlined,
+                      size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 12),
+                  const Text('No reviews yet',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Reviews appear when customers rate your products',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
           }
 
-          double sum = 0;
-          for (final d in docs) {
-            sum += (d.data()['rating'] as num?)?.toDouble() ?? 0;
-          }
+          final sum = docs.fold<double>(0, (s, r) => s + r.rating);
           final avg = sum / docs.length;
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               Card(
-                child: ListTile(
-                  title: Text('Average ${avg.toStringAsFixed(1)} / 5'),
-                  subtitle: Text('${docs.length} reviews'),
-                  trailing: RatingBarIndicator(
-                    rating: avg,
-                    itemBuilder: (_, __) => const Icon(Icons.star, color: Colors.amber),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              avg.toStringAsFixed(1),
+                              style: const TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text('${docs.length} reviews'),
+                          ],
+                        ),
+                      ),
+                      RatingBarIndicator(
+                        rating: avg,
+                        itemBuilder: (_, __) =>
+                            const Icon(Icons.star, color: Colors.amber),
+                      ),
+                    ],
                   ),
                 ),
               ),
               const SizedBox(height: 12),
-              ...docs.map((doc) {
-                final r = RatingModel.fromFirestore(doc.data(), doc.id);
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: ListTile(
-                    title: Text(r.productName),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(r.review, maxLines: 3, overflow: TextOverflow.ellipsis),
-                        if (r.verifiedPurchase)
-                          const Text(
-                            'Verified Purchase',
-                            style: TextStyle(color: Colors.blue, fontSize: 11),
-                          ),
-                      ],
-                    ),
-                    trailing: Text('${r.rating}★'),
-                    onTap: () => _replyDialog(doc.id, r),
-                  ),
-                );
-              }),
+              ...docs.map((r) => _ReviewCard(review: r, vendorId: widget.vendorId)),
             ],
           );
         },
       ),
     );
   }
+}
 
-  Future<void> _replyDialog(String reviewId, RatingModel r) async {
+class _ReviewCard extends StatelessWidget {
+  const _ReviewCard({required this.review, required this.vendorId});
+
+  final RatingModel review;
+  final String vendorId;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = review.createdAt.toDate();
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    review.userName.isEmpty ? 'Customer' : review.userName,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                Text('${review.rating.toStringAsFixed(1)}★'),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(review.productName,
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+            if (review.orderId.isNotEmpty)
+              Text('Order #${review.orderId.length > 8 ? review.orderId.substring(review.orderId.length - 8) : review.orderId}',
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+            Text(
+              '${date.day}/${date.month}/${date.year}',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+            ),
+            if (review.review.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(review.review),
+            ],
+            if (review.verifiedPurchase)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('Verified purchase',
+                    style: TextStyle(color: Colors.blue, fontSize: 11)),
+              ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => _replyDialog(context, review.id, review),
+                child: const Text('Reply'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _replyDialog(
+    BuildContext context,
+    String reviewId,
+    RatingModel r,
+  ) async {
     final controller = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
@@ -116,8 +208,12 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
           decoration: const InputDecoration(hintText: 'Your response…'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Send')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Send')),
         ],
       ),
     );
@@ -127,16 +223,16 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
           .httpsCallable('vendorReplyProductReview')
           .call({
         'reviewId': reviewId,
-        'vendorId': widget.vendorId,
+        'vendorId': vendorId,
         'text': controller.text.trim(),
       });
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Reply sent')),
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$e')),
         );

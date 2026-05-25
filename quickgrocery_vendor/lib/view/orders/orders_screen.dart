@@ -24,26 +24,34 @@ class OrdersScreen extends StatefulWidget {
 class _OrdersScreenState extends State<OrdersScreen> {
   final OrderService _orderService = OrderService();
   String _selectedFilter = 'All';
+  Stream<List<OrderModel>>? _ordersStream;
 
   final List<String> _filterOptions = [
     'All',
-    'Waiting',
-    'Order Confirm',
-    'Going to Shop',
-    'Order Picked',
-    'On the Way',
-    'Order Delivered',
+    'waiting',
+    'confirmed',
+    'processing',
+    'shipped',
+    'delivered',
+    'cancelled',
   ];
 
-  Stream<List<OrderModel>> _getOrdersStream() {
-    if (_selectedFilter == 'All') {
-      return _orderService.getVendorOrders(widget.vendor.id);
-    } else {
-      return _orderService.getVendorOrdersByStatus(
-        widget.vendor.id,
-        _selectedFilter,
-      );
-    }
+  @override
+  void initState() {
+    super.initState();
+    _bindOrdersStream();
+  }
+
+  void _bindOrdersStream() {
+    _ordersStream = _orderService.watchVendorOrders(
+      widget.vendor.id,
+      statusFilter: _selectedFilter,
+    );
+  }
+
+  String _filterLabel(String filter) {
+    if (filter == 'All') return 'All';
+    return filter[0].toUpperCase() + filter.substring(1);
   }
 
   Color _getStatusColor(String status) {
@@ -118,11 +126,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: FilterChip(
-                      label: Text(filter),
+                      label: Text(_filterLabel(filter)),
                       selected: isSelected,
                       onSelected: (selected) {
                         setState(() {
                           _selectedFilter = filter;
+                          _bindOrdersStream();
                         });
                       },
                       selectedColor: AppColor.primary,
@@ -141,7 +150,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
           // Orders List
           Expanded(
             child: StreamBuilder<List<OrderModel>>(
-              stream: _getOrdersStream(),
+              stream: _ordersStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
@@ -206,7 +215,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         Text(
                           _selectedFilter == 'All'
                               ? 'You don\'t have any orders yet'
-                              : 'No $_selectedFilter orders',
+                              : 'No ${_filterLabel(_selectedFilter)} orders',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],

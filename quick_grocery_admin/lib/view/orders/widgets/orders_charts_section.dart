@@ -11,10 +11,12 @@ class OrdersChartsSection extends StatelessWidget {
     super.key,
     required this.ordersTrend,
     required this.revenueTrend,
+    this.chartHeight = 280,
   });
 
   final List<OrderChartPoint> ordersTrend;
   final List<OrderChartPoint> revenueTrend;
+  final double chartHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -26,12 +28,14 @@ class OrdersChartsSection extends StatelessWidget {
 
         final ordersChart = _ChartCard(
           width: chartW,
+          height: chartHeight,
           title: 'Orders trend',
           subtitle: 'Last 7 days',
           child: _lineChart(ordersTrend, AppColor.primary),
         );
         final revenueChart = _ChartCard(
           width: chartW,
+          height: chartHeight,
           title: 'Revenue trend',
           subtitle: 'Last 7 days',
           child: _lineChart(
@@ -70,13 +74,14 @@ class OrdersChartsSection extends StatelessWidget {
     Color color, {
     bool isCurrency = false,
   }) {
+    final chartHeight = this.chartHeight;
     if (data.every((e) => e.value == 0)) {
       return const Center(
         child: Text('No data yet', style: TextStyle(color: Colors.grey)),
       );
     }
     return SafeSfCartesianChart(
-      height: 260,
+      height: chartHeight,
       plotAreaBorderWidth: 0,
       primaryXAxis: CategoryAxis(majorGridLines: const MajorGridLines(width: 0)),
       primaryYAxis: NumericAxis(
@@ -114,12 +119,14 @@ class OrdersChartsSection extends StatelessWidget {
 class _ChartCard extends StatelessWidget {
   const _ChartCard({
     required this.width,
+    required this.height,
     required this.title,
     required this.subtitle,
     required this.child,
   });
 
   final double width;
+  final double height;
   final String title;
   final String subtitle;
   final Widget child;
@@ -158,7 +165,7 @@ class _ChartCard extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 16),
-            SizedBox(height: 260, child: child),
+            SizedBox(height: height, child: child),
           ],
         ),
       ),

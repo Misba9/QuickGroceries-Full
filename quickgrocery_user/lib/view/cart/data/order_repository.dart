@@ -117,10 +117,19 @@ class OrderRepository {
     };
 
     final ref = _firestore.collection('orders').doc();
+    final vendorIds = productItems
+        .map((p) => p.vendorId)
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+
     await ref.set({
       ...legacyMap,
       ...modernExtras,
       'id': ref.id,
+      'vendorIds': vendorIds,
+      if (vendorIds.length == 1) 'vendorId': vendorIds.first,
+      if (vendorIds.length == 1) 'vendor_id': vendorIds.first,
     });
     return ref.id;
   }

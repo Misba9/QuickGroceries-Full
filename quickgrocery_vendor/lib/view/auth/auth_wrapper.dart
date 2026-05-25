@@ -7,6 +7,7 @@ import '../../services/vendor_auth_service.dart';
 import 'login_screen.dart';
 import '../main_navigation_screen.dart';
 import 'force_password_change_screen.dart';
+import 'vendor_status_gate.dart';
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
@@ -37,7 +38,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
             setState(() {
               _initialScreen = forceChange
                   ? ForcePasswordChangeScreen(vendor: vendor)
-                  : MainNavigationScreen(vendor: vendor);
+                  : VendorStatusGate(
+                      vendorId: vendor.id,
+                      child: MainNavigationScreen(vendor: vendor),
+                    );
               _isLoading = false;
             });
           }

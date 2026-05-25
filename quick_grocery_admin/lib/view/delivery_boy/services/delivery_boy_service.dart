@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:quick_grocery_admin/view/delivery_boy/services/admin_delivery_client.dart';
 
 class DeliveryBoyService extends ChangeNotifier {
   Uint8List? imageBytes;
@@ -96,6 +97,8 @@ class DeliveryBoyService extends ChangeNotifier {
     );
   }
 
+  final AdminDeliveryClient _adminDeliveryClient = AdminDeliveryClient();
+
   Future<void> addDeliveryBoy(BuildContext context) async {
     if (firstNameController.text.isEmpty) {
       showValidationDialog(context, "First Name cannot be empty.");
@@ -113,30 +116,38 @@ class DeliveryBoyService extends ChangeNotifier {
     } else if (imageBytes == null) {
       showValidationDialog(context, "delivery boy image cannot be empty.");
     } else {
-      String deliveryImage = await uploadImageToStorage(imageBytes!);
+      try {
+        isLoading = true;
+        notifyListeners();
 
-      DocumentReference docRef = await FirebaseFirestore.instance
-          .collection('delivery_boys')
-          .add({
-            "id": "",
-            "first_name": firstNameController.text,
-            "last_name": secondNameController.text,
-            "phone": phoneController.text,
-            "createdDate": DateTime.now().toString(),
-            "email": emailController.text,
-            "password": passwordController.text,
-            "address": addressController.text,
-            "image": deliveryImage,
-            "licence_number": licenceController.text,
-            "is_active": true,
-          });
-      String vendorId = docRef.id;
+        final deliveryImage = await uploadImageToStorage(imageBytes!);
 
-      await docRef.update({"id": vendorId});
-      isLoading = false;
-      showSuccessDialog(context);
-      resetFields();
-      notifyListeners();
+        await _adminDeliveryClient.createDeliveryAccount(
+          email: emailController.text.trim(),
+          password: passwordController.text,
+          firstName: firstNameController.text.trim(),
+          lastName: secondNameController.text.trim(),
+          phone: phoneController.text.trim(),
+          address: addressController.text.trim(),
+          image: deliveryImage,
+          licenceNumber: licenceController.text.trim(),
+        );
+
+        if (context.mounted) {
+          showSuccessDialog(context);
+        }
+        resetFields();
+      } catch (e) {
+        if (context.mounted) {
+          showValidationDialog(
+            context,
+            e.toString().replaceFirst('Exception: ', ''),
+          );
+        }
+      } finally {
+        isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -155,7 +166,7 @@ class DeliveryBoyService extends ChangeNotifier {
               Text("Success", style: TextStyle(fontWeight: FontWeight.bold)),
             ],
           ),
-          content: Text("Vendor added successfully!"),
+          content: Text("Delivery boy added successfully!"),
           actions: [
             TextButton(
               onPressed: () {

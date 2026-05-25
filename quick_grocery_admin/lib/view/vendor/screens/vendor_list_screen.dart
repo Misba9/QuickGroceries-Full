@@ -1,3 +1,4 @@
+import 'package:quick_grocery_admin/model/vendor_model.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/home/widgets/admin_global_top_bar.dart';
@@ -6,6 +7,7 @@ import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
 import 'package:quick_grocery_admin/view/partner_security/partner_security_sheet.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_details.dart';
+import 'package:quick_grocery_admin/view/vendor/widgets/vendor_auth_recovery_sheet.dart';
 import 'package:quick_grocery_admin/view/vendor/services/vendor_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
@@ -21,8 +23,11 @@ class VendorListScreen extends StatefulWidget {
 class _VendorListScreenState extends State<VendorListScreen> {
   @override
   void initState() {
-    Provider.of<VendorService>(context, listen: false).gettVendors();
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Provider.of<VendorService>(context, listen: false).gettVendors();
+    });
   }
 
   @override
@@ -52,13 +57,110 @@ class _VendorListScreenState extends State<VendorListScreen> {
                     ],
                   ),
                   AppSpacing.h20,
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search vendors…',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onChanged: (v) => context
+                        .read<VendorService>()
+                        .setVendorSearch(v),
+                  ),
+                  AppSpacing.h10,
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final f in [
+                          'all',
+                          'approved',
+                          'inactive',
+                          'suspended',
+                        ])
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: FilterChip(
+                              label: Text(f[0].toUpperCase() + f.substring(1)),
+                              selected:
+                                  context.watch<VendorService>().vendorStatusFilter ==
+                                      f,
+                              onSelected: (_) => context
+                                  .read<VendorService>()
+                                  .setVendorStatusFilter(f),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  AppSpacing.h15,
+                  Consumer<VendorService>(
+                    builder: (context, svc, _) {
+                      final honey = svc.findVendorByShopName('Honey Traders');
+                      if (honey == null || !honey.needsFirebaseAuthSync) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Material(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          child: ListTile(
+                            leading: Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.orange.shade800,
+                            ),
+                            title: const Text(
+                              'Honey Traders needs Firebase Auth sync',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              '${honey.email} · Tap to restore login',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: FilledButton(
+                              onPressed: () => VendorAuthRecoverySheet.show(
+                                context,
+                                honey,
+                              ),
+                              child: const Text('Restore'),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   WrapperWidget(
                     child: Column(
                       children: [
                         Consumer<VendorService>(
                           builder: (context, p, _) {
-                            if (p.vendors == null) {
-                              return LinearProgressIndicator();
+                            if (p.vendorsLoading && p.vendors == null) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24),
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            }
+                            if (p.loadError != null) {
+                              return Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Text(
+                                  p.loadError!,
+                                  style: TextStyle(color: Colors.red.shade700),
+                                ),
+                              );
+                            }
+                            final list = p.filteredVendors;
+                            if (list.isEmpty) {
+                              return const Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Text('No vendors found.'),
+                              );
                             }
                             return LayoutBuilder(
                               builder: (context, c) {
@@ -66,7 +168,8 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                     (c.maxWidth * 0.03).clamp(8.0, 24.0);
                                 final dataTable = DataTable(
                                   columnSpacing: colSpace,
-                                  dataRowHeight: 70,
+                                  dataRowMinHeight: 70,
+                                  dataRowMaxHeight: 80,
                             columns: const [
                               DataColumn(
                                 label: Text(
@@ -77,6 +180,12 @@ class _VendorListScreenState extends State<VendorListScreen> {
                               DataColumn(
                                 label: Text(
                                   'Shop Name',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
+                                  'Owner',
                                   style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                               ),
@@ -117,7 +226,8 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                 ),
                               ),
                             ],
-                            rows: List.generate(p.vendors!.length, (index) {
+                            rows: List.generate(list.length, (index) {
+                              final v = list[index];
                               return DataRow(
                                 cells: [
                                   DataCell(Text((index + 1).toString())),
@@ -128,26 +238,11 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                       ),
                                       child: Row(
                                         children: [
-                                          Container(
-                                            margin: EdgeInsets.symmetric(
-                                              vertical: 10,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              border: Border.all(
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                            height: 50,
-                                            width: 50,
-                                            child: Image.network(
-                                              p.vendors![index].shopImage,
-                                              fit: BoxFit.cover,
-                                            ),
-                                          ),
+                                          _vendorThumb(v.shopImage),
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
-                                              p.vendors![index].shopName,
+                                              v.shopName,
                                               maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
                                             ),
@@ -157,19 +252,27 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                     ),
                                   ),
                                   DataCell(
+                                    Text(
+                                      v.ownerName,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  DataCell(
                                     Padding(
                                       padding: const EdgeInsets.all(8.0),
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
-                                            p.vendors![index].phone,
+                                            v.phone,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           Text(
-                                            p.vendors![index].email,
+                                            v.email,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
@@ -177,18 +280,15 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                       ),
                                     ),
                                   ),
+                                  DataCell(_statusBadge(v)),
                                   DataCell(
                                     Container(
                                       padding: EdgeInsets.all(5),
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(8),
-                                        color: p.vendors![index].isActive
-                                            ? Colors.green.shade100
-                                            : Colors.red.shade100,
+                                        color: Colors.deepOrange.shade100,
                                       ),
-                                      child: p.vendors![index].isActive
-                                          ? Text('Active')
-                                          : Text('InActive'),
+                                      child: Text('${p.productCountFor(v.id)}'),
                                     ),
                                   ),
                                   DataCell(
@@ -198,7 +298,7 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                         borderRadius: BorderRadius.circular(8),
                                         color: Colors.deepOrange.shade100,
                                       ),
-                                      child: Text("0"),
+                                      child: Text('${p.orderCountFor(v.id)}'),
                                     ),
                                   ),
                                   DataCell(
@@ -206,28 +306,18 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                       padding: EdgeInsets.all(5),
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(8),
-                                        color: Colors.deepOrange.shade100,
-                                      ),
-                                      child: Text("0"),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      padding: EdgeInsets.all(5),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(8),
-                                        color: p.vendors![index].needsFirebaseAuthSync
+                                        color: v.needsFirebaseAuthSync
                                             ? Colors.orange.shade100
                                             : Colors.green.shade100,
                                       ),
                                       child: Text(
-                                        p.vendors![index].needsFirebaseAuthSync
+                                        v.needsFirebaseAuthSync
                                             ? 'Not synced'
                                             : 'Synced',
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
-                                          color: p.vendors![index].needsFirebaseAuthSync
+                                          color: v.needsFirebaseAuthSync
                                               ? Colors.orange.shade900
                                               : Colors.green.shade900,
                                         ),
@@ -237,7 +327,19 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                   DataCell(
                                     Row(
                                       children: [
-                                        if (p.vendors![index].needsFirebaseAuthSync)
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.build_circle_outlined,
+                                            color: Colors.deepPurple,
+                                          ),
+                                          tooltip: 'Auth recovery tools',
+                                          onPressed: () =>
+                                              VendorAuthRecoverySheet.show(
+                                            context,
+                                            v,
+                                          ),
+                                        ),
+                                        if (v.needsFirebaseAuthSync)
                                           IconButton(
                                             icon: Icon(
                                               Icons.sync,
@@ -245,7 +347,6 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                             ),
                                             tooltip: 'Sync Firebase Auth',
                                             onPressed: () async {
-                                              final v = p.vendors![index];
                                               final passwordController =
                                                   TextEditingController();
                                               final ok = await showDialog<bool>(
@@ -315,7 +416,6 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                           ),
                                           tooltip: 'Account security',
                                           onPressed: () {
-                                            final v = p.vendors![index];
                                             PartnerSecuritySheet.show(
                                               context,
                                               role: 'vendor',
@@ -337,7 +437,7 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                                 builder: (context) =>
                                                     VendorDetailsScreen(
                                                       vendorId:
-                                                          p.vendors![index].id,
+                                                          v.id,
                                                     ),
                                               ),
                                             );
@@ -366,6 +466,58 @@ class _VendorListScreenState extends State<VendorListScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _vendorThumb(String url) {
+    if (url.isEmpty) {
+      return Container(
+        width: 50,
+        height: 50,
+        color: Colors.grey.shade200,
+        child: const Icon(Icons.store, size: 22),
+      );
+    }
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300)),
+      child: Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+      ),
+    );
+  }
+
+  Widget _statusBadge(VendorModel v) {
+    Color bg;
+    Color fg;
+    switch (v.displayStatus) {
+      case 'approved':
+      case 'active':
+        bg = Colors.green.shade100;
+        fg = Colors.green.shade900;
+      case 'suspended':
+        bg = Colors.red.shade100;
+        fg = Colors.red.shade900;
+      case 'inactive':
+        bg = Colors.grey.shade200;
+        fg = Colors.grey.shade800;
+      default:
+        bg = Colors.orange.shade100;
+        fg = Colors.orange.shade900;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        v.displayStatus,
+        style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 12),
       ),
     );
   }

@@ -40,8 +40,7 @@ class AdminVendorAuthCreator {
     final auth = await _secondaryAuth();
 
     if (kDebugMode) {
-      print('email: $normalizedEmail');
-      print('password: $password');
+      debugPrint('[AdminVendorAuth] email: $normalizedEmail');
     }
 
     try {
@@ -81,8 +80,7 @@ class AdminVendorAuthCreator {
     final firestore = await _secondaryFirestore();
 
     if (kDebugMode) {
-      print('email: $normalizedEmail');
-      print('password: $password');
+      debugPrint('[AdminVendorAuth] email: $normalizedEmail');
     }
 
     UserCredential credential;
@@ -133,7 +131,10 @@ class AdminVendorAuthCreator {
         'isBlocked': false,
         'is_active': true,
         'authSynced': true,
+        'firebaseAuth': true,
+        'syncStatus': 'synced',
         'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       final saved = await ref.get();
@@ -151,6 +152,94 @@ class AdminVendorAuthCreator {
       rethrow;
     } finally {
       await auth.signOut();
+    }
+
+    return uid;
+  }
+
+  /// Migrates legacy `vendors/{legacyDocId}` → `vendors/{authUid}` when Cloud Functions unavailable.
+  /// Cannot link existing Auth email without Admin SDK — deploy functions for that case.
+  Future<String> migrateLegacyVendorDocument({
+    required String legacyDocId,
+    required String password,
+  }) async {
+    final primaryFs = FirebaseFirestore.instance;
+    final legacySnap = await primaryFs.collection('vendors').doc(legacyDocId).get();
+    if (!legacySnap.exists || legacySnap.data() == null) {
+      throw Exception('Vendor document not found.');
+    }
+
+    final data = legacySnap.data()!;
+    final email = (data['email']?.toString() ?? '').trim().toLowerCase();
+    if (email.isEmpty || !email.contains('@')) {
+      throw Exception('Vendor email is invalid.');
+    }
+
+    final firstName = data['firstName']?.toString() ?? data['first_name']?.toString() ?? '';
+    final lastName = data['lastName']?.toString() ?? data['last_name']?.toString() ?? '';
+    final shopName = data['shopName']?.toString() ??
+        data['shop_name']?.toString() ??
+        data['storeName']?.toString() ??
+        '';
+    final phone = data['phone']?.toString() ?? '';
+    final shopAddress = data['shopAddress']?.toString() ?? data['shop_address']?.toString() ?? '';
+    final vendorImage = data['vendorImage']?.toString() ?? data['vendor_image']?.toString() ?? '';
+    final shopImage = data['shopImage']?.toString() ?? data['shop_image']?.toString() ?? '';
+
+    if (kDebugMode) {
+      debugPrint('[AdminVendorAuth] migrateLegacy doc=$legacyDocId email=$email');
+    }
+
+    final uid = await createUserWithEmailAndPassword(email: email, password: password);
+
+    final ownerName = '$firstName $lastName'.trim();
+    final payload = {
+      ...data,
+      'uid': uid,
+      'id': uid,
+      'auth_uid': uid,
+      'authUid': uid,
+      'email': email,
+      'firstName': firstName,
+      'lastName': lastName,
+      'first_name': firstName,
+      'last_name': lastName,
+      'ownerName': ownerName.isEmpty ? shopName : ownerName,
+      'shopName': shopName,
+      'shop_name': shopName,
+      'storeName': shopName,
+      'phone': phone,
+      'shopAddress': shopAddress,
+      'shop_address': shopAddress,
+      'vendorImage': vendorImage,
+      'vendor_image': vendorImage,
+      'shopImage': shopImage,
+      'shop_image': shopImage,
+      'status': 'approved',
+      'isApproved': true,
+      'isBlocked': false,
+      'is_active': true,
+      'isActive': true,
+      'authSynced': true,
+      'firebaseAuth': true,
+      'syncStatus': 'synced',
+      'updatedAt': FieldValue.serverTimestamp(),
+      'syncedAt': FieldValue.serverTimestamp(),
+      if (legacyDocId != uid) 'migratedFrom': legacyDocId,
+    };
+
+    final targetRef = primaryFs.collection('vendors').doc(uid);
+    await targetRef.set(payload, SetOptions(merge: true));
+
+    if (legacyDocId != uid) {
+      await primaryFs.collection('vendors').doc(legacyDocId).delete();
+      if (kDebugMode) {
+        debugPrint('[AdminVendorAuth] deleted legacy vendors/$legacyDocId');
+      }
+    }
+
+    if (kDebugMode) {
+      debugPrint('[AdminVendorAuth] migrateLegacy success vendors/$uid');
     }
 
     return uid;

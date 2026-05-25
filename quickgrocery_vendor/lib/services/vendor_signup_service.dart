@@ -32,14 +32,21 @@ class VendorSignupService {
 
   Future<bool> _hasPendingRequest(String email) async {
     if (await _pending.isPending(email)) return true;
-    final snap = await _firestore
-        .collection('vendor_requests')
-        .where('email', isEqualTo: email)
-        .limit(5)
-        .get();
-    return snap.docs.any(
-      (d) => (d.data()['status']?.toString() ?? 'pending') == 'pending',
-    );
+    try {
+      final snap = await _firestore
+          .collection('vendor_requests')
+          .where('email', isEqualTo: email)
+          .limit(5)
+          .get();
+      return snap.docs.any(
+        (d) => (d.data()['status']?.toString() ?? 'pending') == 'pending',
+      );
+    } on FirebaseException catch (e) {
+      if (kDebugMode) {
+        debugPrint('[VendorSignup] pending check skipped: ${e.code}');
+      }
+      return false;
+    }
   }
 
   Future<bool> _vendorEmailExists(String email) async {

@@ -152,7 +152,7 @@ class ProductItem {
       price: (data['price'] ?? 0).toDouble(),
       slashedPrice: (data['slashedPrice'] ?? 0).toDouble(),
       itemCount: data['itemCount'] ?? 0,
-      vendorId: data['vendor_id'] ?? '',
+      vendorId: (data['vendor_id'] ?? data['vendorId'] ?? '').toString(),
     );
   }
 
@@ -168,6 +168,7 @@ class ProductItem {
       'slashedPrice': slashedPrice,
       'itemCount': itemCount,
       'vendor_id': vendorId,
+      'vendorId': vendorId,
     };
   }
 }

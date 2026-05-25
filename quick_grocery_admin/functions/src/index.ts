@@ -54,7 +54,12 @@ export {
   partnerCheckSession,
   adminPartnerAccountAction,
 } from "./partner_auth/partner_callables";
-export { adminCreateVendorAccount, adminRollbackVendorAuth, adminSyncVendorAuthPassword, adminMigrateVendorAuth } from "./partner_auth/admin_create_vendor";
+export { adminCreateVendorAccount, adminRollbackVendorAuth, adminSyncVendorAuthPassword, adminMigrateVendorAuth, adminRestoreVendorAuth } from "./partner_auth/admin_create_vendor";
+export { adminCreateDeliveryAccount, adminRollbackDeliveryAuth } from "./partner_auth/admin_create_delivery";
+export {
+  adminMigrateVendorAuthHttp,
+  adminRestoreVendorAuthHttp,
+} from "./partner_auth/vendor_http_handlers";
 export {
   vendorCheckAuthForPasswordReset,
   vendorDiagnoseLogin,

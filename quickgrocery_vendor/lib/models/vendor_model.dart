@@ -48,7 +48,7 @@ class VendorModel {
   /// Returns a user-facing message when login must be blocked, or null if OK.
   static String? loginBlockedReason(Map<String, dynamic> data) {
     if (parseIsBlocked(data)) {
-      return 'Your account is blocked';
+      return 'Your vendor account has been suspended by admin.';
     }
     if (!parseIsApproved(data)) {
       return 'Waiting for admin approval';
@@ -62,7 +62,10 @@ class VendorModel {
       if (status == 'pending') {
         return 'Waiting for admin approval';
       }
-      if (status != 'active') {
+      if (status == 'suspended') {
+        return 'Your vendor account has been suspended by admin.';
+      }
+      if (status != 'active' && status != 'approved') {
         return 'Your vendor account is not active.';
       }
     }

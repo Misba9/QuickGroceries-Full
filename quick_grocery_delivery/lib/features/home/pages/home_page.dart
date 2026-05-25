@@ -3,7 +3,8 @@ import 'package:quick_grocery_delivery/features/orders/services/order_service.da
 import 'package:quick_grocery_delivery/constants/app_spacing.dart';
 import 'package:quick_grocery_delivery/constants/app_style.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
-import 'package:quick_grocery_delivery/features/home/screens/home_screen.dart';
+import 'package:quick_grocery_delivery/features/payment/screens/scan_pay_screen.dart';
+import 'package:quick_grocery_delivery/widgets/driver_stat_card.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_grocery_delivery/models/order_model.dart';
 import 'package:quick_grocery_delivery/support/support_contact_sheet.dart';
@@ -28,7 +29,6 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<OrderService>(context);
-    final width = MediaQuery.of(context).size.width;
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -64,7 +64,12 @@ class _HomePageState extends State<HomePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   GlobalVariables.verticalSpace,
-                  ScanPay(width: width),
+                  _ScanPayBanner(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ScanPayScreen()),
+                    ),
+                  ),
                   GlobalVariables.verticalSpace,
                   FutureBuilder<Map<String, dynamic>>(
                     future: provider.fetchTotalOrdersAndPrice(),
@@ -79,16 +84,20 @@ class _HomePageState extends State<HomePage> {
                       final data = snapshot.data!;
                       return Row(
                         children: [
-                          LeadingCard(
-                            width: width,
-                            title: 'Total Amount',
-                            value: "₹${data['totalOrderPrice'].toString()}",
+                          Expanded(
+                            child: DriverStatCard(
+                              label: 'Total Amount',
+                              value: '₹${data['totalOrderPrice']}',
+                              icon: Icons.currency_rupee,
+                            ),
                           ),
-                          const SizedBox(width: 20),
-                          LeadingCard(
-                            width: width,
-                            title: 'Total Orders',
-                            value: data['totalOrders'].toString(),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: DriverStatCard(
+                              label: 'Total Orders',
+                              value: '${data['totalOrders']}',
+                              icon: Icons.receipt_long_outlined,
+                            ),
                           ),
                         ],
                       );
@@ -168,6 +177,46 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ScanPayBanner extends StatelessWidget {
+  const _ScanPayBanner({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: GlobalVariables.primary,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          child: Row(
+            children: [
+              const Icon(Icons.qr_code_scanner, size: 32),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Scan & Pay',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    ),
+                    Text('Verify customer payments instantly'),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right),
+            ],
           ),
         ),
       ),

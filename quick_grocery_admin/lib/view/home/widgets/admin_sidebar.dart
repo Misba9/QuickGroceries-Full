@@ -28,8 +28,8 @@ class AdminSidebar extends StatelessWidget {
     ),
     _SectionDef(
       icon: 'assets/icons/user.svg',
-      title: 'User',
-      routes: [AdminRoutes.userList],
+      title: 'User Management',
+      routes: AdminRoutes.customerRoutes,
     ),
     _SectionDef(
       icon: 'assets/icons/shop.svg',

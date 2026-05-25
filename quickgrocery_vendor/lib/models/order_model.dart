@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class OrderModel {
   String id;
   List<ProductItem> products;
@@ -23,6 +25,8 @@ class OrderModel {
   String currentLocation;
   final double lat;
   final double lng;
+  final String modernStatus;
+  final DateTime? createdAt;
 
   OrderModel({
     required this.id,
@@ -49,6 +53,8 @@ class OrderModel {
     required this.currentLocation,
     required this.lat,
     required this.lng,
+    this.modernStatus = '',
+    this.createdAt,
   });
 
   factory OrderModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -59,31 +65,48 @@ class OrderModel {
       ).map((e) => ProductItem.fromMap(e)).toList();
     }
 
+    DateTime? createdAt;
+    final createdAtRaw = data['createdAt'];
+    if (createdAtRaw is Timestamp) {
+      createdAt = createdAtRaw.toDate();
+    }
+
+    final deliveryRaw = data['delivery_charge'] ?? data['deliveryCharge'] ?? 0;
+    final deliveryCharge = deliveryRaw is int
+        ? deliveryRaw
+        : int.tryParse(deliveryRaw.toString()) ?? 0;
+
     return OrderModel(
       id: id,
       products: parsedProducts,
-      createdDate: data['created_date'] ?? '',
-      customerName: data['customer_name'] ?? '',
+      createdDate: data['created_date']?.toString() ??
+          (createdAt?.toIso8601String() ?? ''),
+      customerName: data['customer_name'] ?? data['customerName'] ?? '',
       phone: data['phone'] ?? '',
       address: data['address'] ?? '',
-      isPaid: data['isPaid'] ?? false,
-      orderStatus: data['order_status'] ?? '',
+      isPaid: data['isPaid'] == true ||
+          (data['paymentStatus']?.toString().toLowerCase() == 'paid'),
+      orderStatus: data['order_status'] ?? data['orderStatus'] ?? '',
       deliveryBoyId: data['deliveryBoyId'] ?? '',
-      isDelivered: data['isDelivered'] ?? false,
-      isCancelled: data['isCancelled'] ?? false,
+      isDelivered: data['isDelivered'] == true ||
+          (data['status']?.toString().toLowerCase() == 'delivered'),
+      isCancelled: data['isCancelled'] == true ||
+          (data['status']?.toString().toLowerCase() == 'cancelled'),
       deliveryType: data['delivery_type'] ?? '',
-      isRated: data['is_rated'] ?? false,
+      isRated: data['is_rated'] == true,
       rating: (data['star'] ?? 0).toDouble(),
       confimedTime: data['confrimTime'] ?? '',
       driverGoShopTime: data['driverShop'] ?? '',
       orderPickedTime: data['pickedTime'] ?? '',
       onTheWayTime: data['onTheWayTime'] ?? '',
       orderDeliveredTime: data['deliveredTime'] ?? '',
-      deliveryCharge: data['delivery_charge'] ?? 0,
+      deliveryCharge: deliveryCharge,
       uuid: data['uuid'] ?? '',
       currentLocation: data['current_location'] ?? '',
       lat: data['lat'] != null ? double.parse(data['lat'].toString()) : 0.0,
       lng: data['lng'] != null ? double.parse(data['lng'].toString()) : 0.0,
+      modernStatus: data['status']?.toString() ?? '',
+      createdAt: createdAt,
     );
   }
 
@@ -167,7 +190,7 @@ class ProductItem {
       price: (data['price'] ?? 0).toDouble(),
       slashedPrice: (data['slashedPrice'] ?? 0).toDouble(),
       itemCount: data['itemCount'] ?? 0,
-      vendorId: data['vendor_id'] ?? '',
+      vendorId: (data['vendor_id'] ?? data['vendorId'] ?? '').toString(),
     );
   }
 
@@ -182,6 +205,7 @@ class ProductItem {
       'slashedPrice': slashedPrice,
       'itemCount': itemCount,
       'vendor_id': vendorId,
+      'vendorId': vendorId,
     };
   }
 }

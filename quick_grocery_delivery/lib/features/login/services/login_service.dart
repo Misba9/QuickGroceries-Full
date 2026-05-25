@@ -1,34 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:quick_grocery_delivery/core/auth/delivery_session_prefs.dart';
-import 'package:quick_grocery_delivery/core/auth/partner_auth_api.dart';
+import 'package:quick_grocery_delivery/core/auth/delivery_auth_service.dart';
+import 'package:quick_grocery_delivery/core/fcm_bootstrap.dart';
 import 'package:quick_grocery_delivery/features/home/screens/home_screen.dart';
 import 'package:quick_grocery_delivery/features/login/force_password_change_screen.dart';
 
 class LoginService extends ChangeNotifier {
+  LoginService({DeliveryAuthService? authService})
+      : _authService = authService ?? DeliveryAuthService();
+
   bool isLoading = false;
   bool obscurePassword = true;
+
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final DeliveryAuthService _authService;
 
   void toggleObscurePassword() {
     obscurePassword = !obscurePassword;
     notifyListeners();
   }
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final PartnerAuthApi _api = PartnerAuthApi();
 
-  Future<bool> validateStoredSession() async {
-    final id = await DeliverySessionPrefs.deliveryBoyId();
-    if (id == null || id.isEmpty) return false;
-    final version = await DeliverySessionPrefs.sessionVersion();
-    if (version == null) return true;
-    final check = await _api.checkSession(
-      partnerId: id,
-      sessionVersion: version,
-    );
-    if (check['valid'] == true) return true;
-    await DeliverySessionPrefs.clear();
-    return false;
-  }
+  Future<bool> validateStoredSession() =>
+      _authService.validateStoredSession();
 
   Future<void> login(BuildContext context) async {
     final email = emailController.text.trim();
@@ -44,51 +37,37 @@ class LoginService extends ChangeNotifier {
       isLoading = true;
       notifyListeners();
 
-      final result = await _api.login(email, password);
+      final result = await _authService.login(email: email, password: password);
       if (!context.mounted) return;
-      if (result['success'] != true) {
+
+      if (!result.success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              result['error']?.toString() ?? 'Invalid email or password.',
-            ),
-          ),
+          SnackBar(content: Text(result.error ?? 'Login failed.')),
         );
         return;
       }
 
-      final partnerId = result['partnerId'] as String?;
-      if (partnerId == null || partnerId.isEmpty) {
+      final deliveryBoyId = result.deliveryBoyId;
+      if (deliveryBoyId == null || deliveryBoyId.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid email or password.')),
+          const SnackBar(content: Text('Delivery account not found.')),
         );
         return;
       }
 
-      final sessionVersion = (result['sessionVersion'] as num?)?.toInt() ?? 0;
-      final forceChange = result['forcePasswordChange'] == true;
-
-      await DeliverySessionPrefs.saveLogin(
-        deliveryBoyId: partnerId,
-        sessionVersion: sessionVersion,
-        forcePasswordChange: forceChange,
-      );
-
-      if (!context.mounted) return;
-
-      if (forceChange) {
+      if (result.forcePasswordChange) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => ForcePasswordChangeScreen(partnerId: partnerId),
+            builder: (_) => ForcePasswordChangeScreen(partnerId: deliveryBoyId),
           ),
         );
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login successful!')),
-      );
+      await DeliveryFcmBootstrap.configureForRider(deliveryBoyId);
+      if (!context.mounted) return;
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -108,7 +87,7 @@ class LoginService extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await DeliverySessionPrefs.clear();
+    await _authService.logout();
     emailController.clear();
     passwordController.clear();
     notifyListeners();

@@ -24,5 +24,12 @@ firebase deploy --only firestore:rules,storage
 ```bash
 cd functions
 npm run build
-firebase deploy --only functions:adminCreateVendorAccount,functions:adminRollbackVendorAuth,functions:adminSyncVendorAuthPassword,functions:adminMigrateVendorAuth,functions:submitVendorRequest,functions:adminApproveVendorRequest,functions:adminRejectVendorRequest,functions:adminBlockVendorFromRequest,functions:vendorCheckAuthForPasswordReset,functions:vendorDiagnoseLogin
+firebase deploy --only functions:adminCreateVendorAccount,functions:adminRollbackVendorAuth,functions:adminSyncVendorAuthPassword,functions:adminMigrateVendorAuth,functions:adminRestoreVendorAuth,functions:adminMigrateVendorAuthHttp,functions:adminRestoreVendorAuthHttp,functions:submitVendorRequest,functions:adminApproveVendorRequest,functions:adminRejectVendorRequest,functions:adminBlockVendorFromRequest,functions:vendorCheckAuthForPasswordReset,functions:vendorDiagnoseLogin
 ```
+
+### Restore vendor auth (e.g. Honey Traders)
+
+1. Deploy functions above.
+2. Admin → **Vendor List** → open **Auth recovery** (purple wrench) or use the orange **Honey Traders** banner.
+3. Set a password (≥8 chars) → **Restore Firebase Auth**.
+4. Vendor logs in on the vendor app with that email and password.

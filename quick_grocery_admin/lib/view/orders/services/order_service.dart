@@ -4,6 +4,7 @@ import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/model/vendor_model.dart';
 import 'package:quick_grocery_admin/view/orders/models/order_list_preset.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/refund_stats_row.dart';
+import 'package:quick_grocery_admin/view/operations/services/admin_analytics_service.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_eta_utils.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_status_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -290,16 +291,19 @@ class OrderService extends ChangeNotifier {
 
   NewOrdersLiveStats get newOrdersLiveStats {
     final today = ordersToday;
-    final pending = today.where((o) => !o.isDelivered).length;
     final unassigned = dispatchQueue.length;
     final delayed = today.where(OrderEtaUtils.isDelayed).length;
+    final avgMin = (_allOrdersCache ?? []).isEmpty
+        ? 0.0
+        : AdminAnalyticsService.fromOrderModels(_allOrdersCache!)
+            .orderAnalytics
+            .avgDeliveryMinutes;
     return NewOrdersLiveStats(
       newToday: today.length,
       pendingAssignment: unassigned,
       delayed: delayed,
       ridersAvailable: 0,
-      avgDispatchMinutes:
-          '${_avgDeliveryMinutes(_allOrdersCache ?? []).toStringAsFixed(0)}m',
+      avgDispatchMinutes: '${avgMin.toStringAsFixed(0)}m',
     );
   }
 
@@ -336,161 +340,62 @@ class OrderService extends ChangeNotifier {
 
   OrderAnalyticsSnapshot get analytics {
     final all = _allOrdersCache ?? [];
-    final active = all.where((o) => !o.isCancelled && !o.isDelivered);
-    final pending = active.length;
-    final delivered = all.where((o) => o.isDelivered && !o.isCancelled).length;
-    final cancelled = all.where((o) => o.isCancelled).length;
-    final revenue = all
-        .where((o) => o.isDelivered && !o.isCancelled)
-        .fold<double>(0, (s, o) => s + o.getTotalAmount());
-
-    final now = DateTime.now();
-    final todayKey = _dateKey(now);
-    final revenueToday = all
-        .where((o) {
-          final dt = DateTime.tryParse(o.createdDate);
-          return dt != null &&
-              _dateKey(dt) == todayKey &&
-              o.isDelivered &&
-              !o.isCancelled;
-        })
-        .fold<double>(0, (s, o) => s + o.getTotalAmount());
-
-    final thisWeek = all.where((o) => _inRange(o, now.subtract(const Duration(days: 7)), now));
-    final prevWeek = all.where((o) => _inRange(
-          o,
-          now.subtract(const Duration(days: 14)),
-          now.subtract(const Duration(days: 7)),
-        ));
-
-    final weekRev = thisWeek
-        .where((o) => o.isDelivered)
-        .fold<double>(0, (s, o) => s + o.getTotalAmount());
-    final prevRev = prevWeek
-        .where((o) => o.isDelivered)
-        .fold<double>(0, (s, o) => s + o.getTotalAmount());
-
-    final paidCount = all.where((o) => o.isPaid).length;
-    final codPct = all.isEmpty ? 0.0 : ((all.length - paidCount) / all.length) * 100;
-    final onlinePct = all.isEmpty ? 0.0 : (paidCount / all.length) * 100;
-
-    final unassigned = active.where((o) => o.deliveryBoyId.isEmpty).length;
-    final delayed = active.where(OrderEtaUtils.isDelayed).length;
-
-    return OrderAnalyticsSnapshot(
-      totalOrders: all.length,
-      pendingOrders: pending,
-      deliveredOrders: delivered,
-      cancelledOrders: cancelled,
-      revenue: revenue,
-      revenueToday: revenueToday,
-      revenueTrendPct: _pctChange(prevRev, weekRev),
-      ordersTrendPct: _pctChange(prevWeek.length.toDouble(), thisWeek.length.toDouble()),
-      avgDeliveryMinutes: _avgDeliveryMinutes(all),
-      codPct: codPct,
-      onlinePaymentPct: onlinePct,
-      pendingDeliveryCount: pending,
-      unassignedRiderCount: unassigned,
-      delayedOrdersCount: delayed,
-    );
+    if (all.isEmpty) {
+      return const OrderAnalyticsSnapshot(
+        totalOrders: 0,
+        pendingOrders: 0,
+        deliveredOrders: 0,
+        cancelledOrders: 0,
+        revenue: 0,
+        revenueToday: 0,
+        revenueTrendPct: 0,
+        ordersTrendPct: 0,
+        avgDeliveryMinutes: 0,
+        codPct: 0,
+        onlinePaymentPct: 0,
+        pendingDeliveryCount: 0,
+        unassignedRiderCount: 0,
+        delayedOrdersCount: 0,
+      );
+    }
+    return AdminAnalyticsService.fromOrderModels(all).orderAnalytics;
   }
 
   OrderOperationalInsights get operationalInsights {
     final all = _allOrdersCache ?? [];
-    final peak = peakHoursToday();
-    final peakEntry = peak.isEmpty
-        ? null
-        : peak.reduce((a, b) => a.value >= b.value ? a : b);
-
-    final areas = <String, int>{};
-    for (final o in all) {
-      final key = o.address.trim().isEmpty ? 'Unknown' : o.address.split(',').first.trim();
-      areas[key] = (areas[key] ?? 0) + 1;
+    if (all.isEmpty) {
+      return const OrderOperationalInsights(
+        peakOrderingHour: '—',
+        avgDeliveryMinutes: '0 min',
+        mostActiveArea: '—',
+        topCategory: '—',
+        pendingDeliveryCount: 0,
+        riderUtilizationPct: 0,
+        codRiskCount: 0,
+        isPeakTraffic: false,
+      );
     }
-    final topArea = areas.entries.isEmpty
-        ? '—'
-        : areas.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
-
-    final categories = <String, int>{};
-    for (final o in all) {
-      for (final p in o.products) {
-        final cat = p.category.trim().isEmpty ? 'General' : p.category;
-        categories[cat] = (categories[cat] ?? 0) + p.itemCount;
-      }
-    }
-    final topCat = categories.entries.isEmpty
-        ? '—'
-        : categories.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
-
-    final active = all.where((o) => !o.isCancelled && !o.isDelivered).toList();
-    final assigned = active.where((o) => o.deliveryBoyId.isNotEmpty).length;
-    final utilization = active.isEmpty ? 0.0 : (assigned / active.length) * 100;
-
-    final codRisk = all
-        .where((o) => !o.isPaid && !o.isDelivered && !o.isCancelled && o.getTotalAmount() >= 1500)
-        .length;
-
-    final peakHourLabel = peakEntry == null || peakEntry.value <= 0
-        ? '—'
-        : peakEntry.label;
-
-    return OrderOperationalInsights(
-      peakOrderingHour: peakHourLabel,
-      avgDeliveryMinutes: '${_avgDeliveryMinutes(all).toStringAsFixed(0)} min',
-      mostActiveArea: topArea,
-      topCategory: topCat,
-      pendingDeliveryCount: active.length,
-      riderUtilizationPct: utilization,
-      codRiskCount: codRisk,
-      isPeakTraffic: (peakEntry?.value ?? 0) >= 3,
-    );
-  }
-
-  List<OrderModel> get recentOrdersForOverview {
-    final all = _allOrdersCache ?? [];
-    return all.take(8).toList();
-  }
-
-  static double _avgDeliveryMinutes(List<OrderModel> all) {
-    final durations = <double>[];
-    for (final o in all) {
-      if (!o.isDelivered) continue;
-      final start = DateTime.tryParse(o.createdDate);
-      final end = DateTime.tryParse(o.orderDeliveredTime);
-      if (start == null || end == null) continue;
-      final mins = end.difference(start).inMinutes;
-      if (mins > 0 && mins < 24 * 60) durations.add(mins.toDouble());
-    }
-    if (durations.isEmpty) return 0;
-    return durations.reduce((a, b) => a + b) / durations.length;
+    return AdminAnalyticsService.fromOrderModels(all).operationalInsights;
   }
 
   List<OrderChartPoint> ordersTrendLast7Days() {
     final all = _allOrdersCache ?? [];
-    final now = DateTime.now();
-    return List.generate(7, (i) {
-      final day = DateTime(now.year, now.month, now.day).subtract(
-        Duration(days: 6 - i),
-      );
-      final next = day.add(const Duration(days: 1));
-      final count = all.where((o) => _inRange(o, day, next)).length;
-      return OrderChartPoint(_shortDay(day), count.toDouble());
-    });
+    if (all.isEmpty) return const [];
+    return AdminAnalyticsService.fromOrderModels(all)
+        .revenue
+        .ordersTrend7d
+        .map((p) => OrderChartPoint(p.label, p.value))
+        .toList();
   }
 
   List<OrderChartPoint> revenueTrendLast7Days() {
     final all = _allOrdersCache ?? [];
-    final now = DateTime.now();
-    return List.generate(7, (i) {
-      final day = DateTime(now.year, now.month, now.day).subtract(
-        Duration(days: 6 - i),
-      );
-      final next = day.add(const Duration(days: 1));
-      final rev = all
-          .where((o) => o.isDelivered && _inRange(o, day, next))
-          .fold<double>(0, (s, o) => s + o.getTotalAmount());
-      return OrderChartPoint(_shortDay(day), rev);
-    });
+    if (all.isEmpty) return const [];
+    return AdminAnalyticsService.fromOrderModels(all)
+        .revenue
+        .revenueTrend7d
+        .map((p) => OrderChartPoint(p.label, p.value))
+        .toList();
   }
 
   List<OrderChartPoint> peakHoursToday() {
@@ -522,11 +427,6 @@ class OrderService extends ChangeNotifier {
 
   static String _dateKey(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-  static String _shortDay(DateTime d) {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return '${days[d.weekday - 1]} ${d.day}';
-  }
 
   static List<OrderModel> _applyQuickFilter(
     List<OrderModel> list,
@@ -581,14 +481,4 @@ class OrderService extends ChangeNotifier {
     }
   }
 
-  static bool _inRange(OrderModel o, DateTime start, DateTime end) {
-    final dt = DateTime.tryParse(o.createdDate);
-    if (dt == null) return false;
-    return !dt.isBefore(start) && dt.isBefore(end);
-  }
-
-  static double _pctChange(double prev, double current) {
-    if (prev <= 0) return current > 0 ? 100 : 0;
-    return ((current - prev) / prev) * 100;
-  }
 }

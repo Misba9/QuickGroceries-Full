@@ -6,7 +6,7 @@ import 'package:quick_grocery_admin/view/home/screens/home_screen.dart';
 import 'package:quick_grocery_admin/view/home/services/dash_board_services.dart';
 import 'package:quick_grocery_admin/view/orders/services/order_service.dart';
 import 'package:quick_grocery_admin/view/products/services/product_service.dart';
-import 'package:quick_grocery_admin/view/users/services/user_service.dart';
+import 'package:quick_grocery_admin/view/customers/services/customer_admin_service.dart';
 import 'package:quick_grocery_admin/view/delivery_settings/services/delivery_settings_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -53,7 +53,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (context) => ProductService()),
-        ChangeNotifierProvider(create: (context) => UserService()),
+        ChangeNotifierProvider(create: (context) => CustomerAdminService()),
         ChangeNotifierProvider(create: (context) => VendorService()),
         ChangeNotifierProvider(create: (context) => VendorRequestService()),
         ChangeNotifierProvider(create: (context) => OrderService()),

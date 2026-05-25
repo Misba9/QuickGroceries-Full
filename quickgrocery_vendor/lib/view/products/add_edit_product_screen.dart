@@ -615,7 +615,12 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                 initialProduct: widget.product,
                 initialSettings: _settings,
                 onLocalChanged: (s) {
-                  if (_settings != s) setState(() => _settings = s);
+                  if (_settings == s) return;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted && _settings != s) {
+                      setState(() => _settings = s);
+                    }
+                  });
                 },
               ),
               AppSpacing.h20,

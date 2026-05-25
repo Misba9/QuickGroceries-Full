@@ -19,6 +19,8 @@ import 'package:quick_grocery_admin/view/home/screens/dabshboard.dart';
 import 'package:quick_grocery_admin/view/home/widgets/admin_global_top_bar.dart';
 import 'package:quick_grocery_admin/view/home/widgets/admin_sidebar.dart';
 import 'package:quick_grocery_admin/view/maintenance/screens/maintenance_management_screen.dart';
+import 'package:quick_grocery_admin/view/customers/customers_pages.dart';
+import 'package:quick_grocery_admin/view/customers/navigation/customers_navigation.dart';
 import 'package:quick_grocery_admin/view/orders/orders_navigation.dart';
 import 'package:quick_grocery_admin/view/orders/screens/manage_orders_screen.dart';
 import 'package:quick_grocery_admin/view/orders/screens/new_orders_screen.dart';
@@ -36,7 +38,6 @@ import 'package:quick_grocery_admin/view/push_notifications/presentation/screens
 import 'package:quick_grocery_admin/view/reviews/screens/review_analytics_screen.dart';
 import 'package:quick_grocery_admin/view/reviews/screens/review_management_screen.dart';
 import 'package:quick_grocery_admin/view/support_settings/screens/support_settings_screen.dart';
-import 'package:quick_grocery_admin/view/users/screens/user_screen.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_add_screen.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_requests_screen.dart';
@@ -71,6 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       syncOrderServiceForRoute(context, _selectedScreen);
+      syncCustomerServiceForRoute(context, _selectedScreen);
     });
   }
 
@@ -84,7 +86,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return [
       slot(AdminRoutes.dashboard, const DashboardScreen()),
-      slot(AdminRoutes.userList, UsersScreen()),
+      for (final r in AdminRoutes.customerRoutes)
+        slot(r, customerPageForRoute(r)),
       slot(AdminRoutes.vendorAdd, VendorAddScreen()),
       slot(AdminRoutes.vendorList, VendorListScreen()),
       slot(AdminRoutes.vendorRequests, const VendorRequestsScreen()),
@@ -142,7 +145,14 @@ class _HomeScreenState extends State<HomeScreen> {
         if (idx != null) _pageCache.remove(idx);
       }
     }
+    if (isCustomersRoute(_selectedScreen) || isCustomersRoute(route)) {
+      for (final r in AdminRoutes.customerRoutes) {
+        final idx = _routeIndex[r];
+        if (idx != null) _pageCache.remove(idx);
+      }
+    }
     syncOrderServiceForRoute(context, route);
+    syncCustomerServiceForRoute(context, route);
     setState(() => _selectedScreen = route);
     if (closeDrawer) _scaffoldKey.currentState?.closeDrawer();
   }

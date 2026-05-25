@@ -7,6 +7,11 @@ import { assertNotificationAdmin } from "../notification_admin_assert";
 import { writeActivityLog } from "../operations/ops_notify";
 import { hashPassword } from "./partner_crypto";
 import { db } from "./partner_store";
+import { buildSyncedVendorFields } from "./vendor_sync_fields";
+import {
+  findVendorDocIdByShopName,
+  migrateVendorAuthCore,
+} from "./vendor_auth_migrate";
 
 function str(v: unknown): string {
   if (v == null) return "";
@@ -150,26 +155,23 @@ export const adminCreateVendorAccount = onCall(
       const passwordHash = await hashPassword(password);
       const vendorRef = db.collection("vendors").doc(uid);
 
-      await vendorRef.set({
-        id: uid,
-        auth_uid: uid,
-        email,
-        ownerName,
-        storeName,
-        phone,
-        status: "active",
-        isApproved: true,
-        isBlocked: false,
-        createdAt: FieldValue.serverTimestamp(),
-        first_name: firstName,
-        last_name: lastName,
-        shop_name: storeName,
-        shop_address: shopAddress,
-        vendor_image: vendorImage,
-        shop_image: shopImage,
-        is_active: true,
-        password_hash: passwordHash,
-      });
+      await vendorRef.set(
+        buildSyncedVendorFields({
+          uid,
+          email,
+          ownerName,
+          storeName,
+          firstName,
+          lastName,
+          passwordHash,
+          existing: {
+            shop_address: shopAddress,
+            vendor_image: vendorImage,
+            shop_image: shopImage,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+        })
+      );
 
       const saved = await vendorRef.get();
       logger.info(
@@ -197,7 +199,7 @@ export const adminCreateVendorAccount = onCall(
       }
       if (e instanceof HttpsError) throw e;
       throw new HttpsError(
-        "internal",
+        "failed-precondition",
         "Vendor profile could not be saved. Auth user was rolled back."
       );
     }
@@ -253,171 +255,58 @@ export const adminSyncVendorAuthPassword = onCall(
   }
 );
 
-async function updateVendorIdReferences(
-  oldVendorId: string,
-  newVendorId: string
-): Promise<{ products: number; orders: number }> {
-  let productsUpdated = 0;
-  let ordersUpdated = 0;
-
-  const productSnap = await db
-    .collection("products")
-    .where("vendor_id", "==", oldVendorId)
-    .get();
-  if (!productSnap.empty) {
-    const batch = db.batch();
-    productSnap.docs.forEach((doc) => {
-      batch.update(doc.ref, { vendor_id: newVendorId });
-    });
-    await batch.commit();
-    productsUpdated = productSnap.size;
-  }
-
-  const orderSnap = await db
-    .collection("orders")
-    .where("vendor_id", "==", oldVendorId)
-    .get();
-  if (!orderSnap.empty) {
-    const batch = db.batch();
-    orderSnap.docs.forEach((doc) => {
-      batch.update(doc.ref, { vendor_id: newVendorId });
-    });
-    await batch.commit();
-    ordersUpdated = orderSnap.size;
-  }
-
-  return { products: productsUpdated, orders: ordersUpdated };
-}
-
 /**
  * Migrate legacy Firestore-only vendor → Firebase Auth + vendors/{auth.uid}.
- * Moves doc when Firestore ID ≠ Auth UID and updates product/order references.
  */
 export const adminMigrateVendorAuth = onCall(
   callableBaseOptions(),
   async (req) => {
     await assertNotificationAdmin(req.auth?.uid);
-
     const vendorDocId = str(req.data?.vendorDocId);
     const password = passwordRaw(req.data?.password);
+    return migrateVendorAuthCore({
+      vendorDocId,
+      password,
+      adminUid: req.auth?.uid,
+    });
+  }
+);
 
-    if (!vendorDocId) {
-      throw new HttpsError("invalid-argument", "vendorDocId is required.");
-    }
-    if (password.length < 8) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Password must be at least 8 characters."
-      );
-    }
+/**
+ * Restore vendor auth by doc id or shop name (e.g. "Honey Traders").
+ */
+export const adminRestoreVendorAuth = onCall(
+  callableBaseOptions(),
+  async (req) => {
+    await assertNotificationAdmin(req.auth?.uid);
 
-    const oldRef = db.collection("vendors").doc(vendorDocId);
-    const oldSnap = await oldRef.get();
-    if (!oldSnap.exists) {
-      throw new HttpsError("not-found", "Vendor document not found.");
-    }
+    let vendorDocId = str(req.data?.vendorDocId);
+    const shopName = str(req.data?.shopName);
+    const password = passwordRaw(req.data?.password);
 
-    const data = oldSnap.data()!;
-    const email = str(data.email).toLowerCase();
-    if (!email.includes("@")) {
-      throw new HttpsError("invalid-argument", "Vendor email is missing or invalid.");
-    }
-
-    const firstName = str(data.first_name || data.firstName);
-    const lastName = str(data.last_name || data.lastName);
-    const storeName =
-      str(data.shop_name || data.shopName || data.storeName) || email;
-    const displayName = `${firstName} ${lastName}`.trim() || storeName;
-
-    let uid: string;
-    try {
-      const existing = await admin.auth().getUserByEmail(email);
-      uid = existing.uid;
-      await admin.auth().updateUser(uid, { password, disabled: false });
-      logger.info(`[adminMigrateVendorAuth] linked existing auth uid=${uid}`);
-    } catch (e: unknown) {
-      const err = e as { code?: string; message?: string };
-      if (err.code !== "auth/user-not-found") {
-        throw new HttpsError("internal", err.message ?? "Auth lookup failed.");
-      }
-      const created = await admin.auth().createUser({
-        email,
-        password,
-        displayName,
-      });
-      uid = created.uid;
-      logger.info(`[adminMigrateVendorAuth] created auth uid=${uid}`);
-    }
-
-    const passwordHash = await hashPassword(password);
-    const ownerName =
-      str(data.ownerName) || `${firstName} ${lastName}`.trim() || storeName;
-
-    const vendorPayload: Record<string, unknown> = {
-      ...data,
-      id: uid,
-      auth_uid: uid,
-      email,
-      ownerName,
-      storeName,
-      first_name: firstName || ownerName,
-      last_name: lastName,
-      shop_name: storeName,
-      status: "active",
-      isApproved: true,
-      isBlocked: false,
-      is_active: data.is_active !== false,
-      password_hash: passwordHash,
-      authSynced: true,
-      migratedAt: FieldValue.serverTimestamp(),
-    };
-
-    if (vendorDocId !== uid) {
-      vendorPayload.migratedFrom = vendorDocId;
-    }
-
-    let refs = { products: 0, orders: 0 };
-
-    if (vendorDocId === uid) {
-      await oldRef.set(vendorPayload, { merge: true });
-      logger.info(`[adminMigrateVendorAuth] updated vendors/${uid} in place`);
-    } else {
-      const newRef = db.collection("vendors").doc(uid);
-      const existingNew = await newRef.get();
-      if (existingNew.exists && existingNew.id !== vendorDocId) {
+    if (!vendorDocId && shopName) {
+      const found = await findVendorDocIdByShopName(shopName);
+      if (!found) {
         throw new HttpsError(
-          "already-exists",
-          `Firestore document vendors/${uid} already exists. Resolve conflict manually.`
+          "not-found",
+          `No vendor found with shop name "${shopName}".`
         );
       }
+      vendorDocId = found;
+      logger.info(`[adminRestoreVendorAuth] resolved shopName=${shopName} → ${vendorDocId}`);
+    }
 
-      await newRef.set(vendorPayload);
-      refs = await updateVendorIdReferences(vendorDocId, uid);
-      await oldRef.delete();
-      logger.info(
-        `[adminMigrateVendorAuth] moved ${vendorDocId} → vendors/${uid} products=${refs.products} orders=${refs.orders}`
+    if (!vendorDocId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "vendorDocId or shopName is required."
       );
     }
 
-    await writeActivityLog({
-      action: "migrate_vendor_auth",
-      entityType: "vendor",
-      entityId: uid,
-      summary: `Migrated vendor ${email} to Firebase Auth`,
-      metadata: {
-        authUid:  uid,
-        previousDocId: vendorDocId,
-        email,
-        ...refs,
-      },
+    return migrateVendorAuthCore({
+      vendorDocId,
+      password,
+      adminUid: req.auth?.uid,
     });
-
-    return {
-      success: true,
-      authUid: uid,
-      previousDocId: vendorDocId,
-      firestorePath: `vendors/${uid}`,
-      referencesUpdated: refs,
-    };
   }
 );

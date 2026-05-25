@@ -80,6 +80,9 @@ class DashBoardServices extends ChangeNotifier {
 
   Future<void> fetchRevenueData() async {
     try {
+      monthlyRevenue.clear();
+      revenueList.clear();
+
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('orders')
           .where('isDelivered', isEqualTo: true)

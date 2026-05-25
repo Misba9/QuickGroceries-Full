@@ -55,7 +55,16 @@ android {
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            val hasReleaseSigning =
+                keystoreProperties.containsKey("keyAlias") &&
+                    keystoreProperties.containsKey("keyPassword") &&
+                    keystoreProperties.containsKey("storePassword") &&
+                    keystoreProperties.containsKey("storeFile")
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -65,7 +74,7 @@ android {
         }
 
         getByName("debug") {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }

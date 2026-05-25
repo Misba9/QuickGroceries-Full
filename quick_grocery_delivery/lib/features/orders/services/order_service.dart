@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:developer';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/models/delivery_boy_model.dart';
@@ -23,6 +24,7 @@ class OrderService extends ChangeNotifier {
   OrderModel? selectedOrder;
   String orderStatus = '';
   DeliveryBoyModel? deliveryBoy;
+  bool profileLoadFailed = false;
   TextEditingController priceController = TextEditingController();
 
   void onSelectOrder(OrderModel order) async {
@@ -205,20 +207,40 @@ class OrderService extends ChangeNotifier {
   }
 
   Future<void> getDeliveryBoy() async {
+    profileLoadFailed = false;
     final pref = await SharedPreferences.getInstance();
-    String token = pref.getString('deliveryBoyId') ?? "";
+    final uid = FirebaseAuth.instance.currentUser?.uid ??
+        pref.getString('deliveryBoyId') ??
+        '';
+    if (uid.isEmpty) {
+      deliveryBoy = null;
+      profileLoadFailed = true;
+      notifyListeners();
+      return;
+    }
+
     try {
-      DocumentSnapshot snapshot = await FirebaseFirestore.instance
+      final snapshot = await FirebaseFirestore.instance
           .collection('delivery_boys')
-          .doc(token)
+          .doc(uid)
           .get();
+      if (!snapshot.exists || snapshot.data() == null) {
+        deliveryBoy = null;
+        profileLoadFailed = true;
+        notifyListeners();
+        return;
+      }
       deliveryBoy = DeliveryBoyModel.fromFirestore(
         snapshot.data() as Map<String, dynamic>,
         snapshot.id,
       );
+      profileLoadFailed = false;
       notifyListeners();
     } catch (e) {
+      deliveryBoy = null;
+      profileLoadFailed = true;
       print(e.toString());
+      notifyListeners();
     }
   }
 

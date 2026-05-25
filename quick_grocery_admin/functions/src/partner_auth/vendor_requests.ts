@@ -53,6 +53,7 @@ async function createApprovedVendorProfile(opts: {
     shop_image: opts.shopImage,
     is_active: true,
     password_hash: passwordHash,
+    authSynced: true,
   });
 }
 
@@ -252,8 +253,15 @@ export const adminApproveVendorRequest = onCall(
         const existing = await admin.auth().getUserByEmail(email);
         uid = existing.uid;
         await admin.auth().updateUser(uid, { password });
+      } else if (err.code === "auth/invalid-password") {
+        throw new HttpsError("invalid-argument", "Password is too weak.");
+      } else if (err.code === "auth/invalid-email") {
+        throw new HttpsError("invalid-argument", "Invalid email address.");
       } else {
-        throw new HttpsError("internal", err.message ?? "Auth creation failed.");
+        throw new HttpsError(
+          "failed-precondition",
+          err.message ?? "Firebase Auth creation failed."
+        );
       }
     }
 
@@ -297,7 +305,10 @@ export const adminApproveVendorRequest = onCall(
     } catch (e) {
       logger.error("[adminApproveVendorRequest] firestore failed", e);
       await admin.auth().deleteUser(uid).catch(() => undefined);
-      throw new HttpsError("internal", "Could not complete vendor approval.");
+      throw new HttpsError(
+        "failed-precondition",
+        "Could not complete vendor approval. Auth user was rolled back."
+      );
     }
   }
 );

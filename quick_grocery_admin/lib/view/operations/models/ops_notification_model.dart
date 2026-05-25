@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart' show IconData, Icons;
+import 'package:quick_grocery_admin/core/utils/duration_format.dart';
 
 enum OpsNotificationCategory {
   orders,
@@ -146,12 +147,12 @@ class OpsNotificationModel {
 
 String relativeTimestamp(DateTime? dt) {
   if (dt == null) return '';
-  final diff = DateTime.now().difference(dt);
+  final diff = DateTime.now().difference(dt.toLocal());
   if (diff.inSeconds < 45) return 'Just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-  if (diff.inHours < 24) return '${diff.inHours}h ago';
   if (diff.inDays == 1) return 'Yesterday';
-  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  if (diff.inDays < 7) {
+    return '${DurationFormat.formatDuration(diff, allowDays: true)} ago';
+  }
   return '${dt.day}/${dt.month}/${dt.year}';
 }
 

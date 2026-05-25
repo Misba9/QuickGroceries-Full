@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_delivery/core/auth/delivery_auth_service.dart';
 import 'package:quick_grocery_delivery/core/auth/delivery_session_prefs.dart';
 import 'package:quick_grocery_delivery/features/home/screens/home_screen.dart';
 import 'package:quick_grocery_delivery/features/login/force_password_change_screen.dart';
 import 'package:quick_grocery_delivery/features/login/login_screen.dart';
-import 'package:quick_grocery_delivery/features/login/services/login_service.dart';
 
 /// Resolves initial route: login, home, or forced password change.
 class AuthGate extends StatefulWidget {
@@ -14,6 +14,8 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
+  final DeliveryAuthService _authService = DeliveryAuthService();
+
   Widget _screen = const Scaffold(
     body: Center(child: CircularProgressIndicator()),
   );
@@ -25,25 +27,25 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _resolve() async {
-    final id = await DeliverySessionPrefs.deliveryBoyId();
-    if (id == null || id.isEmpty) {
-      setState(() => _screen = const LoginScreen());
-      return;
-    }
+    try {
+      final deliveryBoyId = await _authService.restoreSession();
+      if (deliveryBoyId == null || deliveryBoyId.isEmpty) {
+        if (mounted) setState(() => _screen = const LoginScreen());
+        return;
+      }
 
-    final loginService = LoginService();
-    final valid = await loginService.validateStoredSession();
-    if (!valid) {
-      setState(() => _screen = const LoginScreen());
-      return;
+      final force = await DeliverySessionPrefs.forcePasswordChange();
+      if (mounted) {
+        setState(() {
+          _screen = force
+              ? ForcePasswordChangeScreen(partnerId: deliveryBoyId)
+              : const HomeScreen();
+        });
+      }
+    } catch (_) {
+      await _authService.logout();
+      if (mounted) setState(() => _screen = const LoginScreen());
     }
-
-    final force = await DeliverySessionPrefs.forcePasswordChange();
-    setState(() {
-      _screen = force
-          ? ForcePasswordChangeScreen(partnerId: id)
-          : const HomeScreen();
-    });
   }
 
   @override

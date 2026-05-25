@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:quick_grocery_delivery/core/fcm_bootstrap.dart';
@@ -61,7 +62,10 @@ Future<void> main() async {
     sound: true,
   );
   final pref = await SharedPreferences.getInstance();
-  final riderId = pref.getString('deliveryBoyId') ?? '';
+  final riderId =
+      FirebaseAuth.instance.currentUser?.uid ??
+      pref.getString('deliveryBoyId') ??
+      '';
   if (riderId.isNotEmpty) {
     await DeliveryFcmBootstrap.configureForRider(riderId);
   }

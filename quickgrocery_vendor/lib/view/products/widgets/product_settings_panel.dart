@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:quickgrocery_vendor/models/product_model.dart';
@@ -35,6 +37,7 @@ class _ProductSettingsPanelState extends State<ProductSettingsPanel> {
   bool _saving = false;
   String? _statusMessage;
   bool _statusError = false;
+  StreamSubscription<ProductModel?>? _productSub;
 
   @override
   void initState() {
@@ -42,6 +45,26 @@ class _ProductSettingsPanelState extends State<ProductSettingsPanel> {
     _settings = widget.initialSettings ??
         widget.initialProduct?.settings ??
         const ProductSettings();
+    _listenProduct();
+  }
+
+  void _listenProduct() {
+    final id = widget.productId;
+    if (id == null || id.isEmpty) return;
+    _productSub?.cancel();
+    _productSub = _productService.watchProduct(id).listen((product) {
+      if (!mounted || product == null || _saving) return;
+      final next = product.settings;
+      if (next == _settings) return;
+      setState(() => _settings = next);
+      widget.onLocalChanged?.call(next);
+    });
+  }
+
+  @override
+  void dispose() {
+    _productSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _persist(ProductSettings next, {String? successMsg}) async {
@@ -113,18 +136,6 @@ class _ProductSettingsPanelState extends State<ProductSettingsPanel> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.productId != null && widget.productId!.isNotEmpty) {
-      return StreamBuilder<ProductModel?>(
-        stream: _productService.watchProduct(widget.productId!),
-        builder: (context, snap) {
-          if (snap.hasData && snap.data != null && !_saving) {
-            _settings = snap.data!.settings;
-            widget.onLocalChanged?.call(_settings);
-          }
-          return _buildPanel(context);
-        },
-      );
-    }
     return _buildPanel(context);
   }
 

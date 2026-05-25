@@ -7,6 +7,8 @@ import 'package:quick_grocery_delivery/features/dashboard/driver_dashboard_page.
 import 'package:quick_grocery_delivery/features/orders/screens/order_screen.dart';
 import 'package:quick_grocery_delivery/features/orders/services/order_service.dart';
 import 'package:quick_grocery_delivery/features/wallet/wallet_screen.dart';
+import 'package:quick_grocery_delivery/features/login/login_screen.dart';
+import 'package:quick_grocery_delivery/features/login/services/login_service.dart';
 import 'package:quick_grocery_delivery/support/support_contact_sheet.dart';
 import 'package:provider/provider.dart';
 
@@ -54,6 +56,48 @@ class _HomeScreenState extends State<HomeScreen> {
     final provider = Provider.of<OrderService>(context);
 
     if (provider.deliveryBoy == null) {
+      if (provider.profileLoadFailed) {
+        return Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  AppSpacing.h20,
+                  const Text(
+                    'Could not load delivery profile',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    textAlign: TextAlign.center,
+                  ),
+                  AppSpacing.h10,
+                  const Text(
+                    'Your account may not be synced yet. Try again or sign in again.',
+                    textAlign: TextAlign.center,
+                  ),
+                  AppSpacing.h20,
+                  ElevatedButton(
+                    onPressed: () => provider.getDeliveryBoy(),
+                    child: const Text('Retry'),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      await context.read<LoginService>().logout();
+                      if (!context.mounted) return;
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (_) => false,
+                      );
+                    },
+                    child: const Text('Back to login'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 

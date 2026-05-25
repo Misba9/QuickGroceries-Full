@@ -92,14 +92,12 @@ class VendorAuthService {
         return const VendorLoginResult.failure('Waiting for admin approval');
       }
 
-      if (e.code == 'wrong-password') {
-        return const VendorLoginResult.failure('Invalid password');
-      }
-      if (e.code == 'user-not-found') {
-        return const VendorLoginResult.failure('Vendor account not approved yet');
-      }
-      if (e.code == 'invalid-credential' ||
+      if (e.code == 'user-not-found' ||
+          e.code == 'invalid-credential' ||
           e.code == 'invalid-login-credentials') {
+        return _loginViaPartner(normalizedEmail, password);
+      }
+      if (e.code == 'wrong-password') {
         return const VendorLoginResult.failure('Invalid password');
       }
       if (e.code == 'user-disabled') {

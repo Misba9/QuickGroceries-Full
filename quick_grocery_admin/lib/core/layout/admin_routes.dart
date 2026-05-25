@@ -1,7 +1,23 @@
 /// Stable route ids for admin navigation.
 abstract final class AdminRoutes {
   static const dashboard = 'Dashboard';
-  static const userList = 'User List';
+
+  // User management (simplified)
+  static const customersAll = 'All Customers';
+  static const customersActive = 'Active Users';
+  static const customersBlocked = 'Blocked Users';
+  static const customersNew = 'New Users';
+
+  /// Legacy alias
+  static const userList = customersAll;
+
+  static const customerRoutes = <String>[
+    customersAll,
+    customersActive,
+    customersBlocked,
+    customersNew,
+  ];
+
   static const vendorAdd = 'Vendor Add';
   static const vendorList = 'Vendor List';
   static const vendorRequests = 'Vendor Requests';
@@ -35,7 +51,7 @@ abstract final class AdminRoutes {
 
   static const all = <String>[
     dashboard,
-    userList,
+    ...customerRoutes,
     vendorAdd,
     vendorList,
     vendorRequests,

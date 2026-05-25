@@ -8,6 +8,7 @@ class RatingModel {
   final String review;
   final String userName;
   final String userId;
+  final String orderId;
   final Timestamp createdAt;
   final Timestamp updatedAt;
   final bool verifiedPurchase;
@@ -20,6 +21,7 @@ class RatingModel {
     required this.review,
     required this.userName,
     required this.userId,
+    this.orderId = '',
     required this.createdAt,
     required this.updatedAt,
     this.verifiedPurchase = false,
@@ -32,8 +34,9 @@ class RatingModel {
       productName: data['product_name'] ?? '',
       rating: (data['rating'] ?? 0.0).toDouble(),
       review: (data['review_text'] ?? data['review'] ?? '').toString(),
-      userName: data['user_name'] ?? '',
+      userName: data['user_name'] ?? data['customer_name'] ?? '',
       userId: data['user_id'] ?? '',
+      orderId: data['order_id']?.toString() ?? '',
       createdAt: data['created_at'] ?? Timestamp.now(),
       updatedAt: data['updated_at'] ?? Timestamp.now(),
       verifiedPurchase: data['verified_purchase'] == true,

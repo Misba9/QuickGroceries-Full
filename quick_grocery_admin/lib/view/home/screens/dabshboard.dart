@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_grocery_admin/core/theme/app_text_styles.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/home/services/dash_board_services.dart';
+import 'package:quick_grocery_admin/view/operations/services/ops_dashboard_service.dart';
 import 'package:quick_grocery_admin/view/operations/widgets/admin_notification_bell.dart';
 import 'package:quick_grocery_admin/view/operations/widgets/ops_live_panel.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
@@ -26,19 +28,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     d.getVendors();
     d.getOrders();
     d.getProducts();
-    d.fetchRevenueData();
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<DashBoardServices>();
+    final currency = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final revenueToday = context.select<OpsDashboardService, double>(
+      (s) => s.revenue.today,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _DashboardHeader(),
         const SizedBox(height: 20),
-        _DashboardStatsGrid(provider: provider),
+        _DashboardStatsGrid(
+          provider: provider,
+          revenueTodayLabel: currency.format(revenueToday),
+        ),
       ],
     );
   }
@@ -54,7 +62,7 @@ class _DashboardHeader extends StatelessWidget {
       children: [
         const AdminOpsTopBar(
           title: 'Operations dashboard',
-          subtitle: 'Live updates — no refresh needed',
+          subtitle: 'Live revenue, order queue, and delivery ops',
         ),
         const OpsLivePanel(),
         const SizedBox(height: 20),
@@ -65,14 +73,14 @@ class _DashboardHeader extends StatelessWidget {
           children: [
             SvgPicture.asset('assets/icons/chart.svg', width: 24, height: 24),
             Text(
-              'Operations & analytics',
+              'Catalog overview',
               style: AppTextStyles.dashboardTitle,
             ),
           ],
         ),
         const SizedBox(height: 4),
         Text(
-          'Realtime order stream, delivered revenue, and catalog health.',
+          'Customer, vendor, and product counts (refreshed on load).',
           style: AppTextStyles.dashboardSubtitle,
         ),
       ],
@@ -81,9 +89,13 @@ class _DashboardHeader extends StatelessWidget {
 }
 
 class _DashboardStatsGrid extends StatelessWidget {
-  const _DashboardStatsGrid({required this.provider});
+  const _DashboardStatsGrid({
+    required this.provider,
+    required this.revenueTodayLabel,
+  });
 
   final DashBoardServices provider;
+  final String revenueTodayLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -112,8 +124,8 @@ class _DashboardStatsGrid extends StatelessWidget {
           loading: provider.products == null,
         ),
         _DashboardStatCard(
-          title: 'Legacy delivered sum',
-          value: '₹${provider.totalRevenue}',
+          title: 'Revenue today (live)',
+          value: revenueTodayLabel,
           loading: false,
         ),
       ],

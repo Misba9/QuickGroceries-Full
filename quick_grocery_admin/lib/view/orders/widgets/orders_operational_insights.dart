@@ -9,10 +9,12 @@ class OrdersOperationalInsightsSection extends StatelessWidget {
     super.key,
     required this.insights,
     required this.analytics,
+    this.expanded = false,
   });
 
   final OrderOperationalInsights insights;
   final OrderAnalyticsSnapshot analytics;
+  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +52,17 @@ class OrdersOperationalInsightsSection extends StatelessWidget {
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, c) {
-              final narrow = c.maxWidth < 640;
+              final narrow = c.maxWidth < 520;
+              final cols = narrow
+                  ? 1
+                  : expanded
+                      ? 2
+                      : (c.maxWidth < 900 ? 2 : 4);
+              final spacing = 12.0;
+              final tileW = cols == 1
+                  ? c.maxWidth
+                  : ((c.maxWidth - spacing * (cols - 1)) / cols)
+                      .clamp(140.0, 320.0);
               final items = [
                 _InsightTile(
                   icon: Icons.schedule,
@@ -104,15 +116,10 @@ class OrdersOperationalInsightsSection extends StatelessWidget {
                 );
               }
               return Wrap(
-                spacing: 12,
-                runSpacing: 12,
+                spacing: spacing,
+                runSpacing: spacing,
                 children: items
-                    .map(
-                      (t) => SizedBox(
-                        width: (c.maxWidth - 36) / 4,
-                        child: t,
-                      ),
-                    )
+                    .map((t) => SizedBox(width: tileW, child: t))
                     .toList(),
               );
             },

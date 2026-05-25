@@ -211,7 +211,7 @@ class AdminDashboardShell extends StatelessWidget {
 /// Routes that fill the viewport with [Column]/[Expanded] (no outer scroll).
 abstract final class AdminFlexRoutes {
   static const Set<String> routes = {
-    AdminRoutes.userList,
+    ...AdminRoutes.customerRoutes,
     AdminRoutes.vendorList,
     AdminRoutes.vendorRequests,
     AdminRoutes.deliveryBoyList,

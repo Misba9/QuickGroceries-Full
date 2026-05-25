@@ -81,7 +81,7 @@ service cloud.firestore {
 
     // Vendor signup requests — direct Firestore create from vendor app; admin manages.
     match /vendor_requests/{requestId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin();
       allow create: if
         request.resource.data.status == 'pending' &&
         request.resource.data.isApproved == false &&
@@ -95,7 +95,7 @@ service cloud.firestore {
         request.resource.data.lastName.size() > 0 &&
         request.resource.data.shopName is string &&
         request.resource.data.shopName.size() > 0;
-      allow update, delete: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
 
     // Pending signup flag (no password) — public read for login messaging.
@@ -116,6 +116,14 @@ service cloud.firestore {
         (request.auth.uid == vendorId ||
          resource.data.auth_uid == request.auth.uid ||
          resource.data.uid == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // Delivery app: signed-in rider can read/write own profile doc.
+    match /delivery_boys/{riderId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == riderId;
+      allow update: if isSignedIn() && request.auth.uid == riderId;
       allow delete: if isAdmin();
     }
 

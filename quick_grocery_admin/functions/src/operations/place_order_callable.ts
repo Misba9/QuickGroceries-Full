@@ -175,9 +175,21 @@ export const placeOrderCallable = onCall(
           star: 0,
         };
 
+        const vendorIds = [
+          ...new Set(
+            orderProducts
+              .map((p: { vendor_id?: string }) => str(p.vendor_id))
+              .filter((id: string) => id.length > 0)
+          ),
+        ];
+
         tx.set(orderRef, {
           ...legacyOrder,
           status: "pending",
+          vendorIds,
+          ...(vendorIds.length === 1
+            ? { vendorId: vendorIds[0], vendor_id: vendorIds[0] }
+            : {}),
           paymentMethod,
           paymentStatus: isPaid ? "paid" : "pending",
           ...(paymentRef ? { paymentRef } : {}),
