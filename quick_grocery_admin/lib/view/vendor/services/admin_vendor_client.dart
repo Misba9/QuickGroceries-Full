@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:quick_grocery_admin/core/firebase/callable_payload.dart';
 
 import 'admin_vendor_auth_creator.dart';
 import 'admin_vendor_http_client.dart';
@@ -40,9 +41,8 @@ class AdminVendorClient {
   AdminVendorClient({
     FirebaseFunctions? functions,
     AdminVendorAuthCreator? authCreator,
-  })  : _fn = functions ??
-            FirebaseFunctions.instanceFor(region: 'us-central1'),
-        _authCreator = authCreator ?? AdminVendorAuthCreator();
+  }) : _fn = functions ?? FirebaseFunctions.instanceFor(region: 'us-central1'),
+       _authCreator = authCreator ?? AdminVendorAuthCreator();
 
   final FirebaseFunctions _fn;
   final AdminVendorAuthCreator _authCreator;
@@ -51,6 +51,15 @@ class AdminVendorClient {
     if (FirebaseAuth.instance.currentUser == null) {
       throw Exception('Sign in to the admin panel first.');
     }
+  }
+
+  Future<HttpsCallableResult<dynamic>> _call(
+    String name,
+    Map<String, dynamic> payload,
+  ) {
+    final safePayload = sanitizeCallableData(payload);
+    debugCallableData(name, safePayload);
+    return _fn.httpsCallable(name).call(safePayload);
   }
 
   Map<String, dynamic> _payload({
@@ -142,7 +151,7 @@ class AdminVendorClient {
       debugPrint('[AdminVendor] migrate start vendorDocId=$vendorDocId');
     }
     try {
-      final res = await _fn.httpsCallable('adminMigrateVendorAuth').call({
+      final res = await _call('adminMigrateVendorAuth', {
         'vendorDocId': vendorDocId,
         'password': password,
       });
@@ -169,7 +178,10 @@ class AdminVendorClient {
         );
       }
       if (e.code == 'not-found' || e.code == 'unavailable') {
-        return _migrateViaSecondaryApp(vendorDocId: vendorDocId, password: password);
+        return _migrateViaSecondaryApp(
+          vendorDocId: vendorDocId,
+          password: password,
+        );
       }
       throw Exception(mapVendorFunctionsError(e));
     }
@@ -188,7 +200,7 @@ class AdminVendorClient {
       );
     }
     try {
-      final res = await _fn.httpsCallable('adminRestoreVendorAuth').call({
+      final res = await _call('adminRestoreVendorAuth', {
         if (vendorDocId != null && vendorDocId.isNotEmpty)
           'vendorDocId': vendorDocId,
         if (shopName != null && shopName.isNotEmpty) 'shopName': shopName,
@@ -234,7 +246,9 @@ class AdminVendorClient {
     required String password,
   }) async {
     if (kDebugMode) {
-      debugPrint('[AdminVendor] secondary-app migrate vendorDocId=$vendorDocId');
+      debugPrint(
+        '[AdminVendor] secondary-app migrate vendorDocId=$vendorDocId',
+      );
     }
     final uid = await _authCreator.migrateLegacyVendorDocument(
       legacyDocId: vendorDocId,
@@ -260,7 +274,8 @@ class AdminVendorClient {
     required String shopImage,
     String? authUid,
   }) async {
-    final res = await _fn.httpsCallable('adminCreateVendorAccount').call(
+    final res = await _call(
+      'adminCreateVendorAccount',
       _payload(
         email: email,
         password: password,
@@ -319,7 +334,7 @@ class AdminVendorClient {
   }) async {
     await _ensureSignedIn();
     try {
-      await _fn.httpsCallable('adminSyncVendorAuthPassword').call({
+      await _call('adminSyncVendorAuthPassword', {
         'email': email.trim().toLowerCase(),
         'password': password,
       });
@@ -331,9 +346,7 @@ class AdminVendorClient {
   Future<void> rollbackVendorAuth(String authUid) async {
     await _ensureSignedIn();
     try {
-      await _fn.httpsCallable('adminRollbackVendorAuth').call({
-        'authUid': authUid,
-      });
+      await _call('adminRollbackVendorAuth', {'authUid': authUid});
     } on FirebaseFunctionsException catch (e) {
       throw Exception(mapVendorFunctionsError(e));
     }

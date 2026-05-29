@@ -1,6 +1,8 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:quickgrocery/core/firebase/callable_payload.dart';
 import 'package:quickgrocery/models/address_model.dart';
 
 import '../domain/cart_models.dart';
@@ -8,10 +10,15 @@ import '../domain/cart_models.dart';
 /// Server-side order placement with stock validation and decrement.
 class OrderPlacementClient {
   OrderPlacementClient({FirebaseFunctions? functions})
-      : _fn = functions ??
-            FirebaseFunctions.instanceFor(region: 'us-central1');
+    : _fn = functions,
+      _regions = functions == null
+          ? const ['asia-south1', 'us-central1']
+          : const [];
 
-  final FirebaseFunctions _fn;
+  static const functionName = 'placeOrderCallable';
+
+  final FirebaseFunctions? _fn;
+  final List<String> _regions;
 
   Future<String> placeOrder({
     required List<CartItem> items,
@@ -30,14 +37,16 @@ class OrderPlacementClient {
       throw StateError('User must be signed in to place an order.');
     }
 
-    final res = await _fn.httpsCallable('placeOrderCallable').call({
+    final payload = sanitizeCallableData({
       'items': items
           .where((e) => !e.isComboLine)
-          .map((e) => {
-                'productId': e.productId,
-                'itemCount': e.itemCount,
-                'selectedWeightInGrams': e.selectedWeightInGrams,
-              })
+          .map(
+            (e) => {
+              'productId': e.productId,
+              'itemCount': e.itemCount,
+              'selectedWeightInGrams': e.selectedWeightInGrams,
+            },
+          )
           .toList(),
       'comboItems': items
           .where((e) => e.isComboLine)
@@ -61,11 +70,86 @@ class OrderPlacementClient {
       'paymentMethod': paymentMethod.id,
       if (paymentRef != null) 'paymentRef': paymentRef,
     });
+    debugCallableData(functionName, payload);
+
+    final res = await _callPlaceOrder(payload);
 
     final data = res.data;
     if (data is Map && data['orderId'] != null) {
       return data['orderId'].toString();
     }
-    throw StateError('Invalid response from placeOrderCallable');
+    throw StateError('Invalid response from $functionName');
+  }
+
+  Future<HttpsCallableResult<dynamic>> _callPlaceOrder(
+    Map<String, dynamic> payload,
+  ) async {
+    final injected = _fn;
+    if (injected != null) {
+      return _callRegion(injected, 'injected', payload);
+    }
+
+    FirebaseFunctionsException? lastFunctionsError;
+    Object? lastError;
+    StackTrace? lastStack;
+
+    for (final region in _regions) {
+      try {
+        return await _callRegion(
+          FirebaseFunctions.instanceFor(region: region),
+          region,
+          payload,
+        );
+      } on FirebaseFunctionsException catch (e, stack) {
+        lastFunctionsError = e;
+        lastStack = stack;
+        _logFunctionsError(e, stack, region);
+        if (!_shouldTryNextRegion(e)) rethrow;
+      } catch (e, stack) {
+        lastError = e;
+        lastStack = stack;
+        debugPrint(
+          'ORDER CALLABLE ERROR function=$functionName region=$region error=$e',
+        );
+        debugPrintStack(stackTrace: stack);
+        rethrow;
+      }
+    }
+
+    if (lastFunctionsError != null) {
+      Error.throwWithStackTrace(
+        lastFunctionsError,
+        lastStack ?? StackTrace.current,
+      );
+    }
+    if (lastError != null) {
+      Error.throwWithStackTrace(lastError, lastStack ?? StackTrace.current);
+    }
+    throw StateError('Order service unavailable');
+  }
+
+  Future<HttpsCallableResult<dynamic>> _callRegion(
+    FirebaseFunctions functions,
+    String region,
+    Map<String, dynamic> payload,
+  ) async {
+    debugPrint('ORDER CALLABLE START function=$functionName region=$region');
+    return functions.httpsCallable(functionName).call(payload);
+  }
+
+  bool _shouldTryNextRegion(FirebaseFunctionsException e) {
+    return e.code == 'not-found' || e.code == 'unavailable';
+  }
+
+  void _logFunctionsError(
+    FirebaseFunctionsException e,
+    StackTrace stack,
+    String region,
+  ) {
+    debugPrint(
+      'ORDER CALLABLE ERROR function=$functionName region=$region '
+      'code=${e.code} message=${e.message} details=${e.details}',
+    );
+    debugPrintStack(stackTrace: stack);
   }
 }

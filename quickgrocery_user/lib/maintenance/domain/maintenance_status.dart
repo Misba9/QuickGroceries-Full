@@ -46,8 +46,9 @@ class MaintenanceStatus {
       case MaintenanceStatusKind.normal:
         return config.allowOrders;
       case MaintenanceStatusKind.soft:
-      case MaintenanceStatusKind.highDemand:
         return false;
+      case MaintenanceStatusKind.highDemand:
+        return config.allowOrders && !pauseOrders;
       case MaintenanceStatusKind.readOnly:
         return false;
       case MaintenanceStatusKind.blocked:
@@ -78,45 +79,41 @@ class MaintenanceStatus {
   factory MaintenanceStatus.softMaintenance({
     required MaintenanceConfig config,
     DateTime? effectiveReopen,
-  }) =>
-      MaintenanceStatus(
-        kind: MaintenanceStatusKind.soft,
-        config: config,
-        effectiveReopen: effectiveReopen,
-      );
+  }) => MaintenanceStatus(
+    kind: MaintenanceStatusKind.soft,
+    config: config,
+    effectiveReopen: effectiveReopen,
+  );
 
   factory MaintenanceStatus.readOnly({
     required MaintenanceConfig config,
     DateTime? effectiveReopen,
-  }) =>
-      MaintenanceStatus(
-        kind: MaintenanceStatusKind.readOnly,
-        config: config,
-        effectiveReopen: effectiveReopen,
-      );
+  }) => MaintenanceStatus(
+    kind: MaintenanceStatusKind.readOnly,
+    config: config,
+    effectiveReopen: effectiveReopen,
+  );
 
   factory MaintenanceStatus.blocked({
     required MaintenanceBlockReason reason,
     required MaintenanceConfig config,
     DateTime? effectiveReopen,
-  }) =>
-      MaintenanceStatus(
-        kind: MaintenanceStatusKind.blocked,
-        config: config,
-        blockReason: reason,
-        effectiveReopen: effectiveReopen,
-      );
+  }) => MaintenanceStatus(
+    kind: MaintenanceStatusKind.blocked,
+    config: config,
+    blockReason: reason,
+    effectiveReopen: effectiveReopen,
+  );
 
   factory MaintenanceStatus.scheduleClosed({
     required MaintenanceConfig config,
     DateTime? effectiveReopen,
-  }) =>
-      MaintenanceStatus(
-        kind: MaintenanceStatusKind.scheduleClosed,
-        config: config,
-        blockReason: MaintenanceBlockReason.scheduleClosed,
-        effectiveReopen: effectiveReopen,
-      );
+  }) => MaintenanceStatus(
+    kind: MaintenanceStatusKind.scheduleClosed,
+    config: config,
+    blockReason: MaintenanceBlockReason.scheduleClosed,
+    effectiveReopen: effectiveReopen,
+  );
 
   factory MaintenanceStatus.areaBlocked({required MaintenanceConfig config}) =>
       MaintenanceStatus(
@@ -130,22 +127,22 @@ class MaintenanceStatus {
     required LocalizedText message,
     required bool pauseCod,
     required bool pauseOrders,
-  }) =>
-      MaintenanceStatus(
-        kind: MaintenanceStatusKind.highDemand,
-        config: config,
-        blockReason: MaintenanceBlockReason.highDemand,
-        highDemandMessage: message,
-        pauseCod: pauseCod,
-        pauseOrders: pauseOrders,
-      );
+  }) => MaintenanceStatus(
+    kind: MaintenanceStatusKind.highDemand,
+    config: config,
+    blockReason: MaintenanceBlockReason.highDemand,
+    highDemandMessage: message,
+    pauseCod: pauseCod,
+    pauseOrders: pauseOrders,
+  );
 
-  factory MaintenanceStatus.ordersStopped({required MaintenanceConfig config}) =>
-      MaintenanceStatus(
-        kind: MaintenanceStatusKind.ordersStopped,
-        config: config,
-        blockReason: MaintenanceBlockReason.ordersStopped,
-      );
+  factory MaintenanceStatus.ordersStopped({
+    required MaintenanceConfig config,
+  }) => MaintenanceStatus(
+    kind: MaintenanceStatusKind.ordersStopped,
+    config: config,
+    blockReason: MaintenanceBlockReason.ordersStopped,
+  );
 }
 
 enum MaintenanceStatusKind {

@@ -86,8 +86,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                         : null,
                   ),
                 ),
-                const SizedBox(height: 12),
-                _FilterChips(svc: svc),
               ],
             ),
           ),
@@ -113,37 +111,6 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _FilterChips extends StatelessWidget {
-  const _FilterChips({required this.svc});
-  final CustomerAdminService svc;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        FilterChip(
-          label: const Text('High spending'),
-          selected: svc.quickFilter == CustomerQuickFilter.highSpending,
-          onSelected: (_) =>
-              svc.setQuickFilter(CustomerQuickFilter.highSpending),
-        ),
-        FilterChip(
-          label: const Text('No orders'),
-          selected: svc.quickFilter == CustomerQuickFilter.noOrders,
-          onSelected: (_) => svc.setQuickFilter(CustomerQuickFilter.noOrders),
-        ),
-        if (svc.quickFilter != CustomerQuickFilter.none)
-          ActionChip(
-            label: const Text('Clear filters'),
-            onPressed: () => svc.setQuickFilter(CustomerQuickFilter.none),
-          ),
-      ],
     );
   }
 }

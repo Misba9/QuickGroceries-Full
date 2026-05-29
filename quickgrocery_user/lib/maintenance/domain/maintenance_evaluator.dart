@@ -12,12 +12,24 @@ class MaintenanceEvaluator {
     String? userPincode,
     String? userCity,
   }) {
-    if (!config.legacyStoreActive) {
+    if (!config.userAppEnabled) {
+      return MaintenanceStatus.blocked(
+        reason: MaintenanceBlockReason.hardMaintenance,
+        config: config,
+        effectiveReopen: config.reopenTime,
+      );
+    }
+
+    if (!config.storeOpen || !config.legacyStoreActive) {
       return MaintenanceStatus.blocked(
         reason: MaintenanceBlockReason.legacyStoreClosed,
         config: config,
         effectiveReopen: config.reopenTime ?? _nextScheduleOpen(config, now),
       );
+    }
+
+    if (!config.orderingEnabled || !config.allowOrders) {
+      return MaintenanceStatus.ordersStopped(config: config);
     }
 
     final scheduleClosed = _isScheduleClosed(config, now);
@@ -32,21 +44,27 @@ class MaintenanceEvaluator {
 
     if (config.areaAvailability.enabled && userPincode != null) {
       final pin = userPincode.trim();
-      if (config.areaAvailability.disabledPincodes
-          .any((p) => p.trim() == pin)) {
+      if (config.areaAvailability.disabledPincodes.any(
+        (p) => p.trim() == pin,
+      )) {
         return MaintenanceStatus.areaBlocked(config: config);
       }
     }
 
     if (config.areaAvailability.enabled && userCity != null) {
       final city = userCity.trim().toLowerCase();
-      if (config.areaAvailability.disabledCities
-          .any((c) => c.trim().toLowerCase() == city)) {
+      if (config.areaAvailability.disabledCities.any(
+        (c) => c.trim().toLowerCase() == city,
+      )) {
         return MaintenanceStatus.areaBlocked(config: config);
       }
     }
 
-    if (config.driverSmartControl.enabled &&
+    final driverControlPausesOrders =
+        config.driverSmartControl.pauseOrdering ||
+        config.driverSmartControl.autoPauseCod;
+    if (driverControlPausesOrders &&
+        config.driverSmartControl.enabled &&
         onlineDriversCount != null &&
         onlineDriversCount < config.driverSmartControl.minDriversOnline) {
       return MaintenanceStatus.highDemand(
@@ -95,7 +113,10 @@ class MaintenanceEvaluator {
     for (final fest in s.festivalClosures) {
       final start = DateTime.tryParse(fest['start'] ?? '');
       final end = DateTime.tryParse(fest['end'] ?? '');
-      if (start != null && end != null && !now.isBefore(start) && now.isBefore(end)) {
+      if (start != null &&
+          end != null &&
+          !now.isBefore(start) &&
+          now.isBefore(end)) {
         return true;
       }
     }

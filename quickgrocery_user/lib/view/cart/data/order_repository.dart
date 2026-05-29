@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:quickgrocery/models/address_model.dart';
 import 'package:quickgrocery/models/order_model.dart';
@@ -52,18 +53,20 @@ class OrderRepository {
     }
 
     final productItems = items
-        .map((item) => ProductItem(
-              productId: item.productId,
-              name: item.name,
-              image: item.image,
-              description: '',
-              category: item.category,
-              unit: item.unit,
-              price: item.unitEffectivePrice,
-              slashedPrice: item.unitEffectiveSlashedPrice,
-              itemCount: item.itemCount,
-              vendorId: item.vendorId,
-            ))
+        .map(
+          (item) => ProductItem(
+            productId: item.productId,
+            name: item.name,
+            image: item.image,
+            description: '',
+            category: item.category,
+            unit: item.unit,
+            price: item.unitEffectivePrice,
+            slashedPrice: item.unitEffectiveSlashedPrice,
+            itemCount: item.itemCount,
+            vendorId: item.vendorId,
+          ),
+        )
         .toList();
 
     final isPaid = paymentMethod.isOnline && paymentRef != null;
@@ -123,14 +126,34 @@ class OrderRepository {
         .toSet()
         .toList();
 
-    await ref.set({
+    final orderData = {
       ...legacyMap,
       ...modernExtras,
       'id': ref.id,
       'vendorIds': vendorIds,
       if (vendorIds.length == 1) 'vendorId': vendorIds.first,
       if (vendorIds.length == 1) 'vendor_id': vendorIds.first,
-    });
+    };
+
+    debugPrint(
+      'ORDER FIRESTORE WRITE path=orders/${ref.id} '
+      'vendorIds=$vendorIds user=${user.uid}',
+    );
+
+    try {
+      await ref.set(orderData);
+    } on FirebaseException catch (e, stack) {
+      debugPrint(
+        'ORDER FIRESTORE ERROR path=orders/${ref.id} '
+        'code=${e.code} message=${e.message}',
+      );
+      debugPrintStack(stackTrace: stack);
+      rethrow;
+    } catch (e, stack) {
+      debugPrint('ORDER FIRESTORE ERROR path=orders/${ref.id} error=$e');
+      debugPrintStack(stackTrace: stack);
+      rethrow;
+    }
     return ref.id;
   }
 

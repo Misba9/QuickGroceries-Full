@@ -3,6 +3,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart' as legacy;
+import 'package:quickgrocery/core/firebase/callable_payload.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
@@ -23,19 +24,18 @@ Future<void> recordPushOpenIfNeeded(Map<String, String> data) async {
   final logId = data['logId'] ?? '';
   if (logId.isEmpty) return;
   try {
-    await FirebaseFunctions.instanceFor(region: 'us-central1')
-        .httpsCallable('recordNotificationOpen')
-        .call(<String, dynamic>{'logId': logId});
+    final payload = sanitizeCallableData(<String, dynamic>{'logId': logId});
+    debugCallableData('recordNotificationOpen', payload);
+    await FirebaseFunctions.instanceFor(
+      region: 'us-central1',
+    ).httpsCallable('recordNotificationOpen').call(payload);
   } catch (_) {
     /* non-fatal */
   }
   try {
     await FirebaseAnalytics.instance.logEvent(
       name: 'notification_open',
-      parameters: {
-        'log_id': logId,
-        'redirect': data['redirectType'] ?? '',
-      },
+      parameters: {'log_id': logId, 'redirect': data['redirectType'] ?? ''},
     );
   } catch (_) {
     /* analytics optional */
@@ -90,6 +90,7 @@ Future<void> handlePushNavigation(Map<String, dynamic> raw) async {
   if (ctx == null) return;
 
   await recordPushOpenIfNeeded(data);
+  if (!ctx.mounted) return;
 
   var redirect = data['redirectType'] ?? '';
   if (redirect.isEmpty) {
@@ -112,16 +113,15 @@ Future<void> handlePushNavigation(Map<String, dynamic> raw) async {
       return;
     case 'cart_page':
       home.onSelectedChange(0);
-      await Navigator.of(ctx).push(
-        MaterialPageRoute<void>(builder: (_) => const CartScreen()),
-      );
+      await Navigator.of(
+        ctx,
+      ).push(MaterialPageRoute<void>(builder: (_) => const CartScreen()));
       return;
     case 'order_details':
     case 'order_page':
       home.onSelectedChange(3);
       final dl = data['deepLink'] ?? '';
-      final id =
-          _parseQuery(dl, 'orderId') ?? _lastPathSegment(dl) ?? '';
+      final id = _parseQuery(dl, 'orderId') ?? _lastPathSegment(dl) ?? '';
       if (id.isNotEmpty) {
         await Navigator.of(ctx).push(
           MaterialPageRoute<void>(

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/view/operations/services/ops_dashboard_service.dart';
 import 'package:quick_grocery_admin/view/operations/services/ops_order_queue_manager.dart';
 import 'package:quick_grocery_admin/view/operations/utils/ops_order_priority.dart';
 import 'package:quick_grocery_admin/view/operations/utils/ops_order_status_theme.dart';
-import 'package:quick_grocery_admin/view/operations/widgets/ops_order_queue_card.dart';
+import 'package:quick_grocery_admin/view/orders/widgets/new_orders_dispatch_queue.dart';
+import 'package:quick_grocery_admin/view/orders/widgets/order_details_drawer.dart';
 
 /// Live order queue with search, filters, and scrollable cards.
 class OpsLiveOrderQueue extends StatefulWidget {
@@ -20,6 +22,10 @@ class _OpsLiveOrderQueueState extends State<OpsLiveOrderQueue> {
   OpsQueueStatus? _statusFilter;
   OpsOrderPriority? _priorityFilter;
   bool _highOnly = false;
+
+  void _openOrder(OrderModel order) {
+    showOrderDetailsDrawer(context, order);
+  }
 
   @override
   void dispose() {
@@ -114,7 +120,19 @@ class _OpsLiveOrderQueueState extends State<OpsLiveOrderQueue> {
                   controller: _scroll,
                   itemCount: queue.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, i) => OpsOrderQueueCard(order: queue[i]),
+                  itemBuilder: (context, i) {
+                    final live = queue[i];
+                    final order = OrderModel.fromFirestore(live.raw, live.id);
+                    return LiveOrderQueueCard(
+                      order: order,
+                      onView: _openOrder,
+                      total: live.total,
+                      paymentLabel: live.paymentLabel,
+                      riderLabel: live.riderName,
+                      etaLabel: live.etaLabel,
+                      orderTimeLabel: _placedLabel(live.elapsedLabel),
+                    );
+                  },
                 ),
               ),
             ),
@@ -259,5 +277,12 @@ class _OpsLiveOrderQueueState extends State<OpsLiveOrderQueue> {
         ],
       ),
     );
+  }
+
+  String _placedLabel(String elapsed) {
+    final trimmed = elapsed.trim();
+    if (trimmed.isEmpty || trimmed == '—') return 'Placed —';
+    if (trimmed.toLowerCase() == 'just now') return 'Placed just now';
+    return 'Placed $trimmed ago';
   }
 }

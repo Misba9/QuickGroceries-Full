@@ -46,20 +46,20 @@ class _NewOrdersScreenState extends State<NewOrdersScreen> {
     final orderSvc = context.read<OrderService>();
     orderSvc.setModulePage(OrderModulePage.newOrders);
     await orderSvc.getOrders();
+    if (!mounted) return;
     final deliverySvc = context.read<DeliveryBoyService>();
     if (deliverySvc.deliveryBoys == null) {
       await deliverySvc.getDeliveryBoys();
     }
     if (!mounted) return;
-    final active = deliverySvc.deliveryBoys
-            ?.where((b) => b.isActive)
-            .length ??
-        0;
+    final active =
+        deliverySvc.deliveryBoys?.where((b) => b.isActive).length ?? 0;
     setState(() => _ridersAvailable = active);
   }
 
   Future<void> _refresh() async {
     await context.read<OrderService>().getOrders();
+    if (!mounted) return;
     final deliverySvc = context.read<DeliveryBoyService>();
     if (deliverySvc.deliveryBoys == null) {
       await deliverySvc.getDeliveryBoys();
@@ -107,17 +107,11 @@ class _NewOrdersScreenState extends State<NewOrdersScreen> {
           else ...[
             LiveOrdersStatsRow(stats: statsWithRiders),
             const SizedBox(height: 24),
-            PendingDispatchQueue(
-              orders: svc.dispatchQueue,
-              onView: _openOrder,
-            ),
+            PendingDispatchQueue(orders: svc.dispatchQueue, onView: _openOrder),
             const SizedBox(height: 24),
             Text(
               'Live orders (${svc.filteredOrders.length})',
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
             ),
             const SizedBox(height: 12),
             if (svc.filteredOrders.isEmpty)

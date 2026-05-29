@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_admin/model/delivery_boy_model.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/services/delivery_boy_service.dart';
@@ -11,11 +12,7 @@ typedef OrderDrawerCallback = void Function(OrderModel order);
 
 /// Grouped order actions — single popup menu per row.
 class OrderRowActions extends StatelessWidget {
-  const OrderRowActions({
-    super.key,
-    required this.order,
-    required this.onView,
-  });
+  const OrderRowActions({super.key, required this.order, required this.onView});
 
   final OrderModel order;
   final OrderDrawerCallback onView;
@@ -69,7 +66,7 @@ class OrderRowActions extends StatelessWidget {
     if (deliverySvc.deliveryBoys == null) {
       await deliverySvc.getDeliveryBoys();
     }
-    final boys = deliverySvc.deliveryBoys ?? [];
+    final boys = _uniqueDeliveryBoys(deliverySvc.deliveryBoys ?? []);
     if (!context.mounted) return;
 
     if (boys.isEmpty) {
@@ -114,5 +111,17 @@ class OrderRowActions extends StatelessWidget {
         const SnackBar(content: Text('Failed to assign delivery partner')),
       );
     }
+  }
+
+  static List<DeliveryPersonModel> _uniqueDeliveryBoys(
+    List<DeliveryPersonModel> boys,
+  ) {
+    return boys.fold<List<DeliveryPersonModel>>([], (list, boy) {
+      final id = boy.id.trim();
+      if (id.isNotEmpty && !list.any((e) => e.id == boy.id)) {
+        list.add(boy);
+      }
+      return list;
+    });
   }
 }

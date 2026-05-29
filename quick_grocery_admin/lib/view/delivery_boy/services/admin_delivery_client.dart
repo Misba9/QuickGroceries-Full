@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:quick_grocery_admin/core/firebase/callable_payload.dart';
 
 import 'admin_delivery_auth_creator.dart';
 
@@ -37,9 +38,8 @@ class AdminDeliveryClient {
   AdminDeliveryClient({
     FirebaseFunctions? functions,
     AdminDeliveryAuthCreator? authCreator,
-  })  : _fn = functions ??
-            FirebaseFunctions.instanceFor(region: 'us-central1'),
-        _authCreator = authCreator ?? AdminDeliveryAuthCreator();
+  }) : _fn = functions ?? FirebaseFunctions.instanceFor(region: 'us-central1'),
+       _authCreator = authCreator ?? AdminDeliveryAuthCreator();
 
   final FirebaseFunctions _fn;
   final AdminDeliveryAuthCreator _authCreator;
@@ -64,11 +64,13 @@ class AdminDeliveryClient {
     final normalizedEmail = email.trim().toLowerCase();
 
     if (kDebugMode) {
-      debugPrint('[AdminDelivery] createDeliveryAccount email=$normalizedEmail');
+      debugPrint(
+        '[AdminDelivery] createDeliveryAccount email=$normalizedEmail',
+      );
     }
 
     try {
-      final res = await _fn.httpsCallable('adminCreateDeliveryAccount').call({
+      final payload = sanitizeCallableData({
         'email': normalizedEmail,
         'password': password,
         'firstName': firstName.trim(),
@@ -78,6 +80,10 @@ class AdminDeliveryClient {
         'image': image,
         'licenceNumber': licenceNumber.trim(),
       });
+      debugCallableData('adminCreateDeliveryAccount', payload);
+      final res = await _fn
+          .httpsCallable('adminCreateDeliveryAccount')
+          .call(payload);
       final data = res.data;
       if (data is Map) return Map<String, dynamic>.from(data);
       return {'success': true};

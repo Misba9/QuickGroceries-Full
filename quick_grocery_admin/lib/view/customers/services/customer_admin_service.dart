@@ -24,7 +24,6 @@ class CustomerAdminService extends ChangeNotifier {
   String? errorMessage;
 
   CustomerSegment segment = CustomerSegment.allCustomers;
-  CustomerQuickFilter quickFilter = CustomerQuickFilter.none;
   String searchQuery = '';
 
   CustomerSortField sortField = CustomerSortField.lastActive;
@@ -64,7 +63,6 @@ class CustomerAdminService extends ChangeNotifier {
 
   int get _listCacheKey => Object.hash(
     segment,
-    quickFilter,
     searchQuery.trim().toLowerCase(),
     sortField,
     sortAscending,
@@ -171,15 +169,6 @@ class CustomerAdminService extends ChangeNotifier {
         }).toList();
     }
 
-    switch (quickFilter) {
-      case CustomerQuickFilter.none:
-        break;
-      case CustomerQuickFilter.highSpending:
-        list = list.where((e) => e.stats.totalSpend >= 5000).toList();
-      case CustomerQuickFilter.noOrders:
-        list = list.where((e) => e.stats.totalOrders == 0).toList();
-    }
-
     final q = searchQuery.trim().toLowerCase();
     if (q.isNotEmpty) {
       list = list.where((e) {
@@ -242,14 +231,6 @@ class CustomerAdminService extends ChangeNotifier {
   void setSegment(CustomerSegment s) {
     if (segment == s) return;
     segment = s;
-    quickFilter = CustomerQuickFilter.none;
-    visibleCount = pageSize;
-    _invalidateSortCache();
-    notifyListeners();
-  }
-
-  void setQuickFilter(CustomerQuickFilter f) {
-    quickFilter = quickFilter == f ? CustomerQuickFilter.none : f;
     visibleCount = pageSize;
     _invalidateSortCache();
     notifyListeners();

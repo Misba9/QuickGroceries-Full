@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:quick_grocery_admin/core/firebase/callable_payload.dart';
 
 import 'admin_vendor_auth_creator.dart';
 import 'admin_vendor_signup_pending_service.dart';
@@ -13,11 +14,10 @@ class AdminVendorRequestClient {
     FirebaseFunctions? functions,
     AdminVendorAuthCreator? authCreator,
     AdminVendorSignupPendingService? pendingService,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _fn = functions ??
-            FirebaseFunctions.instanceFor(region: 'us-central1'),
-        _authCreator = authCreator ?? AdminVendorAuthCreator(),
-        _pending = pendingService ?? AdminVendorSignupPendingService();
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _fn = functions ?? FirebaseFunctions.instanceFor(region: 'us-central1'),
+       _authCreator = authCreator ?? AdminVendorAuthCreator(),
+       _pending = pendingService ?? AdminVendorSignupPendingService();
 
   final FirebaseFirestore _firestore;
   final FirebaseFunctions _fn;
@@ -38,9 +38,11 @@ class AdminVendorRequestClient {
     await _ensureSignedIn();
 
     try {
+      final payload = sanitizeCallableData({'requestId': requestId});
+      debugCallableData('adminApproveVendorRequest', payload);
       final res = await _fn
           .httpsCallable('adminApproveVendorRequest')
-          .call({'requestId': requestId});
+          .call(payload);
       final data = res.data;
       if (data is Map) {
         final map = Map<String, dynamic>.from(data);
@@ -65,10 +67,12 @@ class AdminVendorRequestClient {
   Future<void> reject(String requestId, {String? reason}) async {
     await _ensureSignedIn();
     try {
-      await _fn.httpsCallable('adminRejectVendorRequest').call({
+      final payload = sanitizeCallableData({
         'requestId': requestId,
         'reason': reason ?? 'Rejected by admin',
       });
+      debugCallableData('adminRejectVendorRequest', payload);
+      await _fn.httpsCallable('adminRejectVendorRequest').call(payload);
       final email = await _emailForRequest(requestId);
       if (email.isNotEmpty) await _pending.clearPending(email);
     } on FirebaseFunctionsException catch (e) {
@@ -142,11 +146,7 @@ class AdminVendorRequestClient {
 
     await _pending.clearPending(email);
 
-    return {
-      'success': true,
-      'authUid': uid,
-      'firestorePath': 'vendors/$uid',
-    };
+    return {'success': true, 'authUid': uid, 'firestorePath': 'vendors/$uid'};
   }
 
   Future<void> _rejectLocal(String requestId, {String? reason}) async {
@@ -170,8 +170,7 @@ class AdminVendorRequestClient {
   String _mapFunctionsError(FirebaseFunctionsException e) {
     switch (e.code) {
       case 'already-exists':
-        return e.message ??
-            'Email already exists in Firebase Authentication.';
+        return e.message ?? 'Email already exists in Firebase Authentication.';
       case 'invalid-argument':
         return e.message ?? 'Invalid vendor request data.';
       case 'failed-precondition':

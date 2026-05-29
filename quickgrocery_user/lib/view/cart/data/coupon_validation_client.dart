@@ -1,15 +1,17 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:quickgrocery/core/firebase/callable_payload.dart';
 
 import '../domain/cart_models.dart';
 
 class CouponValidationClient {
   CouponValidationClient({FirebaseFunctions? functions})
-      : _fn = functions ??
-            FirebaseFunctions.instanceFor(
-              app: Firebase.app(),
-              region: 'us-central1',
-            );
+    : _fn =
+          functions ??
+          FirebaseFunctions.instanceFor(
+            app: Firebase.app(),
+            region: 'us-central1',
+          );
 
   final FirebaseFunctions _fn;
 
@@ -21,15 +23,28 @@ class CouponValidationClient {
     String? deviceId,
   }) async {
     try {
-      final res = await _fn.httpsCallable('validateCouponCallable').call({
+      final payload = sanitizeCallableData({
         'code': code.trim(),
         'subtotal': subtotal,
         'phone': phone ?? '',
         'deviceId': deviceId ?? '',
-        'vendorIds': items.map((i) => i.vendorId).where((id) => id.isNotEmpty).toSet().toList(),
+        'vendorIds': items
+            .map((i) => i.vendorId)
+            .where((id) => id.isNotEmpty)
+            .toSet()
+            .toList(),
         'productIds': items.map((i) => i.productId).toList(),
-        'categoryIds': items.map((i) => i.category).where((c) => c.isNotEmpty).toSet().toList(),
+        'categoryIds': items
+            .map((i) => i.category)
+            .where((c) => c.isNotEmpty)
+            .toSet()
+            .toList(),
       });
+      debugCallableData('validateCouponCallable', payload);
+
+      final res = await _fn
+          .httpsCallable('validateCouponCallable')
+          .call(payload);
 
       final data = Map<String, dynamic>.from(res.data as Map);
       if (data['valid'] == true) {
@@ -39,7 +54,8 @@ class CouponValidationClient {
             code: data['code']?.toString() ?? code,
             discountPercent: (data['discountPercent'] as num?)?.toInt() ?? 0,
             flatAmount: (data['flatAmount'] as num?)?.toDouble() ?? 0,
-            maxDiscountAmount: (data['maxDiscountAmount'] as num?)?.toDouble() ?? 0,
+            maxDiscountAmount:
+                (data['maxDiscountAmount'] as num?)?.toDouble() ?? 0,
             freeDelivery: data['freeDelivery'] == true,
             couponType: data['couponType']?.toString() ?? '',
             firstOrderOnly: data['firstOrderOnly'] == true,
@@ -70,17 +86,27 @@ class CouponValidationClient {
     String? phone,
     String? deviceId,
   }) async {
-    await _fn.httpsCallable('redeemCouponCallable').call({
+    final payload = sanitizeCallableData({
       'code': code,
       'orderId': orderId,
       'subtotal': subtotal,
       'discountApplied': discountApplied,
       'phone': phone ?? '',
       'deviceId': deviceId ?? '',
-      'vendorIds': items.map((i) => i.vendorId).where((id) => id.isNotEmpty).toSet().toList(),
+      'vendorIds': items
+          .map((i) => i.vendorId)
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList(),
       'productIds': items.map((i) => i.productId).toList(),
-      'categoryIds': items.map((i) => i.category).where((c) => c.isNotEmpty).toSet().toList(),
+      'categoryIds': items
+          .map((i) => i.category)
+          .where((c) => c.isNotEmpty)
+          .toSet()
+          .toList(),
     });
+    debugCallableData('redeemCouponCallable', payload);
+    await _fn.httpsCallable('redeemCouponCallable').call(payload);
   }
 }
 
@@ -100,20 +126,18 @@ class CouponValidationResult {
   factory CouponValidationResult.success({
     required AppliedCoupon applied,
     required String message,
-  }) =>
-      CouponValidationResult._(
-        isValid: true,
-        applied: applied,
-        message: message,
-      );
+  }) => CouponValidationResult._(
+    isValid: true,
+    applied: applied,
+    message: message,
+  );
 
   factory CouponValidationResult.failure({
     required String message,
     required String errorCode,
-  }) =>
-      CouponValidationResult._(
-        isValid: false,
-        message: message,
-        errorCode: errorCode,
-      );
+  }) => CouponValidationResult._(
+    isValid: false,
+    message: message,
+    errorCode: errorCode,
+  );
 }

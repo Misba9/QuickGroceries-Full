@@ -215,6 +215,13 @@ class _TablePager extends StatelessWidget {
   Widget build(BuildContext context) {
     final start = pageIndex * rowsPerPage + 1;
     final end = ((pageIndex + 1) * rowsPerPage).clamp(0, totalRows);
+    final uniqueRowsPerPage = _uniqueRowsPerPageOptions(availableRowsPerPage);
+    final validRowsPerPage = uniqueRowsPerPage.contains(rowsPerPage)
+        ? rowsPerPage
+        : null;
+
+    debugPrint('Dropdown items count: ${uniqueRowsPerPage.length}');
+    debugPrint('Selected value: $rowsPerPage');
 
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -225,13 +232,16 @@ class _TablePager extends StatelessWidget {
           'Rows per page:',
           style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
         ),
-        DropdownButton<int>(
-          value: rowsPerPage,
-          items: availableRowsPerPage
-              .map((n) => DropdownMenuItem(value: n, child: Text('$n')))
-              .toList(),
-          onChanged: onRowsPerPageChanged,
-        ),
+        if (uniqueRowsPerPage.isNotEmpty)
+          DropdownButton<int>(
+            value: validRowsPerPage,
+            hint: Text('$rowsPerPage'),
+            isExpanded: false,
+            items: uniqueRowsPerPage
+                .map((n) => DropdownMenuItem<int>(value: n, child: Text('$n')))
+                .toList(growable: false),
+            onChanged: onRowsPerPageChanged,
+          ),
         Text(
           '$start–$end of $totalRows',
           style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
@@ -243,8 +253,7 @@ class _TablePager extends StatelessWidget {
         ),
         IconButton(
           tooltip: 'Previous page',
-          onPressed:
-              pageIndex > 0 ? () => onPageChanged(pageIndex - 1) : null,
+          onPressed: pageIndex > 0 ? () => onPageChanged(pageIndex - 1) : null,
           icon: const Icon(Icons.chevron_left),
         ),
         Text('Page ${pageIndex + 1} of $pageCount'),
@@ -264,6 +273,15 @@ class _TablePager extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  static List<int> _uniqueRowsPerPageOptions(List<int> values) {
+    return values.fold<List<int>>([], (list, value) {
+      if (value > 0 && !list.contains(value)) {
+        list.add(value);
+      }
+      return list;
+    });
   }
 }
 

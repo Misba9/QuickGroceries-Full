@@ -1,14 +1,16 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:quick_grocery_admin/core/firebase/callable_payload.dart';
 
 class ReviewAdminClient {
   ReviewAdminClient({FirebaseFunctions? functions})
-      : _fn = functions ??
-            FirebaseFunctions.instanceFor(
-              app: Firebase.app(),
-              region: 'us-central1',
-            );
+    : _fn =
+          functions ??
+          FirebaseFunctions.instanceFor(
+            app: Firebase.app(),
+            region: 'us-central1',
+          );
 
   final FirebaseFunctions _fn;
 
@@ -24,10 +26,12 @@ class ReviewAdminClient {
     String? adminReply,
   }) async {
     await _ensureAuth();
-    await _fn.httpsCallable('moderateProductReview').call({
+    final payload = sanitizeCallableData({
       'reviewId': reviewId,
       'action': action,
       if (adminReply != null) 'adminReply': adminReply,
     });
+    debugCallableData('moderateProductReview', payload);
+    await _fn.httpsCallable('moderateProductReview').call(payload);
   }
 }

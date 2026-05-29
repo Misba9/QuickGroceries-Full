@@ -30,7 +30,7 @@ class OrdersFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final filters = compact
+    final rawFilters = compact
         ? const [
             OrderQuickFilter.allOrders,
             OrderQuickFilter.pending,
@@ -38,6 +38,16 @@ class OrdersFilterChips extends StatelessWidget {
             OrderQuickFilter.cancelled,
           ]
         : manageFilters;
+    final filters = rawFilters.fold<List<OrderQuickFilter>>([], (list, item) {
+      if (!list.contains(item)) {
+        list.add(item);
+      }
+      return list;
+    });
+
+    if (filters.isEmpty) {
+      return const SizedBox();
+    }
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,

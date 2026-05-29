@@ -1,6 +1,7 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,8 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart' as legacy_provider;
 
 import 'package:quickgrocery/constants/app_color.dart';
-import 'package:quickgrocery/maintenance/presentation/providers/maintenance_providers.dart';
-import 'package:quickgrocery/maintenance/presentation/widgets/maintenance_gate.dart';
+import 'package:quickgrocery/core/availability/availability_service.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/address_model.dart';
 import 'package:quickgrocery/view/address/screens/add_address_screen.dart';
@@ -24,10 +24,10 @@ import 'package:quickgrocery/view/cart/presentation/providers/order_repository_p
 import 'package:quickgrocery/view/cart/presentation/widgets/delivery_instructions_field.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/delivery_slot_selector.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/payment_method_selector.dart';
+import 'package:quickgrocery/view/cart/presentation/widgets/premium_checkout_bar.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/premium_bill_card.dart';
 import 'package:quickgrocery/view/cart/screen/success_screen.dart';
 import 'package:quickgrocery/view/checkout/widgets/address_card.dart';
-import 'package:quickgrocery/view/checkout/widgets/checkout_bottom_bar.dart';
 import 'package:quickgrocery/view/checkout/widgets/empty_address_widget.dart';
 import 'package:quickgrocery/core/device/device_id_service.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.dart';
@@ -68,13 +68,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Future<void> _openAddAddress({AddressModel? edit}) async {
     final ok = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => AddAdressScreen(editing: edit),
-      ),
+      MaterialPageRoute(builder: (_) => AddAdressScreen(editing: edit)),
     );
     if (ok == true && mounted) {
-      await legacy_provider.Provider.of<AddressService>(context, listen: false)
-          .getAddress();
+      await legacy_provider.Provider.of<AddressService>(
+        context,
+        listen: false,
+      ).getAddress();
     }
   }
 
@@ -87,110 +87,73 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     required LatLng coords,
     required String readableAddress,
   }) async {
-    final maintenance = ref.read(maintenanceStatusProvider).valueOrNull;
-    if (maintenance != null && !maintenance.canPlaceOrders) {
-      showMaintenanceOrderBlocked(context);
-      return;
-    }
-    if (maintenance != null &&
-        paymentMethod == PaymentMethod.cod &&
-        !maintenance.codAllowed) {
-      showMaintenanceOrderBlocked(
-        context,
-        message: 'Cash on delivery is temporarily unavailable.',
-      );
-      return;
-    }
-
     final checkoutNotifier = ref.read(checkoutControllerProvider.notifier);
     final cartNotifier = ref.read(cartProvider.notifier);
-    final payment =
-        legacy_provider.Provider.of<PaymentService>(context, listen: false);
+    final payment = legacy_provider.Provider.of<PaymentService>(
+      context,
+      listen: false,
+    );
 
-    final inventoryError = await ref
-        .read(orderInventoryValidatorProvider)
-        .validateLines(cart.items);
-    if (inventoryError != null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(inventoryError)),
+    try {
+      final availability = await ref
+          .read(availabilityServiceProvider)
+          .check(cartItems: cart.items, address: address, pin: pin);
+      availability.debugLog();
+
+      final availabilityError = availability.blockingReason;
+      if (availabilityError != null) {
+        throw StateError(availabilityError);
+      }
+
+      checkoutNotifier.setPlacingOrder(true);
+
+      final zoneCharge = availability.deliveryCharge;
+      final bill = _bill(cart, zoneCharge);
+
+      debugPrint(
+        'ORDER PAYMENT: method=${paymentMethod.id} total=${bill.total} '
+        'cod=${paymentMethod == PaymentMethod.cod}',
+      );
+
+      Future<void> finalize({String? paymentRef}) async {
+        final orderId = await _createOrderWithFallback(
+          cart: cart,
+          bill: bill,
+          address: address,
+          readableAddress: readableAddress,
+          coords: coords,
+          slot: slot,
+          paymentMethod: paymentMethod,
+          paymentRef: paymentRef,
+        );
+        if (cart.coupon != null) {
+          try {
+            final deviceId = await DeviceIdService.getOrCreate();
+            await ref
+                .read(couponValidationClientProvider)
+                .redeem(
+                  code: cart.coupon!.code,
+                  orderId: orderId,
+                  subtotal: bill.subtotal,
+                  discountApplied: bill.couponDiscount,
+                  items: cart.items,
+                  phone: address.mobile,
+                  deviceId: deviceId,
+                );
+          } catch (e, stack) {
+            debugPrint('COUPON REDEEM ERROR: $e');
+            debugPrintStack(stackTrace: stack);
+          }
+        }
+        await cartNotifier.clear();
+        checkoutNotifier.setPlacingOrder(false);
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const SuccessScreen()),
+          (_) => false,
         );
       }
-      return;
-    }
 
-    checkoutNotifier.setPlacingOrder(true);
-
-    double zoneCharge = 0;
-    try {
-      zoneCharge = await ref.read(zoneDeliveryProvider(pin).future);
-    } catch (_) {
-      zoneCharge = 0;
-    }
-    final bill = _bill(cart, zoneCharge);
-
-    Future<void> finalize({String? paymentRef}) async {
-      String orderId;
-      try {
-        orderId = await ref.read(orderPlacementClientProvider).placeOrder(
-              items: cart.items,
-              coupon: cart.coupon,
-              bill: bill,
-              address: address,
-              currentAddressString: readableAddress,
-              currentLatLng: coords,
-              slot: slot,
-              instructions: _instructions.text.trim(),
-              paymentMethod: paymentMethod,
-              paymentRef: paymentRef,
-            );
-      } on FirebaseFunctionsException catch (e) {
-        final msg = e.message ?? 'Some items are out of stock';
-        checkoutNotifier.setPlacingOrder(false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-        }
-        return;
-      } catch (_) {
-        orderId = await ref.read(orderRepositoryProvider).placeOrder(
-              items: cart.items,
-              coupon: cart.coupon,
-              bill: bill,
-              address: address,
-              currentAddressString: readableAddress,
-              currentLatLng: coords,
-              slot: slot,
-              instructions: _instructions.text.trim(),
-              paymentMethod: paymentMethod,
-              paymentRef: paymentRef,
-            );
-      }
-      if (cart.coupon != null) {
-        try {
-          final deviceId = await DeviceIdService.getOrCreate();
-          await ref.read(couponValidationClientProvider).redeem(
-                code: cart.coupon!.code,
-                orderId: orderId,
-                subtotal: bill.subtotal,
-                discountApplied: bill.couponDiscount,
-                items: cart.items,
-                phone: address.mobile,
-                deviceId: deviceId,
-              );
-        } catch (_) {
-          // Order placed; redemption logged server-side on retry if needed.
-        }
-      }
-      await cartNotifier.clear();
-      checkoutNotifier.setPlacingOrder(false);
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const SuccessScreen()),
-        (_) => false,
-      );
-    }
-
-    try {
       if (paymentMethod == PaymentMethod.cod) {
         await finalize();
         return;
@@ -201,12 +164,151 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         address.name,
         'Quick Grocery order',
         onPaymentSuccess: (paymentId) async {
-          await finalize(paymentRef: paymentId);
+          try {
+            checkoutNotifier.setPlacingOrder(true);
+            await finalize(paymentRef: paymentId);
+          } catch (e, stack) {
+            checkoutNotifier.setPlacingOrder(false);
+            _showOrderError(e, stack);
+          }
         },
       );
       checkoutNotifier.setPlacingOrder(false);
-    } catch (e) {
-      checkoutNotifier.setError('Could not place order');
+    } catch (e, stack) {
+      checkoutNotifier.setPlacingOrder(false);
+      _showOrderError(e, stack);
+    }
+  }
+
+  void _showOrderError(Object e, StackTrace stack) {
+    debugPrint('ORDER ERROR: $e');
+    debugPrintStack(stackTrace: stack);
+    String checkoutError(Object error) {
+      if (error is FirebaseFunctionsException) {
+        if (error.code == 'not-found') {
+          return 'Order service unavailable. Please try again.';
+        }
+        if (error.code == 'unavailable') {
+          return 'Order service is temporarily unavailable.';
+        }
+        if (error.code == 'permission-denied') {
+          return 'Permission denied while creating order.';
+        }
+        return error.message ?? 'Failed to create order (${error.code})';
+      }
+      if (error is FirebaseException) {
+        debugPrint(
+          'ORDER FIREBASE ERROR code=${error.code} '
+          'message=${error.message} plugin=${error.plugin}',
+        );
+        if (error.code == 'not-found') {
+          return 'Required order data was not found.';
+        }
+        if (error.code == 'permission-denied') {
+          return 'Permission denied while creating order.';
+        }
+        return error.message ?? 'Failed to create order (${error.code})';
+      }
+      return error.toString().replaceFirst('Bad state: ', '');
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(checkoutError(e))));
+  }
+
+  Future<String> _createOrderWithFallback({
+    required CartState cart,
+    required BillBreakdown bill,
+    required AddressModel address,
+    required String readableAddress,
+    required LatLng coords,
+    required DeliverySlot? slot,
+    required PaymentMethod paymentMethod,
+    String? paymentRef,
+  }) async {
+    try {
+      return await ref
+          .read(orderPlacementClientProvider)
+          .placeOrder(
+            items: cart.items,
+            coupon: cart.coupon,
+            bill: bill,
+            address: address,
+            currentAddressString: readableAddress,
+            currentLatLng: coords,
+            slot: slot,
+            instructions: _instructions.text.trim(),
+            paymentMethod: paymentMethod,
+            paymentRef: paymentRef,
+          );
+    } on FirebaseFunctionsException catch (e, stack) {
+      debugPrint(
+        'ORDER CALLABLE FAILED code=${e.code} message=${e.message} '
+        'details=${e.details}',
+      );
+      debugPrintStack(stackTrace: stack);
+      if (!_canFallbackToDirectOrder(e)) rethrow;
+      return _createDirectFirestoreOrder(
+        cart: cart,
+        bill: bill,
+        address: address,
+        readableAddress: readableAddress,
+        coords: coords,
+        slot: slot,
+        paymentMethod: paymentMethod,
+        paymentRef: paymentRef,
+      );
+    }
+  }
+
+  bool _canFallbackToDirectOrder(FirebaseFunctionsException e) {
+    return e.code == 'not-found' || e.code == 'unavailable';
+  }
+
+  Future<String> _createDirectFirestoreOrder({
+    required CartState cart,
+    required BillBreakdown bill,
+    required AddressModel address,
+    required String readableAddress,
+    required LatLng coords,
+    required DeliverySlot? slot,
+    required PaymentMethod paymentMethod,
+    String? paymentRef,
+  }) async {
+    debugPrint(
+      'ORDER FALLBACK: creating direct Firestore order path=orders '
+      'reason=callable_unavailable',
+    );
+    try {
+      final orderId = await ref
+          .read(orderRepositoryProvider)
+          .placeOrder(
+            items: cart.items,
+            coupon: cart.coupon,
+            bill: bill,
+            address: address,
+            currentAddressString: readableAddress,
+            currentLatLng: coords,
+            slot: slot,
+            instructions: _instructions.text.trim(),
+            paymentMethod: paymentMethod,
+            paymentRef: paymentRef,
+          );
+      debugPrint('ORDER FALLBACK SUCCESS firestorePath=orders/$orderId');
+      return orderId;
+    } on FirebaseException catch (e, stack) {
+      debugPrint(
+        'ORDER FALLBACK FIRESTORE ERROR path=orders '
+        'code=${e.code} message=${e.message}',
+      );
+      debugPrintStack(stackTrace: stack);
+      rethrow;
+    } catch (e, stack) {
+      debugPrint('ORDER FALLBACK ERROR path=orders error=$e');
+      debugPrintStack(stackTrace: stack);
+      rethrow;
     }
   }
 
@@ -219,21 +321,28 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final slots = ref.watch(deliverySlotsProvider);
 
     final addressService = legacy_provider.Provider.of<AddressService>(context);
-    final home =
-        legacy_provider.Provider.of<HomeProvider>(context, listen: false);
+    final home = legacy_provider.Provider.of<HomeProvider>(
+      context,
+      listen: false,
+    );
 
     ref.listen<String?>(
       checkoutControllerProvider.select((s) => s.errorMessage),
       (_, msg) {
         if (msg != null) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(msg)));
           ref.read(checkoutControllerProvider.notifier).clearError();
         }
       },
     );
 
     final addresses = addressService.addresses ?? const <AddressModel>[];
-    final idx = checkout.selectedAddressIndex.clamp(
+    final preferredIndex = addressService.hasValidatedServiceableAddress
+        ? addressService.selectedIndex
+        : checkout.selectedAddressIndex;
+    final idx = preferredIndex.clamp(
       0,
       addresses.isEmpty ? 0 : addresses.length - 1,
     );
@@ -251,22 +360,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final canPay =
         hasAddr && bill.meetsMinimumOrder && !oos && checkout.slot != null;
 
-    String barLabel() {
-      if (!hasAddr) return 'add_address'.tr();
-      if (oos) return 'place_order'.tr();
-      if (!bill.meetsMinimumOrder) return 'place_order'.tr();
-      if (checkout.slot == null) return 'place_order'.tr();
-      return checkout.paymentMethod == PaymentMethod.cod
-          ? 'place_order'.tr()
-          : 'Pay securely';
-    }
-
     String? barHint() {
       if (!hasAddr) return 'please_add_address'.tr();
       if (oos) return 'Some items are out of stock';
       if (!bill.meetsMinimumOrder) {
-        final delta =
-            (bill.minimumOrderValue - bill.subtotal).clamp(0, double.infinity);
+        final delta = (bill.minimumOrderValue - bill.subtotal).clamp(
+          0,
+          double.infinity,
+        );
         return 'Min order ₹${bill.minimumOrderValue.toStringAsFixed(0)} · '
             'Add ₹${delta.toStringAsFixed(0)} more';
       }
@@ -282,14 +383,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _CheckoutHeader(
-              onBack: () => Navigator.maybePop(context),
-            ),
+            _CheckoutHeader(onBack: () => Navigator.maybePop(context)),
             Expanded(
               child: addresses.isEmpty
-                  ? EmptyAddressWidget(
-                      onAddAddress: () => _openAddAddress(),
-                    )
+                  ? EmptyAddressWidget(onAddAddress: () => _openAddAddress())
                   : RefreshIndicator(
                       color: AppColor.primary,
                       onRefresh: () => addressService.getAddress(),
@@ -308,7 +405,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 child: _DeliverToSection(
                                   addresses: addresses,
                                   selectedIndex: idx,
-                                  onSelect: checkoutNotifier.selectAddress,
+                                  onSelect: (i) {
+                                    checkoutNotifier.selectAddress(i);
+                                    addressService.selectAddress(i);
+                                  },
                                   onAdd: () => _openAddAddress(),
                                   onEdit: (a) => _openAddAddress(edit: a),
                                 ),
@@ -403,42 +503,52 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: CheckoutBottomBar(
-        label: barLabel(),
-        enabled: canPay && !checkout.isPlacingOrder,
-        isLoading: checkout.isPlacingOrder,
-        amountLine: hasAddr ? '₹${bill.total.toStringAsFixed(0)}' : null,
-        secondaryHint: barHint(),
-        secondaryIsError:
-            !hasAddr || oos || !bill.meetsMinimumOrder || checkout.slot == null,
-        onPressed: () async {
-          if (addresses.isEmpty || selectedAddr == null) {
-            await _openAddAddress();
-            return;
-          }
-          if (!bill.meetsMinimumOrder || oos || checkout.slot == null) {
-            return;
-          }
-          await _placeOrder(
-            cart: cart,
-            slot: checkout.slot,
-            paymentMethod: checkout.paymentMethod,
-            address: selectedAddr,
-            pin: pin ?? '',
-            coords: coords,
-            readableAddress: readable,
-          );
-        },
-      ),
+      bottomNavigationBar: hasAddr
+          ? StickyCheckoutBar(
+              totalAmount: bill.total,
+              itemCount: cart.totalUnits,
+              savings: bill.totalSavings,
+              buttonText: 'Place Order',
+              helperText: barHint(),
+              helperIsError:
+                  !hasAddr ||
+                  oos ||
+                  !bill.meetsMinimumOrder ||
+                  checkout.slot == null,
+              enabled: canPay && !checkout.isPlacingOrder,
+              isLoading: checkout.isPlacingOrder,
+              onTap: () async {
+                if (!bill.meetsMinimumOrder || oos || checkout.slot == null) {
+                  return;
+                }
+                await _placeOrder(
+                  cart: cart,
+                  slot: checkout.slot,
+                  paymentMethod: checkout.paymentMethod,
+                  address: selectedAddr,
+                  pin: pin ?? '',
+                  coords: coords,
+                  readableAddress: readable,
+                );
+              },
+            )
+          : StickyCheckoutBar(
+              totalAmount: bill.total,
+              itemCount: cart.totalUnits,
+              savings: bill.totalSavings,
+              buttonText: 'Add Address',
+              helperText: barHint(),
+              helperIsError: true,
+              enabled: !checkout.isPlacingOrder,
+              isLoading: checkout.isPlacingOrder,
+              onTap: () => _openAddAddress(),
+            ),
     );
   }
 }
 
 class _CheckoutDeliveryInfo extends StatelessWidget {
-  const _CheckoutDeliveryInfo({
-    required this.bill,
-    required this.pricing,
-  });
+  const _CheckoutDeliveryInfo({required this.bill, required this.pricing});
 
   final BillBreakdown bill;
   final PricingConfig pricing;
@@ -448,10 +558,10 @@ class _CheckoutDeliveryInfo extends StatelessWidget {
     final msg = !pricing.isDeliveryChargesEnabled
         ? 'Delivery charges are currently disabled'
         : bill.isFreeDelivery
-            ? '🎉 FREE delivery unlocked'
-            : pricing.isFreeDeliveryEnabled
-                ? 'Free delivery above ₹${pricing.freeDeliveryThreshold}'
-                : 'Delivery fee ₹${bill.deliveryFee.toStringAsFixed(0)} applies';
+        ? '🎉 FREE delivery unlocked'
+        : pricing.isFreeDeliveryEnabled
+        ? 'Free delivery above ₹${pricing.freeDeliveryThreshold}'
+        : 'Delivery fee ₹${bill.deliveryFee.toStringAsFixed(0)} applies';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -471,8 +581,7 @@ class _CheckoutDeliveryInfo extends StatelessWidget {
 }
 
 extension _SlotListX on List<DeliverySlot> {
-  DeliverySlot? get firstOrNull =>
-      isEmpty ? null : first;
+  DeliverySlot? get firstOrNull => isEmpty ? null : first;
 }
 
 class _CheckoutHeader extends StatelessWidget {
@@ -484,10 +593,7 @@ class _CheckoutHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(6, 8, 14, 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: AppShadow.dim,
-      ),
+      decoration: BoxDecoration(color: Colors.white, boxShadow: AppShadow.dim),
       child: Row(
         children: [
           IconButton(
@@ -659,8 +765,8 @@ class _EtaCouponRow extends ConsumerWidget {
                     Text(
                       cart.coupon != null
                           ? cart.coupon!.isFirstOrderOffer
-                              ? 'First Order Offer · ${cart.coupon!.code}'
-                              : '${'coupon_applied_prefix'.tr()}: ${cart.coupon!.code}'
+                                ? 'First Order Offer · ${cart.coupon!.code}'
+                                : '${'coupon_applied_prefix'.tr()}: ${cart.coupon!.code}'
                           : 'tap_to_apply_coupon'.tr(),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,

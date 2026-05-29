@@ -221,7 +221,7 @@ class _LocationHelpers extends StatelessWidget {
               label: 'use_current_location'.tr(),
               onTap: () async {
                 final p = Provider.of<AddressService>(context, listen: false);
-                await p.getCurrentLocation(context);
+                await p.getCurrentLocation(context, force: true);
               },
             ),
           ),

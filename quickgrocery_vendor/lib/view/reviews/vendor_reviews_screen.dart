@@ -1,6 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:quickgrocery_vendor/core/firebase/callable_payload.dart';
 import 'package:quickgrocery_vendor/models/rating_model.dart';
 import 'package:quickgrocery_vendor/services/vendor_review_service.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
@@ -58,8 +59,10 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
                 children: [
                   const Icon(Icons.error_outline, size: 48, color: Colors.red),
                   const SizedBox(height: 12),
-                  Text('Could not load reviews\n${snap.error}',
-                      textAlign: TextAlign.center),
+                  Text(
+                    'Could not load reviews\n${snap.error}',
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             );
@@ -71,11 +74,16 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.rate_review_outlined,
-                      size: 64, color: Colors.grey.shade400),
+                  Icon(
+                    Icons.rate_review_outlined,
+                    size: 64,
+                    color: Colors.grey.shade400,
+                  ),
                   const SizedBox(height: 12),
-                  const Text('No reviews yet',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  const Text(
+                    'No reviews yet',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
                   const SizedBox(height: 6),
                   Text(
                     'Reviews appear when customers rate your products',
@@ -123,7 +131,9 @@ class _VendorReviewsScreenState extends State<VendorReviewsScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              ...docs.map((r) => _ReviewCard(review: r, vendorId: widget.vendorId)),
+              ...docs.map(
+                (r) => _ReviewCard(review: r, vendorId: widget.vendorId),
+              ),
             ],
           );
         },
@@ -160,11 +170,15 @@ class _ReviewCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Text(review.productName,
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+            Text(
+              review.productName,
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+            ),
             if (review.orderId.isNotEmpty)
-              Text('Order #${review.orderId.length > 8 ? review.orderId.substring(review.orderId.length - 8) : review.orderId}',
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+              Text(
+                'Order #${review.orderId.length > 8 ? review.orderId.substring(review.orderId.length - 8) : review.orderId}',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              ),
             Text(
               '${date.day}/${date.month}/${date.year}',
               style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
@@ -176,8 +190,10 @@ class _ReviewCard extends StatelessWidget {
             if (review.verifiedPurchase)
               const Padding(
                 padding: EdgeInsets.only(top: 6),
-                child: Text('Verified purchase',
-                    style: TextStyle(color: Colors.blue, fontSize: 11)),
+                child: Text(
+                  'Verified purchase',
+                  style: TextStyle(color: Colors.blue, fontSize: 11),
+                ),
               ),
             Align(
               alignment: Alignment.centerRight,
@@ -209,33 +225,37 @@ class _ReviewCard extends StatelessWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Send')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Send'),
+          ),
         ],
       ),
     );
     if (ok != true || controller.text.trim().isEmpty) return;
     try {
-      await FirebaseFunctions.instanceFor(region: 'us-central1')
-          .httpsCallable('vendorReplyProductReview')
-          .call({
+      final payload = sanitizeCallableData({
         'reviewId': reviewId,
         'vendorId': vendorId,
         'text': controller.text.trim(),
       });
+      debugCallableData('vendorReplyProductReview', payload);
+      await FirebaseFunctions.instanceFor(
+        region: 'us-central1',
+      ).httpsCallable('vendorReplyProductReview').call(payload);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reply sent')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Reply sent')));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$e')));
       }
     }
   }

@@ -71,6 +71,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _hasInternet = true;
   bool _isServiceable = true;
   bool _isCheckingServiceability = false;
+  bool _serviceabilityReady = false;
   String? _lastCheckedPinCode;
 
   final ScrollController _scrollController = ScrollController();
@@ -104,9 +105,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     categoryService.fetchProducts();
 
     addressService.addListener(_onAddressChanged);
-    addressService.getCurrentLocation(context);
-
-    Future.delayed(const Duration(seconds: 2), _checkServiceability);
+    Future.microtask(() async {
+      await addressService.restoreValidatedAddress();
+      await addressService.getAddress();
+      if (!mounted) return;
+      if (addressService.hasValidatedServiceableAddress) {
+        setState(() {
+          _isServiceable = true;
+          _serviceabilityReady = true;
+          _lastCheckedPinCode = addressService.pinCode;
+        });
+        return;
+      }
+      await addressService.getCurrentLocation(context);
+      await _checkServiceability();
+    });
   }
 
   void _onScroll() {
@@ -118,7 +131,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _onAddressChanged() {
-    if (!_isCheckingServiceability) _checkServiceability();
+    if (_isCheckingServiceability) return;
+    final addressService = legacy.Provider.of<AddressService>(
+      context,
+      listen: false,
+    );
+    if (addressService.hasValidatedServiceablePin(addressService.pinCode)) {
+      if (mounted) {
+        setState(() {
+          _isServiceable = true;
+          _serviceabilityReady = true;
+          _lastCheckedPinCode = addressService.pinCode;
+        });
+      }
+      return;
+    }
+    _checkServiceability();
   }
 
   Future<void> _checkServiceability() async {
@@ -130,12 +158,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
     final pinCode = addressService.pinCode;
 
+    if (addressService.hasValidatedServiceablePin(pinCode)) {
+      setState(() {
+        _isServiceable = true;
+        _isCheckingServiceability = false;
+        _serviceabilityReady = true;
+        _lastCheckedPinCode = pinCode;
+      });
+      return;
+    }
+
     if (pinCode == _lastCheckedPinCode) return;
 
     if (pinCode == null || pinCode.isEmpty) {
       setState(() {
         _isServiceable = true;
         _isCheckingServiceability = false;
+        _serviceabilityReady = true;
         _lastCheckedPinCode = pinCode;
       });
       return;
@@ -150,9 +189,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final ok = await deliveryZoneService.isPinCodeServiceable(pinCode);
 
     if (!mounted) return;
+    if (!ok &&
+        deliveryZoneService.lastLookupFailed &&
+        addressService.hasValidatedServiceableAddress) {
+      setState(() {
+        _isServiceable = true;
+        _isCheckingServiceability = false;
+        _serviceabilityReady = true;
+        _lastCheckedPinCode = pinCode;
+      });
+      return;
+    }
+    await addressService.markAddressValidated(
+      serviceable: ok,
+      pinCode: pinCode,
+    );
+    if (!mounted) return;
     setState(() {
       _isServiceable = ok;
       _isCheckingServiceability = false;
+      _serviceabilityReady = true;
       _lastCheckedPinCode = pinCode;
     });
   }
@@ -210,7 +266,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isCheckingServiceability) return const _ServiceabilityLoading();
+    if (!_serviceabilityReady && _isCheckingServiceability) {
+      return const _ServiceabilityLoading();
+    }
     if (!_isServiceable) return const NoServiceableAreaScreen();
     if (!_hasInternet) return _OfflineView(onRetry: _checkConnectivity);
 

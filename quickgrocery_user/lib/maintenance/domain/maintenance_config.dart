@@ -28,10 +28,18 @@ class MaintenanceConfig {
     required this.allowCart,
     required this.allowPayments,
     required this.legacyStoreActive,
+    required this.storeOpen,
+    required this.orderingEnabled,
+    required this.userAppEnabled,
+    required this.vendorAppEnabled,
+    required this.driverAppEnabled,
+    required this.usesSystemControls,
   });
 
-  static const collection = 'app_config';
-  static const documentId = 'maintenance';
+  static const collection = 'maintenance';
+  static const documentId = 'system';
+  static const legacyCollection = 'app_config';
+  static const legacyDocumentId = 'maintenance';
 
   final bool enabled;
   final bool affectsUserApp;
@@ -58,6 +66,12 @@ class MaintenanceConfig {
   final bool allowCart;
   final bool allowPayments;
   final bool legacyStoreActive;
+  final bool storeOpen;
+  final bool orderingEnabled;
+  final bool userAppEnabled;
+  final bool vendorAppEnabled;
+  final bool driverAppEnabled;
+  final bool usesSystemControls;
 
   static final openDefaults = MaintenanceConfig(
     enabled: false,
@@ -84,23 +98,59 @@ class MaintenanceConfig {
     allowCart: true,
     allowPayments: true,
     legacyStoreActive: true,
+    storeOpen: true,
+    orderingEnabled: true,
+    userAppEnabled: true,
+    vendorAppEnabled: true,
+    driverAppEnabled: true,
+    usesSystemControls: false,
   );
 
   factory MaintenanceConfig.fromMap(Map<String, dynamic>? raw) {
     if (raw == null || raw.isEmpty) return openDefaults;
     final affected = raw['affectedApps'] as Map<String, dynamic>? ?? {};
+    final usesSystemControls =
+        raw.containsKey('storeOpen') ||
+        raw.containsKey('store_open') ||
+        raw.containsKey('orderingEnabled') ||
+        raw.containsKey('ordering_enabled') ||
+        raw.containsKey('maintenanceMode') ||
+        raw.containsKey('userAppEnabled') ||
+        raw.containsKey('vendorAppEnabled') ||
+        raw.containsKey('driverAppEnabled');
+    final storeOpen =
+        raw['storeOpen'] as bool? ??
+        raw['store_open'] as bool? ??
+        raw['legacyStoreActive'] as bool? ??
+        raw['isActive'] as bool? ??
+        true;
+    final orderingEnabled =
+        raw['orderingEnabled'] as bool? ??
+        raw['ordering_enabled'] as bool? ??
+        raw['allowOrders'] as bool? ??
+        true;
+    final userAppEnabled =
+        raw['userAppEnabled'] as bool? ??
+        raw['user_app_enabled'] as bool? ??
+        true;
     return MaintenanceConfig(
-      enabled: raw['enabled'] as bool? ?? raw['maintenance'] as bool? ?? false,
+      enabled:
+          raw['enabled'] as bool? ??
+          raw['maintenanceMode'] as bool? ??
+          raw['maintenance'] as bool? ??
+          false,
       affectsUserApp: affected['user'] as bool? ?? true,
       mode: raw['mode']?.toString() ?? 'soft',
       title: LocalizedText.fromMap(raw['title']),
       subtitle: LocalizedText.fromMap(raw['subtitle']),
       message: LocalizedText.fromMap(raw['message']),
       reopenTime: _parseDate(raw['reopenTime'] ?? raw['reopen_time']),
-      supportPhone: raw['supportPhone']?.toString() ??
+      supportPhone:
+          raw['supportPhone']?.toString() ??
           raw['support_phone']?.toString() ??
           '',
-      supportEmail: raw['supportEmail']?.toString() ??
+      supportEmail:
+          raw['supportEmail']?.toString() ??
           raw['support_email']?.toString() ??
           '',
       showRetryButton: raw['showRetryButton'] as bool? ?? true,
@@ -129,24 +179,40 @@ class MaintenanceConfig {
         raw['emergencyControls'] as Map<String, dynamic>?,
       ),
       allowBrowsing: raw['allowBrowsing'] as bool? ?? true,
-      allowOrders: raw['allowOrders'] as bool? ?? true,
-      allowCart: raw['allowCart'] as bool? ?? true,
-      allowPayments: raw['allowPayments'] as bool? ?? true,
-      legacyStoreActive: raw['legacyStoreActive'] as bool? ?? true,
+      allowOrders: orderingEnabled,
+      allowCart: raw['allowCart'] as bool? ?? orderingEnabled,
+      allowPayments: raw['allowPayments'] as bool? ?? orderingEnabled,
+      legacyStoreActive: storeOpen,
+      storeOpen: storeOpen,
+      orderingEnabled: orderingEnabled,
+      userAppEnabled: userAppEnabled,
+      vendorAppEnabled:
+          raw['vendorAppEnabled'] as bool? ??
+          raw['vendor_app_enabled'] as bool? ??
+          true,
+      driverAppEnabled:
+          raw['driverAppEnabled'] as bool? ??
+          raw['driver_app_enabled'] as bool? ??
+          true,
+      usesSystemControls: usesSystemControls,
     );
   }
 
   /// API-shaped JSON for clients / debugging.
   Map<String, dynamic> toApiJson() => {
-        'maintenance': enabled,
-        'mode': mode,
-        'title': title.forLocale('en'),
-        'message': message.forLocale('en'),
-        'allow_browsing': allowBrowsing,
-        'reopen_time': reopenTime?.toUtc().toIso8601String(),
-        'support_phone': supportPhone,
-        'support_email': supportEmail,
-      };
+    'maintenance': enabled,
+    'store_open': storeOpen,
+    'ordering_enabled': orderingEnabled,
+    'user_app_enabled': userAppEnabled,
+    'uses_system_controls': usesSystemControls,
+    'mode': mode,
+    'title': title.forLocale('en'),
+    'message': message.forLocale('en'),
+    'allow_browsing': allowBrowsing,
+    'reopen_time': reopenTime?.toUtc().toIso8601String(),
+    'support_phone': supportPhone,
+    'support_email': supportEmail,
+  };
 
   static DateTime? _parseDate(dynamic v) {
     if (v == null) return null;
@@ -270,9 +336,11 @@ class MaintenanceSchedule {
       emergencyClose: m['emergencyClose'] as bool? ?? false,
       autoReopen: m['autoReopen'] as bool? ?? true,
       festivalClosures: (m['festivalClosures'] as List<dynamic>? ?? [])
-          .map((e) => Map<String, String>.from(
-                (e as Map).map((k, v) => MapEntry(k.toString(), v.toString())),
-              ))
+          .map(
+            (e) => Map<String, String>.from(
+              (e as Map).map((k, v) => MapEntry(k.toString(), v.toString())),
+            ),
+          )
           .toList(),
     );
   }
@@ -332,15 +400,10 @@ class DriverSmartControl {
   static DriverSmartControl get defaultsInstance => DriverSmartControl(
     enabled: false,
     minDriversOnline: 2,
-    autoPauseCod: true,
+    autoPauseCod: false,
     limitOrderDistanceKm: 8,
-    pauseOrdering: true,
-    highDemandMessage: LocalizedText(
-      en: 'High demand',
-      te: '',
-      hi: '',
-      ar: '',
-    ),
+    pauseOrdering: false,
+    highDemandMessage: LocalizedText(en: 'High demand', te: '', hi: '', ar: ''),
   );
 
   factory DriverSmartControl.fromMap(Map<String, dynamic>? m) {
@@ -348,10 +411,10 @@ class DriverSmartControl {
     return DriverSmartControl(
       enabled: m['enabled'] as bool? ?? false,
       minDriversOnline: m['minDriversOnline'] as int? ?? 2,
-      autoPauseCod: m['autoPauseCod'] as bool? ?? true,
+      autoPauseCod: m['autoPauseCod'] as bool? ?? false,
       limitOrderDistanceKm:
           (m['limitOrderDistanceKm'] as num?)?.toDouble() ?? 8,
-      pauseOrdering: m['pauseOrdering'] as bool? ?? true,
+      pauseOrdering: m['pauseOrdering'] as bool? ?? false,
       highDemandMessage: LocalizedText.fromMap(m['highDemandMessage']),
     );
   }

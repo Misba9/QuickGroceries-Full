@@ -34,6 +34,7 @@ class PremiumCheckoutBar extends StatelessWidget {
     required this.onCheckout,
     this.helperText,
     this.helperIsError = false,
+    this.buttonText = 'Proceed to Checkout',
   });
 
   final double total;
@@ -42,6 +43,7 @@ class PremiumCheckoutBar extends StatelessWidget {
   final bool enabled;
   final bool isLoading;
   final VoidCallback onCheckout;
+  final String buttonText;
 
   /// Tiny line of text rendered above the totals row — used to surface
   /// "min order ₹100, add ₹30 more" or "Some items are out of stock".
@@ -56,9 +58,7 @@ class PremiumCheckoutBar extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border(
-            top: BorderSide(color: AppSurface.border, width: 1),
-          ),
+          border: Border(top: BorderSide(color: AppSurface.border, width: 1)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.06),
@@ -78,75 +78,88 @@ class PremiumCheckoutBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-                if ((helperText ?? '').isNotEmpty) ...[
-                  _Helper(
-                    text: helperText!,
-                    isError: helperIsError,
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _AnimatedTotal(value: total),
-                          const SizedBox(height: 2),
-                          Wrap(
-                            spacing: 4,
-                            runSpacing: 2,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
+              if ((helperText ?? '').isNotEmpty) ...[
+                _Helper(text: helperText!, isError: helperIsError),
+                const SizedBox(height: 8),
+              ],
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _AnimatedTotal(value: total),
+                        const SizedBox(height: 2),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 2,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              _itemsLabel(itemCount),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                color: AppSurface.textSecondary,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                height: 1.2,
+                              ),
+                            ),
+                            if (savings > 0.5)
                               Text(
-                                _itemsLabel(itemCount),
+                                'Saved ₹${savings.toStringAsFixed(0)}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.poppins(
-                                  color: AppSurface.textSecondary,
+                                  color: AppSurface.success,
                                   fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                   height: 1.2,
                                 ),
                               ),
-                              if (savings > 0.5)
-                                Text(
-                                  'Saved ₹${savings.toStringAsFixed(0)}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.poppins(
-                                    color: AppSurface.success,
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.2,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    _CheckoutButton(
-                      enabled: enabled && !isLoading,
-                      isLoading: isLoading,
-                      onTap: () {
-                        HapticFeedback.mediumImpact();
-                        onCheckout();
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                  const SizedBox(width: 12),
+                  _CheckoutButton(
+                    label: buttonText,
+                    enabled: enabled && !isLoading,
+                    isLoading: isLoading,
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      onCheckout();
+                    },
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
+      ),
     );
   }
 
-  String _itemsLabel(int n) =>
-      n == 1 ? '1 item in cart' : '$n items in cart';
+  String _itemsLabel(int n) => n == 1 ? '1 item in cart' : '$n items in cart';
+}
+
+/// Reusable compact sticky payment bar shared by cart and checkout.
+class StickyCheckoutBar extends PremiumCheckoutBar {
+  const StickyCheckoutBar({
+    super.key,
+    required double totalAmount,
+    required super.itemCount,
+    required super.savings,
+    required super.buttonText,
+    required VoidCallback onTap,
+    super.enabled = true,
+    super.isLoading = false,
+    super.helperText,
+    super.helperIsError,
+  }) : super(total: totalAmount, onCheckout: onTap);
 }
 
 // ─── Pieces ────────────────────────────────────────────────────────────────
@@ -228,11 +241,13 @@ class _AnimatedTotal extends StatelessWidget {
 
 class _CheckoutButton extends StatelessWidget {
   const _CheckoutButton({
+    required this.label,
     required this.enabled,
     required this.isLoading,
     required this.onTap,
   });
 
+  final String label;
   final bool enabled;
   final bool isLoading;
   final VoidCallback onTap;
@@ -262,8 +277,7 @@ class _CheckoutButton extends StatelessWidget {
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.4,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
                   : Row(
@@ -271,7 +285,7 @@ class _CheckoutButton extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            'Proceed to Checkout',
+                            label,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,

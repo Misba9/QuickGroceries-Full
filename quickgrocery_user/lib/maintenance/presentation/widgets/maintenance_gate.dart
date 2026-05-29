@@ -41,7 +41,9 @@ class _MaintenanceGateState extends ConsumerState<MaintenanceGate> {
       ),
       data: (status) {
         // Legacy admins doc still respected when maintenance doc not enabled.
-        if (!status.config.enabled && status.config.legacyStoreActive) {
+        if (!status.config.enabled &&
+            status.config.legacyStoreActive &&
+            !status.config.usesSystemControls) {
           return StreamBuilder<DocumentSnapshot>(
             key: ValueKey<int>(_legacyKey),
             stream: _legacyStoreStream(),
@@ -84,13 +86,11 @@ class _MaintenanceGateState extends ConsumerState<MaintenanceGate> {
   }
 }
 
-/// Snackbar when soft maintenance blocks checkout.
+/// Snackbar when maintenance blocks checkout.
 void showMaintenanceOrderBlocked(BuildContext context, {String? message}) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text(
-        message ?? 'Orders are temporarily unavailable. Please try again later.',
-      ),
+      content: Text(message ?? 'Ordering disabled by admin'),
       behavior: SnackBarBehavior.floating,
     ),
   );

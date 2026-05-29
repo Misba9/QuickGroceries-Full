@@ -20,6 +20,42 @@ function isAvailable(data: FirebaseFirestore.DocumentData): boolean {
   return true;
 }
 
+function boolField(
+  data: FirebaseFirestore.DocumentData,
+  keys: string[],
+  fallback: boolean,
+): boolean {
+  for (const key of keys) {
+    if (typeof data[key] === "boolean") return data[key] as boolean;
+  }
+  return fallback;
+}
+
+function vendorIsActive(data: FirebaseFirestore.DocumentData): boolean {
+  const status = str(data.status).toLowerCase();
+  if (data.isBlocked === true || data.is_blocked === true) return false;
+  if (status === "suspended" || status === "rejected") return false;
+  if (status === "inactive" || status === "pending") return false;
+  if (data.is_active === false || data.isActive === false) return false;
+  return true;
+}
+
+function vendorIsApproved(data: FirebaseFirestore.DocumentData): boolean {
+  const status = str(data.status).toLowerCase();
+  if (typeof data.isApproved === "boolean") return data.isApproved;
+  if (typeof data.is_approved === "boolean") return data.is_approved;
+  return status !== "pending" && status !== "rejected";
+}
+
+function vendorIsOpen(data: FirebaseFirestore.DocumentData): boolean {
+  if (data.isOpen === false) return false;
+  if (data.is_open === false) return false;
+  if (data.storeOpen === false) return false;
+  if (data.store_open === false) return false;
+  if (data.shopOpen === false) return false;
+  return true;
+}
+
 function effectiveMax(stock: number, maxOrder: number): number {
   if (stock <= 0) return 0;
   if (maxOrder <= 0) return stock;
@@ -61,9 +97,79 @@ export const placeOrderCallable = onCall(
 
     try {
       await db.runTransaction(async (tx) => {
-        const productSnaps = await Promise.all(
-          lines.map((l) => tx.get(db.collection("products").doc(l.productId)))
+        const systemSnap = await tx.get(
+          db.collection("maintenance").doc("system"),
         );
+        const legacyMaintenanceSnap = await tx.get(
+          db.collection("app_config").doc("maintenance"),
+        );
+        const maintenance = systemSnap.exists
+          ? systemSnap.data()!
+          : legacyMaintenanceSnap.exists
+            ? legacyMaintenanceSnap.data()!
+            : {};
+        const maintenanceMode = boolField(
+          maintenance,
+          ["maintenanceMode", "enabled", "maintenance"],
+          false,
+        );
+        const affectedApps = maintenance.affectedApps ?? {};
+        const affectsUser =
+          typeof affectedApps.user === "boolean" ? affectedApps.user : true;
+        const storeOpen = boolField(
+          maintenance,
+          ["storeOpen", "store_open", "legacyStoreActive", "isActive"],
+          true,
+        );
+        const orderingEnabled = boolField(
+          maintenance,
+          ["orderingEnabled", "ordering_enabled", "allowOrders"],
+          true,
+        );
+        const userAppEnabled = boolField(
+          maintenance,
+          ["userAppEnabled", "user_app_enabled"],
+          true,
+        );
+        if (maintenanceMode && affectsUser) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Maintenance mode is active",
+          );
+        }
+        if (!storeOpen) {
+          throw new HttpsError("failed-precondition", "Store is closed");
+        }
+        if (!orderingEnabled) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Ordering disabled by admin",
+          );
+        }
+        if (!userAppEnabled) {
+          throw new HttpsError(
+            "failed-precondition",
+            "User app disabled by admin",
+          );
+        }
+
+        const productSnaps = await Promise.all(
+          lines.map((l) => tx.get(db.collection("products").doc(l.productId))),
+        );
+        const liveVendorIds = [
+          ...new Set(
+            productSnaps
+              .map((snap) => (snap.exists ? str(snap.data()!.vendor_id) : ""))
+              .filter((id) => id.length > 0),
+          ),
+        ];
+        const vendorSnaps = await Promise.all(
+          liveVendorIds.map((id) => tx.get(db.collection("vendors").doc(id))),
+        );
+        const vendors = new Map<string, FirebaseFirestore.DocumentData>();
+        vendorSnaps.forEach((snap, idx) => {
+          if (snap.exists) vendors.set(liveVendorIds[idx], snap.data()!);
+        });
 
         const orderProducts: Record<string, unknown>[] = [];
 
@@ -73,10 +179,34 @@ export const placeOrderCallable = onCall(
           if (!snap.exists) {
             throw new HttpsError(
               "failed-precondition",
-              "Some items are no longer available"
+              "Some items are no longer available",
             );
           }
           const data = snap.data()!;
+          const vendorId = str(data.vendor_id);
+          if (!vendorId) {
+            throw new HttpsError(
+              "failed-precondition",
+              `Vendor is missing for ${str(data.name) || "this product"}`,
+            );
+          }
+          const vendor = vendors.get(vendorId);
+          if (!vendor) {
+            throw new HttpsError("failed-precondition", "Vendor not found");
+          }
+          if (!vendorIsApproved(vendor)) {
+            throw new HttpsError(
+              "failed-precondition",
+              "Vendor is not approved",
+            );
+          }
+          if (!vendorIsActive(vendor)) {
+            throw new HttpsError("failed-precondition", "Vendor is inactive");
+          }
+          if (!vendorIsOpen(vendor)) {
+            throw new HttpsError("failed-precondition", "Vendor is closed");
+          }
+
           const stock = num(data.stock ?? data.stock_quantity);
           const maxOrder = num(data.maxOrder ?? data.max_order_quantity);
           const minOrder = num(data.minOrder ?? data.min_order_quantity, 1);
@@ -85,7 +215,7 @@ export const placeOrderCallable = onCall(
           if (!available || stock <= 0) {
             throw new HttpsError(
               "failed-precondition",
-              "Some items are out of stock"
+              "Some items are out of stock",
             );
           }
 
@@ -93,13 +223,13 @@ export const placeOrderCallable = onCall(
           if (line.itemCount > cap) {
             throw new HttpsError(
               "failed-precondition",
-              "Some items exceed the maximum order limit"
+              "Some items exceed the maximum order limit",
             );
           }
           if (minOrder > 0 && line.itemCount < minOrder) {
             throw new HttpsError(
               "failed-precondition",
-              "Some items do not meet the minimum order quantity"
+              "Some items do not meet the minimum order quantity",
             );
           }
 
@@ -138,7 +268,7 @@ export const placeOrderCallable = onCall(
             price: unitPrice,
             slashedPrice: unitSlashed,
             itemCount: line.itemCount,
-            vendor_id: str(data.vendor_id),
+            vendor_id: vendorId,
           });
         }
 
@@ -175,20 +305,20 @@ export const placeOrderCallable = onCall(
           star: 0,
         };
 
-        const vendorIds = [
+        const orderVendorIds = [
           ...new Set(
             orderProducts
               .map((p: { vendor_id?: string }) => str(p.vendor_id))
-              .filter((id: string) => id.length > 0)
+              .filter((id: string) => id.length > 0),
           ),
         ];
 
         tx.set(orderRef, {
           ...legacyOrder,
           status: "pending",
-          vendorIds,
-          ...(vendorIds.length === 1
-            ? { vendorId: vendorIds[0], vendor_id: vendorIds[0] }
+          vendorIds: orderVendorIds,
+          ...(orderVendorIds.length === 1
+            ? { vendorId: orderVendorIds[0], vendor_id: orderVendorIds[0] }
             : {}),
           paymentMethod,
           paymentStatus: isPaid ? "paid" : "pending",
@@ -210,5 +340,5 @@ export const placeOrderCallable = onCall(
     }
 
     return { orderId: orderRef.id };
-  }
+  },
 );

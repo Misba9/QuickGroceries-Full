@@ -6,9 +6,11 @@ class DeliveryZoneService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<DeliveryZoneModel> _deliveryZones = [];
   bool _isLoading = false;
+  bool _lastLookupFailed = false;
 
   List<DeliveryZoneModel> get deliveryZones => _deliveryZones;
   bool get isLoading => _isLoading;
+  bool get lastLookupFailed => _lastLookupFailed;
 
   /// Fetch all delivery zones from Firestore
   Future<void> fetchDeliveryZones() async {
@@ -49,14 +51,17 @@ class DeliveryZoneService extends ChangeNotifier {
           .get();
 
       if (snapshot.docs.isEmpty) {
+        _lastLookupFailed = false;
         return null;
       }
 
+      _lastLookupFailed = false;
       return DeliveryZoneModel.fromFirestore(
         snapshot.docs.first.data() as Map<String, dynamic>,
         snapshot.docs.first.id,
       );
     } catch (e) {
+      _lastLookupFailed = true;
       debugPrint('Error getting zone by pin code: $e');
       return null;
     }

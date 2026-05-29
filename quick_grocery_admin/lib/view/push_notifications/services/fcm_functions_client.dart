@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:quick_grocery_admin/core/firebase/callable_payload.dart';
 
 /// HTTPS bridge for FCM admin sends.
 ///
@@ -16,13 +17,14 @@ class FcmFunctionsClient {
     FirebaseFunctions? functions,
     FirebaseApp? app,
     http.Client? httpClient,
-  })  : _fn = functions ??
-            FirebaseFunctions.instanceFor(
-              app: app ?? Firebase.app(),
-              region: _defaultRegion,
-            ),
-        _http = httpClient ?? http.Client(),
-        _projectId = (app ?? Firebase.app()).options.projectId;
+  }) : _fn =
+           functions ??
+           FirebaseFunctions.instanceFor(
+             app: app ?? Firebase.app(),
+             region: _defaultRegion,
+           ),
+       _http = httpClient ?? http.Client(),
+       _projectId = (app ?? Firebase.app()).options.projectId;
 
   static const _defaultRegion = 'us-central1';
 
@@ -40,10 +42,8 @@ class FcmFunctionsClient {
     }
   }
 
-  HttpsCallable _callable(String name) => _fn.httpsCallable(
-        name,
-        options: _callableOptions,
-      );
+  HttpsCallable _callable(String name) =>
+      _fn.httpsCallable(name, options: _callableOptions);
 
   String _httpFunctionUrl(String httpFunctionName) {
     final projectId = _projectId;
@@ -59,12 +59,14 @@ class FcmFunctionsClient {
     Map<String, dynamic> payload,
   ) async {
     await _ensureSignedIn();
+    final safePayload = sanitizeCallableData(payload);
+    debugCallableData(callableName, safePayload);
 
     if (kIsWeb) {
-      return _postHttp(httpFunctionName, payload);
+      return _postHttp(httpFunctionName, safePayload);
     }
 
-    final res = await _callable(callableName).call(payload);
+    final res = await _callable(callableName).call(safePayload);
     return _mapResponse(res.data);
   }
 
@@ -196,7 +198,7 @@ class FcmFunctionsClient {
     String? soundType,
   }) async {
     await _ensureSignedIn();
-    final payload = <String, dynamic>{
+    final payload = sanitizeCallableData(<String, dynamic>{
       'title': title,
       'message': message,
       'scheduledAt': scheduledAt.toIso8601String(),
@@ -211,7 +213,8 @@ class FcmFunctionsClient {
         'redirectType': redirectType,
       if (ctaLabel != null && ctaLabel.isNotEmpty) 'ctaLabel': ctaLabel,
       if (soundType != null && soundType.isNotEmpty) 'soundType': soundType,
-    };
+    });
+    debugCallableData('scheduleNotification', payload);
 
     if (kIsWeb) {
       // Schedule uses callable only (no HTTP mirror yet); Gen2 cors:true handles web.
@@ -234,11 +237,13 @@ class FcmFunctionsClient {
     String? bootstrapSecret,
   }) async {
     await _ensureSignedIn();
-    final res = await _callable('setAdminClaims').call(<String, dynamic>{
+    final payload = sanitizeCallableData(<String, dynamic>{
       if (uid != null && uid.isNotEmpty) 'uid': uid,
       if (bootstrapSecret != null && bootstrapSecret.isNotEmpty)
         'bootstrapSecret': bootstrapSecret,
     });
+    debugCallableData('setAdminClaims', payload);
+    final res = await _callable('setAdminClaims').call(payload);
     return _mapResponse(res.data);
   }
 }

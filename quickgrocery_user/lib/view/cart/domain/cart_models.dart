@@ -25,6 +25,7 @@ class CartItem {
   final int itemCount;
   final int selectedWeightInGrams;
   final bool isVegetable;
+
   /// Set when line is part of a combo bundle.
   final String? comboId;
   final String? comboGroupKey;
@@ -51,20 +52,17 @@ class CartItem {
     this.comboGroupKey,
   });
 
-  bool get isComboLine =>
-      comboGroupKey != null && comboGroupKey!.isNotEmpty;
+  bool get isComboLine => comboGroupKey != null && comboGroupKey!.isNotEmpty;
 
   bool get isUnavailable => InventoryLimits.isCartLineBlocked(
-        stock: stock,
-        itemCount: itemCount,
-        maxOrder: maxOrder,
-        isAvailable: isAvailable,
-      );
+    stock: stock,
+    itemCount: itemCount,
+    maxOrder: maxOrder,
+    isAvailable: isAvailable,
+  );
 
-  int get effectiveMaxQuantity => InventoryLimits.effectiveMaxQuantity(
-        stock: stock,
-        maxOrder: maxOrder,
-      );
+  int get effectiveMaxQuantity =>
+      InventoryLimits.effectiveMaxQuantity(stock: stock, maxOrder: maxOrder);
 
   factory CartItem.fromProduct(ProductModel p, {int? itemCount}) {
     return CartItem(
@@ -89,49 +87,49 @@ class CartItem {
   }
 
   factory CartItem.fromMap(Map<String, dynamic> data) => CartItem(
-        productId: (data['productId'] ?? data['id'] ?? '').toString(),
-        name: (data['name'] ?? '').toString(),
-        image: (data['image'] ?? '').toString(),
-        unit: (data['unit'] ?? '').toString(),
-        unitPerItem: (data['unitPerItem'] ?? '').toString(),
-        category: (data['category'] ?? '').toString(),
-        subcategory: (data['subcategory'] ?? '').toString(),
-        vendorId: (data['vendorId'] ?? data['vendor_id'] ?? '').toString(),
-        price: (data['price'] as num?)?.toDouble() ?? 0,
-        slashedPrice: (data['slashedPrice'] as num?)?.toDouble() ?? 0,
-        stock: (data['stock'] as num?)?.toInt() ?? 0,
-        maxOrder: (data['maxOrder'] as num?)?.toInt() ?? 0,
-        minOrderQuantity: (data['minOrder'] as num?)?.toInt() ?? 1,
-        isAvailable: data['isAvailable'] as bool? ?? true,
-        itemCount: (data['itemCount'] as num?)?.toInt() ?? 1,
-        selectedWeightInGrams:
-            (data['selectedWeightInGrams'] as num?)?.toInt() ?? 1000,
-        isVegetable: data['isVegetable'] as bool? ?? false,
-        comboId: data['comboId']?.toString(),
-        comboGroupKey: data['comboGroupKey']?.toString(),
-      );
+    productId: (data['productId'] ?? data['id'] ?? '').toString(),
+    name: (data['name'] ?? '').toString(),
+    image: (data['image'] ?? '').toString(),
+    unit: (data['unit'] ?? '').toString(),
+    unitPerItem: (data['unitPerItem'] ?? '').toString(),
+    category: (data['category'] ?? '').toString(),
+    subcategory: (data['subcategory'] ?? '').toString(),
+    vendorId: (data['vendorId'] ?? data['vendor_id'] ?? '').toString(),
+    price: (data['price'] as num?)?.toDouble() ?? 0,
+    slashedPrice: (data['slashedPrice'] as num?)?.toDouble() ?? 0,
+    stock: (data['stock'] as num?)?.toInt() ?? 0,
+    maxOrder: (data['maxOrder'] as num?)?.toInt() ?? 0,
+    minOrderQuantity: (data['minOrder'] as num?)?.toInt() ?? 1,
+    isAvailable: data['isAvailable'] as bool? ?? true,
+    itemCount: (data['itemCount'] as num?)?.toInt() ?? 1,
+    selectedWeightInGrams:
+        (data['selectedWeightInGrams'] as num?)?.toInt() ?? 1000,
+    isVegetable: data['isVegetable'] as bool? ?? false,
+    comboId: data['comboId']?.toString(),
+    comboGroupKey: data['comboGroupKey']?.toString(),
+  );
 
   Map<String, dynamic> toMap() => {
-        'productId': productId,
-        'name': name,
-        'image': image,
-        'unit': unit,
-        'unitPerItem': unitPerItem,
-        'category': category,
-        'subcategory': subcategory,
-        'vendorId': vendorId,
-        'price': price,
-        'slashedPrice': slashedPrice,
-        'stock': stock,
-        'maxOrder': maxOrder,
-        'minOrder': minOrderQuantity,
-        'isAvailable': isAvailable,
-        'itemCount': itemCount,
-        'selectedWeightInGrams': selectedWeightInGrams,
-        'isVegetable': isVegetable,
-        if (comboId != null) 'comboId': comboId,
-        if (comboGroupKey != null) 'comboGroupKey': comboGroupKey,
-      };
+    'productId': productId,
+    'name': name,
+    'image': image,
+    'unit': unit,
+    'unitPerItem': unitPerItem,
+    'category': category,
+    'subcategory': subcategory,
+    'vendorId': vendorId,
+    'price': price,
+    'slashedPrice': slashedPrice,
+    'stock': stock,
+    'maxOrder': maxOrder,
+    'minOrder': minOrderQuantity,
+    'isAvailable': isAvailable,
+    'itemCount': itemCount,
+    'selectedWeightInGrams': selectedWeightInGrams,
+    'isVegetable': isVegetable,
+    if (comboId != null) 'comboId': comboId,
+    if (comboGroupKey != null) 'comboGroupKey': comboGroupKey,
+  };
 
   /// Per-item price after weight-variant adjustment.
   double get unitEffectivePrice {
@@ -154,8 +152,9 @@ class CartItem {
 
   /// Sum of MRPs (used to compute "you save" badge).
   double get lineSlashedTotal {
-    final ref =
-        unitEffectiveSlashedPrice > 0 ? unitEffectiveSlashedPrice : unitEffectivePrice;
+    final ref = unitEffectiveSlashedPrice > 0
+        ? unitEffectiveSlashedPrice
+        : unitEffectivePrice;
     return ref * itemCount;
   }
 
@@ -170,56 +169,54 @@ class CartItem {
     double? slashedPrice,
     String? comboId,
     String? comboGroupKey,
-  }) =>
-      CartItem(
-        productId: productId,
-        name: name,
-        image: image,
-        unit: unit,
-        unitPerItem: unitPerItem,
-        category: category,
-        subcategory: subcategory,
-        vendorId: vendorId,
-        price: price ?? this.price,
-        slashedPrice: slashedPrice ?? this.slashedPrice,
-        stock: stock ?? this.stock,
-        maxOrder: maxOrder ?? this.maxOrder,
-        minOrderQuantity: minOrderQuantity ?? this.minOrderQuantity,
-        isAvailable: isAvailable ?? this.isAvailable,
-        itemCount: itemCount ?? this.itemCount,
-        selectedWeightInGrams:
-            selectedWeightInGrams ?? this.selectedWeightInGrams,
-        isVegetable: isVegetable,
-        comboId: comboId ?? this.comboId,
-        comboGroupKey: comboGroupKey ?? this.comboGroupKey,
-      );
+  }) => CartItem(
+    productId: productId,
+    name: name,
+    image: image,
+    unit: unit,
+    unitPerItem: unitPerItem,
+    category: category,
+    subcategory: subcategory,
+    vendorId: vendorId,
+    price: price ?? this.price,
+    slashedPrice: slashedPrice ?? this.slashedPrice,
+    stock: stock ?? this.stock,
+    maxOrder: maxOrder ?? this.maxOrder,
+    minOrderQuantity: minOrderQuantity ?? this.minOrderQuantity,
+    isAvailable: isAvailable ?? this.isAvailable,
+    itemCount: itemCount ?? this.itemCount,
+    selectedWeightInGrams: selectedWeightInGrams ?? this.selectedWeightInGrams,
+    isVegetable: isVegetable,
+    comboId: comboId ?? this.comboId,
+    comboGroupKey: comboGroupKey ?? this.comboGroupKey,
+  );
 
   /// Builds a (lossy but safe) [ProductModel] from this cart line so that
   /// existing screens keyed off `CategoryService.selectedProduct` keep
   /// rendering correctly when we hydrate from Firestore.
   ProductModel toLegacyProduct() => ProductModel(
-        id: productId,
-        name: name,
-        image: image,
-        description: '',
-        category: category,
-        subcategory: subcategory,
-        unit: unit,
-        stock: stock,
-        maxOrder: maxOrder,
-        price: price,
-        slashedPrice: slashedPrice,
-        vendorId: vendorId,
-        unitPerItem: unitPerItem,
-        itemCount: itemCount,
-        isMostSold: false,
-        productIndex: 0,
-        specialCat: '',
-        addonIds: const [],
-        images: const [],
-        videos: const [],
-        selectedWeightInGrams: selectedWeightInGrams,
-      );
+    id: productId,
+    name: name,
+    image: image,
+    description: '',
+    category: category,
+    subcategory: subcategory,
+    unit: unit,
+    stock: stock,
+    maxOrder: maxOrder,
+    price: price,
+    slashedPrice: slashedPrice,
+    vendorId: vendorId,
+    unitPerItem: unitPerItem,
+    itemCount: itemCount,
+    isMostSold: false,
+    productIndex: 0,
+    specialCat: '',
+    addonIds: const [],
+    images: const [],
+    videos: const [],
+    selectedWeightInGrams: selectedWeightInGrams,
+  );
 }
 
 /// Currently-applied coupon. Discount is a flat percentage (matches existing
@@ -248,28 +245,27 @@ class AppliedCoupon {
     this.savingsPreview = 0,
   });
 
-  bool get isFirstOrderOffer =>
-      firstOrderOnly || couponType == 'first_order';
+  bool get isFirstOrderOffer => firstOrderOnly || couponType == 'first_order';
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'code': code,
-        'discount': discountPercent,
-        'flat_amount': flatAmount,
-        'free_delivery': freeDelivery,
-        'coupon_type': couponType,
-      };
+    'id': id,
+    'code': code,
+    'discount': discountPercent,
+    'flat_amount': flatAmount,
+    'free_delivery': freeDelivery,
+    'coupon_type': couponType,
+  };
 
   factory AppliedCoupon.fromMap(Map<String, dynamic> m) => AppliedCoupon(
-        id: (m['id'] ?? '').toString(),
-        code: (m['code'] ?? '').toString(),
-        discountPercent: (m['discount'] as num?)?.toInt() ?? 0,
-        flatAmount: (m['flat_amount'] as num?)?.toDouble() ?? 0,
-        maxDiscountAmount: (m['max_discount'] as num?)?.toDouble() ?? 0,
-        freeDelivery: m['free_delivery'] as bool? ?? false,
-        couponType: (m['coupon_type'] ?? '').toString(),
-        firstOrderOnly: m['first_order_only'] as bool? ?? false,
-      );
+    id: (m['id'] ?? '').toString(),
+    code: (m['code'] ?? '').toString(),
+    discountPercent: (m['discount'] as num?)?.toInt() ?? 0,
+    flatAmount: (m['flat_amount'] as num?)?.toDouble() ?? 0,
+    maxDiscountAmount: (m['max_discount'] as num?)?.toDouble() ?? 0,
+    freeDelivery: m['free_delivery'] as bool? ?? false,
+    couponType: (m['coupon_type'] ?? '').toString(),
+    firstOrderOnly: m['first_order_only'] as bool? ?? false,
+  );
 }
 
 /// Pricing config sourced from Firestore + remote knobs.
@@ -323,27 +319,23 @@ class PricingConfig {
     bool? surgeActive,
     String? surgeReason,
     DateTime? settingsUpdatedAt,
-  }) =>
-      PricingConfig(
-        platformFee: platformFee ?? this.platformFee,
-        handlingCharge: handlingCharge ?? this.handlingCharge,
-        defaultDeliveryCharge:
-            defaultDeliveryCharge ?? this.defaultDeliveryCharge,
-        standardDeliveryCharge:
-            standardDeliveryCharge ?? this.standardDeliveryCharge,
-        minOrderValue: minOrderValue ?? this.minOrderValue,
-        freeDeliveryThreshold:
-            freeDeliveryThreshold ?? this.freeDeliveryThreshold,
-        isFreeDeliveryEnabled:
-            isFreeDeliveryEnabled ?? this.isFreeDeliveryEnabled,
-        isDeliveryChargesEnabled:
-            isDeliveryChargesEnabled ?? this.isDeliveryChargesEnabled,
-        taxPercent: taxPercent ?? this.taxPercent,
-        surgeMultiplier: surgeMultiplier ?? this.surgeMultiplier,
-        surgeActive: surgeActive ?? this.surgeActive,
-        surgeReason: surgeReason ?? this.surgeReason,
-        settingsUpdatedAt: settingsUpdatedAt ?? this.settingsUpdatedAt,
-      );
+  }) => PricingConfig(
+    platformFee: platformFee ?? this.platformFee,
+    handlingCharge: handlingCharge ?? this.handlingCharge,
+    defaultDeliveryCharge: defaultDeliveryCharge ?? this.defaultDeliveryCharge,
+    standardDeliveryCharge:
+        standardDeliveryCharge ?? this.standardDeliveryCharge,
+    minOrderValue: minOrderValue ?? this.minOrderValue,
+    freeDeliveryThreshold: freeDeliveryThreshold ?? this.freeDeliveryThreshold,
+    isFreeDeliveryEnabled: isFreeDeliveryEnabled ?? this.isFreeDeliveryEnabled,
+    isDeliveryChargesEnabled:
+        isDeliveryChargesEnabled ?? this.isDeliveryChargesEnabled,
+    taxPercent: taxPercent ?? this.taxPercent,
+    surgeMultiplier: surgeMultiplier ?? this.surgeMultiplier,
+    surgeActive: surgeActive ?? this.surgeActive,
+    surgeReason: surgeReason ?? this.surgeReason,
+    settingsUpdatedAt: settingsUpdatedAt ?? this.settingsUpdatedAt,
+  );
 }
 
 /// Output of the pricing calculator — every monetary line a UI may need.
@@ -396,18 +388,18 @@ class BillBreakdown {
   );
 
   Map<String, dynamic> toMap() => {
-        'subtotal': subtotal,
-        'slashedSubtotal': slashedSubtotal,
-        'itemSavings': itemSavings,
-        'couponDiscount': couponDiscount,
-        'deliveryFee': deliveryFee,
-        'surgeFee': surgeFee,
-        'handlingCharge': handlingCharge,
-        'platformFee': platformFee,
-        'tax': tax,
-        'total': total,
-        'isFreeDelivery': isFreeDelivery,
-      };
+    'subtotal': subtotal,
+    'slashedSubtotal': slashedSubtotal,
+    'itemSavings': itemSavings,
+    'couponDiscount': couponDiscount,
+    'deliveryFee': deliveryFee,
+    'surgeFee': surgeFee,
+    'handlingCharge': handlingCharge,
+    'platformFee': platformFee,
+    'tax': tax,
+    'total': total,
+    'isFreeDelivery': isFreeDelivery,
+  };
 
   /// Total user-visible savings (item savings + coupon).
   double get totalSavings => itemSavings + couponDiscount;
@@ -431,20 +423,20 @@ class DeliverySlot {
   });
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'label': label,
-        'start': Timestamp.fromDate(start),
-        'end': Timestamp.fromDate(end),
-        'isExpress': isExpress,
-      };
+    'id': id,
+    'label': label,
+    'start': start.toUtc().toIso8601String(),
+    'end': end.toUtc().toIso8601String(),
+    'isExpress': isExpress,
+  };
 
   factory DeliverySlot.fromMap(Map<String, dynamic> m) => DeliverySlot(
-        id: (m['id'] ?? '').toString(),
-        label: (m['label'] ?? '').toString(),
-        start: _readTime(m['start']),
-        end: _readTime(m['end']),
-        isExpress: m['isExpress'] as bool? ?? false,
-      );
+    id: (m['id'] ?? '').toString(),
+    label: (m['label'] ?? '').toString(),
+    start: _readTime(m['start']),
+    end: _readTime(m['end']),
+    isExpress: m['isExpress'] as bool? ?? false,
+  );
 
   static DateTime _readTime(dynamic v) {
     if (v is Timestamp) return v.toDate();
@@ -489,9 +481,9 @@ enum OrderStatus {
   final String id;
 
   static OrderStatus fromId(String id) => OrderStatus.values.firstWhere(
-        (e) => e.id == id,
-        orElse: () => OrderStatus.pending,
-      );
+    (e) => e.id == id,
+    orElse: () => OrderStatus.pending,
+  );
 
   String get displayName {
     switch (this) {

@@ -1,15 +1,14 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:quick_grocery_admin/core/firebase/callable_payload.dart';
 
 /// Admin Cloud Functions for vendor / delivery account security.
 class PartnerAccountClient {
   PartnerAccountClient({FirebaseFunctions? functions})
-      : _fn = functions ??
-            FirebaseFunctions.instanceFor(
-              app: Firebase.app(),
-              region: _region,
-            );
+    : _fn =
+          functions ??
+          FirebaseFunctions.instanceFor(app: Firebase.app(), region: _region);
 
   static const _region = 'us-central1';
 
@@ -28,12 +27,16 @@ class PartnerAccountClient {
     Map<String, dynamic> extra = const {},
   }) async {
     await _ensureSignedIn();
-    final res = await _fn.httpsCallable('adminPartnerAccountAction').call({
+    final payload = sanitizeCallableData({
       'role': role,
       'partnerId': partnerId,
       'action': action,
       ...extra,
     });
+    debugCallableData('adminPartnerAccountAction', payload);
+    final res = await _fn
+        .httpsCallable('adminPartnerAccountAction')
+        .call(payload);
     if (res.data is Map) {
       return Map<String, dynamic>.from(res.data as Map);
     }
@@ -70,11 +73,7 @@ class PartnerAccountClient {
     required String role,
     required String partnerId,
   }) async {
-    final r = await _call(
-      'force_logout',
-      role: role,
-      partnerId: partnerId,
-    );
+    final r = await _call('force_logout', role: role, partnerId: partnerId);
     return r['message']?.toString() ?? 'User logged out.';
   }
 

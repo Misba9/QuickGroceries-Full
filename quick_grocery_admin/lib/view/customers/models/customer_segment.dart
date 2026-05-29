@@ -30,6 +30,3 @@ extension CustomerSegmentX on CustomerSegment {
     }
   }
 }
-
-/// Extra table filters (chips) on top of sidebar segment.
-enum CustomerQuickFilter { none, highSpending, noOrders }

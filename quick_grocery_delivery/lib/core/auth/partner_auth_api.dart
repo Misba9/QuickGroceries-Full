@@ -2,14 +2,13 @@ import 'dart:io';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:quick_grocery_delivery/core/firebase/callable_payload.dart';
 
 class PartnerAuthApi {
   PartnerAuthApi({FirebaseFunctions? functions})
-      : _fn = functions ??
-            FirebaseFunctions.instanceFor(
-              app: Firebase.app(),
-              region: _region,
-            );
+    : _fn =
+          functions ??
+          FirebaseFunctions.instanceFor(app: Firebase.app(), region: _region);
 
   static const _region = 'us-central1';
   static const _role = 'delivery';
@@ -17,6 +16,15 @@ class PartnerAuthApi {
   final FirebaseFunctions _fn;
 
   HttpsCallable _callable(String name) => _fn.httpsCallable(name);
+
+  Future<HttpsCallableResult<dynamic>> _callJson(
+    String name,
+    Map<String, dynamic> payload,
+  ) {
+    final safePayload = sanitizeCallableData(payload);
+    debugCallableData(name, safePayload);
+    return _callable(name).call(safePayload);
+  }
 
   Map<String, dynamic> _map(dynamic data) {
     if (data is Map) {
@@ -33,14 +41,14 @@ class PartnerAuthApi {
   }
 
   Map<String, dynamic> _deviceInfo() => {
-        'platform': Platform.operatingSystem,
-        'deviceId': Platform.localHostname,
-        'appVersion': '1.0.1',
-      };
+    'platform': Platform.operatingSystem,
+    'deviceId': Platform.localHostname,
+    'appVersion': '1.0.1',
+  };
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
-      final res = await _callable('partnerLogin').call({
+      final res = await _callJson('partnerLogin', {
         'role': _role,
         'email': email.trim().toLowerCase(),
         'password': password,
@@ -54,7 +62,7 @@ class PartnerAuthApi {
 
   Future<void> requestPasswordReset(String email) async {
     try {
-      await _callable('partnerRequestPasswordReset').call({
+      await _callJson('partnerRequestPasswordReset', {
         'role': _role,
         'email': email.trim().toLowerCase(),
       });
@@ -65,7 +73,7 @@ class PartnerAuthApi {
 
   Future<void> verifyResetOtp(String email, String otp) async {
     try {
-      await _callable('partnerVerifyResetOtp').call({
+      await _callJson('partnerVerifyResetOtp', {
         'role': _role,
         'email': email.trim().toLowerCase(),
         'otp': otp.trim(),
@@ -77,7 +85,7 @@ class PartnerAuthApi {
 
   Future<void> completePasswordReset(String email, String newPassword) async {
     try {
-      await _callable('partnerCompletePasswordReset').call({
+      await _callJson('partnerCompletePasswordReset', {
         'role': _role,
         'email': email.trim().toLowerCase(),
         'newPassword': newPassword,
@@ -93,7 +101,7 @@ class PartnerAuthApi {
     String? currentPassword,
   }) async {
     try {
-      final res = await _callable('partnerUpdatePassword').call({
+      final res = await _callJson('partnerUpdatePassword', {
         'role': _role,
         'partnerId': partnerId,
         'newPassword': newPassword,
@@ -111,7 +119,7 @@ class PartnerAuthApi {
     required int sessionVersion,
   }) async {
     try {
-      final res = await _callable('partnerCheckSession').call({
+      final res = await _callJson('partnerCheckSession', {
         'role': _role,
         'partnerId': partnerId,
         'sessionVersion': sessionVersion,
