@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:quick_grocery_admin/view/operations/models/ops_dashboard_models.dart';
 import 'package:quick_grocery_admin/view/operations/services/ops_order_queue_manager.dart';
@@ -10,8 +11,16 @@ import 'package:quick_grocery_admin/view/operations/utils/ops_firestore_helpers.
 /// Live ops dashboard: single orders stream + auxiliary collections.
 class OpsDashboardService extends ChangeNotifier {
   OpsDashboardService() {
-    _listen();
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        _listen();
+      } else {
+        _stopListening();
+      }
+    });
   }
+
+  StreamSubscription<User?>? _authSub;
 
   final _db = FirebaseFirestore.instance;
 
@@ -45,15 +54,36 @@ class OpsDashboardService extends ChangeNotifier {
   Timer? _notifyDebounce;
   bool _disposed = false;
 
+  void _stopListening() {
+    _ordersSub?.cancel();
+    _ordersSub = null;
+    _ridersSub?.cancel();
+    _ridersSub = null;
+    _vendorsSub?.cancel();
+    _vendorsSub = null;
+    _stockSub?.cancel();
+    _stockSub = null;
+    _activitySub?.cancel();
+    _activitySub = null;
+    isLoadingOrders = false;
+    _scheduleNotify();
+  }
+
   void retryOrdersStream() {
     ordersError = null;
     isLoadingOrders = true;
-    _ordersSub?.cancel();
     _listen();
     _scheduleNotify();
   }
 
   void _listen() {
+    _ordersSub?.cancel();
+    _ridersSub?.cancel();
+    _vendorsSub?.cancel();
+    _stockSub?.cancel();
+    _activitySub?.cancel();
+    isLoadingOrders = true;
+
     _ordersSub = _db.collection('orders').snapshots().listen(
       (snap) {
         _orderDocs = snap.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList();
@@ -200,6 +230,7 @@ class OpsDashboardService extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _authSub?.cancel();
     _notifyDebounce?.cancel();
     _ordersSub?.cancel();
     _ridersSub?.cancel();

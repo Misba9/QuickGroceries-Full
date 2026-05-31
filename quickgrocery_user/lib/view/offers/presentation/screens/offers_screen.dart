@@ -8,6 +8,7 @@ import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
+import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/models/offer_banner_model.dart';
 import 'package:quickgrocery/view/cart/data/coupon_service.dart';
@@ -26,6 +27,7 @@ import 'package:quickgrocery/view/combo/presentation/providers/combo_providers.d
 import 'package:quickgrocery/view/combo/presentation/widgets/combo_offers_section.dart';
 import 'package:quickgrocery/view/offers/presentation/widgets/offer_category_chips.dart';
 import 'package:quickgrocery/view/offers/presentation/widgets/offer_promo_video_card.dart';
+import 'package:quickgrocery/view/search/screens/search_screen.dart';
 
 /// Dedicated Offers hub — hero video carousel, stories, flash deals,
 /// coupons, and curated product rails (Blinkit / Zepto style).
@@ -158,6 +160,21 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
                     fontWeight: FontWeight.w800,
                     fontSize: 20,
                     color: AppSurface.textPrimary,
+                  ),
+                ),
+              ),
+              StickySearchBar.tappableSliver(
+                gutter: gutter,
+                hints: const [
+                  'Search "offers"',
+                  'Search "deals"',
+                  'Search "snacks"',
+                  'Search "groceries"',
+                ],
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SearchScreen(),
                   ),
                 ),
               ),

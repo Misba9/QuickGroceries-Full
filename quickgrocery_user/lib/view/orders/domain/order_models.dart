@@ -1,10 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:quickgrocery/core/order/order_bill_totals.dart';
 import 'package:quickgrocery/models/order_model.dart';
-import 'package:quickgrocery/view/cart/domain/cart_models.dart' show OrderStatus;
+import 'package:quickgrocery/view/cart/domain/cart_models.dart'
+    show DeliveryInstructions, OrderStatus;
 
-export 'package:quickgrocery/view/cart/domain/cart_models.dart' show OrderStatus;
+export 'package:quickgrocery/view/cart/domain/cart_models.dart'
+    show DeliveryInstructions, OrderStatus;
 
 /// A live, screen-friendly view of an order — wraps the legacy [OrderModel]
 /// and surfaces the modern fields written by the new checkout flow
@@ -20,6 +23,7 @@ class LiveOrder {
   final String paymentStatus;
   final String? paymentRef;
   final String deliveryInstructions;
+  final DeliveryInstructions structuredInstructions;
   final DateTime? slotStart;
   final DateTime? slotEnd;
   final String? slotLabel;
@@ -35,6 +39,7 @@ class LiveOrder {
     required this.paymentStatus,
     required this.paymentRef,
     required this.deliveryInstructions,
+    required this.structuredInstructions,
     required this.slotStart,
     required this.slotEnd,
     required this.slotLabel,
@@ -55,17 +60,46 @@ class LiveOrder {
   bool get isDelivered => legacy.isDelivered;
   bool get hasRider => legacy.deliveryBoyId.isNotEmpty;
 
-  /// Total used by UI — prefer the new `bill.total` field, fall back to a
-  /// derived sum so legacy orders still display correctly.
-  double get total {
-    final t = (billSnapshot['total'] as num?)?.toDouble();
-    if (t != null && t > 0) return t;
-    var sum = 0.0;
-    for (final p in legacy.products) {
-      sum += p.price * p.itemCount;
+  bool get canCustomerCancel {
+    if (isCancelled || isDelivered) return false;
+    if (status == OrderStatus.outForDelivery) return false;
+    if (_tryParse(legacy.orderPickedTime) != null) return false;
+    return true;
+  }
+
+  String get paymentMethodLabel {
+    switch (paymentMethodId.toLowerCase()) {
+      case 'cod':
+        return 'Cash on Delivery';
+      case 'online':
+      case 'razorpay':
+        return 'Online Payment';
+      case 'upi':
+        return 'UPI';
+      default:
+        if (paymentMethodId.isEmpty) return 'Cash on Delivery';
+        return paymentMethodId;
     }
-    sum += legacy.deliveryCharge;
-    return sum;
+  }
+
+  String get shortOrderId =>
+      id.length > 8 ? id.substring(id.length - 8).toUpperCase() : id.toUpperCase();
+
+  double billField(String key) => (billSnapshot[key] as num?)?.toDouble() ?? 0;
+
+  /// Grand total from saved `bill` (single source of truth).
+  double get total {
+    final fromBill = OrderBillTotals.fromMap(billSnapshot);
+    if (fromBill != null && fromBill.grandTotal > 0) {
+      return fromBill.grandTotal;
+    }
+    return OrderBillTotals.fromLineTotals(
+      itemsSubtotal: legacy.products.fold<double>(
+        0,
+        (sum, p) => sum + p.lineTotal,
+      ),
+      deliveryCharge: legacy.deliveryCharge,
+    ).grandTotal;
   }
 
   /// Stable 4-digit OTP derived from the order id. The same code is shown
@@ -75,6 +109,16 @@ class LiveOrder {
     if (id.isEmpty) return '0000';
     final hash = id.codeUnits.fold<int>(7, (a, b) => (a * 31 + b) & 0xFFFFFF);
     return (hash % 10000).toString().padLeft(4, '0');
+  }
+
+  String get deliverySlotLabel {
+    if (slotLabel == null || slotLabel!.isEmpty) return '—';
+    if (slotExpress) {
+      final cleaned = slotLabel!
+          .replaceAll(RegExp(r'^Express\s*[·•\-]\s*', caseSensitive: false), '');
+      return 'Express • $cleaned';
+    }
+    return slotLabel!;
   }
 
   factory LiveOrder.fromFirestore(
@@ -90,20 +134,24 @@ class LiveOrder {
         _parseDateTime(data['created_date']) ??
         DateTime.fromMillisecondsSinceEpoch(0);
 
-    final slot = data['delivery_slot'];
+    final slot = data['deliverySlot'] ?? data['delivery_slot'];
     DateTime? slotStart;
     DateTime? slotEnd;
     String? slotLabel;
     bool slotExpress = false;
     if (slot is Map) {
-      slotStart = _parseDateTime(slot['start']);
-      slotEnd = _parseDateTime(slot['end']);
-      slotLabel = slot['label']?.toString();
-      slotExpress = slot['isExpress'] as bool? ?? false;
+      slotStart = _parseDateTime(slot['startTime'] ?? slot['start']);
+      slotEnd = _parseDateTime(slot['endTime'] ?? slot['end']);
+      slotLabel = (slot['slotName'] ?? slot['label'])?.toString();
+      slotExpress = slot['isExpress'] as bool? ??
+          (slot['slotType']?.toString().toLowerCase() == 'express');
     }
 
     final bill = data['bill'];
     final addressSnap = data['address_snapshot'];
+    final structured = DeliveryInstructions.fromMap(
+      data['deliveryInstructions'] ?? data['delivery_instructions'],
+    );
 
     return LiveOrder(
       legacy: legacy,
@@ -113,7 +161,8 @@ class LiveOrder {
       paymentStatus: (data['paymentStatus'] as String?) ??
           (legacy.isPaid ? 'paid' : 'pending'),
       paymentRef: data['paymentRef']?.toString(),
-      deliveryInstructions: (data['delivery_instructions'] ?? '').toString(),
+      deliveryInstructions: structured.legacyText,
+      structuredInstructions: structured,
       slotStart: slotStart,
       slotEnd: slotEnd,
       slotLabel: slotLabel,
@@ -157,56 +206,17 @@ class OrderTimelineEntry {
   });
 }
 
-/// Build the canonical 5-step timeline for a [LiveOrder]. Times come from
-/// legacy per-step fields when present.
+/// Build the canonical 8-step timeline for a [LiveOrder].
 List<OrderTimelineEntry> buildTimeline(LiveOrder o) {
-  bool reached(OrderStatus target) =>
-      o.status.index >= target.index && o.status != OrderStatus.cancelled;
-
-  bool currently(OrderStatus s) => o.status == s;
-
-  final placedAt = o.createdAt == DateTime.fromMillisecondsSinceEpoch(0)
-      ? null
-      : o.createdAt;
-
-  return [
-    OrderTimelineEntry(
-      title: 'Order placed',
-      subtitle: 'We have received your order',
-      at: placedAt,
-      done: true,
-      active: currently(OrderStatus.pending),
-    ),
-    OrderTimelineEntry(
-      title: 'Accepted',
-      subtitle: 'Vendor has accepted your order',
-      at: _tryParse(o.legacy.confimedTime),
-      done: reached(OrderStatus.accepted),
-      active: currently(OrderStatus.accepted),
-    ),
-    OrderTimelineEntry(
-      title: 'Packing',
-      subtitle: 'Your items are being packed',
-      at: _tryParse(o.legacy.driverGoShopTime),
-      done: reached(OrderStatus.packing),
-      active: currently(OrderStatus.packing),
-    ),
-    OrderTimelineEntry(
-      title: 'Out for delivery',
-      subtitle: 'Rider is on the way',
-      at: _tryParse(o.legacy.onTheWayTime) ??
-          _tryParse(o.legacy.orderPickedTime),
-      done: reached(OrderStatus.outForDelivery),
-      active: currently(OrderStatus.outForDelivery),
-    ),
-    OrderTimelineEntry(
-      title: 'Delivered',
-      subtitle: 'Order completed — enjoy!',
-      at: _tryParse(o.legacy.orderDeliveredTime),
-      done: reached(OrderStatus.delivered),
-      active: currently(OrderStatus.delivered),
-    ),
-    if (o.isCancelled)
+  if (o.isCancelled) {
+    return [
+      const OrderTimelineEntry(
+        title: 'Order placed',
+        subtitle: 'We have received your order',
+        at: null,
+        done: true,
+        active: false,
+      ),
       const OrderTimelineEntry(
         title: 'Cancelled',
         subtitle: 'This order was cancelled',
@@ -214,7 +224,91 @@ List<OrderTimelineEntry> buildTimeline(LiveOrder o) {
         done: true,
         active: true,
       ),
+    ];
+  }
+
+  final activeStep = _activeTrackingStep(o);
+  final placedAt = o.createdAt == DateTime.fromMillisecondsSinceEpoch(0)
+      ? null
+      : o.createdAt;
+
+  const steps = <({String title, String subtitle, DateTime? at})>[
+    (
+      title: 'Order placed',
+      subtitle: 'We have received your order',
+      at: null,
+    ),
+    (
+      title: 'Order confirmed',
+      subtitle: 'Vendor has confirmed your order',
+      at: null,
+    ),
+    (
+      title: 'Vendor preparing order',
+      subtitle: 'Your items are being prepared',
+      at: null,
+    ),
+    (
+      title: 'Order ready for pickup',
+      subtitle: 'Waiting for the delivery partner',
+      at: null,
+    ),
+    (
+      title: 'Delivery partner assigned',
+      subtitle: 'A rider is on the way to the store',
+      at: null,
+    ),
+    (
+      title: 'Picked up',
+      subtitle: 'Your order has left the store',
+      at: null,
+    ),
+    (
+      title: 'Out for delivery',
+      subtitle: 'Rider is heading to you',
+      at: null,
+    ),
+    (
+      title: 'Delivered',
+      subtitle: 'Order completed — enjoy!',
+      at: null,
+    ),
   ];
+
+  final times = <DateTime?>[
+    placedAt,
+    _tryParse(o.legacy.confimedTime),
+    _tryParse(o.legacy.driverGoShopTime),
+    _tryParse(o.legacy.driverGoShopTime),
+    o.hasRider ? _tryParse(o.legacy.driverGoShopTime) : null,
+    _tryParse(o.legacy.orderPickedTime),
+    _tryParse(o.legacy.onTheWayTime) ?? _tryParse(o.legacy.orderPickedTime),
+    _tryParse(o.legacy.orderDeliveredTime),
+  ];
+
+  return List.generate(steps.length, (i) {
+    final step = steps[i];
+    final done = o.isDelivered || i < activeStep || i == 0;
+    final active = o.isDelivered ? i == 7 : i == activeStep;
+    return OrderTimelineEntry(
+      title: step.title,
+      subtitle: step.subtitle,
+      at: times[i],
+      done: done,
+      active: active,
+    );
+  });
+}
+
+int _activeTrackingStep(LiveOrder o) {
+  if (o.isDelivered || o.status == OrderStatus.delivered) return 7;
+  if (o.status == OrderStatus.outForDelivery) return 6;
+  if (_tryParse(o.legacy.orderPickedTime) != null) return 5;
+  if (o.hasRider) return 4;
+  if (o.status == OrderStatus.packing) return 3;
+  if (o.status == OrderStatus.accepted) return 2;
+  if (_tryParse(o.legacy.confimedTime) != null) return 1;
+  return 1; // placed — waiting for confirmation
 }
 
 /// Realtime rider position. Shape:
@@ -226,6 +320,8 @@ class RiderLocation {
   final String name;
   final String phone;
   final String image;
+  final String vehicleType;
+  final String vehicleNumber;
   final LatLng? position;
   final double? heading;
   final DateTime? lastUpdated;
@@ -235,6 +331,8 @@ class RiderLocation {
     required this.name,
     required this.phone,
     required this.image,
+    required this.vehicleType,
+    required this.vehicleNumber,
     required this.position,
     required this.heading,
     required this.lastUpdated,
@@ -249,7 +347,11 @@ class RiderLocation {
       id: id,
       name: (data['name'] ?? '').toString(),
       phone: (data['phone'] ?? '').toString(),
-      image: (data['image'] ?? '').toString(),
+      image: (data['image'] ?? data['profileImage'] ?? '').toString(),
+      vehicleType: (data['vehicleType'] ?? data['vehicle_type'] ?? '')
+          .toString(),
+      vehicleNumber: (data['vehicleNumber'] ?? data['vehicle_number'] ?? '')
+          .toString(),
       position: (lat != null && lng != null) ? LatLng(lat, lng) : null,
       heading: (data['heading'] as num?)?.toDouble(),
       lastUpdated: _parseDateTime(data['lastUpdated']),

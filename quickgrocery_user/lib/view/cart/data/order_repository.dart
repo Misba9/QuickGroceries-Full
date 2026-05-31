@@ -6,6 +6,7 @@ import 'package:quickgrocery/models/address_model.dart';
 import 'package:quickgrocery/models/order_model.dart';
 
 import '../domain/cart_models.dart';
+import '../domain/order_line_snapshot.dart';
 
 /// Writes orders to `orders/` after a successful payment / COD checkout.
 ///
@@ -43,7 +44,7 @@ class OrderRepository {
     required String currentAddressString,
     required LatLng currentLatLng,
     required DeliverySlot? slot,
-    required String instructions,
+    required DeliveryInstructions instructions,
     required PaymentMethod paymentMethod,
     String? paymentRef,
   }) async {
@@ -52,22 +53,8 @@ class OrderRepository {
       throw StateError('User must be signed in to place an order.');
     }
 
-    final productItems = items
-        .map(
-          (item) => ProductItem(
-            productId: item.productId,
-            name: item.name,
-            image: item.image,
-            description: '',
-            category: item.category,
-            unit: item.unit,
-            price: item.unitEffectivePrice,
-            slashedPrice: item.unitEffectiveSlashedPrice,
-            itemCount: item.itemCount,
-            vendorId: item.vendorId,
-          ),
-        )
-        .toList();
+    final productItems =
+        items.map(OrderLineSnapshot.toProductItem).toList();
 
     final isPaid = paymentMethod.isOnline && paymentRef != null;
 
@@ -104,8 +91,12 @@ class OrderRepository {
       'paymentMethod': paymentMethod.id,
       'paymentStatus': isPaid ? 'paid' : 'pending',
       if (paymentRef != null) 'paymentRef': paymentRef,
-      'delivery_instructions': instructions,
-      if (slot != null) 'delivery_slot': slot.toMap(),
+      'delivery_instructions': instructions.legacyText,
+      'deliveryInstructions': instructions.toMap(),
+      if (slot != null) ...{
+        'delivery_slot': slot.toMap(),
+        'deliverySlot': slot.toMap(),
+      },
       'bill': bill.toMap(),
       if (coupon != null) 'coupon': coupon.toMap(),
       'address_snapshot': {
@@ -142,6 +133,11 @@ class OrderRepository {
 
     try {
       await ref.set(orderData);
+      await _mirrorVendorOrders(
+        orderId: ref.id,
+        vendorIds: vendorIds,
+        orderData: orderData,
+      );
     } on FirebaseException catch (e, stack) {
       debugPrint(
         'ORDER FIRESTORE ERROR path=orders/${ref.id} '
@@ -155,6 +151,38 @@ class OrderRepository {
       rethrow;
     }
     return ref.id;
+  }
+
+  Future<void> _mirrorVendorOrders({
+    required String orderId,
+    required List<String> vendorIds,
+    required Map<String, dynamic> orderData,
+  }) async {
+    if (vendorIds.isEmpty) return;
+    final mirror = {
+      'orderId': orderId,
+      'status': orderData['status'],
+      'customer_name': orderData['customer_name'],
+      'phone': orderData['phone'],
+      'address': orderData['address'],
+      'deliverySlot': orderData['deliverySlot'] ?? orderData['delivery_slot'],
+      'deliveryInstructions':
+          orderData['deliveryInstructions'] ?? orderData['delivery_instructions'],
+      'bill': orderData['bill'],
+      'createdAt': orderData['createdAt'],
+    };
+    final batch = _firestore.batch();
+    for (final vendorId in vendorIds) {
+      batch.set(
+        _firestore
+            .collection('vendor_orders')
+            .doc(vendorId)
+            .collection('orders')
+            .doc(orderId),
+        {...mirror, 'vendorId': vendorId},
+      );
+    }
+    await batch.commit();
   }
 
   /// Subscribe to a single order so the success / tracking screens can show

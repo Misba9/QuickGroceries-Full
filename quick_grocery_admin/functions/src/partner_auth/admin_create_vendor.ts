@@ -30,7 +30,7 @@ async function rollbackAuthUser(uid: string): Promise<void> {
 
 /** Admin creates Firebase Auth user + Firestore `vendors/{auth.uid}`. */
 export const adminCreateVendorAccount = onCall(
-  callableBaseOptions(),
+  { ...callableBaseOptions(), cors: true },
   async (req) => {
     await assertNotificationAdmin(req.auth?.uid);
 
@@ -208,7 +208,7 @@ export const adminCreateVendorAccount = onCall(
 
 /** Rollback Auth user when client-side creation succeeded but Firestore save failed. */
 export const adminRollbackVendorAuth = onCall(
-  callableBaseOptions(),
+  { ...callableBaseOptions(), cors: true },
   async (req) => {
     await assertNotificationAdmin(req.auth?.uid);
     const uid = str(req.data?.authUid);
@@ -223,7 +223,7 @@ export const adminRollbackVendorAuth = onCall(
 
 /** Sync Firebase Auth password for an existing vendor (admin repair). */
 export const adminSyncVendorAuthPassword = onCall(
-  callableBaseOptions(),
+  { ...callableBaseOptions(), cors: true },
   async (req) => {
     await assertNotificationAdmin(req.auth?.uid);
     const email = str(req.data?.email).toLowerCase();
@@ -259,7 +259,7 @@ export const adminSyncVendorAuthPassword = onCall(
  * Migrate legacy Firestore-only vendor → Firebase Auth + vendors/{auth.uid}.
  */
 export const adminMigrateVendorAuth = onCall(
-  callableBaseOptions(),
+  { ...callableBaseOptions(), cors: true },
   async (req) => {
     await assertNotificationAdmin(req.auth?.uid);
     const vendorDocId = str(req.data?.vendorDocId);
@@ -276,7 +276,7 @@ export const adminMigrateVendorAuth = onCall(
  * Restore vendor auth by doc id or shop name (e.g. "Honey Traders").
  */
 export const adminRestoreVendorAuth = onCall(
-  callableBaseOptions(),
+  { ...callableBaseOptions(), cors: true },
   async (req) => {
     await assertNotificationAdmin(req.auth?.uid);
 

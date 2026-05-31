@@ -401,7 +401,25 @@ class _VendorRequestsScreenState extends State<VendorRequestsScreen> {
       ),
     );
     if (ok != true || !context.mounted) return;
-    await service.approve(r.id);
+    final success = await service.approve(r.id);
+    if (!context.mounted) return;
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            service.actionMessage ?? 'Vendor approved successfully',
+          ),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+    } else if (service.actionError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(service.actionError!),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
   Future<void> _rejectDialog(
@@ -435,13 +453,30 @@ class _VendorRequestsScreenState extends State<VendorRequestsScreen> {
       ),
     );
     if (ok != true || !context.mounted) return;
-    await service.reject(
+    final success = await service.reject(
       r.id,
       controller.text.trim().isEmpty
           ? 'Rejected by admin'
           : controller.text.trim(),
     );
     controller.dispose();
+    if (!context.mounted) return;
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            service.actionMessage ?? 'Vendor request rejected.',
+          ),
+        ),
+      );
+    } else if (service.actionError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(service.actionError!),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
   Future<void> _confirmDelete(

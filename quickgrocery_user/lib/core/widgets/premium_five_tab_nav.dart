@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
@@ -59,7 +60,7 @@ class PremiumFiveTabNav extends StatelessWidget {
                     children: [
                       Expanded(
                         child: _SideTab(
-                          label: 'Home',
+                          label: 'nav_home'.tr(),
                           icon: Icons.home_outlined,
                           activeIcon: Icons.home_rounded,
                           selected: currentIndex == 0,
@@ -69,7 +70,7 @@ class PremiumFiveTabNav extends StatelessWidget {
                       ),
                       Expanded(
                         child: _SideTab(
-                          label: 'Categories',
+                          label: 'nav_categories'.tr(),
                           icon: Icons.grid_view_outlined,
                           activeIcon: Icons.grid_view_rounded,
                           selected: currentIndex == 1,
@@ -80,7 +81,7 @@ class PremiumFiveTabNav extends StatelessWidget {
                       const SizedBox(width: 76),
                       Expanded(
                         child: _SideTab(
-                          label: 'Orders',
+                          label: 'nav_orders'.tr(),
                           icon: Icons.receipt_long_outlined,
                           activeIcon: Icons.receipt_long_rounded,
                           selected: currentIndex == 3,
@@ -90,7 +91,7 @@ class PremiumFiveTabNav extends StatelessWidget {
                       ),
                       Expanded(
                         child: _SideTab(
-                          label: 'Profile',
+                          label: 'nav_profile'.tr(),
                           icon: Icons.person_outline_rounded,
                           activeIcon: Icons.person_rounded,
                           selected: currentIndex == 4,

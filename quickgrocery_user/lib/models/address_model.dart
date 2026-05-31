@@ -35,15 +35,15 @@ class AddressModel {
 
   factory AddressModel.fromFirestore(Map<String, dynamic> json, String id) {
     return AddressModel(
-      id: json["id"],
-      name: json["name"],
-      mobile: json["mobile"],
-      address: json["address"],
-      area: json["area"],
-      type: json["type"],
-      createdAt: json["createdAt"].toString(),
-      lastEdited: json["lastEdited"].toString(),
-      userId: json["user_id"],
+      id: (json['id'] ?? id).toString(),
+      name: (json['name'] ?? '').toString(),
+      mobile: (json['mobile'] ?? '').toString(),
+      address: (json['address'] ?? '').toString(),
+      area: (json['area'] ?? '').toString(),
+      type: (json['type'] ?? 'HOME').toString(),
+      createdAt: (json['createdAt'] ?? '').toString(),
+      lastEdited: (json['lastEdited'] ?? '').toString(),
+      userId: (json['user_id'] ?? '').toString(),
     );
   }
 }

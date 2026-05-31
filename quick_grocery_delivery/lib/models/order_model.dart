@@ -22,6 +22,8 @@ class OrderModel {
   String uuid;
   double? latitude;
   double? longitude;
+  final Map<String, dynamic>? deliverySlotRaw;
+  final Map<String, dynamic>? deliveryInstructionsRaw;
 
   OrderModel({
     required this.id,
@@ -47,6 +49,8 @@ class OrderModel {
     required this.uuid,
     this.latitude,
     this.longitude,
+    this.deliverySlotRaw,
+    this.deliveryInstructionsRaw,
   });
 
   factory OrderModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -81,7 +85,56 @@ class OrderModel {
       uuid: data['uuid'] ?? '',
       latitude: data['lat'] != null ? (data['lat'] as num).toDouble() : null,
       longitude: data['lng'] != null ? (data['lng'] as num).toDouble() : null,
+      deliverySlotRaw: _asMap(data['deliverySlot'] ?? data['delivery_slot']),
+      deliveryInstructionsRaw: _instructionsMap(
+        data['deliveryInstructions'] ?? data['delivery_instructions'],
+      ),
     );
+  }
+
+  static Map<String, dynamic>? _asMap(dynamic raw) {
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  static Map<String, dynamic>? _instructionsMap(dynamic raw) {
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    if (raw is String && raw.trim().isNotEmpty) {
+      return {'instructionText': raw.trim()};
+    }
+    return null;
+  }
+
+  String get deliverySlotLabel {
+    final slot = deliverySlotRaw;
+    if (slot == null) return '';
+    final name = (slot['slotName'] ?? slot['label'] ?? '').toString();
+    final express = slot['isExpress'] == true ||
+        slot['slotType']?.toString().toLowerCase() == 'express';
+    if (express) {
+      final cleaned =
+          name.replaceAll(RegExp(r'^Express\s*[·•\-]\s*', caseSensitive: false), '');
+      return 'Express • $cleaned';
+    }
+    return name;
+  }
+
+  List<String> get deliveryInstructionLines {
+    final m = deliveryInstructionsRaw;
+    if (m == null) return const [];
+    final lines = <String>[];
+    final gate = (m['gateCode'] ?? m['gate_code'] ?? '').toString();
+    final landmark = (m['landmark'] ?? '').toString();
+    final notes = (m['notes'] ?? '').toString();
+    final text = (m['instructionText'] ?? m['text'] ?? '').toString();
+    if (gate.isNotEmpty) lines.add('Gate code: $gate');
+    if (landmark.isNotEmpty) lines.add('Landmark: $landmark');
+    if (m['leaveAtDoor'] == true || m['leave_at_door'] == true) {
+      lines.add('Leave at door: Yes');
+    }
+    if (notes.isNotEmpty) lines.add('Notes: $notes');
+    if (lines.isEmpty && text.isNotEmpty) lines.add(text);
+    return lines;
   }
 
   Map<String, dynamic> toMap() {

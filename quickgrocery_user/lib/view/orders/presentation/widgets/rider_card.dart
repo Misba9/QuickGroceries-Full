@@ -17,6 +17,13 @@ class RiderCard extends StatelessWidget {
   final LiveOrder order;
   final VoidCallback onChat;
 
+  static Future<void> launchCall(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!order.hasRider) return const _NoRiderYet();
@@ -69,6 +76,19 @@ class RiderCard extends StatelessWidget {
                           fontSize: 12,
                         ),
                       ),
+                      if ((r?.vehicleType ?? '').isNotEmpty ||
+                          (r?.vehicleNumber ?? '').isNotEmpty)
+                        Text(
+                          [
+                            if ((r?.vehicleType ?? '').isNotEmpty) r!.vehicleType,
+                            if ((r?.vehicleNumber ?? '').isNotEmpty)
+                              r!.vehicleNumber,
+                          ].join(' · '),
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 11,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -80,13 +100,7 @@ class RiderCard extends StatelessWidget {
                 _RoundIconBtn(
                   icon: Icons.call,
                   enabled: phone.isNotEmpty,
-                  onTap: () async {
-                    if (phone.isEmpty) return;
-                    final uri = Uri(scheme: 'tel', path: phone);
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri);
-                    }
-                  },
+                  onTap: () => RiderCard.launchCall(phone),
                 ),
               ],
             ),
@@ -143,12 +157,12 @@ class _NoRiderYet extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
                 Text(
-                  'Looking for a rider',
+                  'Searching for delivery partner…',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 SizedBox(height: 2),
                 Text(
-                  'We\'re assigning the closest rider to your order.',
+                  'We\'re finding the closest rider for your order.',
                   style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],

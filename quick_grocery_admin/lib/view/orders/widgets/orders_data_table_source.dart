@@ -51,6 +51,7 @@ class OrdersDataTableSource extends DataTableSource {
         DataCell(_cellText(_vendorLabel(order))),
         DataCell(_riderChip(order)),
         DataCell(_paymentChip(order)),
+        DataCell(_cellText(order.deliverySlotLabel)),
         DataCell(
           _cellText(
             '₹${order.getTotalAmount().toStringAsFixed(0)}',

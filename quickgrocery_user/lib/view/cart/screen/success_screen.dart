@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:quickgrocery/constants/app_spacing.dart';
 import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
+import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
 import 'package:lottie/lottie.dart';
 
+/// Legacy success screen — prefer navigating directly to
+/// [OrderTrackingScreen] after checkout.
 class SuccessScreen extends StatelessWidget {
-  const SuccessScreen({super.key});
+  const SuccessScreen({super.key, this.orderId});
+
+  final String? orderId;
 
   @override
   Widget build(BuildContext context) {
@@ -29,12 +33,28 @@ class SuccessScreen extends StatelessWidget {
                 'Order successful',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              AppSpacing.h10,
+              const SizedBox(height: 10),
               const Text(
-                'You can track the status of your order in the My Orders section on the tab bar.',
+                'Your order is being prepared. Track live updates on the next screen.',
                 textAlign: TextAlign.center,
               ),
               const Spacer(),
+              if (orderId != null && orderId!.isNotEmpty)
+                PrimaryButton(
+                  label: 'Track order',
+                  onTap: () {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (_) => OrderTrackingScreen(
+                          orderId: orderId!,
+                          fromCheckout: true,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              if (orderId != null && orderId!.isNotEmpty)
+                const SizedBox(height: 10),
               PrimaryButton(
                 label: 'Go Home',
                 onTap: () {

@@ -4,18 +4,9 @@ import '../domain/order_models.dart';
 
 /// Streams realtime rider info + position from `delivery_boys/{id}`.
 ///
-/// Two shapes are supported (in priority order) so this works with both
-/// the legacy schema and any future "live location subdoc" schema:
-///
-///  1. Modern (preferred):
-///     `delivery_boys/{id}/live/current` document with
-///       { lat, lng, heading, lastUpdated, ... }
-///     plus the parent doc for static profile (name/phone/image).
-///
-///  2. Legacy / simple:
-///     `delivery_boys/{id}` document with `lat` + `lng` directly on it.
-///
-/// We try (1) first; if that doc never appears, we fall back to (2).
+/// Profile fields (name, phone, image, vehicle) come from the parent doc.
+/// Live coordinates prefer `delivery_boys/{id}/live/current` snapshots so
+/// position updates propagate without polling.
 class RiderLocationRepository {
   RiderLocationRepository(this._firestore);
 
@@ -29,24 +20,19 @@ class RiderLocationRepository {
     final boyDoc = _firestore.collection('delivery_boys').doc(deliveryBoyId);
     final liveDoc = boyDoc.collection('live').doc('current');
 
-    return boyDoc.snapshots().asyncMap((profileSnap) async {
-      if (!profileSnap.exists) return null;
+    return boyDoc.snapshots().asyncExpand((profileSnap) {
+      if (!profileSnap.exists) {
+        return Stream<RiderLocation?>.value(null);
+      }
       final profile = profileSnap.data() ?? const <String, dynamic>{};
 
-      try {
-        final liveSnap = await liveDoc.get();
-        if (liveSnap.exists) {
-          final liveData = liveSnap.data() ?? const {};
-          final merged = <String, dynamic>{
-            ...profile,
-            ...liveData,
-          };
-          return RiderLocation.fromMap(merged, deliveryBoyId);
-        }
-      } catch (_) {
-        // ignore — fall back to profile fields
-      }
-      return RiderLocation.fromMap(profile, deliveryBoyId);
+      return liveDoc.snapshots().map((liveSnap) {
+        final merged = <String, dynamic>{
+          ...profile,
+          if (liveSnap.exists) ...(liveSnap.data() ?? const {}),
+        };
+        return RiderLocation.fromMap(merged, deliveryBoyId);
+      });
     });
   }
 }

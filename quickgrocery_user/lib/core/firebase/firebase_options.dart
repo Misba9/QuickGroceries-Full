@@ -30,14 +30,19 @@ class DefaultFirebaseOptions {
     storageBucket: 'quikgroceries.firebasestorage.app',
   );
 
-  /// Placeholder — [Firebase.initializeApp] on iOS reads
-  /// `GoogleService-Info.plist` when present. Replace via `flutterfire configure`.
+  /// Replace GOOGLE_APP_ID + REVERSED_CLIENT_ID via `flutterfire configure`
+  /// after downloading the iOS app from Firebase Console (bundle:
+  /// com.ahmed.quickgrocery).
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBd3A_4BYlsczbs76kU30p11o4-cwkFDK8',
     appId: '1:970937777233:ios:0000000000000000000000',
     messagingSenderId: '970937777233',
     projectId: 'quikgroceries',
     storageBucket: 'quikgroceries.firebasestorage.app',
-    iosBundleId: 'com.quickgrocery.io',
+    iosBundleId: 'com.ahmed.quickgrocery',
   );
+
+  /// Must match REVERSED_CLIENT_ID in GoogleService-Info.plist / Info.plist.
+  static const String iosReversedClientId =
+      'com.googleusercontent.apps.970937777233-REPLACE_WITH_FIREBASE_CONSOLE_CLIENT_ID';
 }

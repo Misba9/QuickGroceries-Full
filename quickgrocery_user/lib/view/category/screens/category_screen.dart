@@ -5,9 +5,10 @@ import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart' as legacy;
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/widgets/app_search_bar.dart';
 import 'package:quickgrocery/core/widgets/floating_cart_pill.dart';
+import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
-import 'package:quickgrocery/view/category/widgets/category_search_bar.dart';
 import 'package:quickgrocery/view/category/widgets/category_sidebar_tile.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
@@ -33,6 +34,8 @@ class CategoryScreen extends StatefulWidget {
 }
 
 class _CategoryScreenState extends State<CategoryScreen> {
+  final _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +43,12 @@ class _CategoryScreenState extends State<CategoryScreen> {
       legacy.Provider.of<CategoryService>(context, listen: false)
           .getSubCategories(widget.category);
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -52,7 +61,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
           children: [
             Column(
               children: [
-                _Header(category: widget.category),
+                _Header(
+                  category: widget.category,
+                  searchController: _searchController,
+                ),
                 const Expanded(child: _Body()),
               ],
             ),
@@ -74,8 +86,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
 // ──────────────────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
-  const _Header({required this.category});
+  const _Header({
+    required this.category,
+    required this.searchController,
+  });
+
   final String category;
+  final TextEditingController searchController;
 
   @override
   Widget build(BuildContext context) {
@@ -84,41 +101,47 @@ class _Header extends StatelessWidget {
         color: Colors.white,
         boxShadow: AppShadow.dim,
       ),
-      padding: const EdgeInsets.fromLTRB(8, 6, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () => Navigator.maybePop(context),
-              ),
-              Expanded(
-                child: Text(
-                  category,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
-                    color: AppSurface.text,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 12, 0),
+            child: Row(
+              children: [
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  onPressed: () => Navigator.maybePop(context),
+                ),
+                Expanded(
+                  child: Text(
+                    category,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                      color: AppSurface.text,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 6),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: CategorySearchBar(
-              hint: 'Search in $category',
-              onChanged: (q) => legacy.Provider.of<CategoryService>(
-                context,
-                listen: false,
-              ).filterProducts(q),
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+            child: StickySearchBar(
+              elevated: true,
+              searchBar: AppSearchBar(
+                live: true,
+                controller: searchController,
+                hints: ['Search in $category'],
+                onChanged: (q) => legacy.Provider.of<CategoryService>(
+                  context,
+                  listen: false,
+                ).filterProducts(q),
+              ),
             ),
           ),
         ],
@@ -244,31 +267,31 @@ class _Grid extends StatelessWidget {
       return _Empty();
     }
 
-        return legacy.Consumer<CategoryService>(
-          builder: (context, p, _) {
-            return GridView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 110),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 9,
-                childAspectRatio: 0.68,
-              ),
-              itemCount: p.products.length,
-              itemBuilder: (context, i) {
-                final product = p.products[i];
-                return LayoutBuilder(
-                  builder: (context, c) {
-                    return ProductCardWidget(
-                      product: product,
-                      width: c.maxWidth,
-                    );
-                  },
+    return legacy.Consumer<CategoryService>(
+      builder: (context, p, _) {
+        return GridView.builder(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 110),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 9,
+            childAspectRatio: 0.68,
+          ),
+          itemCount: p.products.length,
+          itemBuilder: (context, i) {
+            final product = p.products[i];
+            return LayoutBuilder(
+              builder: (context, c) {
+                return ProductCardWidget(
+                  product: product,
+                  width: c.maxWidth,
                 );
               },
             );
           },
         );
+      },
+    );
   }
 }
 

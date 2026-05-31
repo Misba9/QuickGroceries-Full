@@ -5,7 +5,11 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:quick_grocery_admin/core/firebase/admin_firebase_options.dart';
 
-/// CORS-safe HTTP calls for Flutter Web when callable transport fails.
+/// CORS-enabled **HTTP** Cloud Functions only (`onRequest` with `cors: true`).
+///
+/// Do not use this for callable (`onCall`) functions — use
+/// [FirebaseFunctions.httpsCallable] instead. These endpoints exist as a
+/// fallback when the callable transport fails on Flutter Web.
 class AdminVendorHttpClient {
   static const _region = 'us-central1';
   static String get _projectId => AdminFirebaseOptions.current.projectId;
@@ -60,6 +64,18 @@ class AdminVendorHttpClient {
 
     return data;
   }
+
+  static Future<Map<String, dynamic>> approveVendorRequest(String requestId) =>
+      post('adminApproveVendorRequestHttp', {'requestId': requestId});
+
+  static Future<Map<String, dynamic>> rejectVendorRequest({
+    required String requestId,
+    String? reason,
+  }) =>
+      post('adminRejectVendorRequestHttp', {
+        'requestId': requestId,
+        'reason': reason ?? 'Rejected by admin',
+      });
 
   static Future<Map<String, dynamic>> migrateVendorAuth({
     required String vendorDocId,

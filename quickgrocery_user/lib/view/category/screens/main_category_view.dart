@@ -11,6 +11,7 @@ import 'package:quickgrocery/constants/home_branding.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
+import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/core/widgets/skeleton.dart';
 import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/models/product.dart';
@@ -101,10 +102,26 @@ class _MainCategoryViewScreenState
                     parent: BouncingScrollPhysics(),
                   ),
                   slivers: [
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: _StickyHeaderDelegate(
-                        gutter: gutter,
+                    StickySearchBar.asSliver(
+                      gutter: gutter,
+                      topPadding: 12,
+                      bottomPadding: 10,
+                      topContentHeight: 44,
+                      gap: 8,
+                      topContent: const _Greeting(),
+                      searchBar: AppSearchBar(
+                        hints: [
+                          'search_hint_milk'.tr(),
+                          'search_hint_bread'.tr(),
+                          'search_hint_snacks'.tr(),
+                          'search_hint_fruits'.tr(),
+                        ],
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SearchScreen(),
+                          ),
+                        ),
                       ),
                     ),
                     if (appContent.showTrendingCategories)
@@ -182,85 +199,7 @@ class _MainCategoryViewScreenState
   }
 }
 
-// ─── Sticky animated header ──────────────────────────────────────────────
-
-class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
-  _StickyHeaderDelegate({
-    required this.gutter,
-  });
-
-  final double gutter;
-
-  static const double _expanded = 144;
-  static const double _collapsed = 74;
-
-  @override
-  double get minExtent => _collapsed;
-  @override
-  double get maxExtent => _expanded;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    final t = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
-    final greetingOpacity = (1 - t * 1.85).clamp(0.0, 1.0);
-    final searchTop = 56.0 - (t * 20);
-
-    return Material(
-      color: AppSurface.background,
-      elevation: t * 3,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppSurface.background,
-          border: Border(
-            bottom: BorderSide(
-              color: AppSurface.border.withValues(alpha: t),
-              width: 0.6,
-            ),
-          ),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              left: gutter,
-              right: gutter,
-              top: 12,
-              child: Opacity(
-                opacity: greetingOpacity,
-                child: const _Greeting(),
-              ),
-            ),
-            Positioned(
-              left: gutter,
-              right: gutter,
-              top: searchTop,
-              child: AppSearchBar(
-                hints: [
-                  'search_hint_milk'.tr(),
-                  'search_hint_bread'.tr(),
-                  'search_hint_snacks'.tr(),
-                  'search_hint_fruits'.tr(),
-                ],
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SearchScreen()),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(_StickyHeaderDelegate oldDelegate) =>
-      oldDelegate.gutter != gutter;
-}
+// ─── Greeting row (collapses when search bar pins) ───────────────────────
 
 class _Greeting extends ConsumerWidget {
   const _Greeting();

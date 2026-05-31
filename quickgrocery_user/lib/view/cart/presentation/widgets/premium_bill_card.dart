@@ -274,8 +274,8 @@ class _Breakdown extends StatelessWidget {
       ),
       if (bill.itemSavings > 0.25)
         _RowSpec(
-          label: 'Item savings',
-          value: '- ₹${bill.itemSavings.toStringAsFixed(0)}',
+          label: 'You saved on MRP',
+          value: '₹${bill.itemSavings.toStringAsFixed(0)}',
           accent: AppSurface.success,
         ),
       if (bill.couponDiscount > 0.25)

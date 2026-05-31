@@ -6,6 +6,7 @@ import 'package:quickgrocery/core/firebase/callable_payload.dart';
 import 'package:quickgrocery/models/address_model.dart';
 
 import '../domain/cart_models.dart';
+import '../domain/order_line_snapshot.dart';
 
 /// Server-side order placement with stock validation and decrement.
 class OrderPlacementClient {
@@ -28,7 +29,7 @@ class OrderPlacementClient {
     required String currentAddressString,
     required LatLng currentLatLng,
     required DeliverySlot? slot,
-    required String instructions,
+    required DeliveryInstructions instructions,
     required PaymentMethod paymentMethod,
     String? paymentRef,
   }) async {
@@ -40,13 +41,7 @@ class OrderPlacementClient {
     final payload = sanitizeCallableData({
       'items': items
           .where((e) => !e.isComboLine)
-          .map(
-            (e) => {
-              'productId': e.productId,
-              'itemCount': e.itemCount,
-              'selectedWeightInGrams': e.selectedWeightInGrams,
-            },
-          )
+          .map(OrderLineSnapshot.fromCartItem)
           .toList(),
       'comboItems': items
           .where((e) => e.isComboLine)
@@ -66,7 +61,9 @@ class OrderPlacementClient {
       'lat': currentLatLng.latitude,
       'lng': currentLatLng.longitude,
       if (slot != null) 'delivery_slot': slot.toMap(),
-      'delivery_instructions': instructions,
+      if (slot != null) 'deliverySlot': slot.toMap(),
+      'delivery_instructions': instructions.legacyText,
+      'deliveryInstructions': instructions.toMap(),
       'paymentMethod': paymentMethod.id,
       if (paymentRef != null) 'paymentRef': paymentRef,
     });

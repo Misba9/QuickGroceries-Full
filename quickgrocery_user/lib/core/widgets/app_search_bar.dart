@@ -28,8 +28,10 @@ class AppSearchBar extends StatefulWidget {
     this.onChanged,
     this.onSubmitted,
     this.autofocus = false,
+    this.focusNode,
     this.showMic = true,
     this.onMicTap,
+    this.micActive = false,
     this.live = false,
   });
 
@@ -42,9 +44,11 @@ class AppSearchBar extends StatefulWidget {
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final bool autofocus;
+  final FocusNode? focusNode;
 
   final bool showMic;
   final VoidCallback? onMicTap;
+  final bool micActive;
 
   /// If true, renders a real editable input; otherwise, a tappable label.
   final bool live;
@@ -66,11 +70,26 @@ class _AppSearchBarState extends State<AppSearchBar> {
         setState(() => _hintIndex = (_hintIndex + 1) % widget.hints.length);
       });
     }
+    widget.controller?.addListener(_onControllerChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant AppSearchBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.removeListener(_onControllerChanged);
+      widget.controller?.addListener(_onControllerChanged);
+    }
+  }
+
+  void _onControllerChanged() {
+    if (widget.live) setState(() {});
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    widget.controller?.removeListener(_onControllerChanged);
     super.dispose();
   }
 
@@ -108,6 +127,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
                   onPressed: () {
                     widget.controller?.clear();
                     widget.onChanged?.call('');
+                    setState(() {});
                   },
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
@@ -116,7 +136,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
                 ),
               if (widget.showMic) ...[
                 const SizedBox(width: 6),
-                _MicButton(onTap: widget.onMicTap),
+                _MicButton(onTap: widget.onMicTap, active: widget.micActive),
               ],
             ],
           ),
@@ -129,6 +149,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
     if (widget.live) {
       return TextField(
         controller: widget.controller,
+        focusNode: widget.focusNode,
         autofocus: widget.autofocus,
         onChanged: widget.onChanged,
         onSubmitted: widget.onSubmitted,
@@ -184,8 +205,9 @@ class _AppSearchBarState extends State<AppSearchBar> {
 }
 
 class _MicButton extends StatelessWidget {
-  const _MicButton({this.onTap});
+  const _MicButton({this.onTap, this.active = false});
   final VoidCallback? onTap;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
@@ -196,13 +218,15 @@ class _MicButton extends StatelessWidget {
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: AppSurface.subtle,
+          color: active
+              ? AppColor.primary.withValues(alpha: 0.16)
+              : AppSurface.subtle,
           shape: BoxShape.circle,
         ),
-        child: const Icon(
-          Icons.mic_rounded,
+        child: Icon(
+          active ? Icons.mic_rounded : Icons.mic_rounded,
           size: 18,
-          color: AppSurface.textPrimary,
+          color: active ? AppColor.primary : AppSurface.textPrimary,
         ),
       ),
     );

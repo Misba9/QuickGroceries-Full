@@ -1,15 +1,15 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:quickgrocery/constants/app_color.dart';
-import 'package:quickgrocery/constants/app_spacing.dart';
+import 'package:quickgrocery/core/design/responsive.dart';
+import 'package:quickgrocery/core/widgets/app_search_bar.dart';
 import 'package:quickgrocery/core/widgets/floating_cart_pill.dart';
+import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/search/services/search_service.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter_svg/svg.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -66,7 +66,6 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _startListening() async {
-    // Request microphone permission
     var status = await Permission.microphone.request();
     if (status != PermissionStatus.granted) {
       if (mounted) {
@@ -134,6 +133,8 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<SearchService>(context);
+    final gutter = Responsive.of(context).gutter();
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
@@ -143,98 +144,68 @@ class _SearchScreenState extends State<SearchScreen> {
         bottom: false,
         child: Stack(
           children: [
-            Column(
-              children: [
-                Container(
-                  margin: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  child: Row(
-                    children: [
-                      SvgPicture.asset('assets/icons/Search.svg'),
-                      AppSpacing.w20,
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          onChanged: (query) {
-                            provider.searchProducts(query);
-                          },
-                          focusNode: _focusNode,
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            hintText: 'search'.tr(),
-                            hintStyle: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ),
-                      ),
-                      AppSpacing.w10,
-                      GestureDetector(
-                        onTap: _startListening,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                                color: _isListening
-                                    ? AppColor.primary.withValues(alpha: 0.2)
-                                    : Colors.transparent,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            _isListening ? Icons.mic : Icons.mic_none,
-                            color: _isListening
-                                ? AppColor.primary
-                                : Colors.grey.shade600,
-                            size: 24,
-                          ),
-                        ),
-                      ),
-                    ],
+            CustomScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              slivers: [
+                StickySearchBar.asSliver(
+                  gutter: gutter,
+                  searchBar: AppSearchBar(
+                    live: true,
+                    autofocus: true,
+                    focusNode: _focusNode,
+                    controller: _searchController,
+                    hints: ['search'.tr()],
+                    onChanged: provider.searchProducts,
+                    onMicTap: _startListening,
+                    micActive: _isListening,
+                    showMic: true,
                   ),
                 ),
-                Expanded(
-                  child: provider.filteredProductsList == null
-                      ? const Column(children: [CircularProgressIndicator()])
-                      : provider.filteredProductsList!.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              LottieBuilder.asset('assets/lottie/no_data.json'),
-                              Text('no_filtered_products'.tr()),
-                            ],
-                          ),
-                        )
-                      : GridView.builder(
-                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 100),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 9,
-                            childAspectRatio: 0.68,
-                          ),
-                          itemCount: provider.filteredProductsList!.length,
-                          itemBuilder: (context, i) {
-                            final product = provider.filteredProductsList![i];
-                            return LayoutBuilder(
-                              builder: (context, c) {
-                                return ProductCardWidget(
-                                  product: product,
-                                  width: c.maxWidth,
-                                );
-                              },
-                            );
-                          },
-                        ),
-                ),
+                if (provider.filteredProductsList == null)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (provider.filteredProductsList!.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          LottieBuilder.asset('assets/lottie/no_data.json'),
+                          Text('no_filtered_products'.tr()),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(12, 4, 12, 100),
+                    sliver: SliverGrid(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 9,
+                        childAspectRatio: 0.68,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) {
+                          final product = provider.filteredProductsList![i];
+                          return LayoutBuilder(
+                            builder: (context, c) {
+                              return ProductCardWidget(
+                                product: product,
+                                width: c.maxWidth,
+                              );
+                            },
+                          );
+                        },
+                        childCount: provider.filteredProductsList!.length,
+                      ),
+                    ),
+                  ),
               ],
             ),
             Positioned(

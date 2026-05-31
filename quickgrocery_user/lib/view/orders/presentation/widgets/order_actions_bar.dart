@@ -43,7 +43,7 @@ class OrderActionsBar extends StatelessWidget {
         Expanded(
           child: _ActionButton(
             icon: Icons.support_agent_rounded,
-            label: 'Support',
+            label: 'Need help',
             onTap: onSupport,
           ),
         ),

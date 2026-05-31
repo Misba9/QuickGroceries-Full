@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:quick_grocery_admin/model/address_model.dart';
 import 'package:quick_grocery_admin/model/customer_model.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
@@ -8,6 +10,7 @@ import 'package:quick_grocery_admin/view/operations/services/admin_analytics_ser
 import 'package:quick_grocery_admin/view/orders/utils/order_eta_utils.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_status_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class OrderChartPoint {
@@ -90,6 +93,18 @@ class OrderOperationalInsights {
 }
 
 class OrderService extends ChangeNotifier {
+  OrderService() {
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        _startRealtimeOrders();
+      } else {
+        _stopRealtimeOrders();
+      }
+    });
+  }
+
+  StreamSubscription<User?>? _authSub;
+
   CustomerModel? customer;
   VendorModel? vendor;
   AddressModel? address;
@@ -105,9 +120,49 @@ class OrderService extends ChangeNotifier {
   final TextEditingController searchController = TextEditingController();
 
   List<OrderModel>? _allOrdersCache;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _ordersSub;
+
+  void _stopRealtimeOrders() {
+    _ordersSub?.cancel();
+    _ordersSub = null;
+    orders = null;
+    _allOrdersCache = null;
+    isLoading = false;
+    notifyListeners();
+  }
+
+  void _startRealtimeOrders() {
+    if (_ordersSub != null) return;
+    isLoading = true;
+    _ordersSub = FirebaseFirestore.instance
+        .collection('orders')
+        .snapshots()
+        .listen(
+      (snapshot) {
+        final allOrders = snapshot.docs
+            .map((doc) => OrderModel.fromFirestore(doc.data(), doc.id))
+            .toList()
+          ..sort((a, b) => b.createdDate.compareTo(a.createdDate));
+        _allOrdersCache = allOrders;
+        orders = allOrders;
+        isLoading = false;
+        notifyListeners();
+      },
+      onError: (Object e) {
+        debugPrint('OrderService realtime: $e');
+        isLoading = false;
+        notifyListeners();
+        if (FirebaseAuth.instance.currentUser != null) {
+          Future<void>.delayed(const Duration(seconds: 3), _startRealtimeOrders);
+        }
+      },
+    );
+  }
 
   @override
   void dispose() {
+    _authSub?.cancel();
+    _ordersSub?.cancel();
     searchController.dispose();
     super.dispose();
   }
@@ -219,29 +274,8 @@ class OrderService extends ChangeNotifier {
   }
 
   Future<void> getOrders() async {
-    isLoading = true;
-    notifyListeners();
-    try {
-      final snapshot =
-          await FirebaseFirestore.instance.collection('orders').get();
-
-      final allOrders = snapshot.docs.map((doc) {
-        return OrderModel.fromFirestore(
-          doc.data(),
-          doc.id,
-        );
-      }).toList()
-        ..sort((a, b) => b.createdDate.compareTo(a.createdDate));
-
-      _allOrdersCache = allOrders;
-
-      orders = allOrders;
-    } catch (e) {
-      debugPrint('Error fetching orders: $e');
-    } finally {
-      isLoading = false;
-      notifyListeners();
-    }
+    if (_ordersSub != null) return;
+    _startRealtimeOrders();
   }
 
   /// Cancelled orders for refund review (refund/dispute flagged first in UI sort).

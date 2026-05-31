@@ -53,10 +53,12 @@ class OrderModel {
 
   factory OrderModel.fromFirestore(Map<String, dynamic> data, String id) {
     List<ProductItem> parsedProducts = [];
-    if (data['products'] != null) {
-      parsedProducts = List<Map<String, dynamic>>.from(
-        data['products'],
-      ).map((e) => ProductItem.fromMap(e)).toList();
+    final raw = data['products'] ?? data['items'];
+    if (raw is List) {
+      parsedProducts = raw
+          .whereType<Map>()
+          .map((e) => ProductItem.fromMap(Map<String, dynamic>.from(e)))
+          .toList();
     }
 
     return OrderModel(
@@ -127,6 +129,10 @@ class ProductItem {
   double slashedPrice;
   int itemCount;
   String vendorId;
+  final String variantName;
+  final num? weightAmount;
+  final String packUnit;
+  final double? totalPrice;
 
   ProductItem({
     this.productId = '',
@@ -139,34 +145,80 @@ class ProductItem {
     required this.slashedPrice,
     required this.itemCount,
     required this.vendorId,
+    this.variantName = '',
+    this.weightAmount,
+    this.packUnit = '',
+    this.totalPrice,
   });
 
+  double get lineTotal {
+    if (totalPrice != null && totalPrice! > 0) return totalPrice!;
+    if (price > 0 && itemCount > 0) return price * itemCount;
+    return 0;
+  }
+
   factory ProductItem.fromMap(Map<String, dynamic> data) {
+    final qty = (data['quantity'] as num?)?.toInt() ??
+        (data['itemCount'] as num?)?.toInt() ??
+        0;
+    var unitPrice = (data['unitPrice'] as num?)?.toDouble() ??
+        (data['price'] as num?)?.toDouble() ??
+        0.0;
+    var lineTotal = (data['totalPrice'] as num?)?.toDouble();
+    if (unitPrice <= 0 && lineTotal != null && lineTotal > 0 && qty > 0) {
+      unitPrice = lineTotal / qty;
+    }
+    final effectiveQty = qty > 0 ? qty : 1;
+    if (unitPrice > 0) {
+      lineTotal = unitPrice * effectiveQty;
+    }
+
+    final weight = _num(data['weight']);
+    final unitField = (data['unit'] ?? '').toString();
+    final variant = (data['variantName'] ?? data['variant'] ?? '').toString();
+
     return ProductItem(
       productId: (data['productId'] ?? data['product_id'] ?? '').toString(),
-      name: data['name'] ?? '',
-      image: data['image'] ?? '',
-      description: data['description'] ?? '',
-      category: data['category'] ?? '',
-      unit: data['unit'] ?? '',
-      price: (data['price'] ?? 0).toDouble(),
-      slashedPrice: (data['slashedPrice'] ?? 0).toDouble(),
-      itemCount: data['itemCount'] ?? 0,
+      name: (data['productName'] ?? data['name'] ?? '').toString(),
+      image: (data['image'] ?? '').toString(),
+      description: (data['description'] ?? '').toString(),
+      category: (data['category'] ?? '').toString(),
+      unit: (data['unitType'] ?? '').toString(),
+      price: unitPrice,
+      slashedPrice: (data['slashedPrice'] as num?)?.toDouble() ?? 0,
+      itemCount: qty > 0 ? qty : 1,
       vendorId: (data['vendor_id'] ?? data['vendorId'] ?? '').toString(),
+      variantName: variant,
+      weightAmount: weight,
+      packUnit: weight != null ? unitField : '',
+      totalPrice: lineTotal,
     );
+  }
+
+  static num? _num(dynamic v) {
+    if (v is num) return v;
+    if (v is String && v.trim().isNotEmpty) return num.tryParse(v.trim());
+    return null;
   }
 
   Map<String, dynamic> toMap() {
     return {
       if (productId.isNotEmpty) 'productId': productId,
       'name': name,
+      'productName': name,
       'image': image,
       'description': description,
       'category': category,
-      'unit': unit,
-      'price': price,
-      'slashedPrice': slashedPrice,
+      'quantity': itemCount,
       'itemCount': itemCount,
+      if (weightAmount != null) 'weight': weightAmount,
+      if (packUnit.isNotEmpty) 'unit': packUnit,
+      if (unit.isNotEmpty) 'unitType': unit,
+      if (variantName.isNotEmpty) 'variantName': variantName,
+      'price': price,
+      'unitPrice': price,
+      'totalPrice': lineTotal,
+      'slashedPrice': slashedPrice,
       'vendor_id': vendorId,
       'vendorId': vendorId,
     };

@@ -5,6 +5,10 @@ import * as admin from "firebase-admin";
 import { expressOpenCors, REGION } from "../https_callable_options";
 import { assertNotificationAdmin } from "../notification_admin_assert";
 import { migrateVendorAuthCore } from "./vendor_auth_migrate";
+import {
+  approveVendorRequestCore,
+  rejectVendorRequestCore,
+} from "./vendor_request_core";
 
 function parseJsonBody(req: Request): Record<string, unknown> {
   const raw = req.body;
@@ -86,7 +90,7 @@ export const adminMigrateVendorAuthHttp = onRequest(
   })
 );
 
-/** Restore by shopName or vendorDocId. */
+/** CORS-safe HTTP mirror for adminRestoreVendorAuth (Flutter Web). */
 export const adminRestoreVendorAuthHttp = onRequest(
   { region: REGION, cors: true },
   withCors(async (req, res) => {
@@ -108,6 +112,39 @@ export const adminRestoreVendorAuthHttp = onRequest(
         password,
         adminUid,
       }) as unknown as Record<string, unknown>;
+    });
+  })
+);
+
+/** CORS-safe HTTP mirror for adminApproveVendorRequest (Flutter Web fallback). */
+export const adminApproveVendorRequestHttp = onRequest(
+  { region: REGION, cors: true },
+  withCors(async (req, res) => {
+    await handlePost(req, res, async (body, adminUid) => {
+      logger.info("[adminApproveVendorRequestHttp] Vendor approval started");
+      const requestId = String(body.requestId ?? "").trim();
+      const result = await approveVendorRequestCore({ requestId, adminUid });
+      logger.info("[adminApproveVendorRequestHttp] Vendor approval success");
+      return result as unknown as Record<string, unknown>;
+    });
+  })
+);
+
+/** CORS-safe HTTP mirror for adminRejectVendorRequest (Flutter Web fallback). */
+export const adminRejectVendorRequestHttp = onRequest(
+  { region: REGION, cors: true },
+  withCors(async (req, res) => {
+    await handlePost(req, res, async (body, adminUid) => {
+      logger.info("[adminRejectVendorRequestHttp] Vendor rejection started");
+      const requestId = String(body.requestId ?? "").trim();
+      const reason = String(body.reason ?? "Rejected by admin");
+      const result = await rejectVendorRequestCore({
+        requestId,
+        adminUid,
+        reason,
+      });
+      logger.info("[adminRejectVendorRequestHttp] Vendor rejection success");
+      return result as unknown as Record<string, unknown>;
     });
   })
 );

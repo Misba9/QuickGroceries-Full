@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AddressService extends ChangeNotifier {
   AddressService() {
-    restoreValidatedAddress();
+    _restoreFuture = _restoreFromPrefs();
   }
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -23,6 +24,9 @@ class AddressService extends ChangeNotifier {
   static const _cacheTimestampKey = 'selected_address_validated_at';
   static const _validationTtl = Duration(hours: 12);
 
+  late final Future<void> _restoreFuture;
+  Future<void> get ready => _restoreFuture;
+
   String _addresstype = 'HOME';
   bool _isLoading = false;
 
@@ -31,13 +35,16 @@ class AddressService extends ChangeNotifier {
   List<AddressModel>? addresses;
   LatLng? latLng;
   String _address = 'Loading...';
-  String? _pinCode; // Store extracted pin code
+  String? _pinCode;
   String? _selectedAddressId;
   bool _isAddressValidated = false;
   bool _cachedServiceable = false;
   DateTime? _validatedAt;
   bool _cacheRestored = false;
   int _validationMutation = 0;
+
+  /// Session-only: skip service-area gate until explicit invalidation or expiry.
+  bool _sessionServiceCheckBypass = false;
   TextEditingController nameController = TextEditingController();
   TextEditingController mobileController = TextEditingController();
   TextEditingController addressController = TextEditingController();
@@ -55,23 +62,43 @@ class AddressService extends ChangeNotifier {
   }
 
   bool get hasValidatedServiceableAddress =>
-      _isAddressValidated && _cachedServiceable && !validationExpired;
+      _sessionServiceCheckBypass ||
+      (_isAddressValidated && _cachedServiceable && !validationExpired);
+
+  /// True when the app should not show the service-area blocker this session.
+  bool get shouldBypassServiceAreaCheck => hasValidatedServiceableAddress;
 
   bool hasValidatedServiceablePin(String? pin) {
     if (!hasValidatedServiceableAddress) return false;
     final cachedPin = _pinCode?.trim();
     final target = pin?.trim();
     if (cachedPin == null || cachedPin.isEmpty) return true;
-    return target == null || target.isEmpty || cachedPin == target;
+    if (target == null || target.isEmpty) return true;
+    return cachedPin == target;
   }
+
+  /// Pin for the currently selected saved address, if any.
+  String? get activeDeliveryPin {
+    final fromText = _extractPinCodeFromAddress(_address);
+    if (fromText != null && fromText.isNotEmpty) return fromText;
+    final list = addresses;
+    if (list == null || list.isEmpty) return _pinCode;
+    final i = _selectedIndex.clamp(0, list.length - 1);
+    final a = list[i];
+    return _extractPinCodeFromAddress('${a.address} ${a.area}') ?? _pinCode;
+  }
+
+  bool get hasSavedAddresses =>
+      addresses != null && addresses!.isNotEmpty;
 
   int _selectedIndex = 0;
   final dateTime = DateTime.now();
-  void onLatlongChanged(LatLng ponint) {
+  void onLatlongChanged(LatLng ponint, {bool invalidateValidation = false}) {
     latLng = ponint;
-    invalidateAddressValidation();
+    if (invalidateValidation) {
+      invalidateAddressValidation();
+    }
     notifyListeners();
-    print(latLng.toString());
   }
 
   Future<void> onLatLongUpdatedinHome(BuildContext context, LatLng lat) async {
@@ -86,11 +113,10 @@ class AddressService extends ChangeNotifier {
 
       _address =
           '${place.subLocality} ${place.street}, ${place.locality} ${place.postalCode} ${place.country}';
-      _pinCode = place.postalCode; // Extract pin code
+      _pinCode = place.postalCode;
       addressController.text = _address;
       notifyListeners();
 
-      // checkServiceArea(context, vendor!.lat, vendor!.lng);
       Navigator.pop(context);
     }
     notifyListeners();
@@ -141,7 +167,9 @@ class AddressService extends ChangeNotifier {
       );
 
       latLng = LatLng(position.latitude, position.longitude);
-      invalidateAddressValidation(notify: false);
+      if (force) {
+        invalidateAddressValidation(notify: false);
+      }
 
       // 🔹 Convert coordinates to readable address
       List<Placemark> placemarks = await placemarkFromCoordinates(
@@ -265,9 +293,9 @@ class AddressService extends ChangeNotifier {
   }
 
   /// Updates preview line + pin from reverse-geocode while picking on the map.
+  /// Does not invalidate session validation until the user confirms location.
   void applyMapGeocode(Placemark p) {
     _pinCode = p.postalCode;
-    invalidateAddressValidation(notify: false);
     final parts = <String>[];
     void add(String? s) {
       if (s == null) return;
@@ -368,7 +396,9 @@ class AddressService extends ChangeNotifier {
     await getAddress();
   }
 
-  Future<void> restoreValidatedAddress() async {
+  Future<void> restoreValidatedAddress() => _restoreFuture;
+
+  Future<void> _restoreFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     _selectedAddressId = prefs.getString(_cacheAddressIdKey);
     final lat = prefs.getDouble(_cacheLatKey);
@@ -382,7 +412,9 @@ class AddressService extends ChangeNotifier {
     _validatedAt = millis == null
         ? null
         : DateTime.fromMillisecondsSinceEpoch(millis);
-    _isAddressValidated = _cachedServiceable && !validationExpired;
+    final expired = validationExpired;
+    _isAddressValidated = _cachedServiceable && !expired;
+    _sessionServiceCheckBypass = _isAddressValidated && _cachedServiceable;
     _cacheRestored = true;
     _applyCachedSelection();
     notifyListeners();
@@ -399,6 +431,7 @@ class AddressService extends ChangeNotifier {
     _cachedServiceable = serviceable;
     _isAddressValidated = true;
     _validatedAt = DateTime.now();
+    _sessionServiceCheckBypass = serviceable;
 
     final prefs = await SharedPreferences.getInstance();
     if (mutation != _validationMutation) return;
@@ -425,6 +458,7 @@ class AddressService extends ChangeNotifier {
     _isAddressValidated = false;
     _cachedServiceable = false;
     _validatedAt = null;
+    _sessionServiceCheckBypass = false;
     final prefs = await SharedPreferences.getInstance();
     if (mutation != _validationMutation) return;
     await prefs.setBool(_cacheServiceableKey, false);
@@ -453,6 +487,7 @@ class AddressService extends ChangeNotifier {
     _selectedIndex = i;
     final selected = list[i];
     _address = '${selected.address}, ${selected.area}';
-    _pinCode ??= _extractPinCodeFromAddress(_address);
+    _pinCode = _extractPinCodeFromAddress('${selected.address} ${selected.area}') ??
+        _pinCode;
   }
 }

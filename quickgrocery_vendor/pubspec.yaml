@@ -47,6 +47,8 @@ dependencies:
   url_launcher: ^6.3.1
   flutter_rating_bar: ^4.0.1
   google_fonts: ^6.2.1
+  quick_grocery_receipt:
+    path: ../packages/quick_grocery_receipt
 
 dev_dependencies:
   flutter_test:

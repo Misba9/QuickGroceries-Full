@@ -313,6 +313,55 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   ),
                   AppSpacing.h20,
 
+                  if (widget.order.deliverySlot != null)
+                    WrapperWidget(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Delivery Slot',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          AppSpacing.h10,
+                          Text(
+                            widget.order.deliverySlotLabel,
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (widget.order.deliverySlot != null) AppSpacing.h20,
+
+                  if (widget.order.deliveryInstructions != null &&
+                      !widget.order.deliveryInstructions!.isEmpty)
+                    WrapperWidget(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Delivery Instructions',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          AppSpacing.h10,
+                          ...widget.order.deliveryInstructions!
+                              .displayLines()
+                              .map((line) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text(line),
+                                  )),
+                        ],
+                      ),
+                    ),
+                  if (widget.order.deliveryInstructions != null &&
+                      !widget.order.deliveryInstructions!.isEmpty)
+                    AppSpacing.h20,
+
                   // Vendor Information
                   provider.vendor == null
                       ? LinearProgressIndicator()

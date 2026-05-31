@@ -1,8 +1,18 @@
 import 'package:flutter/services.dart';
 
-Future<void> playPlatformAlert(String soundType, {double volume = 1.0}) async {
+Future<void> unlockPlatformAudio() async {}
+
+Future<void> playPlatformAlert(
+  String soundType, {
+  double volume = 1.0,
+  bool unlocked = false,
+}) async {
   try {
     switch (soundType) {
+      case 'orders':
+        // Asset playback on desktop uses system sounds until audioplayers is added.
+        await SystemSound.play(SystemSoundType.alert);
+        break;
       case 'payments':
       case 'security':
       case 'vendors':

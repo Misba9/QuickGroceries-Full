@@ -24,7 +24,7 @@ firebase deploy --only firestore:rules,storage
 ```bash
 cd functions
 npm run build
-firebase deploy --only functions:adminCreateVendorAccount,functions:adminRollbackVendorAuth,functions:adminSyncVendorAuthPassword,functions:adminMigrateVendorAuth,functions:adminRestoreVendorAuth,functions:adminMigrateVendorAuthHttp,functions:adminRestoreVendorAuthHttp,functions:submitVendorRequest,functions:adminApproveVendorRequest,functions:adminRejectVendorRequest,functions:adminBlockVendorFromRequest,functions:vendorCheckAuthForPasswordReset,functions:vendorDiagnoseLogin
+firebase deploy --only functions:adminCreateVendorAccount,functions:adminRollbackVendorAuth,functions:adminSyncVendorAuthPassword,functions:adminMigrateVendorAuth,functions:adminRestoreVendorAuth,functions:adminMigrateVendorAuthHttp,functions:adminRestoreVendorAuthHttp,functions:adminApproveVendorRequest,functions:adminApproveVendorRequestHttp,functions:adminRejectVendorRequest,functions:adminRejectVendorRequestHttp,functions:submitVendorRequest,functions:adminBlockVendorFromRequest,functions:vendorCheckAuthForPasswordReset,functions:vendorDiagnoseLogin
 ```
 
 ### Restore vendor auth (e.g. Honey Traders)

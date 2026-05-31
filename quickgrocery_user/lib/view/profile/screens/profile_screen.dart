@@ -1,511 +1,181 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:quickgrocery/constants/app_color.dart';
-import 'package:quickgrocery/services/language_service.dart';
-import 'package:quickgrocery/view/address/screens/address_screen.dart';
-import 'package:quickgrocery/view/auth/screens/login_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:provider/provider.dart' as legacy;
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
-import 'package:provider/provider.dart';
-import 'package:quickgrocery/view/profile/screens/support_screen.dart';
-import 'package:quickgrocery/view/notifications/notification_center_screen.dart';
-import 'package:quickgrocery/view/wishlist/screens/wishlist_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
+import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.dart';
+import 'package:quickgrocery/view/profile/domain/profile_models.dart';
+import 'package:quickgrocery/view/profile/presentation/providers/profile_providers.dart';
+import 'package:quickgrocery/view/profile/presentation/widgets/profile_section_safe.dart';
+import 'package:quickgrocery/view/profile/presentation/widgets/profile_sections.dart';
 
-import '../../../constants/app_spacing.dart';
-
-class ProfileScreen extends StatefulWidget {
+/// Premium Blinkit/Zepto-style account dashboard.
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
-  bool notification = true;
-  String? userGender;
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  String _appVersion = '—';
 
   @override
   void initState() {
     super.initState();
-    _loadGender();
+    _loadVersion();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      legacy.Provider.of<HomeProvider>(context, listen: false).getCustomer();
+    });
   }
 
-  Future<void> _loadGender() async {
-    final pref = await SharedPreferences.getInstance();
-    setState(() {
-      userGender = pref.getString('user_gender');
-    });
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) setState(() => _appVersion = info.version);
+    } catch (_) {}
+  }
+
+  Future<void> _refresh() async {
+    final home = legacy.Provider.of<HomeProvider>(context, listen: false);
+    home.customer = null;
+    ref.invalidate(customerProfileStreamProvider);
+    ref.invalidate(userOrdersStreamProvider);
+    ref.invalidate(wishlistCountProvider);
+    ref.invalidate(addressCountProvider);
+    ref.invalidate(couponsStreamProvider);
+    await home.getCustomer();
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+  }
+
+  ProfileData? _resolveProfile(ProfileData? streamProfile) {
+    if (streamProfile != null) return streamProfile;
+    final c = legacy.Provider.of<HomeProvider>(context, listen: false).customer;
+    if (c == null) return null;
+    return ProfileData(
+      customer: c,
+      walletBalance: 0,
+      rewardPoints: 0,
+      cashbackEarned: 0,
+      referralEarnings: 0,
+      isPremiumMember: false,
+      referralCode: c.id,
+      gender: '',
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<HomeProvider>(context);
+    final profileAsync = ref.watch(customerProfileStreamProvider);
 
-    return WillPopScope(
-      onWillPop: () async {
-        Provider.of<HomeProvider>(context, listen: false).onSelectedChange(0);
-        return false; // Prevent default back navigation
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        legacy.Provider.of<HomeProvider>(context, listen: false)
+            .onSelectedChange(0);
       },
       child: Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            await Provider.of<HomeProvider>(context, listen: false).getCustomer();
-          },
-          child: SingleChildScrollView(
-            child: Padding(
-            padding: const EdgeInsets.all(15.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
-                  children: [
-                    Center(
-                      child: SizedBox(
-                        height: 80,
-                        width: 80,
-                        child: CircleAvatar(
-                          backgroundImage: provider.customer!.image == ''
-                              ? null
-                              : NetworkImage(provider.customer!.image),
-                          backgroundColor: Colors.grey.shade200,
-                          child: provider.customer!.image == ''
-                              ? (userGender == 'female'
-                                    ? Image.asset('assets/icons/woman.png')
-                                    : Image.asset('assets/icons/man.png'))
-                              : null,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                AppSpacing.h10,
-                Center(
-                  child: Text(
-                    provider.customer!.name,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                AppSpacing.h20,
-                AppSpacing.h20,
-                Container(
-                  width: MediaQuery.of(context).size.width,
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'general'.tr(),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      AppSpacing.h20,
-                      ProfileTile(
-                        icon: 'assets/icons/people.png',
-                        label: provider.customer!.name,
-                      ),
-                      AppSpacing.h10,
-                      Divider(color: Colors.grey.shade300),
-                      AppSpacing.h10,
-                      GestureDetector(
-                        onTap: () {
-                          //  p.init();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const AddressScreen(),
-                            ),
-                          );
-                        },
-                        child: ProfileTile(
-                          icon: 'assets/icons/home-address.png',
-                          label: 'my_address'.tr(),
-                        ),
-                      ),
-                      AppSpacing.h10,
-                      Divider(color: Colors.grey.shade300),
-                      AppSpacing.h10,
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const WishlistScreen(),
-                            ),
-                          );
-                        },
-                        child: ProfileTile(
-                          icon: 'assets/icons/heart.png',
-                          label: 'wishlist'.tr(),
-                        ),
-                      ),
-                      AppSpacing.h10,
-                      Divider(color: Colors.grey.shade300),
-                      AppSpacing.h10,
-                      ProfileTile(
-                        icon: 'assets/icons/iphone.png',
-                        label: "+91${provider.customer!.phoneNumber}",
-                      ),
-                    ],
-                  ),
-                ),
-                AppSpacing.h20,
-                Container(
-                  width: MediaQuery.of(context).size.width,
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'notifications'.tr(),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      AppSpacing.h20,
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              SizedBox(
-                                height: 25,
-                                width: 25,
-                                child: Image.asset(
-                                  'assets/icons/chat.png',
-                                  color: AppColor.primary,
-                                ),
-                              ),
-                              AppSpacing.w10,
-                              Text(
-                                'push_notifications'.tr(),
-                                style: const TextStyle(fontSize: 16),
-                              ),
-                            ],
-                          ),
-                          CupertinoSwitch(
-                            activeColor: AppColor.primary,
-                            value: notification,
-                            onChanged: (v) {
-                              notification = !notification;
-                              setState(() {});
-                            },
-                          ),
-                        ],
-                      ),
-                      AppSpacing.h10,
-                      Divider(color: Colors.grey.shade300),
-                      AppSpacing.h10,
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute<void>(
-                              builder: (context) =>
-                                  const NotificationCenterScreen(),
-                            ),
-                          );
-                        },
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: ProfileTile(
-                                icon: 'assets/icons/chat.png',
-                                label: 'notification_center'.tr(),
-                              ),
-                            ),
-                            Builder(
-                              builder: (context) {
-                                final uid =
-                                    FirebaseAuth.instance.currentUser?.uid;
-                                if (uid == null) {
-                                  return const SizedBox.shrink();
-                                }
-                                return StreamBuilder<
-                                    QuerySnapshot<Map<String, dynamic>>>(
-                                  stream: FirebaseFirestore.instance
-                                      .collection('customers')
-                                      .doc(uid)
-                                      .collection('notification_inbox')
-                                      .where('read', isEqualTo: false)
-                                      .snapshots(),
-                                  builder: (context, snap) {
-                                    final n = snap.data?.docs.length ?? 0;
-                                    if (n == 0) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    return Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColor.primary,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        n > 99 ? '99+' : '$n',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                AppSpacing.h20,
-                Container(
-                  width: MediaQuery.of(context).size.width,
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'language'.tr(),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      AppSpacing.h20,
-                      Consumer<LanguageService>(
-                        builder: (context, languageService, _) {
-                          return Column(
-                            children: languageService
-                                .getAvailableLanguages()
-                                .map((lang) {
-                                  final isSelected =
-                                      languageService
-                                          .currentLocale
-                                          .languageCode ==
-                                      lang['code'];
-                                  return GestureDetector(
-                                    onTap: () async {
-                                      await languageService.changeLanguage(
-                                        Locale(
-                                          lang['code'] as String,
-                                          lang['country'] as String,
-                                        ),
-                                        context,
-                                      );
-                                    },
-                                    child: Container(
-                                      margin: const EdgeInsets.only(bottom: 10),
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? AppColor.primary
-                                              : Colors.grey.shade300,
-                                          width: isSelected ? 2 : 1,
-                                        ),
-                                        color: isSelected
-                                            ? AppColor.primary.withOpacity(0.1)
-                                            : Colors.transparent,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            isSelected
-                                                ? Icons.radio_button_checked
-                                                : Icons.radio_button_unchecked,
-                                            color: isSelected
-                                                ? AppColor.primary
-                                                : Colors.grey,
-                                          ),
-                                          AppSpacing.w10,
-                                          Text(
-                                            lang['name'] as String,
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.bold
-                                                  : FontWeight.normal,
-                                              color: isSelected
-                                                  ? AppColor.primary
-                                                  : Colors.black,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                })
-                                .toList(),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                AppSpacing.h20,
-                Container(
-                  width: MediaQuery.of(context).size.width,
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'support'.tr(),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      AppSpacing.h20,
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const SupportScreen(),
-                            ),
-                          );
-                        },
-                        child: ProfileTile(
-                          icon: 'assets/icons/support.png',
-                          label: 'support'.tr(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // AppSpacing.h20,
-                // Container(
-                //   width: MediaQuery.of(context).size.width,
-                //   padding: const EdgeInsets.all(6),
-                //   decoration: BoxDecoration(
-                //     borderRadius: BorderRadius.circular(12),
-                //     border: Border.all(color: Colors.grey.shade300),
-                //   ),
-                //   child: Column(
-                //     crossAxisAlignment: CrossAxisAlignment.start,
-                //     children: [
-                //       ListTile(
-                //         onTap: () async {
-                //           Navigator.push(
-                //             context,
-                //             MaterialPageRoute(
-                //               builder: (context) => const ReferScreen(),
-                //             ),
-                //           );
-                //           // p.shareReferralLink(
-                //           //     FirebaseAuth.instance.currentUser!.uid);
-                //         },
-                //         leading: Icon(Icons.share, color: AppColor.primary),
-                //         title: const Text('Refer & Earn a Free Burger! 🍔'),
-                //         subtitle: Text(
-                //           'Invite 3 friends & get 1 burger absolutely FREE! ',
-                //           style: TextStyle(fontSize: 12, color: Colors.grey),
-                //         ),
-                //       ),
-                //     ],
-                //   ),
-                // ),
-                AppSpacing.h20,
-                Container(
-                  width: MediaQuery.of(context).size.width,
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ListTile(
-                        onTap: () async {
-                          await FirebaseAuth.instance.signOut();
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const LoginScreen(),
-                            ),
-                            (Route<dynamic> route) =>
-                                false, // This condition removes all previous routes.
-                          );
-                        },
-                        leading: const Icon(Icons.logout, color: Colors.red),
-                        title: Text('logout'.tr()),
-                      ),
-                    ],
-                  ),
-                ),
+        backgroundColor: AppSurface.background,
+        body: profileAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error: $e')),
+          data: (profile) {
+            final resolved = _resolveProfile(profile);
+            if (resolved == null) {
+              return Center(child: Text('profile'.tr()));
+            }
 
-                // AppSpacing.h20,
-                // Container(
-                //   width: MediaQuery.of(context).size.width,
-                //   padding: const EdgeInsets.all(15),
-                //   decoration: BoxDecoration(
-                //     borderRadius: BorderRadius.circular(12),
-                //     border: Border.all(color: Colors.grey.shade300),
-                //   ),
-                //   child: Column(
-                //     crossAxisAlignment: CrossAxisAlignment.start,
-                //     children: [
-                //       const Text(
-                //         'Legal',
-                //         style: TextStyle(
-                //             fontSize: 16, fontWeight: FontWeight.bold),
-                //       ),
-                //       AppSpacing.h20,
-                //       const ProfileTile(
-                //           icon: 'assets/icons/file (1).png',
-                //           label: 'Privacy policy'),
-                //       AppSpacing.h10,
-                //       Divider(color: Colors.grey.shade300),
-                //       AppSpacing.h10,
-                //       const ProfileTile(
-                //           icon: 'assets/icons/file (2).png',
-                //           label: 'Terms and conditions')
-                //     ],
-                //   ),
-                // ),
-              ],
-            ),
-          ),
-            ),
-          ),
+            return RefreshIndicator(
+              color: AppSurface.text,
+              onRefresh: _refresh,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: ProfileHeaderSection(profile: resolved),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        ProfileSectionGuard(
+                          section: 'Quick Actions',
+                          builder: () => const ProfileQuickActions(),
+                        ),
+                        const SizedBox(height: 16),
+                        ProfileSectionGuard(
+                          section: 'Active Order',
+                          builder: () => const ProfileActiveOrderCard(),
+                        ),
+                        const SizedBox(height: 16),
+                        ProfileSectionGuard(
+                          section: 'My Orders',
+                          builder: () => const ProfileOrdersSection(),
+                        ),
+                        const SizedBox(height: 16),
+                        ProfileSectionGuard(
+                          section: 'Addresses',
+                          builder: () => const ProfileAddressesSection(),
+                        ),
+                        const SizedBox(height: 16),
+                        ProfileSectionGuard(
+                          section: 'Saved Coupons',
+                          builder: () => const ProfileSavedCouponsSection(),
+                        ),
+                        const SizedBox(height: 16),
+                        ProfileSectionGuard(
+                          section: 'Notifications',
+                          builder: () => const ProfileNotificationsSection(),
+                        ),
+                        const SizedBox(height: 16),
+                        ProfileSectionGuard(
+                          section: 'Language',
+                          builder: () => const ProfileLanguageSection(),
+                        ),
+                        const SizedBox(height: 16),
+                        ProfileSectionGuard(
+                          section: 'Support',
+                          builder: () => const ProfileSupportSection(),
+                        ),
+                        const SizedBox(height: 16),
+                        ProfileSectionGuard(
+                          section: 'Legal',
+                          builder: () =>
+                              ProfileLegalSection(appVersion: _appVersion),
+                        ),
+                        const SizedBox(height: 16),
+                        ProfileSectionGuard(
+                          section: 'Settings',
+                          builder: () => const ProfileAppSettingsSection(),
+                        ),
+                        const SizedBox(height: 20),
+                        ProfileSectionGuard(
+                          section: 'Logout',
+                          builder: () => const ProfileLogoutSection(),
+                        ),
+                      ]),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
   }
 }
 
+/// Legacy list tile used by older screens.
 class ProfileTile extends StatelessWidget {
   const ProfileTile({super.key, required this.icon, required this.label});
+
   final String icon;
   final String label;
 
@@ -516,9 +186,9 @@ class ProfileTile extends StatelessWidget {
         SizedBox(
           height: 25,
           width: 25,
-          child: Image.asset(icon, color: AppColor.primary),
+          child: Image.asset(icon, color: AppSurface.text),
         ),
-        AppSpacing.w10,
+        const SizedBox(width: 10),
         Text(label, style: const TextStyle(fontSize: 16)),
       ],
     );

@@ -84,9 +84,8 @@ class VendorRequestService extends ChangeNotifier {
     actionMessage = null;
     notifyListeners();
     try {
-      final result = await _client.approve(requestId);
-      actionMessage =
-          'Vendor approved. Auth UID: ${result['authUid'] ?? 'created'}.';
+      await _client.approve(requestId);
+      actionMessage = 'Vendor approved successfully.';
       return true;
     } catch (e, st) {
       if (kDebugMode) {
@@ -107,7 +106,7 @@ class VendorRequestService extends ChangeNotifier {
     notifyListeners();
     try {
       await _client.reject(requestId, reason: reason);
-      actionMessage = 'Request rejected.';
+      actionMessage = 'Vendor request rejected.';
       return true;
     } catch (e, st) {
       if (kDebugMode) {

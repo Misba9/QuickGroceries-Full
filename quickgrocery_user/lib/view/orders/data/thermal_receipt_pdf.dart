@@ -74,6 +74,18 @@ class ThermalReceiptPdf {
               style: _text(8),
             ),
           ],
+          if (order.slotLabel != null && order.slotLabel!.isNotEmpty) ...[
+            pw.SizedBox(height: 3),
+            _label('DELIVERY SLOT'),
+            pw.Text(order.deliverySlotLabel, style: _bold(8)),
+          ],
+          if (!order.structuredInstructions.isEmpty) ...[
+            pw.SizedBox(height: 3),
+            _label('DELIVERY INSTRUCTIONS'),
+            ...order.structuredInstructions.displayLines().map(
+                  (line) => pw.Text(line, style: _text(8)),
+                ),
+          ],
           _divider(),
           _label('ITEMS'),
           pw.SizedBox(height: 2),

@@ -231,14 +231,19 @@ class AdminVendorClient {
   }
 
   bool _shouldTryHttp(FirebaseFunctionsException e) {
-    if (kIsWeb &&
-        (e.code == 'internal' ||
-            e.code == 'unavailable' ||
-            e.code == 'unknown')) {
-      return true;
-    }
+    if (!kIsWeb) return false;
+    if (e.code == 'unavailable' || e.code == 'deadline-exceeded') return true;
+    if (_isCallableTransportError(e)) return true;
+    return false;
+  }
+
+  bool _isCallableTransportError(FirebaseFunctionsException e) {
+    if (e.code == 'unavailable' || e.code == 'deadline-exceeded') return true;
+    if (kIsWeb && (e.code == 'internal' || e.code == 'unknown')) return true;
     final msg = (e.message ?? '').toLowerCase();
-    return msg.contains('cors') || msg.contains('blocked');
+    return msg.contains('cors') ||
+        msg.contains('failed to fetch') ||
+        msg.contains('network');
   }
 
   Future<Map<String, dynamic>> _migrateViaSecondaryApp({

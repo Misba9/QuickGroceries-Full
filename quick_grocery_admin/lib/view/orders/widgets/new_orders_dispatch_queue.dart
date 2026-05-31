@@ -65,25 +65,45 @@ class PendingDispatchQueue extends StatelessWidget {
               ),
             )
           else
-            SizedBox(
-              height: 204,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: orders.length.clamp(0, 12),
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, i) {
-                  return LiveOrderQueueCard(
-                    order: orders[i],
-                    onView: onView,
-                    width: 300,
-                  );
-                },
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final stripHeight = _dispatchQueueStripHeight(context);
+                return SizedBox(
+                  height: stripHeight,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: orders.length.clamp(0, 12),
+                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    itemBuilder: (context, i) {
+                      return Align(
+                        alignment: Alignment.topCenter,
+                        child: LiveOrderQueueCard(
+                          order: orders[i],
+                          onView: onView,
+                          width: _dispatchCardWidth(constraints.maxWidth),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
             ),
         ],
       ),
     );
   }
+}
+
+/// Vertical space for one dispatch card (badges, slot, ETA row) — scales with text.
+double _dispatchQueueStripHeight(BuildContext context) {
+  final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.4);
+  return 224 * scale;
+}
+
+double _dispatchCardWidth(double parentMaxWidth) {
+  if (parentMaxWidth <= 0 || !parentMaxWidth.isFinite) return 300;
+  final w = (parentMaxWidth * 0.42).clamp(260.0, 340.0);
+  return w;
 }
 
 class LiveOrderQueueCard extends StatefulWidget {
@@ -143,9 +163,10 @@ class _LiveOrderQueueCardState extends State<LiveOrderQueueCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,
+        clipBehavior: Clip.antiAlias,
         transform: Matrix4.translationValues(0, _hovered ? -2 : 0, 0),
         width: widget.width,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: delayed ? const Color(0xFFFFF1F2) : const Color(0xFFFAFAFB),
           borderRadius: BorderRadius.circular(14),
@@ -165,106 +186,129 @@ class _LiveOrderQueueCardState extends State<LiveOrderQueueCard> {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          order.customerName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '#${_shortId(order.id)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        order.customerName,
+                        '₹${total.toStringAsFixed(0)}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '#${_shortId(order.id)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w600,
+                      if (delayed)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Icon(
+                            Icons.warning_amber_rounded,
+                            color: Color(0xFFDC2626),
+                            size: 16,
+                          ),
                         ),
-                      ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                ],
+              ),
+              const SizedBox(height: 6),
+              SizedBox(
+                height: 28,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
                   children: [
-                    Text(
-                      '₹${total.toStringAsFixed(0)}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                      ),
+                    OrderStatusBadge(order: order, compact: true),
+                    const SizedBox(width: 6),
+                    _pill(
+                      paymentLabel,
+                      paymentOnline
+                          ? Colors.green.shade50
+                          : Colors.orange.shade50,
+                      paymentOnline
+                          ? Colors.green.shade800
+                          : Colors.orange.shade900,
                     ),
-                    if (delayed) ...[
-                      const SizedBox(height: 4),
-                      const Icon(
-                        Icons.warning_amber_rounded,
-                        color: Color(0xFFDC2626),
-                        size: 18,
-                      ),
-                    ],
+                    const SizedBox(width: 6),
+                    _pill(
+                      assigned ? riderLabel : 'Unassigned',
+                      assigned ? Colors.blue.shade50 : Colors.orange.shade50,
+                      assigned ? Colors.blue.shade800 : Colors.orange.shade900,
+                      icon: assigned
+                          ? Icons.delivery_dining_rounded
+                          : Icons.person_add_alt_1_rounded,
+                    ),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                OrderStatusBadge(order: order, compact: true),
-                _pill(
-                  paymentLabel,
-                  paymentOnline ? Colors.green.shade50 : Colors.orange.shade50,
-                  paymentOnline
-                      ? Colors.green.shade800
-                      : Colors.orange.shade900,
-                ),
-                _pill(
-                  assigned ? riderLabel : 'Unassigned',
-                  assigned ? Colors.blue.shade50 : Colors.orange.shade50,
-                  assigned ? Colors.blue.shade800 : Colors.orange.shade900,
-                  icon: assigned
-                      ? Icons.delivery_dining_rounded
-                      : Icons.person_add_alt_1_rounded,
+              ),
+              const SizedBox(height: 6),
+              _metaLine(Icons.schedule_rounded, orderTime),
+              if (order.deliverySlot != null) ...[
+                const SizedBox(height: 3),
+                _metaLine(
+                  Icons.local_shipping_outlined,
+                  order.deliverySlotLabel,
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-            _metaLine(Icons.schedule_rounded, orderTime),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _etaChip(
-                    late.isNotEmpty ? late : etaLabel,
-                    isLate:
-                        late.isNotEmpty ||
-                        etaLabel.toLowerCase().contains('late'),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: _etaChip(
+                      late.isNotEmpty ? late : etaLabel,
+                      isLate:
+                          late.isNotEmpty ||
+                          etaLabel.toLowerCase().contains('late'),
+                    ),
                   ),
-                ),
-                if (widget.onView != null) ...[
-                  const SizedBox(width: 8),
-                  OrderRowActions(order: order, onView: widget.onView!),
+                  if (widget.onView != null) ...[
+                    const SizedBox(width: 6),
+                    OrderRowActions(order: order, onView: widget.onView!),
+                  ],
                 ],
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -309,17 +353,18 @@ class _LiveOrderQueueCardState extends State<LiveOrderQueueCard> {
     final bg = isLate ? const Color(0xFFFEE2E2) : Colors.white;
     final fg = isLate ? const Color(0xFFB91C1C) : const Color(0xFF334155);
     final border = isLate ? const Color(0xFFFCA5A5) : const Color(0xFFE5E7EB);
+    final text = label.startsWith('ETA') || label.startsWith('Late')
+        ? label
+        : 'ETA $label';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: border),
       ),
       child: Text(
-        label.startsWith('ETA') || label.startsWith('Late')
-            ? label
-            : 'ETA $label',
+        text,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(fontSize: 11, color: fg, fontWeight: FontWeight.w700),

@@ -13,7 +13,7 @@ class OrdersPaginatedTable extends StatefulWidget {
     required this.onView,
     this.rowsPerPage = 10,
     this.availableRowsPerPage = const [10, 15, 25, 50],
-    this.minTableWidth = 1200,
+    this.minTableWidth = 1320,
   });
 
   final List<OrderModel> orders;
@@ -104,6 +104,7 @@ const _kOrderTableColumns = [
   DataColumn(label: Text('Vendor')),
   DataColumn(label: Text('Rider')),
   DataColumn(label: Text('Payment')),
+  DataColumn(label: Text('Delivery Slot')),
   DataColumn(label: Text('Amount')),
   DataColumn(label: Text('Status')),
   DataColumn(label: Text('ETA')),

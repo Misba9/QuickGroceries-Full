@@ -62,6 +62,42 @@ function effectiveMax(stock: number, maxOrder: number): number {
   return maxOrder < stock ? maxOrder : stock;
 }
 
+function deliveryInstructionsPayload(data: unknown): {
+  legacy: string;
+  structured: Record<string, unknown>;
+} {
+  const empty = {
+    instructionText: "",
+    leaveAtDoor: false,
+    gateCode: "",
+    landmark: "",
+    notes: "",
+  };
+  if (data == null) return { legacy: "", structured: empty };
+  if (typeof data === "string") {
+    const text = data.trim();
+    return { legacy: text, structured: { ...empty, instructionText: text } };
+  }
+  if (typeof data === "object") {
+    const m = data as Record<string, unknown>;
+    const structured = {
+      instructionText: str(m.instructionText || m.text),
+      leaveAtDoor: m.leaveAtDoor === true || m.leave_at_door === true,
+      gateCode: str(m.gateCode || m.gate_code),
+      landmark: str(m.landmark),
+      notes: str(m.notes),
+    };
+    const parts: string[] = [];
+    if (structured.gateCode) parts.push(`Gate code: ${structured.gateCode}`);
+    if (structured.landmark) parts.push(`Landmark: ${structured.landmark}`);
+    if (structured.leaveAtDoor) parts.push("Leave at door");
+    if (structured.notes) parts.push(structured.notes);
+    const legacy = structured.instructionText || parts.join(" · ");
+    return { legacy, structured };
+  }
+  return { legacy: "", structured: empty };
+}
+
 interface LineInput {
   productId: string;
   itemCount: number;
@@ -84,7 +120,10 @@ export const placeOrderCallable = onCall(
 
     const lines: LineInput[] = rawItems.map((row: Record<string, unknown>) => ({
       productId: str(row.productId),
-      itemCount: Math.max(0, Math.floor(num(row.itemCount))),
+      itemCount: Math.max(
+        0,
+        Math.floor(num(row.itemCount ?? row.quantity)),
+      ),
       selectedWeightInGrams: num(row.selectedWeightInGrams, 1000),
     }));
 
@@ -173,8 +212,11 @@ export const placeOrderCallable = onCall(
 
         const orderProducts: Record<string, unknown>[] = [];
 
+        const rawLines = rawItems as Record<string, unknown>[];
+
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
+          const raw = rawLines[i] ?? {};
           const snap = productSnaps[i];
           if (!snap.exists) {
             throw new HttpsError(
@@ -258,17 +300,59 @@ export const placeOrderCallable = onCall(
           const unitPrice = isVeg ? (price * grams) / 1000 : price;
           const unitSlashed = isVeg ? (slashed * grams) / 1000 : slashed;
 
+          const rawName = str(raw.name ?? raw.productName) || str(data.name);
+          const rawWeight = num(raw.weight);
+          const rawUnit = str(raw.unit);
+          const rawVariant = str(raw.variantName ?? raw.variant);
+          let weight = rawWeight;
+          let unit = rawUnit;
+          let variantName = rawVariant;
+          if (weight <= 0 && rawVariant) {
+            const m = rawVariant.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Z]+)$/);
+            if (m) {
+              weight = num(m[1]);
+              unit = m[2];
+            }
+          }
+          if (weight <= 0 && isVeg) {
+            if (grams >= 1000) {
+              weight = grams / 1000;
+              unit = "kg";
+              variantName = variantName || `${weight} kg`;
+            } else {
+              weight = grams;
+              unit = "gm";
+              variantName = variantName || `${grams} gm`;
+            }
+          }
+          const itemCount = line.itemCount;
+          const totalPrice = unitPrice * itemCount;
+
           orderProducts.push({
-            productId: snap.id,
-            name: str(data.name),
-            image: str(data.image),
-            description: str(data.description),
-            category: str(data.category),
-            unit: str(data.unit),
+            productId: str(raw.productId) || snap.id,
+            name: rawName,
+            productName: rawName,
+            image: str(raw.image) || str(data.image),
+            description: str(raw.description || data.description),
+            category: str(raw.category) || str(data.category),
+            quantity: itemCount,
+            itemCount,
+            ...(weight > 0 ? { weight } : {}),
+            ...(unit ? { unit } : {}),
+            ...(variantName ? { variantName } : {}),
+            unitPerItem: str(raw.unitPerItem || data.unitPerItem),
+            packWeight: str(raw.packWeight || (weight > 0 ? String(weight) : "")),
+            selectedWeightInGrams: num(
+              raw.selectedWeightInGrams ?? line.selectedWeightInGrams,
+              1000,
+            ),
+            unitType: str(raw.unitType || data.unit),
             price: unitPrice,
+            unitPrice,
+            totalPrice,
             slashedPrice: unitSlashed,
-            itemCount: line.itemCount,
             vendor_id: vendorId,
+            vendorId,
           });
         }
 
@@ -277,6 +361,10 @@ export const placeOrderCallable = onCall(
         const paymentMethod = str(req.data?.paymentMethod) || "cod";
         const paymentRef = str(req.data?.paymentRef);
         const isPaid = paymentMethod !== "cod" && paymentRef.length > 0;
+        const slotRaw = req.data?.delivery_slot ?? req.data?.deliverySlot;
+        const instr = deliveryInstructionsPayload(
+          req.data?.delivery_instructions ?? req.data?.deliveryInstructions,
+        );
 
         const legacyOrder = {
           lat: num(req.data?.lat),
@@ -323,10 +411,9 @@ export const placeOrderCallable = onCall(
           paymentMethod,
           paymentStatus: isPaid ? "paid" : "pending",
           ...(paymentRef ? { paymentRef } : {}),
-          delivery_instructions: str(req.data?.delivery_instructions),
-          ...(req.data?.delivery_slot
-            ? { delivery_slot: req.data.delivery_slot }
-            : {}),
+          delivery_instructions: instr.legacy,
+          deliveryInstructions: instr.structured,
+          ...(slotRaw ? { delivery_slot: slotRaw, deliverySlot: slotRaw } : {}),
           bill,
           ...(req.data?.coupon ? { coupon: req.data.coupon } : {}),
           address_snapshot: address,
@@ -337,6 +424,37 @@ export const placeOrderCallable = onCall(
       if (e instanceof HttpsError) throw e;
       console.error("placeOrderCallable", e);
       throw new HttpsError("internal", "Could not place order");
+    }
+
+    const orderSnap = await orderRef.get();
+    const orderData = orderSnap.data() as Record<string, unknown> | undefined;
+    const vendorIds = (orderData?.vendorIds as string[] | undefined) ?? [];
+    if (orderData && vendorIds.length > 0) {
+      const batch = admin.firestore().batch();
+      for (const vendorId of vendorIds) {
+        batch.set(
+          admin
+            .firestore()
+            .collection("vendor_orders")
+            .doc(vendorId)
+            .collection("orders")
+            .doc(orderRef.id),
+          {
+            orderId: orderRef.id,
+            vendorId,
+            status: orderData.status,
+            customer_name: orderData.customer_name,
+            phone: orderData.phone,
+            address: orderData.address,
+            deliverySlot: orderData.deliverySlot ?? orderData.delivery_slot ?? null,
+            deliveryInstructions:
+              orderData.deliveryInstructions ?? orderData.delivery_instructions ?? null,
+            bill: orderData.bill ?? null,
+            createdAt: orderData.createdAt ?? admin.firestore.FieldValue.serverTimestamp(),
+          },
+        );
+      }
+      await batch.commit();
     }
 
     return { orderId: orderRef.id };

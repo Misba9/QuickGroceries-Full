@@ -61,6 +61,17 @@ class OrdersMobileCard extends StatelessWidget {
                 dateStr,
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
+              if (order.deliverySlot != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  order.deliverySlotLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blueGrey.shade700,
+                  ),
+                ),
+              ],
               const SizedBox(height: 10),
               Row(
                 children: [

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -17,6 +18,7 @@ import 'package:quickgrocery/core/widgets/startup_failure_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'
     show ProviderScope, Consumer;
 import 'package:quickgrocery/core/design/app_theme.dart';
+import 'package:quickgrocery/core/localization/app_locales.dart';
 import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
@@ -260,6 +262,11 @@ class _MyAppState extends State<MyApp> {
         final savedCountryCode =
             snapshot.data!.getString('selected_country_code') ?? 'US';
 
+        final startLocale = AppLocales.fromPreference(
+          savedLanguageCode,
+          savedCountryCode,
+        );
+
         return MultiProvider(
           providers: [
             ChangeNotifierProvider(create: (context) => AuthService()),
@@ -278,28 +285,31 @@ class _MyAppState extends State<MyApp> {
             ChangeNotifierProvider(create: (context) => WishlistService()),
           ],
           child: EasyLocalization(
-            supportedLocales: const [
-              Locale('en', 'US'),
-              Locale('hi', 'IN'),
-              Locale('te', 'IN'),
-              Locale('ar', 'SA'),
-            ],
+            supportedLocales: AppLocales.supported,
             path: 'assets/translations',
-            fallbackLocale: const Locale('en', 'US'),
-            startLocale: Locale(savedLanguageCode, savedCountryCode),
+            fallbackLocale: AppLocales.fallback,
+            startLocale: startLocale,
             useOnlyLangCode: false,
             child: legacy_provider.Consumer<LanguageService>(
               builder: (context, languageService, _) {
+                final locale = context.locale;
                 return Builder(
                   builder: (context) => MaterialApp(
                     navigatorKey: rootNavigatorKey,
-                    key: ValueKey(languageService.currentLocale.toString()),
                     localizationsDelegates: context.localizationDelegates,
                     supportedLocales: context.supportedLocales,
-                    locale: languageService.currentLocale,
+                    locale: locale,
                     debugShowCheckedModeBanner: false,
                     title: 'QuickGrocery',
                     theme: AppTheme.light(),
+                    builder: (context, child) {
+                      return Directionality(
+                        textDirection: AppLocales.isRtl(locale)
+                            ? ui.TextDirection.rtl
+                            : ui.TextDirection.ltr,
+                        child: child ?? const SizedBox.shrink(),
+                      );
+                    },
                     home: Consumer(
                       builder: (context, ref, _) {
                         return RealtimeBootstrap(

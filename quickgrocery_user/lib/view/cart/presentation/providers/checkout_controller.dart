@@ -57,9 +57,9 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     state = state.copyWith(slot: slot);
   }
 
-  void setInstructions(String text) {
+  void setInstructions(DeliveryInstructions instructions) {
     if (!mounted) return;
-    state = state.copyWith(instructions: text);
+    state = state.copyWith(instructions: instructions);
   }
 
   void selectPaymentMethod(PaymentMethod method) {

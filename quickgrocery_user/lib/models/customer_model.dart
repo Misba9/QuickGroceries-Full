@@ -16,11 +16,11 @@ class CustomerModel {
 
   factory CustomerModel.fromFirestore(Map<String, dynamic> data, String id) {
     return CustomerModel(
-        email: data['email'],
+        email: (data['email'] ?? '').toString(),
         name: data['name'] ?? '',
-        phoneNumber: data['phone'] ?? '',
+        phoneNumber: (data['phone'] ?? '').toString(),
         image: data['profile_image'] ?? '',
-        id: data['uid'],
+        id: data['uid'] ?? id,
         referId: data['referred_by'] ?? '');
   }
 }

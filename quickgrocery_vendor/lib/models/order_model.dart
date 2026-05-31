@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../utils/order_bill_totals.dart';
+import '../utils/order_product_parse.dart';
+
 class OrderModel {
   String id;
   List<ProductItem> products;
@@ -27,6 +30,9 @@ class OrderModel {
   final double lng;
   final String modernStatus;
   final DateTime? createdAt;
+  final Map<String, dynamic>? deliverySlotRaw;
+  final Map<String, dynamic>? deliveryInstructionsRaw;
+  final Map<String, dynamic> billRaw;
 
   OrderModel({
     required this.id,
@@ -55,15 +61,13 @@ class OrderModel {
     required this.lng,
     this.modernStatus = '',
     this.createdAt,
+    this.deliverySlotRaw,
+    this.deliveryInstructionsRaw,
+    this.billRaw = const {},
   });
 
   factory OrderModel.fromFirestore(Map<String, dynamic> data, String id) {
-    List<ProductItem> parsedProducts = [];
-    if (data['products'] != null) {
-      parsedProducts = List<Map<String, dynamic>>.from(
-        data['products'],
-      ).map((e) => ProductItem.fromMap(e)).toList();
-    }
+    final parsedProducts = OrderProductParse.linesFromOrder(data);
 
     DateTime? createdAt;
     final createdAtRaw = data['createdAt'];
@@ -107,7 +111,29 @@ class OrderModel {
       lng: data['lng'] != null ? double.parse(data['lng'].toString()) : 0.0,
       modernStatus: data['status']?.toString() ?? '',
       createdAt: createdAt,
+      deliverySlotRaw: _asMap(data['deliverySlot'] ?? data['delivery_slot']),
+      deliveryInstructionsRaw: _instructionsMap(
+        data['deliveryInstructions'] ?? data['delivery_instructions'],
+      ),
+      billRaw: data['bill'] is Map
+          ? Map<String, dynamic>.from(data['bill'] as Map)
+          : const {},
     );
+  }
+
+  OrderBillTotals get billTotals => OrderBillTotals.resolve(this);
+
+  static Map<String, dynamic>? _asMap(dynamic raw) {
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  static Map<String, dynamic>? _instructionsMap(dynamic raw) {
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    if (raw is String && raw.trim().isNotEmpty) {
+      return {'instructionText': raw.trim()};
+    }
+    return null;
   }
 
   Map<String, dynamic> toMap() {
@@ -138,23 +164,9 @@ class OrderModel {
     };
   }
 
-  // Helper method to calculate total order amount
-  double getTotalAmount() {
-    double total = 0.0;
-    for (var product in products) {
-      total += product.price * product.itemCount;
-    }
-    return total + deliveryCharge;
-  }
+  double getTotalAmount() => billTotals.grandTotal;
 
-  // Helper method to get subtotal (without delivery charge)
-  double getSubtotal() {
-    double total = 0.0;
-    for (var product in products) {
-      total += product.price * product.itemCount;
-    }
-    return total;
-  }
+  double getSubtotal() => billTotals.subtotal;
 }
 
 class ProductItem {
@@ -167,6 +179,15 @@ class ProductItem {
   double slashedPrice;
   int itemCount;
   String vendorId;
+  final String unitPerItem;
+  final String packQuantity;
+  final String packWeight;
+  final String measurementType;
+  final String variantName;
+  final num? weightAmount;
+  final String packUnit;
+  final double? totalPrice;
+  final int? selectedWeightInGrams;
 
   ProductItem({
     required this.name,
@@ -178,21 +199,25 @@ class ProductItem {
     required this.slashedPrice,
     required this.itemCount,
     required this.vendorId,
+    this.unitPerItem = '',
+    this.packQuantity = '',
+    this.packWeight = '',
+    this.measurementType = '',
+    this.variantName = '',
+    this.weightAmount,
+    this.packUnit = '',
+    this.totalPrice,
+    this.selectedWeightInGrams,
   });
 
-  factory ProductItem.fromMap(Map<String, dynamic> data) {
-    return ProductItem(
-      name: data['name'] ?? '',
-      image: data['image'] ?? '',
-      description: data['description'] ?? '',
-      category: data['category'] ?? '',
-      unit: data['unit'] ?? '',
-      price: (data['price'] ?? 0).toDouble(),
-      slashedPrice: (data['slashedPrice'] ?? 0).toDouble(),
-      itemCount: data['itemCount'] ?? 0,
-      vendorId: (data['vendor_id'] ?? data['vendorId'] ?? '').toString(),
-    );
+  double get lineTotal {
+    if (totalPrice != null && totalPrice! > 0) return totalPrice!;
+    if (price > 0 && itemCount > 0) return price * itemCount;
+    return 0;
   }
+
+  factory ProductItem.fromMap(Map<String, dynamic> data) =>
+      OrderProductParse.fromMap(data);
 
   Map<String, dynamic> toMap() {
     return {

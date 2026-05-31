@@ -11,7 +11,7 @@ import 'package:quickgrocery/models/coupon_model.dart';
 import 'package:quickgrocery/models/order_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/cart/screen/cart_screen.dart' as cart_screen;
-import 'package:quickgrocery/view/cart/screen/success_screen.dart';
+import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
 import 'package:quickgrocery/view/delivery_location/services/delivery_zone_service.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:provider/provider.dart';
@@ -388,7 +388,12 @@ class CartService extends ChangeNotifier {
 
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => SuccessScreen()),
+      MaterialPageRoute(
+        builder: (context) => OrderTrackingScreen(
+          orderId: s.id,
+          fromCheckout: true,
+        ),
+      ),
       (Route<dynamic> route) => false,
     );
 

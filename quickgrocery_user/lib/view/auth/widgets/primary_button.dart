@@ -9,7 +9,7 @@ class PrimaryButton extends StatelessWidget {
     this.isLoading = false,
   });
   final String label;
-  final Function() onTap;
+  final VoidCallback? onTap;
   final bool isLoading;
 
   @override
@@ -27,7 +27,7 @@ class PrimaryButton extends StatelessWidget {
           ),
           backgroundColor: AppColor.primary,
         ),
-        onPressed: onTap,
+        onPressed: isLoading ? null : onTap,
         child: isLoading
             ? const SizedBox(
                 width: 30,

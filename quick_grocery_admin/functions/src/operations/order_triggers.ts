@@ -67,8 +67,8 @@ export const onOrderCreated = onDocumentCreated(
     const vName = await vendorNames(vIds);
 
     await notifyAdmins({
-      title: "New order",
-      message: `#${orderId.slice(-6)} · ${customer} · ₹${total.toFixed(0)} · ${payment}`,
+      title: "New Order Received",
+      message: `Order #${orderId.slice(-6)} · ${customer} · ₹${total.toFixed(0)} · ${vName}`,
       type: "new_order",
       category: "orders",
       soundAlert: true,
@@ -198,8 +198,27 @@ export const onOrderUpdated = onDocumentUpdated(
       await appendDeliveryTracking(orderId, "rider_assigned", {
         deliveryBoyId: nextRider,
       });
+      await db
+        .collection("rider_orders")
+        .doc(nextRider)
+        .collection("orders")
+        .doc(orderId)
+        .set(
+          {
+            orderId,
+            customer_name: str(after.customer_name || after.customerName),
+            phone: str(after.phone),
+            address: str(after.address),
+            deliverySlot: after.deliverySlot ?? after.delivery_slot ?? null,
+            deliveryInstructions:
+              after.deliveryInstructions ?? after.delivery_instructions ?? null,
+            status: str(after.status || after.order_status),
+            assignedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
       await notifyAdmins({
-        title: "Driver assigned",
+        title: "Order assigned",
         message: `Rider ${nextRider} assigned to #${orderId.slice(-6)}.`,
         type: "driver_assigned",
         category: "delivery",

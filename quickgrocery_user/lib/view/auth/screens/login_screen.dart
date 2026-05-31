@@ -55,23 +55,42 @@ class LoginScreen extends StatelessWidget {
                   ),
                 ),
                 AppSpacing.h10,
+                if (provider.phoneAuthError != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Text(
+                      provider.phoneAuthError!,
+                      style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                    ),
+                  ),
+                  AppSpacing.h10,
+                ],
 
                 AppSpacing.h20,
                 PrimaryButton(
                   isLoading: provider.isLoading,
                   label: 'continue'.tr(),
-                  onTap: () {
-                    if (provider.mobileController.text.length < 10) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("please_enter_valid_phone".tr()),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    } else {
-                      provider.verifyPhoneNumber(context);
-                    }
-                  },
+                  onTap: provider.isLoading
+                      ? null
+                      : () {
+                          provider.clearPhoneAuthError();
+                          if (provider.mobileController.text.length < 10) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("please_enter_valid_phone".tr()),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          } else {
+                            provider.verifyPhoneNumber(context);
+                          }
+                        },
                 ),
                 AppSpacing.h15,
               ],

@@ -59,6 +59,8 @@ export { adminCreateDeliveryAccount, adminRollbackDeliveryAuth } from "./partner
 export {
   adminMigrateVendorAuthHttp,
   adminRestoreVendorAuthHttp,
+  adminApproveVendorRequestHttp,
+  adminRejectVendorRequestHttp,
 } from "./partner_auth/vendor_http_handlers";
 export {
   vendorCheckAuthForPasswordReset,

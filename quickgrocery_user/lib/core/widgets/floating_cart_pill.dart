@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy;
@@ -170,7 +171,7 @@ class _PillBody extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'View Cart',
+                          'view_cart'.tr(),
                           style: GoogleFonts.poppins(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w800,

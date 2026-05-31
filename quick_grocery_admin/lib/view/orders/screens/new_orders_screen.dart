@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
@@ -24,22 +22,12 @@ class NewOrdersScreen extends StatefulWidget {
 }
 
 class _NewOrdersScreenState extends State<NewOrdersScreen> {
-  Timer? _refreshTimer;
   int _ridersAvailable = 0;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
-    _refreshTimer = Timer.periodic(const Duration(seconds: 45), (_) {
-      if (mounted) _refresh();
-    });
-  }
-
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    super.dispose();
   }
 
   Future<void> _bootstrap() async {
@@ -57,13 +45,9 @@ class _NewOrdersScreenState extends State<NewOrdersScreen> {
     setState(() => _ridersAvailable = active);
   }
 
-  Future<void> _refresh() async {
-    await context.read<OrderService>().getOrders();
-    if (!mounted) return;
+  Future<void> _refreshRiders() async {
     final deliverySvc = context.read<DeliveryBoyService>();
-    if (deliverySvc.deliveryBoys == null) {
-      await deliverySvc.getDeliveryBoys();
-    }
+    await deliverySvc.getDeliveryBoys();
     if (mounted) {
       setState(() {
         _ridersAvailable =
@@ -96,8 +80,8 @@ class _NewOrdersScreenState extends State<NewOrdersScreen> {
           OrdersManageHeader(
             page: OrderModulePage.newOrders,
             trailing: IconButton.filledTonal(
-              tooltip: 'Refresh live orders',
-              onPressed: _refresh,
+              tooltip: 'Refresh rider availability',
+              onPressed: _refreshRiders,
               icon: const Icon(Icons.refresh_rounded),
             ),
           ),

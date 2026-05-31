@@ -13,6 +13,9 @@ class CartItem {
   final String image;
   final String unit;
   final String unitPerItem;
+  final String packQuantity;
+  final String packWeight;
+  final String measurementType;
   final String category;
   final String subcategory;
   final String vendorId;
@@ -36,6 +39,9 @@ class CartItem {
     required this.image,
     required this.unit,
     required this.unitPerItem,
+    this.packQuantity = '',
+    this.packWeight = '',
+    this.measurementType = '',
     required this.category,
     required this.subcategory,
     required this.vendorId,
@@ -71,6 +77,9 @@ class CartItem {
       image: p.image,
       unit: p.unit,
       unitPerItem: p.unitPerItem,
+      packQuantity: p.packQuantity,
+      packWeight: p.packWeight,
+      measurementType: p.measurementType,
       category: p.category,
       subcategory: p.subcategory,
       vendorId: p.vendorId,
@@ -92,6 +101,9 @@ class CartItem {
     image: (data['image'] ?? '').toString(),
     unit: (data['unit'] ?? '').toString(),
     unitPerItem: (data['unitPerItem'] ?? '').toString(),
+    packQuantity: (data['packQuantity'] ?? '').toString(),
+    packWeight: (data['packWeight'] ?? '').toString(),
+    measurementType: (data['measurementType'] ?? '').toString(),
     category: (data['category'] ?? '').toString(),
     subcategory: (data['subcategory'] ?? '').toString(),
     vendorId: (data['vendorId'] ?? data['vendor_id'] ?? '').toString(),
@@ -392,17 +404,107 @@ class BillBreakdown {
     'slashedSubtotal': slashedSubtotal,
     'itemSavings': itemSavings,
     'couponDiscount': couponDiscount,
+    'discount': couponDiscount,
     'deliveryFee': deliveryFee,
     'surgeFee': surgeFee,
     'handlingCharge': handlingCharge,
     'platformFee': platformFee,
     'tax': tax,
     'total': total,
+    'grandTotal': total,
     'isFreeDelivery': isFreeDelivery,
   };
 
   /// Total user-visible savings (item savings + coupon).
   double get totalSavings => itemSavings + couponDiscount;
+}
+
+/// Structured delivery instructions saved on every order.
+@immutable
+class DeliveryInstructions {
+  final String instructionText;
+  final bool leaveAtDoor;
+  final String gateCode;
+  final String landmark;
+  final String notes;
+
+  const DeliveryInstructions({
+    this.instructionText = '',
+    this.leaveAtDoor = false,
+    this.gateCode = '',
+    this.landmark = '',
+    this.notes = '',
+  });
+
+  bool get isEmpty =>
+      instructionText.isEmpty &&
+      !leaveAtDoor &&
+      gateCode.isEmpty &&
+      landmark.isEmpty &&
+      notes.isEmpty;
+
+  String get legacyText {
+    if (instructionText.isNotEmpty) return instructionText;
+    final parts = <String>[];
+    if (gateCode.isNotEmpty) parts.add('Gate code: $gateCode');
+    if (landmark.isNotEmpty) parts.add('Landmark: $landmark');
+    if (leaveAtDoor) parts.add('Leave at door');
+    if (notes.isNotEmpty) parts.add(notes);
+    return parts.join(' · ');
+  }
+
+  List<String> displayLines() {
+    final lines = <String>[];
+    if (gateCode.isNotEmpty) lines.add('Gate code: $gateCode');
+    if (landmark.isNotEmpty) lines.add('Landmark: $landmark');
+    if (leaveAtDoor) lines.add('Leave at door: Yes');
+    if (notes.isNotEmpty) lines.add('Notes: $notes');
+    if (lines.isEmpty && instructionText.isNotEmpty) {
+      lines.add(instructionText);
+    }
+    return lines;
+  }
+
+  Map<String, dynamic> toMap() => {
+        'instructionText':
+            instructionText.isNotEmpty ? instructionText : legacyText,
+        'leaveAtDoor': leaveAtDoor,
+        'gateCode': gateCode,
+        'landmark': landmark,
+        'notes': notes,
+      };
+
+  factory DeliveryInstructions.fromMap(dynamic raw) {
+    if (raw is Map) {
+      final m = Map<String, dynamic>.from(raw);
+      return DeliveryInstructions(
+        instructionText: (m['instructionText'] ?? m['text'] ?? '').toString(),
+        leaveAtDoor: m['leaveAtDoor'] == true || m['leave_at_door'] == true,
+        gateCode: (m['gateCode'] ?? m['gate_code'] ?? '').toString(),
+        landmark: (m['landmark'] ?? '').toString(),
+        notes: (m['notes'] ?? '').toString(),
+      );
+    }
+    if (raw is String && raw.trim().isNotEmpty) {
+      return DeliveryInstructions(instructionText: raw.trim());
+    }
+    return const DeliveryInstructions();
+  }
+
+  DeliveryInstructions copyWith({
+    String? instructionText,
+    bool? leaveAtDoor,
+    String? gateCode,
+    String? landmark,
+    String? notes,
+  }) =>
+      DeliveryInstructions(
+        instructionText: instructionText ?? this.instructionText,
+        leaveAtDoor: leaveAtDoor ?? this.leaveAtDoor,
+        gateCode: gateCode ?? this.gateCode,
+        landmark: landmark ?? this.landmark,
+        notes: notes ?? this.notes,
+      );
 }
 
 /// Express / scheduled delivery slot.
@@ -422,20 +524,28 @@ class DeliverySlot {
     required this.isExpress,
   });
 
+  String get slotType => isExpress ? 'Express' : 'Scheduled';
+
   Map<String, dynamic> toMap() => {
-    'id': id,
-    'label': label,
-    'start': start.toUtc().toIso8601String(),
-    'end': end.toUtc().toIso8601String(),
-    'isExpress': isExpress,
-  };
+        'slotId': id,
+        'slotName': label,
+        'startTime': start.toUtc().toIso8601String(),
+        'endTime': end.toUtc().toIso8601String(),
+        'slotType': slotType,
+        'id': id,
+        'label': label,
+        'start': start.toUtc().toIso8601String(),
+        'end': end.toUtc().toIso8601String(),
+        'isExpress': isExpress,
+      };
 
   factory DeliverySlot.fromMap(Map<String, dynamic> m) => DeliverySlot(
-    id: (m['id'] ?? '').toString(),
-    label: (m['label'] ?? '').toString(),
-    start: _readTime(m['start']),
-    end: _readTime(m['end']),
-    isExpress: m['isExpress'] as bool? ?? false,
+    id: (m['slotId'] ?? m['id'] ?? '').toString(),
+    label: (m['slotName'] ?? m['label'] ?? '').toString(),
+    start: _readTime(m['startTime'] ?? m['start']),
+    end: _readTime(m['endTime'] ?? m['end']),
+    isExpress: m['isExpress'] as bool? ??
+        (m['slotType']?.toString().toLowerCase() == 'express'),
   );
 
   static DateTime _readTime(dynamic v) {
@@ -565,7 +675,7 @@ class CartState {
 class CheckoutState {
   final int selectedAddressIndex;
   final DeliverySlot? slot;
-  final String instructions;
+  final DeliveryInstructions instructions;
   final PaymentMethod paymentMethod;
   final bool isPlacingOrder;
   final String? errorMessage;
@@ -582,7 +692,7 @@ class CheckoutState {
   static const CheckoutState initial = CheckoutState(
     selectedAddressIndex: 0,
     slot: null,
-    instructions: '',
+    instructions: DeliveryInstructions(),
     paymentMethod: PaymentMethod.cod,
     isPlacingOrder: false,
     errorMessage: null,
@@ -591,7 +701,7 @@ class CheckoutState {
   CheckoutState copyWith({
     int? selectedAddressIndex,
     DeliverySlot? slot,
-    String? instructions,
+    DeliveryInstructions? instructions,
     PaymentMethod? paymentMethod,
     bool? isPlacingOrder,
     String? errorMessage,

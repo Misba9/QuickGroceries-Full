@@ -22,12 +22,27 @@ Future<void> initializeFirebaseWithRetry({
         if (kIsWeb) {
           await Firebase.initializeApp();
         } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+          // Prefer GoogleService-Info.plist in the app bundle when present.
           try {
             await Firebase.initializeApp();
+            if (kDebugMode) {
+              debugPrint(
+                '[Firebase] iOS initialized from GoogleService-Info.plist '
+                'appId=${Firebase.app().options.appId} '
+                'bundle=${Firebase.app().options.iosBundleId}',
+              );
+            }
           } catch (_) {
             await Firebase.initializeApp(
               options: DefaultFirebaseOptions.ios,
             );
+            if (kDebugMode) {
+              debugPrint(
+                '[Firebase] iOS initialized from Dart options '
+                'appId=${DefaultFirebaseOptions.ios.appId} '
+                'bundle=${DefaultFirebaseOptions.ios.iosBundleId}',
+              );
+            }
           }
         } else {
           await Firebase.initializeApp(

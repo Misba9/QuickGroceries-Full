@@ -9,7 +9,8 @@ import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
-import 'package:quickgrocery/core/widgets/app_search_bar.dart';
+import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
+import 'package:quickgrocery/view/search/screens/search_screen.dart';
 import 'package:quickgrocery/core/widgets/home_section_error_card.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
 import 'package:quickgrocery/models/banner_model.dart';
@@ -39,8 +40,6 @@ import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
 import 'package:quickgrocery/view/home/screens/no_serviceable_area_screen.dart';
-import 'package:quickgrocery/view/app_content/presentation/providers/app_content_extensions.dart';
-import 'package:quickgrocery/view/search/screens/search_screen.dart';
 
 /// Home screen — Step 5 premium iteration.
 ///
@@ -73,6 +72,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isCheckingServiceability = false;
   bool _serviceabilityReady = false;
   String? _lastCheckedPinCode;
+  String? _lastObservedAddressId;
+  String? _lastObservedPin;
 
   final ScrollController _scrollController = ScrollController();
 
@@ -106,19 +107,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     addressService.addListener(_onAddressChanged);
     Future.microtask(() async {
-      await addressService.restoreValidatedAddress();
+      await addressService.ready;
       await addressService.getAddress();
       if (!mounted) return;
-      if (addressService.hasValidatedServiceableAddress) {
-        setState(() {
-          _isServiceable = true;
-          _serviceabilityReady = true;
-          _lastCheckedPinCode = addressService.pinCode;
-        });
+
+      if (addressService.shouldBypassServiceAreaCheck) {
+        _applyServiceableState(
+          addressService,
+          serviceable: true,
+          pin: addressService.activeDeliveryPin,
+        );
         return;
       }
+
+      final pin = addressService.activeDeliveryPin;
+      if (addressService.hasSavedAddresses && pin != null && pin.isNotEmpty) {
+        await _checkServiceability(force: true);
+        return;
+      }
+
+      if (pin != null && pin.isNotEmpty) {
+        await _checkServiceability(force: true);
+        return;
+      }
+
       await addressService.getCurrentLocation(context);
-      await _checkServiceability();
+      if (!mounted) return;
+      await _checkServiceability(force: true);
+    });
+  }
+
+  void _applyServiceableState(
+    AddressService addressService, {
+    required bool serviceable,
+    String? pin,
+  }) {
+    if (!mounted) return;
+    setState(() {
+      _isServiceable = serviceable;
+      _serviceabilityReady = true;
+      _isCheckingServiceability = false;
+      _lastCheckedPinCode = pin ?? addressService.pinCode;
+      _lastObservedPin = addressService.activeDeliveryPin;
+      _lastObservedAddressId = addressService.selectedAddressId;
     });
   }
 
@@ -132,51 +163,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _onAddressChanged() {
     if (_isCheckingServiceability) return;
+
     final addressService = legacy.Provider.of<AddressService>(
       context,
       listen: false,
     );
-    if (addressService.hasValidatedServiceablePin(addressService.pinCode)) {
-      if (mounted) {
-        setState(() {
-          _isServiceable = true;
-          _serviceabilityReady = true;
-          _lastCheckedPinCode = addressService.pinCode;
-        });
-      }
+
+    if (addressService.shouldBypassServiceAreaCheck) {
+      _applyServiceableState(addressService, serviceable: true);
       return;
     }
-    _checkServiceability();
+
+    final pin = addressService.activeDeliveryPin;
+    final addressId = addressService.selectedAddressId;
+    final pinUnchanged = pin == _lastObservedPin;
+    final idUnchanged = addressId == _lastObservedAddressId;
+    if (pinUnchanged && idUnchanged) return;
+
+    _lastObservedPin = pin;
+    _lastObservedAddressId = addressId;
+
+    if (addressService.hasValidatedServiceablePin(pin)) {
+      _applyServiceableState(addressService, serviceable: true, pin: pin);
+      return;
+    }
+
+    _checkServiceability(force: true);
   }
 
-  Future<void> _checkServiceability() async {
+  Future<void> _checkServiceability({bool force = false}) async {
     if (!mounted || _isCheckingServiceability) return;
 
     final addressService = legacy.Provider.of<AddressService>(
       context,
       listen: false,
     );
-    final pinCode = addressService.pinCode;
+    final pinCode = addressService.activeDeliveryPin;
 
-    if (addressService.hasValidatedServiceablePin(pinCode)) {
-      setState(() {
-        _isServiceable = true;
-        _isCheckingServiceability = false;
-        _serviceabilityReady = true;
-        _lastCheckedPinCode = pinCode;
-      });
+    if (addressService.shouldBypassServiceAreaCheck) {
+      _applyServiceableState(addressService, serviceable: true, pin: pinCode);
       return;
     }
 
-    if (pinCode == _lastCheckedPinCode) return;
+    if (addressService.hasValidatedServiceablePin(pinCode)) {
+      _applyServiceableState(addressService, serviceable: true, pin: pinCode);
+      return;
+    }
+
+    if (!force && pinCode == _lastCheckedPinCode) return;
 
     if (pinCode == null || pinCode.isEmpty) {
-      setState(() {
-        _isServiceable = true;
-        _isCheckingServiceability = false;
-        _serviceabilityReady = true;
-        _lastCheckedPinCode = pinCode;
-      });
+      _applyServiceableState(addressService, serviceable: true, pin: pinCode);
       return;
     }
 
@@ -192,25 +229,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (!ok &&
         deliveryZoneService.lastLookupFailed &&
         addressService.hasValidatedServiceableAddress) {
-      setState(() {
-        _isServiceable = true;
-        _isCheckingServiceability = false;
-        _serviceabilityReady = true;
-        _lastCheckedPinCode = pinCode;
-      });
+      _applyServiceableState(addressService, serviceable: true, pin: pinCode);
       return;
     }
     await addressService.markAddressValidated(
       serviceable: ok,
+      addressId: addressService.selectedAddressId,
       pinCode: pinCode,
     );
     if (!mounted) return;
-    setState(() {
-      _isServiceable = ok;
-      _isCheckingServiceability = false;
-      _serviceabilityReady = true;
-      _lastCheckedPinCode = pinCode;
-    });
+    _applyServiceableState(addressService, serviceable: ok, pin: pinCode);
   }
 
   Future<void> _checkConnectivity() async {
@@ -266,7 +294,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_serviceabilityReady && _isCheckingServiceability) {
+    final addressService = legacy.Provider.of<AddressService>(context);
+    if (addressService.shouldBypassServiceAreaCheck && !_serviceabilityReady) {
+      _applyServiceableState(addressService, serviceable: true);
+    }
+
+    if (!_serviceabilityReady) {
       return const _ServiceabilityLoading();
     }
     if (!_isServiceable) return const NoServiceableAreaScreen();
@@ -299,22 +332,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 pinned: true,
                 delegate: HomeStickyDeliveryHeaderDelegate(gutter: gutter),
               ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(gutter, 6, gutter, 14),
-                  child: AppSearchBar(
-                    hints: const [
-                      'Search "milk"',
-                      'Search "bread"',
-                      'Search "snacks"',
-                      'Search "fruits"',
-                    ],
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const SearchScreen(),
-                      ),
-                    ),
+              StickySearchBar.tappableSliver(
+                gutter: gutter,
+                hints: const [
+                  'Search "milk"',
+                  'Search "bread"',
+                  'Search "snacks"',
+                  'Search "fruits"',
+                ],
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SearchScreen(),
                   ),
                 ),
               ),

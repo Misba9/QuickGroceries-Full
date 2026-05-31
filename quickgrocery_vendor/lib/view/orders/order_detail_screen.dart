@@ -4,6 +4,8 @@ import '../../models/vendor_model.dart';
 import '../../services/order_service.dart';
 import '../../style/app_color.dart';
 import '../../utils/app_spacing.dart';
+import 'package:quick_grocery_receipt/quick_grocery_receipt.dart';
+
 import 'invoice_screen.dart';
 
 class OrderDetailScreen extends StatefulWidget {
@@ -401,7 +403,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                         ),
                                       ),
                                       Text(
-                                        '₹${(product.price * product.itemCount).toStringAsFixed(2)}',
+                                        '₹${product.lineTotal.toStringAsFixed(2)}',
                                         style: TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.bold,
@@ -440,23 +442,48 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Column(
+                child: Builder(
+                  builder: (context) {
+                    final bill = _currentOrder.billTotals;
+                    bill.debugLog(tag: 'vendor-order-detail');
+                    return Column(
                   children: [
                     _SummaryRow(
                       label: 'Subtotal',
-                      value: '₹${_currentOrder.getSubtotal().toStringAsFixed(2)}',
+                      value: '₹${bill.subtotal.toStringAsFixed(2)}',
                     ),
+                    if (bill.couponDiscount > 0) ...[
+                      AppSpacing.h10,
+                      _SummaryRow(
+                        label: 'Coupon discount',
+                        value: '- ₹${bill.couponDiscount.toStringAsFixed(2)}',
+                      ),
+                    ],
                     AppSpacing.h10,
                     _SummaryRow(
-                      label: 'Delivery Charge',
-                      value: '₹${_currentOrder.deliveryCharge.toStringAsFixed(2)}',
+                      label: 'Delivery',
+                      value: '₹${bill.deliveryFee.toStringAsFixed(2)}',
                     ),
+                    if (bill.platformFee > 0) ...[
+                      AppSpacing.h10,
+                      _SummaryRow(
+                        label: 'Platform fee',
+                        value: '₹${bill.platformFee.toStringAsFixed(2)}',
+                      ),
+                    ],
+                    if (bill.tax > 0) ...[
+                      AppSpacing.h10,
+                      _SummaryRow(
+                        label: 'Tax',
+                        value: '₹${bill.tax.toStringAsFixed(2)}',
+                      ),
+                    ],
                     AppSpacing.h15,
                     Divider(color: Colors.grey[300]),
                     AppSpacing.h15,
                     _SummaryRow(
                       label: 'Total Order Amount',
-                      value: '₹${_currentOrder.getTotalAmount().toStringAsFixed(2)}',
+                      value: '₹${bill.grandTotal.toStringAsFixed(2)}',
                       isTotal: true,
                     ),
                     AppSpacing.h15,
@@ -491,6 +518,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ),
                     ),
                   ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -570,39 +599,77 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ),
             AppSpacing.h20,
 
-            // Generate Invoice Button
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => InvoiceScreen(
-                        order: _currentOrder,
-                        vendor: widget.vendor,
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => InvoiceScreen(
+                              order: _currentOrder,
+                              vendor: widget.vendor,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.receipt_long),
+                      label: const Text(
+                        'Invoice',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColor.primary,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
                       ),
                     ),
-                  );
-                },
-                icon: const Icon(Icons.receipt_long),
-                label: const Text(
-                  'Generate Invoice',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColor.primary,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => InvoiceScreen(
+                              order: _currentOrder,
+                              vendor: widget.vendor,
+                              mode: ReceiptMode.packingSlip,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.inventory_2_outlined),
+                      label: const Text(
+                        'Packing slip',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black87,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
                   ),
-                  elevation: 2,
                 ),
-              ),
+              ],
             ),
             AppSpacing.h20,
           ],

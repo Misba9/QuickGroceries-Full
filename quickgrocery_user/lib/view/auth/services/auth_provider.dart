@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +8,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:quickgrocery/core/firebase/firebase_auth_readiness.dart';
 import 'package:quickgrocery/view/auth/screens/customer_profile_add_screen.dart';
 import 'package:quickgrocery/view/auth/screens/otp_screen.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
@@ -20,6 +22,7 @@ class AuthService extends ChangeNotifier {
   String _verificationId = '';
   int? _resendToken;
   bool isLoading = false;
+  String? phoneAuthError;
   TextEditingController nameController = TextEditingController();
   TextEditingController emailController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
@@ -105,40 +108,163 @@ class AuthService extends ChangeNotifier {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  void clearPhoneAuthError() {
+    phoneAuthError = null;
+    notifyListeners();
+  }
+
+  void _setPhoneAuthError(String message) {
+    phoneAuthError = message;
+    FirebaseAuthReadiness.log('error: $message');
+    notifyListeners();
+  }
+
   Future<void> verifyPhoneNumber(BuildContext context) async {
+    if (isLoading) return;
+
+    clearPhoneAuthError();
+
+    final phoneNumber = FirebaseAuthReadiness.normalizePhoneNumber(
+      mobileController.text,
+    );
+    if (phoneNumber == null) {
+      _setPhoneAuthError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    final readinessError = await FirebaseAuthReadiness.ensurePhoneAuthReady();
+    if (readinessError != null) {
+      _setPhoneAuthError(readinessError);
+      return;
+    }
+
+    if (!context.mounted) return;
+
+    await _startPhoneVerification(
+      context: context,
+      phoneNumber: phoneNumber,
+      navigateToOtpOnCodeSent: true,
+    );
+  }
+
+  Future<void> _startPhoneVerification({
+    required BuildContext context,
+    required String phoneNumber,
+    int? forceResendingToken,
+    bool navigateToOtpOnCodeSent = false,
+  }) async {
     isLoading = true;
     notifyListeners();
-    await _auth.verifyPhoneNumber(
-      phoneNumber: "+91${mobileController.text}",
-      verificationCompleted: (PhoneAuthCredential credential) async {},
-      verificationFailed: (FirebaseAuthException e) {
-        isLoading = false;
-        notifyListeners();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Phone auth failed: ${e.code} — ${e.message ?? ""}'),
-          ),
-        );
-        log("Failed to verify phone number: ${e.code} ${e.message}");
-      },
-      codeSent: (String verificationId, int? resendToken) {
-        _verificationId = verificationId;
-        _resendToken = resendToken;
-        opController.clear();
-        log("OTP code sent to phone.");
-        isLoading = false;
-        notifyListeners();
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const OtpAuthScreen()),
-        );
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {
-        isLoading = false;
-        notifyListeners();
-        log("Auto retrieval timeout.");
-      },
+
+    FirebaseAuthReadiness.log(
+      'verifyPhoneNumber start phone=$phoneNumber resend=${forceResendingToken != null}',
     );
+
+    Timer? watchdog;
+    watchdog = Timer(const Duration(seconds: 90), () {
+      if (!isLoading) return;
+      FirebaseAuthReadiness.log('watchdog timeout — resetting loading state');
+      isLoading = false;
+      _setPhoneAuthError(
+        'Phone verification timed out. Check network and iOS Firebase setup, then try again.',
+      );
+    });
+
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        forceResendingToken: forceResendingToken,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          FirebaseAuthReadiness.log('verificationCompleted (auto)');
+          watchdog?.cancel();
+          if (!context.mounted) return;
+          try {
+            await _auth.signInWithCredential(credential);
+            FirebaseAuthReadiness.log('auto sign-in succeeded');
+          } catch (e, st) {
+            FirebaseAuthReadiness.log('auto sign-in failed: $e');
+            log('Auto phone sign-in failed', error: e, stackTrace: st);
+          } finally {
+            isLoading = false;
+            notifyListeners();
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          watchdog?.cancel();
+          isLoading = false;
+          final message = _phoneAuthErrorMessage(e);
+          _setPhoneAuthError(message);
+          log('verificationFailed: ${e.code} ${e.message}', error: e);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(message), backgroundColor: Colors.red),
+            );
+          }
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          watchdog?.cancel();
+          _verificationId = verificationId;
+          _resendToken = resendToken;
+          opController.clear();
+          isLoading = false;
+          clearPhoneAuthError();
+          FirebaseAuthReadiness.log(
+            'codeSent verificationId=${verificationId.substring(0, 8)}…',
+          );
+          notifyListeners();
+
+          if (!context.mounted) return;
+
+          if (navigateToOtpOnCodeSent) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const OtpAuthScreen()),
+            );
+          }
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _verificationId = verificationId;
+          FirebaseAuthReadiness.log('codeAutoRetrievalTimeout');
+          isLoading = false;
+          notifyListeners();
+        },
+      );
+    } catch (e, st) {
+      watchdog.cancel();
+      isLoading = false;
+      final message = e is FirebaseAuthException
+          ? _phoneAuthErrorMessage(e)
+          : 'Phone verification failed: $e';
+      _setPhoneAuthError(message);
+      log('verifyPhoneNumber threw', error: e, stackTrace: st);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  String _phoneAuthErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-phone-number':
+        return 'Invalid phone number. Use a valid 10-digit Indian mobile number.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please wait a few minutes and try again.';
+      case 'quota-exceeded':
+        return 'SMS quota exceeded. Try again later or contact support.';
+      case 'missing-client-identifier':
+      case 'app-not-authorized':
+        return Platform.isIOS
+            ? 'iOS app is not authorized for phone auth. Ensure GoogleService-Info.plist, '
+                  'REVERSED_CLIENT_ID URL scheme, and APNs key are configured in Firebase Console.'
+            : (e.message ?? 'App not authorized for phone authentication.');
+      case 'captcha-check-failed':
+        return 'Verification check failed. Check network and Firebase iOS URL schemes.';
+      default:
+        return e.message ?? 'Phone auth failed (${e.code}).';
+    }
   }
 
   /// Returns `true` if sign-in succeeded and navigation was performed.
@@ -205,38 +331,17 @@ class AuthService extends ChangeNotifier {
 
   /// Resend OTP using Firebase [forceResendingToken] when available.
   Future<void> resendOtp(BuildContext context) async {
-    if (mobileController.text.length < 10) return;
-    isLoading = true;
-    notifyListeners();
-    await _auth.verifyPhoneNumber(
-      phoneNumber: "+91${mobileController.text}",
+    if (isLoading) return;
+
+    final phoneNumber = FirebaseAuthReadiness.normalizePhoneNumber(
+      mobileController.text,
+    );
+    if (phoneNumber == null) return;
+
+    await _startPhoneVerification(
+      context: context,
+      phoneNumber: phoneNumber,
       forceResendingToken: _resendToken,
-      verificationCompleted: (PhoneAuthCredential credential) async {},
-      verificationFailed: (FirebaseAuthException e) {
-        isLoading = false;
-        notifyListeners();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Phone auth failed: ${e.code} — ${e.message ?? ""}'),
-            ),
-          );
-        }
-        log("Resend OTP failed: ${e.code} ${e.message}");
-      },
-      codeSent: (String verificationId, int? resendToken) {
-        _verificationId = verificationId;
-        _resendToken = resendToken;
-        opController.clear();
-        isLoading = false;
-        notifyListeners();
-        log("OTP resent.");
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {
-        _verificationId = verificationId;
-        isLoading = false;
-        notifyListeners();
-      },
     );
   }
 

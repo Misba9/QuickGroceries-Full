@@ -26,7 +26,7 @@ import 'package:quickgrocery/view/cart/presentation/widgets/delivery_slot_select
 import 'package:quickgrocery/view/cart/presentation/widgets/payment_method_selector.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/premium_checkout_bar.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/premium_bill_card.dart';
-import 'package:quickgrocery/view/cart/screen/success_screen.dart';
+import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
 import 'package:quickgrocery/view/checkout/widgets/address_card.dart';
 import 'package:quickgrocery/view/checkout/widgets/empty_address_widget.dart';
 import 'package:quickgrocery/core/device/device_id_service.dart';
@@ -45,13 +45,6 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   static const _calc = PricingCalculator();
-  final _instructions = TextEditingController();
-
-  @override
-  void dispose() {
-    _instructions.dispose();
-    super.dispose();
-  }
 
   BillBreakdown _bill(CartState cart, double zoneCharge) {
     final deliveryInt = zoneCharge > 0
@@ -81,6 +74,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Future<void> _placeOrder({
     required CartState cart,
     required DeliverySlot? slot,
+    required DeliveryInstructions instructions,
     required PaymentMethod paymentMethod,
     required AddressModel address,
     required String pin,
@@ -123,6 +117,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           readableAddress: readableAddress,
           coords: coords,
           slot: slot,
+          instructions: instructions,
           paymentMethod: paymentMethod,
           paymentRef: paymentRef,
         );
@@ -149,7 +144,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         checkoutNotifier.setPlacingOrder(false);
         if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const SuccessScreen()),
+          MaterialPageRoute(
+            builder: (_) => OrderTrackingScreen(
+              orderId: orderId,
+              fromCheckout: true,
+            ),
+          ),
           (_) => false,
         );
       }
@@ -225,6 +225,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     required String readableAddress,
     required LatLng coords,
     required DeliverySlot? slot,
+    required DeliveryInstructions instructions,
     required PaymentMethod paymentMethod,
     String? paymentRef,
   }) async {
@@ -239,7 +240,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             currentAddressString: readableAddress,
             currentLatLng: coords,
             slot: slot,
-            instructions: _instructions.text.trim(),
+            instructions: instructions,
             paymentMethod: paymentMethod,
             paymentRef: paymentRef,
           );
@@ -257,6 +258,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         readableAddress: readableAddress,
         coords: coords,
         slot: slot,
+        instructions: instructions,
         paymentMethod: paymentMethod,
         paymentRef: paymentRef,
       );
@@ -274,6 +276,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     required String readableAddress,
     required LatLng coords,
     required DeliverySlot? slot,
+    required DeliveryInstructions instructions,
     required PaymentMethod paymentMethod,
     String? paymentRef,
   }) async {
@@ -292,7 +295,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             currentAddressString: readableAddress,
             currentLatLng: coords,
             slot: slot,
-            instructions: _instructions.text.trim(),
+            instructions: instructions,
             paymentMethod: paymentMethod,
             paymentRef: paymentRef,
           );
@@ -441,7 +444,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             padding: const EdgeInsets.fromLTRB(14, 16, 14, 0),
                             sliver: SliverToBoxAdapter(
                               child: DeliveryInstructionsField(
-                                controller: _instructions,
+                                value: checkout.instructions,
+                                onChanged: checkoutNotifier.setInstructions,
                               ),
                             ),
                           ),
@@ -524,6 +528,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 await _placeOrder(
                   cart: cart,
                   slot: checkout.slot,
+                  instructions: checkout.instructions,
                   paymentMethod: checkout.paymentMethod,
                   address: selectedAddr,
                   pin: pin ?? '',

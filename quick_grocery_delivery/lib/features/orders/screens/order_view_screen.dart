@@ -58,9 +58,39 @@ class OrderViewScreen extends StatelessWidget {
                       Text("Address: ${selectedOrder.address}"),
                       const SizedBox(height: 5),
                       Text("Phone: ${selectedOrder.phone}"),
+                      if (selectedOrder.deliverySlotLabel.isNotEmpty) ...[
+                        const SizedBox(height: 5),
+                        Text(
+                          'Delivery slot: ${selectedOrder.deliverySlotLabel}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ],
                     ],
                   ),
                 ),
+                if (selectedOrder.deliveryInstructionLines.isNotEmpty) ...[
+                  const SizedBox(height: 15),
+                  const Text('Delivery Instructions'),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: MediaQuery.of(context).size.width,
+                    padding: const EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.amber.shade100),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: selectedOrder.deliveryInstructionLines
+                          .map((line) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(line),
+                              ))
+                          .toList(),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 15),
                 const Text('Customer Details'),
                 const SizedBox(height: 10),

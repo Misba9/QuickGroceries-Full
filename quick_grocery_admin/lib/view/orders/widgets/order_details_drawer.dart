@@ -7,7 +7,9 @@ import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/orders/screens/order_details_screen.dart';
 import 'package:quick_grocery_admin/view/orders/services/invoice_service.dart';
 import 'package:quick_grocery_admin/view/orders/services/order_service.dart';
+import 'package:quick_grocery_admin/view/orders/utils/order_bill_totals.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_contact_actions.dart';
+import 'package:quick_grocery_admin/view/orders/utils/receipt_product_format.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/order_status_badge.dart';
 
 /// Opens order details as end drawer (desktop) or full-width sheet (mobile).
@@ -131,14 +133,70 @@ class _OrderDetailsDrawerBodyState extends State<OrderDetailsDrawerBody> {
                 'Delivery address',
                 child: Text(o.address),
               ),
+              if (o.deliverySlot != null)
+                _section(
+                  'Delivery slot',
+                  child: Text(
+                    o.deliverySlotLabel,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              if (o.deliveryInstructions != null &&
+                  !o.deliveryInstructions!.isEmpty)
+                _section(
+                  'Delivery instructions',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: o.deliveryInstructions!
+                        .displayLines()
+                        .map(
+                          (line) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(line),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
               _section(
                 'Payment',
-                child: Row(
-                  children: [
-                    _kv('Method', o.isPaid ? 'Online (Paid)' : 'COD'),
-                    const SizedBox(width: 24),
-                    _kv('Total', '₹${o.getTotalAmount().toStringAsFixed(2)}'),
-                  ],
+                child: Builder(
+                  builder: (context) {
+                    final bill = o.billTotals;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            _kv('Method', o.isPaid ? 'Online (Paid)' : 'COD'),
+                            const SizedBox(width: 24),
+                            _kv(
+                              'Total',
+                              '₹${bill.grandTotal.toStringAsFixed(2)}',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        _kv('Subtotal', '₹${bill.subtotal.toStringAsFixed(2)}'),
+                        if (bill.couponDiscount > 0)
+                          _kv(
+                            'Discount',
+                            '- ₹${bill.couponDiscount.toStringAsFixed(2)}',
+                          ),
+                        _kv(
+                          'Delivery',
+                          '₹${bill.deliveryFee.toStringAsFixed(2)}',
+                        ),
+                        if (bill.platformFee > 0)
+                          _kv(
+                            'Platform fee',
+                            '₹${bill.platformFee.toStringAsFixed(2)}',
+                          ),
+                        if (bill.tax > 0)
+                          _kv('Tax', '₹${bill.tax.toStringAsFixed(2)}'),
+                      ],
+                    );
+                  },
                 ),
               ),
               _section(
@@ -163,9 +221,9 @@ class _OrderDetailsDrawerBodyState extends State<OrderDetailsDrawerBody> {
                         ),
                       ),
                       title: Text(p.name, style: const TextStyle(fontSize: 13)),
-                      subtitle: Text('×${p.itemCount} · ₹${p.price}'),
+                      subtitle: Text(productInvoiceQtyLine(p)),
                       trailing: Text(
-                        '₹${(p.price * p.itemCount).toStringAsFixed(0)}',
+                        '₹${p.lineTotal.toStringAsFixed(0)}',
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     );

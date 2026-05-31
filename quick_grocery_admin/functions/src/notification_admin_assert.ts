@@ -37,6 +37,6 @@ export async function assertNotificationAdmin(
   if (isBootstrapPanelEmail(user.email)) return;
   throw new HttpsError(
     "permission-denied",
-    "Push notifications require admin claims, an `admins` row, or bootstrap email match."
+    "Admin access required. Sign in with an admin account or deploy admin claims."
   );
 }
