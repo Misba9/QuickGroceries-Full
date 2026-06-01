@@ -4,6 +4,10 @@ import 'package:quick_grocery_delivery/features/orders/services/order_service.da
 import 'package:quick_grocery_delivery/features/orders/tabs/cancel_order.dart';
 import 'package:quick_grocery_delivery/features/orders/tabs/new_order.dart';
 import 'package:quick_grocery_delivery/features/orders/tabs/transist_screen.dart';
+import 'package:quick_grocery_delivery/core/order_lifecycle.dart';
+import 'package:quick_grocery_delivery/features/orders/screens/delivery_process_screen.dart';
+import 'package:quick_grocery_delivery/features/orders/screens/order_view_screen.dart';
+import 'package:quick_grocery_delivery/features/orders/screens/pickup_process_screen.dart';
 import 'package:quick_grocery_delivery/models/order_model.dart';
 import 'package:quick_grocery_delivery/widgets/driver_empty_state.dart';
 import 'package:provider/provider.dart';
@@ -102,7 +106,7 @@ class _AcceptedTab extends StatelessWidget {
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: orders.length,
-      itemBuilder: (_, i) => _OrderListTile(order: orders[i]),
+      itemBuilder: (_, i) => _OrderListTile(order: orders[i], acceptedTab: true),
     );
   }
 }
@@ -128,17 +132,42 @@ class _CancelledTab extends StatelessWidget {
 }
 
 class _OrderListTile extends StatelessWidget {
-  const _OrderListTile({required this.order});
+  const _OrderListTile({required this.order, this.acceptedTab = false});
+
   final OrderModel order;
+  final bool acceptedTab;
 
   @override
   Widget build(BuildContext context) {
+    final statusId = OrderLifecycle.resolveStatus({
+      'status': order.modernStatus,
+      'order_status': order.orderStatus,
+      'isCancelled': order.isCancelled,
+      'isDelivered': order.isDelivered,
+    });
+    final showPickupDetail = acceptedTab && OrderLifecycle.isPickupPhase(statusId);
+    final showDeliveryDetail = !acceptedTab &&
+        (statusId == OrderLifecycle.pickedUp ||
+            statusId == OrderLifecycle.outForDelivery);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         title: Text(order.customerName),
         subtitle: Text('${order.orderStatus} · ${order.address}'),
         trailing: Text('#${order.id.length > 6 ? order.id.substring(0, 6) : order.id}'),
+        onTap: () {
+          context.read<OrderService>().onSelectOrder(order);
+          final screen = showPickupDetail
+              ? PickupProcessScreen(order: order)
+              : showDeliveryDetail
+                  ? DeliveryProcessScreen(order: order)
+                  : const OrderViewScreen(isCompleted: false);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => screen),
+          );
+        },
       ),
     );
   }

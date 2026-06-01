@@ -24,7 +24,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBd3A_4BYlsczbs76kU30p11o4-cwkFDK8',
-    appId: '1:970937777233:android:bd216adee4a01c456e0c70',
+    appId: '1:970937777233:android:db7a0d4e8b73454f6e0c70',
     messagingSenderId: '970937777233',
     projectId: 'quikgroceries',
     storageBucket: 'quikgroceries.firebasestorage.app',

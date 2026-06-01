@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/order_lifecycle.dart';
 import '../../models/order_model.dart';
 import '../../models/vendor_model.dart';
 import '../../services/order_service.dart';
@@ -60,48 +61,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     });
 
     try {
-      // Update order status to "Order Confirm"
-      await _orderService.updateOrderStatus(_currentOrder.id, 'Order Confirm');
-      
-      // Update confirmed time
-      final now = DateTime.now().toIso8601String();
-      await _orderService.updateOrderConfirmedTime(_currentOrder.id, now);
-
-      // Update local state
-      setState(() {
-        _currentOrder = OrderModel(
-          id: _currentOrder.id,
-          products: _currentOrder.products,
-          createdDate: _currentOrder.createdDate,
-          customerName: _currentOrder.customerName,
-          phone: _currentOrder.phone,
-          address: _currentOrder.address,
-          isPaid: _currentOrder.isPaid,
-          orderStatus: 'Order Confirm',
-          deliveryBoyId: _currentOrder.deliveryBoyId,
-          isDelivered: _currentOrder.isDelivered,
-          isCancelled: _currentOrder.isCancelled,
-          deliveryType: _currentOrder.deliveryType,
-          isRated: _currentOrder.isRated,
-          rating: _currentOrder.rating,
-          confimedTime: now,
-          driverGoShopTime: _currentOrder.driverGoShopTime,
-          orderPickedTime: _currentOrder.orderPickedTime,
-          onTheWayTime: _currentOrder.onTheWayTime,
-          orderDeliveredTime: _currentOrder.orderDeliveredTime,
-          deliveryCharge: _currentOrder.deliveryCharge,
-          uuid: _currentOrder.uuid,
-          currentLocation: _currentOrder.currentLocation,
-          lat: _currentOrder.lat,
-          lng: _currentOrder.lng,
-        );
-        _isLoading = false;
-      });
+      await _orderService.acceptOrder(
+        _currentOrder.id,
+        vendorId: widget.vendor.id,
+      );
+      setState(() => _isLoading = false);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Order confirmed successfully'),
+            content: Text('Order accepted'),
             backgroundColor: Colors.green,
           ),
         );
@@ -119,6 +88,107 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         );
       }
     }
+  }
+
+  Future<void> _markPreparing() async {
+    setState(() => _isLoading = true);
+    try {
+      await _orderService.markPreparing(_currentOrder.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order marked as preparing')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _markReadyForPickup() async {
+    setState(() => _isLoading = true);
+    try {
+      await _orderService.markReadyForPickup(_currentOrder.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Order ready — dispatching rider'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _rejectOrder() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reject order?'),
+        content: const Text(
+          'The customer will be notified and the order will be cancelled.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _orderService.rejectOrder(
+        _currentOrder.id,
+        vendorId: widget.vendor.id,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order rejected')),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _resolvedStatus() {
+    return OrderLifecycle.resolveStatus({
+      'status': _currentOrder.modernStatus,
+      'order_status': _currentOrder.orderStatus,
+      'isCancelled': _currentOrder.isCancelled,
+      'isDelivered': _currentOrder.isDelivered,
+    });
   }
 
   String _formatDate(String dateString) {
@@ -153,9 +223,28 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return StreamBuilder<OrderModel?>(
+      stream: _orderService.watchOrderById(widget.order.id),
+      initialData: _currentOrder,
+      builder: (context, snap) {
+        if (snap.hasData && snap.data != null) {
+          _currentOrder = snap.data!;
+        }
+        return _buildBody(context);
+      },
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
     final vendorProducts = _currentOrder.products.where((p) => p.vendorId == widget.vendor.id).toList();
     final vendorRevenue = _orderService.getVendorRevenueFromOrder(_currentOrder, widget.vendor.id);
-    final canConfirm = _currentOrder.orderStatus.toLowerCase() == 'waiting';
+    final statusId = _resolvedStatus();
+    final canConfirm = OrderLifecycle.isPendingVendorAction(statusId);
+    final canReject = OrderLifecycle.isPendingVendorAction(statusId);
+    final canMarkPreparing = OrderLifecycle.isVendorAccepted(statusId);
+    final canMarkReady = OrderLifecycle.canMarkReady(statusId) &&
+        statusId != OrderLifecycle.readyForPickup;
+    final statusLabel = OrderLifecycle.legacyLabel(statusId);
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -197,19 +286,19 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: _getStatusColor(_currentOrder.orderStatus).withOpacity(0.1),
+                            color: _getStatusColor(statusLabel).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: _getStatusColor(_currentOrder.orderStatus),
+                              color: _getStatusColor(statusLabel),
                               width: 1,
                             ),
                           ),
                           child: Text(
-                            _currentOrder.orderStatus,
+                            statusLabel,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: _getStatusColor(_currentOrder.orderStatus),
+                              color: _getStatusColor(statusLabel),
                             ),
                           ),
                         ),
@@ -234,37 +323,114 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         ),
                       ],
                     ),
-                    if (canConfirm) ...[
+                    if (canConfirm || canReject) ...[
                       AppSpacing.h20,
+                      Row(
+                        children: [
+                          if (canConfirm)
+                            Expanded(
+                              child: SizedBox(
+                                height: 50,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isLoading ? null : _confirmOrder,
+                                  icon: _isLoading
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                          ),
+                                        )
+                                      : const Icon(Icons.check_circle_outline),
+                                  label: Text(
+                                    _isLoading ? 'Accepting...' : 'Accept Order',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (canConfirm && canReject) AppSpacing.w10,
+                          if (canReject)
+                            Expanded(
+                              child: SizedBox(
+                                height: 50,
+                                child: OutlinedButton.icon(
+                                  onPressed: _isLoading ? null : _rejectOrder,
+                                  icon: const Icon(Icons.cancel_outlined),
+                                  label: const Text(
+                                    'Reject Order',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                    side: const BorderSide(color: Colors.red),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                    if (canMarkPreparing) ...[
+                      AppSpacing.h15,
                       SizedBox(
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : _confirmOrder,
-                          icon: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const Icon(Icons.check_circle_outline),
-                          label: Text(
-                            _isLoading ? 'Confirming...' : 'Confirm Order',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          onPressed: _isLoading ? null : _markPreparing,
+                          icon: const Icon(Icons.inventory_2_outlined),
+                          label: const Text(
+                            'Start Preparing',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
+                            backgroundColor: Colors.indigo,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            elevation: 2,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (canMarkReady) ...[
+                      AppSpacing.h15,
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _markReadyForPickup,
+                          icon: const Icon(Icons.check_box_outlined),
+                          label: const Text(
+                            'Mark Ready for Pickup',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ),

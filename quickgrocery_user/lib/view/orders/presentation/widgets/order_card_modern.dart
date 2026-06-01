@@ -118,8 +118,16 @@ class _StatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final (Color bg, Color fg) = switch (status) {
       OrderStatus.pending => (Colors.amber.shade50, Colors.amber.shade900),
+      OrderStatus.vendorAccepted => (Colors.blue.shade50, Colors.blue.shade800),
+      OrderStatus.vendorRejected => (Colors.red.shade50, Colors.red.shade800),
       OrderStatus.accepted => (Colors.blue.shade50, Colors.blue.shade800),
       OrderStatus.packing => (Colors.indigo.shade50, Colors.indigo.shade800),
+      OrderStatus.readyForPickup => (Colors.teal.shade50, Colors.teal.shade800),
+      OrderStatus.riderAssigned => (Colors.purple.shade50, Colors.purple.shade800),
+      OrderStatus.riderAccepted => (Colors.deepPurple.shade50, Colors.deepPurple.shade800),
+      OrderStatus.reachedStore => (Colors.deepPurple.shade50, Colors.deepPurple.shade800),
+      OrderStatus.headingToStore => (Colors.deepPurple.shade50, Colors.deepPurple.shade800),
+      OrderStatus.pickedUp => (Colors.orange.shade50, Colors.orange.shade900),
       OrderStatus.outForDelivery => (
           AppColor.primary.withOpacity(0.18),
           Colors.brown.shade800

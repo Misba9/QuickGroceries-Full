@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:quick_grocery_admin/core/theme/app_text_styles.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
+import 'package:quick_grocery_admin/core/realtime/admin_live_sync.dart';
 import 'package:quick_grocery_admin/view/home/services/dash_board_services.dart';
 import 'package:quick_grocery_admin/view/operations/services/ops_dashboard_service.dart';
 import 'package:quick_grocery_admin/view/operations/widgets/admin_notification_bell.dart';
@@ -20,16 +21,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  @override
-  void initState() {
-    super.initState();
-    final d = Provider.of<DashBoardServices>(context, listen: false);
-    d.getCustomers();
-    d.getVendors();
-    d.getOrders();
-    d.getProducts();
-  }
-
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<DashBoardServices>();
@@ -80,8 +71,15 @@ class _DashboardHeader extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'Customer, vendor, and product counts (refreshed on load).',
+          'Customer, vendor, and product counts update live from Firestore.',
           style: AppTextStyles.dashboardSubtitle,
+        ),
+        const SizedBox(height: 12),
+        Consumer<DashBoardServices>(
+          builder: (context, dash, _) => AdminLiveSyncBar(
+            state: dash.dashboardSyncState,
+            label: 'Dashboard',
+          ),
         ),
       ],
     );
@@ -122,6 +120,26 @@ class _DashboardStatsGrid extends StatelessWidget {
           title: 'Total Products',
           value: provider.products?.length.toString(),
           loading: provider.products == null,
+        ),
+        _DashboardStatCard(
+          title: 'Active Products',
+          value: provider.productMetrics.active.toString(),
+          loading: provider.products == null,
+        ),
+        _DashboardStatCard(
+          title: 'Out of Stock',
+          value: provider.productMetrics.outOfStock.toString(),
+          loading: provider.products == null,
+        ),
+        _DashboardStatCard(
+          title: 'Low Stock (≤5)',
+          value: provider.productMetrics.lowStock.toString(),
+          loading: provider.products == null,
+        ),
+        _DashboardStatCard(
+          title: 'Categories',
+          value: provider.categoriesCount.toString(),
+          loading: provider.products == null && provider.categoriesCount == 0,
         ),
         _DashboardStatCard(
           title: 'Revenue today (live)',

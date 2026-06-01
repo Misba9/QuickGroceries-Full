@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
 import 'package:quickgrocery/core/firebase/firebase_options.dart';
 
 /// Initializes Firebase with bounded retries (transient startup / network).
@@ -45,11 +46,29 @@ Future<void> initializeFirebaseWithRetry({
             }
           }
         } else {
-          await Firebase.initializeApp(
-            options: DefaultFirebaseOptions.android,
-          );
+          // Prefer native google-services.json; fall back to Dart options.
+          try {
+            await Firebase.initializeApp();
+            if (kDebugMode) {
+              debugPrint(
+                '[Firebase] Android initialized from google-services.json '
+                'appId=${Firebase.app().options.appId}',
+              );
+            }
+          } catch (_) {
+            await Firebase.initializeApp(
+              options: DefaultFirebaseOptions.android,
+            );
+            if (kDebugMode) {
+              debugPrint(
+                '[Firebase] Android initialized from Dart options '
+                'appId=${DefaultFirebaseOptions.android.appId}',
+              );
+            }
+          }
         }
       }
+      await FirebaseConfigAudit.logConfiguration();
       return;
     } catch (e, st) {
       lastError = e;

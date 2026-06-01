@@ -155,6 +155,7 @@ class CategoryService extends ChangeNotifier {
                 doc.id,
               ),
             )
+            .where((p) => p.isAvailable)
             .toList();
 
         filteredProducts = _products;
@@ -379,6 +380,7 @@ class CategoryService extends ChangeNotifier {
               doc.id,
             ),
           )
+          .where((p) => p.isAvailable)
           .toList();
 
       filteredProducts = _products;

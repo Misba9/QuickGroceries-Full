@@ -23,18 +23,31 @@ class EtaCalculator {
     switch (order.status) {
       case OrderStatus.pending:
         return const Duration(minutes: 18);
+      case OrderStatus.vendorAccepted:
       case OrderStatus.accepted:
         return const Duration(minutes: 15);
       case OrderStatus.packing:
         return const Duration(minutes: 12);
+      case OrderStatus.readyForPickup:
+        return const Duration(minutes: 10);
+      case OrderStatus.riderAssigned:
+        return const Duration(minutes: 10);
+      case OrderStatus.riderAccepted:
+      case OrderStatus.reachedStore:
+      case OrderStatus.headingToStore:
+        return const Duration(minutes: 9);
+      case OrderStatus.pickedUp:
       case OrderStatus.outForDelivery:
         if (rider?.position == null) {
-          return const Duration(minutes: 8);
+          return Duration(
+            minutes: order.status == OrderStatus.pickedUp ? 7 : 8,
+          );
         }
         final km = _haversineKm(rider!.position!, order.dropLatLng);
         final hours = km / cityKmh;
         final secs = (hours * 3600).round() + warmupSeconds;
         return Duration(seconds: secs.clamp(60, 60 * 30));
+      case OrderStatus.vendorRejected:
       case OrderStatus.delivered:
       case OrderStatus.cancelled:
         return Duration.zero;

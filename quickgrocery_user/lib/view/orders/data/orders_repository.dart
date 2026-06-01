@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../domain/order_models.dart';
+import '../services/order_cancel_api.dart';
 
 /// Realtime read access to the user's orders + single-order updates.
 ///
@@ -44,17 +45,9 @@ class OrdersRepository {
     });
   }
 
-  /// Cancels the order on the user's side. We mirror both the legacy flag
-  /// (`isCancelled = true`) and the modern `status` field so admin/delivery
-  /// apps reading either field stay in sync.
+  /// Cancels before pickup — server validates timing and notifies all parties.
   Future<void> cancelOrder(String orderId, {String? reason}) async {
-    await _firestore.collection('orders').doc(orderId).update({
-      'isCancelled': true,
-      'status': OrderStatus.cancelled.id,
-      'cancelReason': reason ?? '',
-      'cancelledBy': 'customer',
-      'cancelledAt': FieldValue.serverTimestamp(),
-    });
+    await OrderCancelApi().cancelByCustomer(orderId: orderId, reason: reason);
   }
 
   /// Convenience: fetch one order once (used by reorder flow).

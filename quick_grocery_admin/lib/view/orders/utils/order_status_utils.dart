@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_admin/core/order_lifecycle.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
 
 enum OrderDisplayStatus {
@@ -36,47 +37,51 @@ class OrderStatusUtils {
   OrderStatusUtils._();
 
   static OrderDisplayStatus resolve(OrderModel order) {
+    final status = OrderLifecycle.resolveFromOrder(
+      isCancelled: order.isCancelled,
+      isDelivered: order.isDelivered,
+      modernStatus: order.modernStatus,
+      legacyStatus: order.orderStatus,
+    );
     final s = order.orderStatus.toLowerCase().trim();
 
-    if (order.isCancelled) {
+    if (order.isCancelled || status == OrderLifecycle.cancelled) {
       if (s.contains('refund') || s.contains('dispute')) {
         return OrderDisplayStatus.refund;
       }
       return OrderDisplayStatus.cancelled;
     }
-    if (order.isDelivered || s.contains('deliver')) {
+    if (order.isDelivered || status == OrderLifecycle.delivered) {
       return OrderDisplayStatus.delivered;
     }
-    if (s.contains('near') || s.contains('arriv')) {
-      return OrderDisplayStatus.nearCustomer;
+    switch (status) {
+      case OrderLifecycle.pending:
+        return OrderDisplayStatus.pending;
+      case OrderLifecycle.vendorAccepted:
+      case OrderLifecycle.accepted:
+        return OrderDisplayStatus.accepted;
+      case OrderLifecycle.vendorRejected:
+        return OrderDisplayStatus.cancelled;
+      case OrderLifecycle.packing:
+        return OrderDisplayStatus.packing;
+      case OrderLifecycle.readyForPickup:
+        return OrderDisplayStatus.waiting;
+      case OrderLifecycle.riderAssigned:
+        return OrderDisplayStatus.assigned;
+      case OrderLifecycle.riderAccepted:
+        return OrderDisplayStatus.outForDelivery;
+      case OrderLifecycle.reachedStore:
+        return OrderDisplayStatus.pickedUp;
+      case OrderLifecycle.headingToStore:
+        return OrderDisplayStatus.outForDelivery;
+      case OrderLifecycle.pickedUp:
+        return OrderDisplayStatus.pickedUp;
+      case OrderLifecycle.outForDelivery:
+        return OrderDisplayStatus.outForDelivery;
+      default:
+        if (order.deliveryBoyId.isNotEmpty) return OrderDisplayStatus.assigned;
+        return OrderDisplayStatus.pending;
     }
-    if (s.contains('picked') || s.contains('pickup')) {
-      return OrderDisplayStatus.pickedUp;
-    }
-    if (order.deliveryBoyId.isNotEmpty ||
-        s.contains('assigned') ||
-        s.contains('rider')) {
-      return OrderDisplayStatus.assigned;
-    }
-    if (s.contains('accept')) {
-      return OrderDisplayStatus.accepted;
-    }
-    if (s.contains('wait') || s.contains('confirm')) {
-      return OrderDisplayStatus.waiting;
-    }
-    if (s.contains('pack') || s.contains('ready')) {
-      return OrderDisplayStatus.packing;
-    }
-    if (s.contains('out') || s.contains('way')) {
-      return OrderDisplayStatus.outForDelivery;
-    }
-    if (s.contains('new') || s.isEmpty) {
-      return OrderDisplayStatus.newOrder;
-    }
-    if (s.contains('pending')) {
-      return OrderDisplayStatus.pending;
-    }
-    return OrderDisplayStatus.pending;
   }
 
   static OrderStatusStyle styleFor(OrderDisplayStatus status) {

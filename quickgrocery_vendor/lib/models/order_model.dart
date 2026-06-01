@@ -164,8 +164,10 @@ class OrderModel {
     };
   }
 
+  // Helper method to calculate total order amount
   double getTotalAmount() => billTotals.grandTotal;
 
+  // Helper method to get subtotal (without delivery charge)
   double getSubtotal() => billTotals.subtotal;
 }
 

@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:quick_grocery_delivery/models/delivery_boy_profile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+enum DriverAvailability { online, offline, paused }
+
 class DriverProfileService extends ChangeNotifier {
   DriverProfileService({FirebaseFirestore? db}) : _db = db ?? FirebaseFirestore.instance;
 
@@ -57,23 +59,35 @@ class DriverProfileService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setOnlineStatus(bool online) async {
+  Future<void> setAvailability(DriverAvailability availability) async {
     final id = await _riderId();
     if (id.isEmpty) return;
+    final isOnline = availability == DriverAvailability.online;
+    final paused = availability == DriverAvailability.paused;
     await _db.collection('delivery_boys').doc(id).set({
-      'isOnline': online,
-      'online_status': online,
+      'availability_status': availability.name,
+      'isOnline': isOnline,
+      'online_status': isOnline,
+      'pause_deliveries': paused,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
 
+  Future<void> setOnlineStatus(bool online) async {
+    await setAvailability(
+      online ? DriverAvailability.online : DriverAvailability.offline,
+    );
+  }
+
   Future<void> setPauseDeliveries(bool pause) async {
-    final id = await _riderId();
-    if (id.isEmpty) return;
-    await _db.collection('delivery_boys').doc(id).set({
-      'pause_deliveries': pause,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    if (pause) {
+      await setAvailability(DriverAvailability.paused);
+    } else {
+      final current = profile?.availability ?? DriverAvailability.offline;
+      if (current == DriverAvailability.paused) {
+        await setAvailability(DriverAvailability.online);
+      }
+    }
   }
 
   Future<void> updateProfile(DeliveryBoyProfile p) async {

@@ -1,5 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_delivery/core/delivery_push_initializer.dart';
+import 'package:quick_grocery_delivery/features/notifications/delivery_notification_center_screen.dart';
 import 'package:quick_grocery_delivery/constants/app_spacing.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/features/account/account_screen.dart';
@@ -9,6 +11,7 @@ import 'package:quick_grocery_delivery/features/orders/services/order_service.da
 import 'package:quick_grocery_delivery/features/wallet/wallet_screen.dart';
 import 'package:quick_grocery_delivery/features/login/login_screen.dart';
 import 'package:quick_grocery_delivery/features/login/services/login_service.dart';
+import 'package:quick_grocery_delivery/services/driver_location_host.dart';
 import 'package:quick_grocery_delivery/support/support_contact_sheet.dart';
 import 'package:provider/provider.dart';
 
@@ -32,23 +35,68 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    FirebaseMessaging.onMessage.listen((message) {
-      final notification = message.notification;
-      if (notification != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${notification.title}: ${notification.body}')),
-        );
-      }
+    DeliveryPushInitializer.onAssignmentPush = _onAssignmentPush;
+    DeliveryPushInitializer.onCancellationPush = _onCancellationPush;
+
+    FirebaseMessaging.onMessage.listen((message) async {
+      await DeliveryPushInitializer.handleForegroundMessage(message);
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      final notification = message.notification;
-      if (notification != null && mounted) {
-        setState(() => _selectIndex = 1);
-      }
+      final data = Map<String, dynamic>.from(message.data);
+      DeliveryPushInitializer.onCancellationPush?.call(data);
+      DeliveryPushInitializer.onAssignmentPush?.call(data);
     });
 
-    Provider.of<OrderService>(context, listen: false).getDeliveryBoy();
+    FirebaseMessaging.instance.getInitialMessage().then((message) {
+      if (message == null || !mounted) return;
+      final data = Map<String, dynamic>.from(message.data);
+      _onCancellationPush(data);
+      _onAssignmentPush(data);
+    });
+
+    final orders = Provider.of<OrderService>(context, listen: false);
+    orders.getDeliveryBoy().then((_) => orders.startRealtimeOrders());
+  }
+
+  void _onCancellationPush(Map<String, dynamic> data) {
+    if (!mounted) return;
+    final orderId = data['orderId']?.toString() ?? '';
+    ScaffoldMessenger.of(context).showMaterialBanner(
+      MaterialBanner(
+        backgroundColor: Colors.red.shade50,
+        leading: const Icon(Icons.cancel, color: Colors.red),
+        content: Text(
+          orderId.isNotEmpty
+              ? '❌ Delivery Cancelled\nOrder #${orderId.substring(0, 8)} was cancelled.'
+              : '❌ Delivery Cancelled',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                ScaffoldMessenger.of(context).hideCurrentMaterialBanner(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    context.read<OrderService>().startRealtimeOrders();
+  }
+
+  void _onAssignmentPush(Map<String, dynamic> data) {
+    if (!mounted) return;
+    final type = data['type']?.toString() ?? '';
+    if (type == 'delivery_assigned' || type == 'driver_assigned') {
+      setState(() => _selectIndex = 1);
+      context.read<OrderService>().startRealtimeOrders();
+    }
+  }
+
+  @override
+  void dispose() {
+    DeliveryPushInitializer.onAssignmentPush = null;
+    DeliveryPushInitializer.onCancellationPush = null;
+    super.dispose();
   }
 
   @override
@@ -136,21 +184,31 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: GlobalVariables.background,
-      body: _pages[_selectIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectIndex,
-        onDestinationSelected: (i) => setState(() => _selectIndex = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.delivery_dining_outlined), label: 'Orders'),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            label: 'Wallet',
-          ),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Account'),
-        ],
+    return DriverLocationHost(
+      child: Scaffold(
+        backgroundColor: GlobalVariables.background,
+        body: _pages[_selectIndex],
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _selectIndex,
+          onDestinationSelected: (i) => setState(() => _selectIndex = i),
+          destinations: [
+            const NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'Home'),
+            NavigationDestination(
+              icon: provider.pendingAssignmentCount > 0
+                  ? Badge(
+                      label: Text('${provider.pendingAssignmentCount}'),
+                      child: const Icon(Icons.delivery_dining_outlined),
+                    )
+                  : const Icon(Icons.delivery_dining_outlined),
+              label: 'Orders',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.account_balance_wallet_outlined),
+              label: 'Wallet',
+            ),
+            const NavigationDestination(icon: Icon(Icons.person_outline), label: 'Account'),
+          ],
+        ),
       ),
     );
   }

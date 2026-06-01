@@ -121,6 +121,7 @@ flutter:
     - assets/icons/
     - assets/lottie/
     - assets/translations/
+    - android/app/google-services.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -105,7 +105,11 @@ abstract final class OpsFirestoreHelpers {
   }
 
   static String riderId(Map<String, dynamic> d) =>
-      (d['deliveryBoyId'] ?? d['delivery_boy_id'] ?? '').toString();
+      (d['deliveryBoyId'] ??
+              d['delivery_boy_id'] ??
+              d['assignedDeliveryBoyId'] ??
+              '')
+          .toString();
 
   static DateTime? createdAt(Map<String, dynamic> d) =>
       parseDate(d['createdAt'] ?? d['created_date']);

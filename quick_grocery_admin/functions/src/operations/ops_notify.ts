@@ -37,6 +37,7 @@ export type OpsNotificationType =
   | "delivery_assigned"
   | "delivery_completed"
   | "driver_assigned"
+  | "driver_accepted"
   | "driver_rejected"
   | "driver_offline"
   | "delivery_delayed"
@@ -219,6 +220,79 @@ export async function writeUserInbox(
     });
 }
 
+/** Global notification feed for cross-app audit + admin realtime listener. */
+export async function writeGlobalNotification(opts: {
+  type: string;
+  orderId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  vendorId?: string;
+  deliveryBoyId?: string;
+  cancelledBy?: string;
+  title: string;
+  body: string;
+  sender?: string;
+  receiver?: string;
+  amount?: number;
+  metadata?: Record<string, unknown>;
+}): Promise<string> {
+  const ref = await db.collection("global_notifications").add({
+    type: opts.type,
+    orderId: str(opts.orderId),
+    customerName: str(opts.customerName),
+    customerPhone: str(opts.customerPhone),
+    vendorId: str(opts.vendorId),
+    deliveryBoyId: str(opts.deliveryBoyId),
+    cancelledBy: str(opts.cancelledBy),
+    title: opts.title,
+    body: opts.body,
+    message: opts.body,
+    sender: str(opts.sender || "system"),
+    receiver: str(opts.receiver || "all"),
+    amount: num(opts.amount),
+    metadata: opts.metadata || {},
+    read: false,
+    timestamp: FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  return ref.id;
+}
+
+/** Audit trail for every push/in-app notification. */
+export async function writeNotificationLog(opts: {
+  type: string;
+  sender: string;
+  receiver: string;
+  orderId?: string;
+  title?: string;
+  body?: string;
+  channel?: string;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  await db.collection("notification_logs").add({
+    type: opts.type,
+    sender: opts.sender,
+    receiver: opts.receiver,
+    orderId: str(opts.orderId),
+    title: str(opts.title),
+    body: str(opts.body),
+    channel: str(opts.channel || "fcm"),
+    metadata: opts.metadata || {},
+    timestamp: FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+  });
+}
+
+function androidNotificationConfig(soundType?: string): {
+  channelId: string;
+  sound: string;
+} {
+  if (soundType === "delivery") {
+    return { channelId: "delivery_assignments", sound: "delivery_alert" };
+  }
+  return { channelId: "vendor_orders", sound: "new_order" };
+}
+
 export async function sendPushToToken(opts: {
   token: string;
   title: string;
@@ -226,9 +300,10 @@ export async function sendPushToToken(opts: {
   soundType?: string;
   deepLink?: string;
   redirectType?: string;
+  data?: Record<string, string>;
 }): Promise<string | null> {
   if (!opts.token) return null;
-  const data = buildDataPayload({
+  const data = opts.data ?? buildDataPayload({
     title: opts.title,
     message: opts.body,
     deepLink: opts.deepLink || "",
@@ -236,11 +311,29 @@ export async function sendPushToToken(opts: {
     soundType: opts.soundType || "orders",
   });
   try {
-    return await admin.messaging().send({
+    const android = androidNotificationConfig(opts.soundType);
+    const id = await admin.messaging().send({
       token: opts.token,
       notification: { title: opts.title, body: opts.body },
       data,
+      android: {
+        priority: "high",
+        notification: {
+          channelId: android.channelId,
+          sound: android.sound,
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: "new_order.mp3",
+            badge: 1,
+          },
+        },
+      },
     });
+    console.log(`[ops] FCM sent token messageId=${id}`);
+    return id;
   } catch (e) {
     console.warn("[ops] FCM token send failed:", e);
     return null;
@@ -254,8 +347,9 @@ export async function sendPushToTopic(opts: {
   soundType?: string;
   deepLink?: string;
   redirectType?: string;
+  data?: Record<string, string>;
 }): Promise<string | null> {
-  const data = buildDataPayload({
+  const data = opts.data ?? buildDataPayload({
     title: opts.title,
     message: opts.body,
     deepLink: opts.deepLink || "",
@@ -263,11 +357,29 @@ export async function sendPushToTopic(opts: {
     soundType: opts.soundType || "orders",
   });
   try {
-    return await admin.messaging().send({
+    const android = androidNotificationConfig(opts.soundType);
+    const id = await admin.messaging().send({
       topic: opts.topic,
       notification: { title: opts.title, body: opts.body },
       data,
+      android: {
+        priority: "high",
+        notification: {
+          channelId: android.channelId,
+          sound: android.sound,
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: "new_order.mp3",
+            badge: 1,
+          },
+        },
+      },
     });
+    console.log(`[ops] FCM sent topic=${opts.topic} messageId=${id}`);
+    return id;
   } catch (e) {
     console.warn("[ops] FCM topic send failed:", e);
     return null;
@@ -290,6 +402,15 @@ export async function notifyAdmins(opts: {
     category: opts.category,
     metadata: opts.metadata,
     soundAlert: opts.soundAlert,
+  });
+  await writeNotificationLog({
+    type: opts.type,
+    sender: "cloud_function",
+    receiver: "admin",
+    orderId: str(opts.metadata?.orderId),
+    title: opts.title,
+    body: opts.message,
+    channel: "firestore+activity",
   });
   await writeActivityLog({
     action: opts.type,
@@ -342,6 +463,7 @@ export async function getOpsSettings(): Promise<Record<string, unknown>> {
     abandonedCartDelayHours: num(d.abandonedCartDelayHours) || 24,
     abandonedCartEnabled: d.abandonedCartEnabled !== false,
     autoAssignDriver: d.autoAssignDriver !== false,
+    assignRadiusKm: num(d.assignRadiusKm) || 8,
     adminSoundEnabled: d.adminSoundEnabled !== false,
   };
 }
@@ -365,46 +487,194 @@ export async function notifyVendor(
     metadata?: Record<string, unknown>;
   }
 ): Promise<void> {
+  const meta = opts.metadata || {};
+  const orderId = str(meta.orderId);
+  const customerName = str(meta.customerName);
+  const amount = num(meta.amount);
+  const title = opts.title;
+  const body = opts.message;
+
+  await db.collection("vendors").doc(vendorId).collection("notifications").add({
+    title,
+    body,
+    type: opts.type,
+    orderId,
+    customerName,
+    amount,
+    read: false,
+    source: "cloud_function",
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  const data = buildDataPayload({
+    type: opts.type,
+    orderId,
+    customerName,
+    amount: String(amount),
+    title,
+    message: body,
+    deepLink: orderId ? `/orders/${orderId}` : "",
+    redirectType: "order",
+    soundType: "orders",
+  });
+
   const topic = vendorTopic(vendorId);
   await sendPushToTopic({
     topic,
-    title: opts.title,
-    body: opts.message,
+    title,
+    body,
     soundType: "orders",
+    data,
   });
+
+  const tokens = new Set<string>();
+  const tokenDocs = await db
+    .collection("vendors")
+    .doc(vendorId)
+    .collection("deviceTokens")
+    .get();
+  for (const doc of tokenDocs.docs) {
+    const t = str(doc.data()?.token);
+    if (t) tokens.add(t);
+  }
+
   const v = await db.collection("vendors").doc(vendorId).get();
-  const token = str(v.data()?.fcmToken || v.data()?.fcm_token);
-  if (token) {
+  const legacy = str(v.data()?.fcmToken || v.data()?.fcm_token);
+  if (legacy) tokens.add(legacy);
+
+  for (const token of tokens) {
     await sendPushToToken({
       token,
-      title: opts.title,
-      body: opts.message,
+      title,
+      body,
       soundType: "orders",
+      data,
     });
   }
+
+  await writeNotificationLog({
+    type: opts.type,
+    sender: "cloud_function",
+    receiver: `vendor:${vendorId}`,
+    orderId,
+    title,
+    body,
+    channel: "fcm+firestore",
+  });
 }
 
 export async function notifyDeliveryRider(
   riderId: string,
-  opts: { title: string; message: string; metadata?: Record<string, unknown> }
+  opts: {
+    title: string;
+    message: string;
+    type?: string;
+    metadata?: Record<string, unknown>;
+  }
 ): Promise<void> {
+  const orderId = str(opts.metadata?.orderId);
+  const notifType = str(opts.type || "delivery_assigned");
+  const title = opts.title;
+  const body = opts.message;
+
+  await db.collection("delivery_boys").doc(riderId).collection("notifications").add({
+    title,
+    body,
+    type: notifType,
+    orderId,
+    read: false,
+    source: "cloud_function",
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  const data = buildDataPayload({
+    type: notifType,
+    orderId,
+    title,
+    message: body,
+    redirectType: "delivery_app",
+    soundType: notifType === "order_cancelled" ? "orders" : "delivery",
+  });
   const topic = deliveryTopic(riderId);
   await sendPushToTopic({
     topic,
-    title: opts.title,
-    body: opts.message,
-    soundType: "delivery",
+    title,
+    body,
+    soundType: notifType === "order_cancelled" ? "orders" : "delivery",
+    data,
   });
   const r = await db.collection("delivery_boys").doc(riderId).get();
   const token = str(r.data()?.fcmToken || r.data()?.fcm_token);
   if (token) {
     await sendPushToToken({
       token,
-      title: opts.title,
-      body: opts.message,
-      soundType: "delivery",
+      title,
+      body,
+      soundType: notifType === "order_cancelled" ? "orders" : "delivery",
+      data,
     });
   }
+
+  await writeNotificationLog({
+    type: notifType,
+    sender: "cloud_function",
+    receiver: `rider:${riderId}`,
+    orderId,
+    title,
+    body,
+    channel: "fcm+firestore",
+  });
+}
+
+/** Push + inbox for end customers (`customers/{uid}`). */
+export async function notifyCustomer(
+  uid: string,
+  opts: {
+    title: string;
+    body: string;
+    type?: string;
+    deepLink?: string;
+    orderId?: string;
+    extraData?: Record<string, string>;
+  }
+): Promise<void> {
+  if (!uid) return;
+
+  await writeUserInbox(uid, {
+    title: opts.title,
+    body: opts.body,
+    type: opts.type || "order",
+    targetId: opts.orderId || "",
+    deepLink: opts.deepLink || "",
+  });
+
+  const cust = await db.collection("customers").doc(uid).get();
+  const token = str(cust.data()?.fcmToken || cust.data()?.fcm_token);
+  if (token) {
+    await sendPushToToken({
+      token,
+      title: opts.title,
+      body: opts.body,
+      soundType: "delivery",
+      deepLink: opts.deepLink || "",
+      redirectType: "order",
+      data: {
+        type: opts.type || "order",
+        orderId: opts.orderId || "",
+        ...(opts.extraData || {}),
+      },
+    });
+  }
+
+  await writeNotificationLog({
+    type: opts.type || "order",
+    sender: "cloud_function",
+    receiver: `customer:${uid}`,
+    orderId: opts.orderId,
+    title: opts.title,
+    body: opts.body,
+    channel: "fcm+inbox",
+  });
 }
 
 export async function appendDeliveryTracking(

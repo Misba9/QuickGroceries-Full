@@ -53,10 +53,11 @@ final orderByIdStreamProvider =
   return ref.watch(ordersRepositoryProvider).watchOrder(orderId);
 });
 
-/// Live rider location keyed by deliveryBoyId.
+/// Live rider location keyed by deliveryBoyId + optional order scope.
 final riderLocationStreamProvider =
-    StreamProvider.autoDispose.family<RiderLocation?, String>((ref, id) {
-  return ref.watch(riderLocationRepositoryProvider).watch(id);
+    StreamProvider.autoDispose.family<RiderLocation?, (String, String?)>((ref, key) {
+  final (riderId, orderId) = key;
+  return ref.watch(riderLocationRepositoryProvider).watch(riderId, orderId: orderId);
 });
 
 /// Per-order ETA. Rebuilt when either the order or the rider position emits.
@@ -69,7 +70,7 @@ final etaProvider =
   if (order == null) return Duration.zero;
 
   final riderAsync = order.hasRider
-      ? ref.watch(riderLocationStreamProvider(order.deliveryBoyId))
+      ? ref.watch(riderLocationStreamProvider((order.deliveryBoyId, order.id)))
       : const AsyncValue<RiderLocation?>.data(null);
 
   return ref

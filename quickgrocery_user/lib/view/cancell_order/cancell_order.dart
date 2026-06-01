@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:quickgrocery/database/cancel_resons.dart';
 import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
 import 'package:quickgrocery/view/cancell_order/cancel_succes_screen.dart';
-import 'package:quickgrocery/view/orders/services/order_service.dart';
-import 'package:provider/provider.dart';
+import 'package:quickgrocery/view/orders/services/order_cancel_api.dart';
 
 class CancelOrder extends StatefulWidget {
   const CancelOrder({super.key, required this.id});
@@ -16,10 +15,50 @@ class CancelOrder extends StatefulWidget {
 
 class _CancelOrderState extends State<CancelOrder> {
   int _selectedIndex = 0;
+  final _otherReasonController = TextEditingController();
+  final _cancelApi = OrderCancelApi();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _otherReasonController.dispose();
+    super.dispose();
+  }
+
+  String get _reason {
+    if (_selectedIndex == cancelSnap.length - 1) {
+      return _otherReasonController.text.trim();
+    }
+    return cancelSnap[_selectedIndex]['resone']?.toString() ?? '';
+  }
+
+  Future<void> _submit() async {
+    if (_submitting) return;
+    setState(() => _submitting = true);
+    try {
+      await _cancelApi.cancelByCustomer(
+        orderId: widget.id,
+        reason: _reason.isEmpty ? null : _reason,
+      );
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const CancellSuccesScreen(),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<OrderService>(context);
-
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -31,6 +70,7 @@ class _CancelOrderState extends State<CancelOrder> {
                 const SizedBox(height: 16),
                 ListView.builder(
                   shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   itemCount: cancelSnap.length,
                   itemBuilder: (context, i) {
                     return FadeInDown(
@@ -60,6 +100,7 @@ class _CancelOrderState extends State<CancelOrder> {
                     color: const Color(0xFFEFEFF0),
                   ),
                   child: TextFormField(
+                    controller: _otherReasonController,
                     decoration: const InputDecoration(
                       border: InputBorder.none,
                       hintText: 'Others reason...',
@@ -74,16 +115,8 @@ class _CancelOrderState extends State<CancelOrder> {
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(15.0),
         child: PrimaryButton(
-          label: 'Submit',
-          onTap: () {
-            provider.cancellOrder(context, widget.id);
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const CancellSuccesScreen(),
-              ),
-            );
-          },
+          label: _submitting ? 'Cancelling...' : 'Submit',
+          onTap: _submitting ? null : _submit,
         ),
       ),
     );

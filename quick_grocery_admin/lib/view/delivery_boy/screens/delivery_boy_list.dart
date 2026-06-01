@@ -1,7 +1,10 @@
+import 'package:quick_grocery_admin/core/realtime/admin_live_sync.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/services/delivery_boy_service.dart';
+import 'package:quick_grocery_admin/view/delivery_boy/widgets/active_riders_live_map.dart';
+import 'package:quick_grocery_admin/view/delivery_boy/widgets/delivery_boy_orders_sheet.dart';
 import 'package:quick_grocery_admin/view/partner_security/partner_security_sheet.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +37,15 @@ class _DeliveryBoysScreenState extends State<DeliveryBoysScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Consumer<DeliveryBoyService>(
+                    builder: (context, svc, _) => AdminLiveSyncBar(
+                      state: svc.deliverySyncState,
+                      label: 'Delivery team',
+                    ),
+                  ),
+                  AppSpacing.h10,
+                  const ActiveRidersLiveMap(),
+                  AppSpacing.h15,
                   WrapperWidget(
                     child: Column(
                       children: [
@@ -266,14 +278,29 @@ class _DeliveryBoysScreenState extends State<DeliveryBoysScreen> {
                                     ),
                                   ),
                                   DataCell(
-                                    Container(
-                                      padding: EdgeInsets.all(5),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(8),
-                                        color: Colors.green.shade100,
-                                      ),
-                                      child: Text("0"),
-                                    ),
+                                    p.ordersStatsLoading
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : DeliveryBoyTotalOrdersCell(
+                                            stats: p.statsFor(
+                                              p.deliveryBoys![index].id,
+                                            ),
+                                            onTap: () {
+                                              final rider =
+                                                  p.deliveryBoys![index];
+                                              DeliveryBoyOrdersSheet.show(
+                                                context,
+                                                rider: rider,
+                                                stats: p.statsFor(rider.id),
+                                                orders: p.ordersFor(rider.id),
+                                              );
+                                            },
+                                          ),
                                   ),
                                   DataCell(
                                     Row(

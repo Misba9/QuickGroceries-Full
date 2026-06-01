@@ -1,5 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
 import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
@@ -93,6 +95,24 @@ class LoginScreen extends StatelessWidget {
                         },
                 ),
                 AppSpacing.h15,
+                if (kDebugMode) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade100),
+                    ),
+                    child: Text(
+                      FirebaseConfigAudit.emulatorTestNumberHint(),
+                      style: TextStyle(
+                        color: Colors.blue.shade900,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

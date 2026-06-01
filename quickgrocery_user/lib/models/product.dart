@@ -52,6 +52,9 @@ class ProductModel {
   bool isTrending;
   bool isFeatured;
   bool isAvailable;
+  /// Vendor/admin visibility — false hides from catalog.
+  bool isActive;
+  bool isDeleted;
   bool isFlashSale;
   bool isTodaysBest;
   bool isRecommended;
@@ -96,6 +99,8 @@ class ProductModel {
     this.isTrending = false,
     this.isFeatured = false,
     this.isAvailable = true,
+    this.isActive = true,
+    this.isDeleted = false,
     this.isFlashSale = false,
     this.isTodaysBest = false,
     this.isRecommended = false,
@@ -168,6 +173,8 @@ class ProductModel {
           _asBool(data['is_trending'], fallback: false),
       isFeatured: _asBool(data['isFeatured'], fallback: false) ||
           _asBool(data['is_featured'], fallback: false),
+      isActive: _resolveIsActive(data),
+      isDeleted: _resolveIsDeleted(data),
       isAvailable: _resolveIsAvailable(data),
       isFlashSale: _asBool(data['is_flash_sale'], fallback: false),
       isTodaysBest: _asBool(data['is_todays_best'], fallback: false),
@@ -383,17 +390,25 @@ List<dynamic> _galleryFromData(Map<String, dynamic> data) {
   return out;
 }
 
-bool _resolveIsAvailable(Map<String, dynamic> data) {
-  if (data.containsKey('isAvailable')) {
-    return _asBool(data['isAvailable'], fallback: true);
-  }
-  if (data.containsKey('is_active')) {
-    return _asBool(data['is_active'], fallback: true);
-  }
-  if (data.containsKey('active')) {
-    return _asBool(data['active'], fallback: true);
+bool _resolveIsActive(Map<String, dynamic> data) {
+  for (final key in ['isActive', 'is_active', 'active']) {
+    if (data.containsKey(key)) {
+      return _asBool(data[key], fallback: true);
+    }
   }
   return true;
+}
+
+bool _resolveIsDeleted(Map<String, dynamic> data) =>
+    data['isDeleted'] == true || data['is_deleted'] == true;
+
+/// Listed in catalog only when active, not deleted, and in stock.
+bool _resolveIsAvailable(Map<String, dynamic> data) {
+  if (_resolveIsDeleted(data)) return false;
+  if (!_resolveIsActive(data)) return false;
+  final stock = _asInt(data['stock'] ?? data['stock_quantity']);
+  if (data['stockStatus']?.toString() == 'out_of_stock') return false;
+  return stock > 0;
 }
 
 bool _asBool(dynamic value, {required bool fallback}) {

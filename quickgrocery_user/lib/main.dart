@@ -80,6 +80,17 @@ Future<void> configureFirebaseAppCheck() async {
           ? AppleProvider.debug
           : AppleProvider.appAttestWithDeviceCheckFallback,
     );
+    if (kDebugMode) {
+      try {
+        final token = await FirebaseAppCheck.instance.getToken(true);
+        debugPrint(
+          '[AppCheck] debug token (register in Firebase Console → App Check → '
+          'Manage debug tokens if Auth is enforced):\n$token',
+        );
+      } catch (tokenError) {
+        debugPrint('[AppCheck] could not fetch debug token: $tokenError');
+      }
+    }
   } catch (e, st) {
     if (kDebugMode) {
       debugPrint(

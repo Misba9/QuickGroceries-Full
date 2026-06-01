@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:quick_grocery_admin/core/order_lifecycle.dart';
 import 'package:quick_grocery_admin/model/address_model.dart';
 import 'package:quick_grocery_admin/model/customer_model.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
@@ -219,7 +220,10 @@ class OrderService extends ChangeNotifier {
     try {
       await FirebaseFirestore.instance.collection('orders').doc(id).update({
         'isCancelled': true,
-        'order_status': 'cancelled',
+        'order_status': OrderLifecycle.legacyLabel(OrderLifecycle.cancelled),
+        'status': OrderLifecycle.cancelled,
+        'cancelledAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
       await getOrders();
       if (context.mounted) Navigator.pop(context);
@@ -233,9 +237,12 @@ class OrderService extends ChangeNotifier {
     try {
       await FirebaseFirestore.instance.collection('orders').doc(orderId).update({
         'deliveryBoyId': deliveryBoyId,
-        'order_status': 'rider_assigned',
+        'delivery_boy_id': deliveryBoyId,
+        'order_status': OrderLifecycle.legacyLabel(OrderLifecycle.riderAssigned),
+        'status': OrderLifecycle.riderAssigned,
+        'assignedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
-      await getOrders();
     } catch (e) {
       debugPrint('assign delivery: $e');
       rethrow;
@@ -316,11 +323,29 @@ class OrderService extends ChangeNotifier {
     }).toList();
   }
 
-  /// Active today orders needing a rider.
+  /// Orders waiting for rider assignment (vendor accepted → ready for pickup).
+  List<OrderModel> get unassignedOrders => dispatchQueue;
+
+  /// Active today orders needing a rider (vendor accepted+, no rider yet).
   List<OrderModel> get dispatchQueue {
-    return ordersToday
-        .where((o) => !o.isDelivered && o.deliveryBoyId.isEmpty)
-        .toList();
+    return ordersToday.where((o) {
+      if (o.isDelivered || o.isCancelled) return false;
+      if (o.deliveryBoyId.isNotEmpty) return false;
+      final status = OrderLifecycle.resolveFromOrder(
+        isCancelled: o.isCancelled,
+        isDelivered: o.isDelivered,
+        modernStatus: o.modernStatus,
+        legacyStatus: o.orderStatus,
+      );
+      if (status == OrderLifecycle.pending ||
+          status == OrderLifecycle.vendorRejected) {
+        return false;
+      }
+      return status == OrderLifecycle.readyForPickup ||
+          OrderLifecycle.isVendorAccepted(status) ||
+          status == OrderLifecycle.packing;
+    }).toList()
+      ..sort((a, b) => b.createdDate.compareTo(a.createdDate));
   }
 
   NewOrdersLiveStats get newOrdersLiveStats {
@@ -466,38 +491,38 @@ class OrderService extends ChangeNotifier {
     List<OrderModel> list,
     OrderQuickFilter filter,
   ) {
+    String statusOf(OrderModel o) => OrderLifecycle.resolveFromOrder(
+          isCancelled: o.isCancelled,
+          isDelivered: o.isDelivered,
+          modernStatus: o.modernStatus,
+          legacyStatus: o.orderStatus,
+        );
+
     switch (filter) {
       case OrderQuickFilter.allOrders:
         return list;
       case OrderQuickFilter.pending:
-        return list
-            .where(
-              (o) =>
-                  !o.isCancelled &&
-                  !o.isDelivered &&
-                  (o.orderStatus.isEmpty ||
-                      o.orderStatus.toLowerCase().contains('pending')),
-            )
-            .toList();
+        return list.where((o) {
+          if (o.isCancelled || o.isDelivered) return false;
+          return statusOf(o) == OrderLifecycle.pending;
+        }).toList();
       case OrderQuickFilter.assigned:
-        return list
-            .where(
-              (o) =>
-                  !o.isCancelled &&
-                  !o.isDelivered &&
-                  o.deliveryBoyId.isNotEmpty,
-            )
-            .toList();
+        return list.where((o) {
+          if (o.isCancelled || o.isDelivered) return false;
+          final s = statusOf(o);
+          return o.deliveryBoyId.isNotEmpty ||
+              s == OrderLifecycle.riderAssigned ||
+              OrderLifecycle.isAssigned(s);
+        }).toList();
       case OrderQuickFilter.waiting:
-        return list
-            .where(
-              (o) =>
-                  !o.isCancelled &&
-                  !o.isDelivered &&
-                  (o.orderStatus.toLowerCase().contains('wait') ||
-                      o.orderStatus.toLowerCase().contains('confirm')),
-            )
-            .toList();
+        return list.where((o) {
+          if (o.isCancelled || o.isDelivered) return false;
+          final s = statusOf(o);
+          return s == OrderLifecycle.vendorAccepted ||
+              s == OrderLifecycle.accepted ||
+              s == OrderLifecycle.packing ||
+              s == OrderLifecycle.readyForPickup;
+        }).toList();
       case OrderQuickFilter.delivered:
         return list.where((o) => o.isDelivered && !o.isCancelled).toList();
       case OrderQuickFilter.cancelled:

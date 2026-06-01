@@ -17,10 +17,10 @@ class UpdateOrderStatusDialog extends StatefulWidget {
 }
 
 class _UpdateOrderStatusDialogState extends State<UpdateOrderStatusDialog> {
-  String _selectedStatus = 'Going to Shop';
+  String _selectedStatus = 'Reached Store';
 
   final List<String> _statusOptions = [
-    'Going to Shop',
+    'Reached Store',
     'Order Picked',
     'On the Way',
   ];

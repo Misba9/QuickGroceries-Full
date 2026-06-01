@@ -1,12 +1,11 @@
-import 'dart:io';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
+import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
 
 /// Pre-flight checks before Firebase Phone Auth (especially iOS).
 class FirebaseAuthReadiness {
-  static const _placeholderAppIdSuffix = '0000000000000000000000';
-
   /// Returns a user-facing error message, or `null` when ready.
   static Future<String?> ensurePhoneAuthReady() async {
     if (Firebase.apps.isEmpty) {
@@ -15,27 +14,22 @@ class FirebaseAuthReadiness {
 
     if (kIsWeb) return null;
 
-    if (Platform.isIOS) {
-      final options = Firebase.app().options;
-      final appId = options.appId;
+    final options = Firebase.app().options;
+    final packageInfo = await PackageInfo.fromPlatform();
 
-      if (appId.contains(_placeholderAppIdSuffix) ||
-          appId.contains('REPLACE_WITH')) {
-        return 'iOS Firebase is not configured yet.\n\n'
-            '1. Open Firebase Console → project "quikgroceries"\n'
-            '2. Add iOS app with bundle ID: com.ahmed.quickgrocery\n'
-            '3. Download GoogleService-Info.plist\n'
-            '4. Replace ios/Runner/GoogleService-Info.plist\n'
-            '5. Copy REVERSED_CLIENT_ID from that file into ios/Runner/Info.plist '
-            '(CFBundleURLSchemes)\n'
-            '6. Run: flutter clean && flutter run\n\n'
-            'Or run: dart pub global activate flutterfire_cli && flutterfire configure';
-      }
+    log(
+      'config package=${packageInfo.packageName} '
+      'projectId=${options.projectId} appId=${options.appId}',
+    );
 
-      if (options.apiKey.isEmpty || options.projectId.isEmpty) {
-        return 'Firebase iOS options are incomplete. Run '
-            'flutterfire configure for project quikgroceries.';
-      }
+    final report = await FirebaseConfigAudit.runAudit();
+    if (!report.isReadyForPhoneAuth) {
+      log(report.toDebugString());
+      return report.toUserFacingSummary();
+    }
+
+    if (kDebugMode) {
+      log(FirebaseConfigAudit.emulatorTestNumberHint());
     }
 
     return null;

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quick_grocery_delivery/services/driver_profile_service.dart';
 
 /// Extended delivery partner profile (Firestore `delivery_boys/{id}`).
 class DeliveryBoyProfile {
@@ -31,6 +32,7 @@ class DeliveryBoyProfile {
     required this.documents,
     required this.acceptanceRate,
     required this.onTimePercent,
+    required this.availability,
   });
 
   final String id;
@@ -61,8 +63,10 @@ class DeliveryBoyProfile {
   final Map<String, DriverDocumentMeta> documents;
   final double acceptanceRate;
   final double onTimePercent;
+  final DriverAvailability availability;
 
-  bool get canReceiveOrders => isActive && isOnline && !pauseDeliveries;
+  bool get canReceiveOrders =>
+      isActive && availability == DriverAvailability.online;
 
   factory DeliveryBoyProfile.fromFirestore(Map<String, dynamic> data, String id) {
     final docsRaw = data['documents'];
@@ -106,7 +110,20 @@ class DeliveryBoyProfile {
       documents: docs,
       acceptanceRate: _dbl(data['acceptance_rate']),
       onTimePercent: _dbl(data['on_time_percent']),
+      availability: _availabilityFrom(data),
     );
+  }
+
+  static DriverAvailability _availabilityFrom(Map<String, dynamic> data) {
+    final raw = data['availability_status']?.toString().toLowerCase() ?? '';
+    if (raw == 'online') return DriverAvailability.online;
+    if (raw == 'paused') return DriverAvailability.paused;
+    if (raw == 'offline') return DriverAvailability.offline;
+    if (data['pause_deliveries'] == true) return DriverAvailability.paused;
+    if (data['isOnline'] == true || data['online_status'] == true) {
+      return DriverAvailability.online;
+    }
+    return DriverAvailability.offline;
   }
 
   Map<String, dynamic> toProfilePatch() {

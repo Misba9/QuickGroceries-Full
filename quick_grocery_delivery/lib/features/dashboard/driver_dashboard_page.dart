@@ -18,6 +18,7 @@ class DriverDashboardPage extends StatefulWidget {
 
 class _DriverDashboardPageState extends State<DriverDashboardPage> {
   final _earningsService = DriverEarningsService();
+  OrderService? _orders;
   EarningsSnapshot _earnings = EarningsSnapshot.empty;
   bool _loadingEarnings = true;
 
@@ -25,19 +26,29 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _orders = context.read<OrderService>();
+      _orders!.addListener(_loadEarnings);
       context.read<DriverProfileService>().startListening();
       _loadEarnings();
-      final orders = context.read<OrderService>();
-      orders.getDeliveryBoy();
-      orders.getOrders();
-      orders.updateAdminFcmToken();
+      _orders!.getDeliveryBoy();
+      _orders!.startRealtimeOrders();
+      _orders!.getOrders();
+      _orders!.updateAdminFcmToken();
     });
   }
 
+  @override
+  void dispose() {
+    _orders?.removeListener(_loadEarnings);
+    super.dispose();
+  }
+
   Future<void> _loadEarnings() async {
+    if (!mounted) return;
     setState(() => _loadingEarnings = true);
     final orders = context.read<OrderService>();
     final snap = await _earningsService.compute(cachedOrders: orders.orders);
+    await _earningsService.syncStatsToProfile(snap);
     if (mounted) {
       setState(() {
         _earnings = snap;
@@ -181,6 +192,27 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
                           ),
                         ],
                       ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DriverStatCard(
+                              label: 'Pending offers',
+                              value: '${_earnings.pendingOffers}',
+                              icon: Icons.notifications_active_outlined,
+                              accent: Colors.orange,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: DriverStatCard(
+                              label: 'In progress',
+                              value: '${_earnings.inProgress}',
+                              icon: Icons.delivery_dining,
+                              accent: Colors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 10),
                       DriverStatCard(
                         label: 'Rating · Acceptance',
@@ -188,7 +220,7 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
                             ? '${_earnings.avgRating.toStringAsFixed(1)} ★'
                             : '—',
                         subtitle:
-                            '${_earnings.acceptanceRate.toStringAsFixed(0)}% acceptance · ${orders.newOrders.length} pending offers',
+                            '${_earnings.acceptanceRate.toStringAsFixed(0)}% acceptance · ${_earnings.riderCancellations} rider cancels',
                         icon: Icons.star_outline,
                       ),
                     ],
@@ -241,10 +273,12 @@ class _OnlineStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = profileSvc.profile;
     if (p == null) {
-      return const Card(child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Center(child: CircularProgressIndicator()),
-      ));
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
     }
 
     return Card(
@@ -260,36 +294,48 @@ class _OnlineStatusCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              p.canReceiveOrders ? 'You are online for deliveries' : 'You are offline or paused',
+              _statusLabel(p.availability),
               style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Online', style: TextStyle(fontSize: 14)),
-                    value: p.isOnline,
-                    onChanged: p.isActive
-                        ? (v) => profileSvc.setOnlineStatus(v)
-                        : null,
-                  ),
+            SegmentedButton<DriverAvailability>(
+              segments: const [
+                ButtonSegment(
+                  value: DriverAvailability.online,
+                  label: Text('Online'),
+                  icon: Icon(Icons.check_circle_outline),
                 ),
-                Expanded(
-                  child: SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Pause', style: TextStyle(fontSize: 14)),
-                    value: p.pauseDeliveries,
-                    onChanged: (v) => profileSvc.setPauseDeliveries(v),
-                  ),
+                ButtonSegment(
+                  value: DriverAvailability.offline,
+                  label: Text('Offline'),
+                  icon: Icon(Icons.power_settings_new),
+                ),
+                ButtonSegment(
+                  value: DriverAvailability.paused,
+                  label: Text('Pause'),
+                  icon: Icon(Icons.pause_circle_outline),
                 ),
               ],
+              selected: {p.availability},
+              onSelectionChanged: p.isActive
+                  ? (s) => profileSvc.setAvailability(s.first)
+                  : null,
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _statusLabel(DriverAvailability a) {
+    switch (a) {
+      case DriverAvailability.online:
+        return 'Online — available for new assignments';
+      case DriverAvailability.offline:
+        return 'Offline — not receiving assignments';
+      case DriverAvailability.paused:
+        return 'Paused — temporarily unavailable';
+    }
   }
 }
 

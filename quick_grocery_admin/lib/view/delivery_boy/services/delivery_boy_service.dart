@@ -1,17 +1,113 @@
+import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
+import 'package:quick_grocery_admin/core/realtime/admin_live_sync.dart';
+import 'package:quick_grocery_admin/core/realtime/firestore_sync_cache.dart';
 import 'package:quick_grocery_admin/model/delivery_boy_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:quick_grocery_admin/view/delivery_boy/domain/delivery_boy_order_stats.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/services/admin_delivery_client.dart';
 
 class DeliveryBoyService extends ChangeNotifier {
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirestoreSyncCache<DeliveryPersonModel> _deliveryCache =
+      FirestoreSyncCache<DeliveryPersonModel>();
+
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _deliverySub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _ordersSub;
+  AdminLiveSyncState deliverySyncState = const AdminLiveSyncState();
+  String? deliveryLoadError;
+
+  Map<String, DeliveryBoyOrderStats> _statsByRider = {};
+  Map<String, List<Map<String, dynamic>>> _ordersByRider = {};
+  bool _ordersStatsLoading = true;
+
   Uint8List? imageBytes;
   final ImagePicker _picker = ImagePicker();
   bool isLoading = false;
   List<DeliveryPersonModel>? deliveryBoys;
+
+  DeliveryBoyService() {
+    ensureDeliveryBoysListener();
+    ensureOrderStatsListener();
+  }
+
+  bool get ordersStatsLoading => _ordersStatsLoading;
+
+  DeliveryBoyOrderStats statsFor(String riderId) =>
+      _statsByRider[riderId] ?? DeliveryBoyOrderStats.empty;
+
+  List<Map<String, dynamic>> ordersFor(String riderId) =>
+      List.unmodifiable(_ordersByRider[riderId] ?? const []);
+
+  void ensureOrderStatsListener() {
+    if (_ordersSub != null) return;
+    _ordersStatsLoading = true;
+    notifyListeners();
+
+    _ordersSub = _db.collection('orders').snapshots().listen(
+      (snap) {
+        final docs =
+            snap.docs.map((d) => {...d.data(), 'id': d.id}).toList(growable: false);
+        final result = DeliveryBoyOrderStatsAggregator.aggregate(docs);
+        _statsByRider = result.statsByRider;
+        _ordersByRider = result.ordersByRider;
+        _ordersStatsLoading = false;
+        notifyListeners();
+      },
+      onError: (Object e) {
+        if (kDebugMode) {
+          debugPrint('[DeliveryBoyStats] orders stream error: $e');
+        }
+        _ordersStatsLoading = false;
+        notifyListeners();
+      },
+    );
+  }
+
+  void ensureDeliveryBoysListener() {
+    if (_deliverySub != null) return;
+    deliverySyncState = deliverySyncState.copyWith(isLoading: true);
+    notifyListeners();
+
+    _deliverySub = _db.collection('delivery_boys').snapshots().listen(
+      (snap) {
+        _deliveryCache.applySnapshot(
+          snap,
+          (data, id) => DeliveryPersonModel.fromFirestore(data, id),
+        );
+        deliveryBoys = _deliveryCache.sorted(
+          (a, b) => a.firstName.compareTo(b.firstName),
+        );
+        deliverySyncState = AdminLiveSyncState.fromSnapshotMetadata(
+          snap.metadata,
+          previous: deliverySyncState,
+        );
+        deliveryLoadError = null;
+        notifyListeners();
+      },
+      onError: (Object e) {
+        deliveryLoadError = e.toString();
+        deliverySyncState = deliverySyncState.copyWith(
+          isLoading: false,
+          hasError: true,
+          errorMessage: e.toString(),
+        );
+        notifyListeners();
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _deliverySub?.cancel();
+    _ordersSub?.cancel();
+    super.dispose();
+  }
 
   Future<void> pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
@@ -22,21 +118,7 @@ class DeliveryBoyService extends ChangeNotifier {
   }
 
   Future<void> getDeliveryBoys() async {
-    try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('delivery_boys')
-          .get();
-      deliveryBoys = snapshot.docs.map((doc) {
-        return DeliveryPersonModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
-      }).toList();
-
-      notifyListeners();
-    } catch (e) {
-      print('Error fetching vendor: $e');
-    }
+    ensureDeliveryBoysListener();
   }
 
   Future<String> uploadImageToStorage(Uint8List imageData) async {
@@ -120,8 +202,15 @@ class DeliveryBoyService extends ChangeNotifier {
         isLoading = true;
         notifyListeners();
 
+        debugPrint('[DeliveryBoy] Creating delivery boy...');
+        debugPrint('[DeliveryBoy] Uploading image...');
         final deliveryImage = await uploadImageToStorage(imageBytes!);
+        if (deliveryImage.isEmpty) {
+          throw Exception('Image upload failed. Check Firebase Storage rules.');
+        }
+        debugPrint('[DeliveryBoy] Image uploaded: $deliveryImage');
 
+        debugPrint('[DeliveryBoy] Creating Firebase Auth + Firestore profile...');
         await _adminDeliveryClient.createDeliveryAccount(
           email: emailController.text.trim(),
           password: passwordController.text,
@@ -132,23 +221,34 @@ class DeliveryBoyService extends ChangeNotifier {
           image: deliveryImage,
           licenceNumber: licenceController.text.trim(),
         );
+        debugPrint('[DeliveryBoy] Success — delivery_boys updated (live listener).');
 
         if (context.mounted) {
           showSuccessDialog(context);
         }
         resetFields();
       } catch (e) {
+        debugPrint('[DeliveryBoy] Error: $e');
         if (context.mounted) {
-          showValidationDialog(
-            context,
-            e.toString().replaceFirst('Exception: ', ''),
-          );
+          final message = _formatError(e);
+          showValidationDialog(context, message);
         }
       } finally {
         isLoading = false;
         notifyListeners();
       }
     }
+  }
+
+  String _formatError(Object e) {
+    var msg = e.toString();
+    msg = msg.replaceFirst('Exception: ', '');
+    msg = msg.replaceFirst('[firebase_functions/', '');
+    if (msg.toLowerCase() == 'internal') {
+      return 'Server error while creating delivery boy. '
+          'Ensure Cloud Functions are deployed and you are signed in as admin.';
+    }
+    return msg;
   }
 
   void showSuccessDialog(BuildContext context) {
@@ -166,7 +266,7 @@ class DeliveryBoyService extends ChangeNotifier {
               Text("Success", style: TextStyle(fontWeight: FontWeight.bold)),
             ],
           ),
-          content: Text("Delivery boy added successfully!"),
+          content: Text("Delivery Boy created successfully!"),
           actions: [
             TextButton(
               onPressed: () {

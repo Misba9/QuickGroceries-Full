@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/features/account/edit_profile_screen.dart';
 import 'package:quick_grocery_delivery/features/documents/documents_screen.dart';
+import 'package:quick_grocery_delivery/features/notifications/delivery_notification_center_screen.dart';
 import 'package:quick_grocery_delivery/features/performance/performance_screen.dart';
 import 'package:quick_grocery_delivery/features/settings/settings_screen.dart';
 import 'package:quick_grocery_delivery/services/driver_profile_service.dart';
@@ -94,6 +95,23 @@ class AccountScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(builder: (_) => const PerformanceScreen()),
                   ),
+                ),
+                _tile(
+                  context,
+                  Icons.notifications_outlined,
+                  'Notifications',
+                  'Assignments, cancellations & updates',
+                  () {
+                    final riderId = profile.id;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DeliveryNotificationCenterScreen(
+                          riderId: riderId,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 _tile(
                   context,

@@ -54,9 +54,11 @@ class ProductSettingsService {
   }) async {
     final doc = await _db.collection('products').doc(productId).get();
     final data = doc.data() ?? {};
+    final stock = int.tryParse(data['stock']?.toString() ?? '') ?? 0;
     final patch = settings.toFirestorePatch(
       existingSpecialCat: existingSpecialCat ?? data['special_cat']?.toString(),
     );
+    patch['isAvailable'] = settings.isActive && stock > 0;
     await _db.collection('products').doc(productId).update(patch);
     return ProductSettingsPatchResult(settings: settings);
   }

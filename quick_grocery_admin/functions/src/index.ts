@@ -40,6 +40,18 @@ export { abandonedCartReminder } from "./operations/abandoned_cart";
 export { dailySalesSummary } from "./operations/daily_summary";
 export { seedAdminTestNotification } from "./operations/ops_callables";
 export { placeOrderCallable } from "./operations/place_order_callable";
+export {
+  assignRiderCallable,
+  autoAssignRiderCallable,
+  autoAssignAllUnassignedCallable,
+  rankRidersForOrderCallable,
+} from "./operations/assign_rider_callables";
+export { confirmDeliveryWithOtp } from "./operations/delivery_callables";
+export {
+  cancelOrderByCustomer,
+  cancelOrderByVendor,
+  cancelOrderByRider,
+} from "./operations/cancel_order_callables";
 export { onDeliveryBoyStatusUpdated } from "./operations/delivery_status_triggers";
 export { onVendorRequestCreated } from "./operations/vendor_request_triggers";
 export { onMaintenanceConfigChange } from "./operations/maintenance_triggers";
@@ -56,6 +68,10 @@ export {
 } from "./partner_auth/partner_callables";
 export { adminCreateVendorAccount, adminRollbackVendorAuth, adminSyncVendorAuthPassword, adminMigrateVendorAuth, adminRestoreVendorAuth } from "./partner_auth/admin_create_vendor";
 export { adminCreateDeliveryAccount, adminRollbackDeliveryAuth } from "./partner_auth/admin_create_delivery";
+export {
+  adminCreateDeliveryAccountHttp,
+  createDeliveryBoy,
+} from "./partner_auth/delivery_http_handlers";
 export {
   adminMigrateVendorAuthHttp,
   adminRestoreVendorAuthHttp,

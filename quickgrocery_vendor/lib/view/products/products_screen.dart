@@ -331,29 +331,40 @@ class _ProductCard extends StatelessWidget {
               PopupMenuButton<String>(
                 onSelected: (value) async {
                   if (value == 'toggle') {
-                    await productService.toggleProductStatus(
-                      product.id,
-                      !product.isActive,
-                    );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            product.isActive
-                                ? 'Product deactivated'
-                                : 'Product activated',
-                          ),
-                          backgroundColor: Colors.green,
-                        ),
+                    try {
+                      await productService.toggleProductStatus(
+                        product.id,
+                        !product.isActive,
                       );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              product.isActive
+                                  ? 'Product deactivated'
+                                  : 'Product activated',
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Could not update status: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
                     }
                   } else if (value == 'delete') {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
-                        title: const Text('Delete Product'),
-                        content: Text(
-                          'Are you sure you want to delete "${product.name}"?',
+                        title: const Text('Delete Product?'),
+                        content: const Text(
+                          'This action cannot be undone.',
                         ),
                         actions: [
                           TextButton(
@@ -373,7 +384,7 @@ class _ProductCard extends StatelessWidget {
 
                     if (confirm == true) {
                       try {
-                        await productService.deleteProduct(product.id);
+                        await productService.softDeleteProduct(product.id);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(

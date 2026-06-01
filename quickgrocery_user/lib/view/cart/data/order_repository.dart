@@ -205,6 +205,16 @@ class OrderRepository {
   static String _statusFromLegacy(Map<String, dynamic> data) {
     if (data['isCancelled'] == true) return OrderStatus.cancelled.id;
     if (data['isDelivered'] == true) return OrderStatus.delivered.id;
+    final s = (data['order_status'] as String?)?.toLowerCase() ?? '';
+    if (s.contains('way')) return OrderStatus.outForDelivery.id;
+    if (s.contains('picked')) return OrderStatus.pickedUp.id;
+    if (s.contains('going') || s.contains('shop')) return OrderStatus.headingToStore.id;
+    if (s.contains('rider') && s.contains('assign')) return OrderStatus.riderAssigned.id;
+    if (s.contains('ready')) return OrderStatus.readyForPickup.id;
+    if (s.contains('prepar') || s.contains('pack')) return OrderStatus.packing.id;
+    if (s.contains('reject')) return OrderStatus.vendorRejected.id;
+    if (s.contains('vendor') && s.contains('accept')) return OrderStatus.vendorAccepted.id;
+    if (s.contains('confirm') || s.contains('accept')) return OrderStatus.vendorAccepted.id;
     return OrderStatus.pending.id;
   }
 }

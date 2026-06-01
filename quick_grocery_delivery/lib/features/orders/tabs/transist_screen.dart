@@ -2,7 +2,7 @@ import 'package:quick_grocery_delivery/constants/app_spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:quick_grocery_delivery/constants/app_icons.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
-import 'package:quick_grocery_delivery/features/orders/screens/order_view_screen.dart';
+import 'package:quick_grocery_delivery/features/orders/screens/delivery_process_screen.dart';
 import 'package:quick_grocery_delivery/features/orders/services/order_service.dart';
 import 'package:quick_grocery_delivery/features/tracking/screens/tracking_screen.dart';
 import 'package:provider/provider.dart';
@@ -30,12 +30,13 @@ class TransistScreen extends StatelessWidget {
                       address: p.myTransistOrders[i].address,
                       idPaid: p.myTransistOrders[i].isPaid,
                       onTap: () {
-                        p.onSelectOrder(p.myTransistOrders[i]);
+                        final order = p.myTransistOrders[i];
+                        p.onSelectOrder(order);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) =>
-                                const OrderViewScreen(isCompleted: false),
+                                DeliveryProcessScreen(order: order),
                           ),
                         );
                       },

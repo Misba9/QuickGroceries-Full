@@ -113,8 +113,16 @@ class OpsDashboardService extends ChangeNotifier {
               ),
             ),
           );
-        onlineRiders =
-            snap.docs.where((d) => d.data()['isOnline'] == true).length;
+        onlineRiders = snap.docs.where((d) {
+          final data = d.data();
+          final availability =
+              (data['availability_status'] as String?)?.toLowerCase() ?? '';
+          if (availability == 'online') return true;
+          if (availability == 'offline' || availability == 'paused') {
+            return false;
+          }
+          return data['isOnline'] == true || data['online_status'] == true;
+        }).length;
         _recomputeOrders();
         _scheduleNotify();
       },

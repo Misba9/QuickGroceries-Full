@@ -1,3 +1,4 @@
+import '../core/order_lifecycle.dart';
 import '../models/order_model.dart';
 
 /// Shared order matching, status buckets, and revenue rules (vendor + dashboard).
@@ -35,41 +36,30 @@ class VendorOrderUtils {
   }
 
   static String normalizedStatus(OrderModel order) {
-    if (order.isCancelled) return 'cancelled';
-    final modern = order.modernStatus.trim().toLowerCase();
-    if (modern.isNotEmpty) return modern;
-    final legacy = order.orderStatus.trim().toLowerCase();
-    if (legacy.contains('cancel')) return 'cancelled';
-    if (order.isDelivered || legacy.contains('deliver')) return 'delivered';
-    if (legacy.contains('way') || legacy.contains('picked')) return 'shipped';
-    if (legacy.contains('shop') || legacy.contains('going')) return 'processing';
-    if (legacy.contains('confirm') || legacy.contains('accept')) {
-      return 'confirmed';
-    }
-    if (legacy.contains('pending') || legacy.contains('waiting')) {
-      return 'waiting';
-    }
-    return legacy.isEmpty ? 'waiting' : legacy;
+    if (order.isCancelled) return OrderLifecycle.cancelled;
+    return OrderLifecycle.resolveStatus({
+      'status': order.modernStatus,
+      'order_status': order.orderStatus,
+      'isCancelled': order.isCancelled,
+      'isDelivered': order.isDelivered,
+    });
   }
 
   /// UI filter chip id: All | waiting | confirmed | processing | shipped | delivered | cancelled
   static String statusBucket(OrderModel order) {
     final s = normalizedStatus(order);
-    if (s == 'cancelled') return 'cancelled';
-    if (s == 'delivered') return 'delivered';
-    if (s == 'out_for_delivery' ||
-        s == 'shipped' ||
-        s.contains('way') ||
-        s.contains('picked')) {
-      return 'shipped';
+    if (s == OrderLifecycle.vendorRejected || s == OrderLifecycle.cancelled) {
+      return 'cancelled';
     }
-    if (s == 'packing' || s == 'processing' || s.contains('shop')) {
+    if (s == OrderLifecycle.delivered) return 'delivered';
+    if (OrderLifecycle.isInTransit(s)) return 'shipped';
+    if (s == OrderLifecycle.packing ||
+        s == OrderLifecycle.readyForPickup ||
+        s == OrderLifecycle.riderAssigned) {
       return 'processing';
     }
-    if (s == 'accepted' || s == 'confirmed' || s.contains('confirm')) {
-      return 'confirmed';
-    }
-    if (s == 'pending' || s == 'waiting') return 'waiting';
+    if (OrderLifecycle.isVendorAccepted(s)) return 'confirmed';
+    if (s == OrderLifecycle.pending) return 'waiting';
     return 'waiting';
   }
 

@@ -378,7 +378,7 @@ export const placeOrderCallable = onCall(
           customer_name: str(address.name),
           phone: str(address.mobile),
           isPaid,
-          order_status: "Pending",
+          order_status: "Pending", // legacy display; canonical id is status: "pending"
           deliveryBoyId: "",
           isDelivered: false,
           isCancelled: false,

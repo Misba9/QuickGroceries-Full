@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quick_grocery_delivery/core/order_lifecycle.dart';
 import 'package:quick_grocery_delivery/models/order_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,7 +11,9 @@ class EarningsSnapshot {
     required this.total,
     required this.completed,
     required this.cancelled,
-    required this.pending,
+    required this.riderCancellations,
+    required this.pendingOffers,
+    required this.inProgress,
     required this.incentives,
     required this.avgRating,
     required this.acceptanceRate,
@@ -22,7 +25,9 @@ class EarningsSnapshot {
   final double total;
   final int completed;
   final int cancelled;
-  final int pending;
+  final int riderCancellations;
+  final int pendingOffers;
+  final int inProgress;
   final double incentives;
   final double avgRating;
   final double acceptanceRate;
@@ -34,7 +39,9 @@ class EarningsSnapshot {
     total: 0,
     completed: 0,
     cancelled: 0,
-    pending: 0,
+    riderCancellations: 0,
+    pendingOffers: 0,
+    inProgress: 0,
     incentives: 0,
     avgRating: 0,
     acceptanceRate: 0,
@@ -42,7 +49,8 @@ class EarningsSnapshot {
 }
 
 class DriverEarningsService {
-  DriverEarningsService({FirebaseFirestore? db}) : _db = db ?? FirebaseFirestore.instance;
+  DriverEarningsService({FirebaseFirestore? db})
+      : _db = db ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
 
@@ -58,53 +66,81 @@ class DriverEarningsService {
     final orders = cachedOrders ?? await _fetchRiderOrders(id);
     final now = DateTime.now();
     final startOfDay = DateTime(now.year, now.month, now.day);
-    final startOfWeek = startOfDay.subtract(Duration(days: now.weekday - 1));
+    final last7Days = startOfDay.subtract(const Duration(days: 6));
     final startOfMonth = DateTime(now.year, now.month, 1);
 
-    double today = 0, week = 0, month = 0, total = 0, incentives = 0;
-    int completed = 0, cancelled = 0, pending = 0;
+    double today = 0, week = 0, month = 0, total = 0;
+    int completed = 0;
+    int cancelled = 0;
+    int riderCancellations = 0;
+    int pendingOffers = 0;
+    int inProgress = 0;
+    int assigned = 0;
+    int accepted = 0;
     double ratingSum = 0;
     int rated = 0;
-    int accepted = 0;
-    int offered = 0;
 
     for (final o in orders) {
-      final deliveredAt = _parseDate(o.orderDeliveredTime);
-      final earning = _orderEarning(o);
+      if (o.deliveryBoyId != id && o.deliveryBoyId.isNotEmpty) continue;
 
-      if (o.isCancelled) {
-        cancelled++;
+      final status = OrderLifecycle.resolveStatus({
+        'status': o.modernStatus,
+        'order_status': o.orderStatus,
+        'isCancelled': o.isCancelled,
+        'isDelivered': o.isDelivered,
+      });
+
+      // Rider backed out — tracked via rejection fields on reassigned orders.
+      if (o.deliveryBoyId.isEmpty) continue;
+
+      if (OrderLifecycle.isCancellationStatus(status) ||
+          (o.isCancelled && status != OrderLifecycle.vendorRejected)) {
+        if (status == OrderLifecycle.cancelledByCustomer ||
+            status == OrderLifecycle.cancelledByVendor ||
+            status == OrderLifecycle.cancelled) {
+          cancelled++;
+        }
         continue;
       }
 
-      if (o.deliveryBoyId.isEmpty &&
-          !o.isDelivered &&
-          o.orderStatus.toLowerCase().contains('confirm')) {
-        pending++;
-        offered++;
+      if (OrderLifecycle.needsRiderAcceptance(status)) {
+        pendingOffers++;
+        assigned++;
         continue;
       }
 
-      if (o.deliveryBoyId == id) {
-        accepted++;
-        if (o.isDelivered) {
-          completed++;
-          total += earning;
-          if (deliveredAt != null) {
-            if (!deliveredAt.isBefore(startOfDay)) today += earning;
-            if (!deliveredAt.isBefore(startOfWeek)) week += earning;
-            if (!deliveredAt.isBefore(startOfMonth)) month += earning;
-          }
-          if (o.isRated && o.rating > 0) {
-            ratingSum += o.rating;
-            rated++;
-          }
+      assigned++;
+      accepted++;
+
+      if (OrderLifecycle.isInTransit(status)) {
+        inProgress++;
+      }
+
+      if (o.isDelivered || status == OrderLifecycle.delivered) {
+        completed++;
+        final deliveredAt = _parseDate(o.orderDeliveredTime);
+        final earning = _orderEarning(o);
+        total += earning;
+        if (deliveredAt != null) {
+          if (!deliveredAt.isBefore(startOfDay)) today += earning;
+          if (!deliveredAt.isBefore(last7Days)) week += earning;
+          if (!deliveredAt.isBefore(startOfMonth)) month += earning;
+        }
+        if (o.isRated && o.rating > 0) {
+          ratingSum += o.rating;
+          rated++;
         }
       }
-      offered++;
     }
 
-    final acceptance = offered > 0 ? (accepted / offered) * 100 : 100.0;
+    // Rider-initiated cancellations (order returned to queue).
+    final rejectSnap = await _db
+        .collection('orders')
+        .where('rider_rejected_by', isEqualTo: id)
+        .get();
+    riderCancellations = rejectSnap.docs.length;
+
+    final acceptance = assigned > 0 ? (accepted / assigned) * 100 : 100.0;
 
     return EarningsSnapshot(
       today: today,
@@ -113,8 +149,10 @@ class DriverEarningsService {
       total: total,
       completed: completed,
       cancelled: cancelled,
-      pending: pending,
-      incentives: incentives,
+      riderCancellations: riderCancellations,
+      pendingOffers: pendingOffers,
+      inProgress: inProgress,
+      incentives: 0,
       avgRating: rated > 0 ? ratingSum / rated : 0,
       acceptanceRate: acceptance,
     );
@@ -126,22 +164,30 @@ class DriverEarningsService {
     await _db.collection('delivery_boys').doc(id).set({
       'total_earnings': snap.total,
       'completed_orders': snap.completed,
-      'rejected_orders': snap.cancelled,
+      'rejected_orders': snap.riderCancellations,
+      'cancelled_orders': snap.cancelled,
       'acceptance_rate': snap.acceptanceRate,
       'driver_rating': snap.avgRating,
+      'stats_updated_at': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
 
   Future<List<OrderModel>> _fetchRiderOrders(String id) async {
-    final snap = await _db.collection('orders').get();
+    final snap = await _db
+        .collection('orders')
+        .where('deliveryBoyId', isEqualTo: id)
+        .get();
     return snap.docs
         .map((d) => OrderModel.fromFirestore(d.data(), d.id))
-        .where((o) => o.deliveryBoyId == id || o.deliveryBoyId.isEmpty)
         .toList();
   }
 
   double _orderEarning(OrderModel o) {
     if (o.deliveryCharge > 0) return o.deliveryCharge.toDouble();
+    final bill = o.bill;
+    if (bill != null && bill['deliveryFee'] != null) {
+      return (bill['deliveryFee'] as num).toDouble();
+    }
     return o.products.fold<double>(
       0,
       (sum, p) => sum + ((p.price ?? 0) * (p.itemCount ?? 0)) * 0.05,

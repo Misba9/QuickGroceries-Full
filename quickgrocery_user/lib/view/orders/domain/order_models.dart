@@ -60,9 +60,15 @@ class LiveOrder {
   bool get isDelivered => legacy.isDelivered;
   bool get hasRider => legacy.deliveryBoyId.isNotEmpty;
 
+  bool get isLiveTracking =>
+      hasRider && !isDelivered && !isCancelled && status.isLiveTracking;
+
   bool get canCustomerCancel {
     if (isCancelled || isDelivered) return false;
-    if (status == OrderStatus.outForDelivery) return false;
+    if (status == OrderStatus.pickedUp ||
+        status == OrderStatus.outForDelivery) {
+      return false;
+    }
     if (_tryParse(legacy.orderPickedTime) != null) return false;
     return true;
   }
@@ -102,9 +108,7 @@ class LiveOrder {
     ).grandTotal;
   }
 
-  /// Stable 4-digit OTP derived from the order id. The same code is shown
-  /// to the user and to the rider's app, so neither side needs an extra
-  /// Firestore round-trip for verification.
+  /// Fallback 4-digit code when server OTP is not yet available.
   String get deliveryOtp {
     if (id.isEmpty) return '0000';
     final hash = id.codeUnits.fold<int>(7, (a, b) => (a * 31 + b) & 0xFFFFFF);
@@ -179,11 +183,26 @@ class LiveOrder {
   static String _statusFromLegacy(Map<String, dynamic> data) {
     if (data['isCancelled'] == true) return OrderStatus.cancelled.id;
     if (data['isDelivered'] == true) return OrderStatus.delivered.id;
+    final modern = (data['status'] as String?)?.trim();
+    if (modern != null && modern.isNotEmpty) {
+      return OrderStatus.fromId(modern).id;
+    }
     final s = (data['order_status'] as String?)?.toLowerCase() ?? '';
-    if (s.contains('on the way')) return OrderStatus.outForDelivery.id;
-    if (s.contains('picked')) return OrderStatus.outForDelivery.id;
-    if (s.contains('shop')) return OrderStatus.packing.id;
-    if (s.contains('confirm')) return OrderStatus.accepted.id;
+    if (s.contains('cancel')) return OrderStatus.cancelled.id;
+    if (s.contains('deliver')) return OrderStatus.delivered.id;
+    if (s.contains('way')) return OrderStatus.outForDelivery.id;
+    if (s.contains('picked')) return OrderStatus.pickedUp.id;
+    if (s.contains('reached') && s.contains('store')) {
+      return OrderStatus.reachedStore.id;
+    }
+    if (s.contains('going') || s.contains('shop')) return OrderStatus.headingToStore.id;
+    if (s.contains('rider') && s.contains('accept')) return OrderStatus.riderAccepted.id;
+    if (s.contains('rider') && s.contains('assign')) return OrderStatus.riderAssigned.id;
+    if (s.contains('ready')) return OrderStatus.readyForPickup.id;
+    if (s.contains('prepar') || s.contains('pack')) return OrderStatus.packing.id;
+    if (s.contains('reject')) return OrderStatus.vendorRejected.id;
+    if (s.contains('vendor') && s.contains('accept')) return OrderStatus.vendorAccepted.id;
+    if (s.contains('confirm') || s.contains('accept')) return OrderStatus.vendorAccepted.id;
     return OrderStatus.pending.id;
   }
 }
@@ -303,12 +322,20 @@ List<OrderTimelineEntry> buildTimeline(LiveOrder o) {
 int _activeTrackingStep(LiveOrder o) {
   if (o.isDelivered || o.status == OrderStatus.delivered) return 7;
   if (o.status == OrderStatus.outForDelivery) return 6;
-  if (_tryParse(o.legacy.orderPickedTime) != null) return 5;
-  if (o.hasRider) return 4;
+  if (o.status == OrderStatus.pickedUp || _tryParse(o.legacy.orderPickedTime) != null) {
+    return 5;
+  }
+  if (o.status == OrderStatus.reachedStore ||
+      o.status == OrderStatus.headingToStore) {
+    return 4;
+  }
+  if (o.status == OrderStatus.riderAccepted) return 4;
+  if (o.hasRider || o.status == OrderStatus.riderAssigned) return 4;
+  if (o.status == OrderStatus.readyForPickup) return 3;
   if (o.status == OrderStatus.packing) return 3;
-  if (o.status == OrderStatus.accepted) return 2;
+  if (o.status == OrderStatus.accepted || o.status == OrderStatus.vendorAccepted) return 2;
   if (_tryParse(o.legacy.confimedTime) != null) return 1;
-  return 1; // placed — waiting for confirmation
+  return 0;
 }
 
 /// Realtime rider position. Shape:

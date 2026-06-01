@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:quick_grocery_admin/core/realtime/admin_live_sync.dart';
+import 'package:quick_grocery_admin/core/realtime/firestore_sync_cache.dart';
+import 'package:quick_grocery_admin/core/realtime/product_catalog_metrics.dart';
 import 'package:quick_grocery_admin/model/banner_model.dart';
 import 'package:quick_grocery_admin/model/customer_model.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
@@ -12,6 +16,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 class DashBoardServices extends ChangeNotifier {
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
   List<CustomerModel>? customers;
   List<VendorModel>? vendors;
   List<OrderModel>? orders;
@@ -28,6 +34,139 @@ class DashBoardServices extends ChangeNotifier {
   final ImagePicker _picker = ImagePicker();
   bool isLoading = false;
   String totalRevenue = "0"; // Stores total revenue as a String
+
+  AdminLiveSyncState dashboardSyncState = const AdminLiveSyncState();
+  ProductCatalogMetrics productMetrics = ProductCatalogMetrics.empty;
+  int categoriesCount = 0;
+  String? dashboardError;
+
+  bool _realtimeStarted = false;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _productsSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _vendorsSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _customersSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _ordersSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _categoriesSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _bannersSub;
+
+  final FirestoreSyncCache<ProductModel> _productsCache =
+      FirestoreSyncCache<ProductModel>();
+  final FirestoreSyncCache<VendorModel> _vendorsCache =
+      FirestoreSyncCache<VendorModel>();
+  final FirestoreSyncCache<CustomerModel> _customersCache =
+      FirestoreSyncCache<CustomerModel>();
+  final FirestoreSyncCache<OrderModel> _ordersCache =
+      FirestoreSyncCache<OrderModel>();
+
+  /// Starts all dashboard Firestore listeners (idempotent).
+  void startRealtimeListeners() {
+    if (_realtimeStarted) return;
+    _realtimeStarted = true;
+    dashboardSyncState = dashboardSyncState.copyWith(isLoading: true);
+    notifyListeners();
+
+    _productsSub = _db.collection('products').snapshots().listen(
+      (snap) {
+        _productsCache.applySnapshot(
+          snap,
+          (data, id) => ProductModel.fromFirestore(data, id),
+        );
+        products = _productsCache.sorted(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
+        productMetrics = ProductCatalogMetrics.fromProducts(products!);
+        dashboardSyncState = AdminLiveSyncState.fromSnapshotMetadata(
+          snap.metadata,
+          previous: dashboardSyncState,
+        );
+        dashboardError = null;
+        notifyListeners();
+      },
+      onError: _onDashboardStreamError,
+    );
+
+    _vendorsSub = _db.collection('vendors').snapshots().listen(
+      (snap) {
+        _vendorsCache.applySnapshot(
+          snap,
+          (data, id) => VendorModel.fromFirestore(data, id),
+        );
+        vendors = _vendorsCache.sorted(
+          (a, b) => a.shopName.compareTo(b.shopName),
+        );
+        notifyListeners();
+      },
+      onError: _onDashboardStreamError,
+    );
+
+    _customersSub = _db.collection('customers').snapshots().listen(
+      (snap) {
+        _customersCache.applySnapshot(
+          snap,
+          (data, id) => CustomerModel.fromFirestore(data, id),
+        );
+        customers = _customersCache.values.toList();
+        notifyListeners();
+      },
+      onError: _onDashboardStreamError,
+    );
+
+    _ordersSub = _db.collection('orders').snapshots().listen(
+      (snap) {
+        _ordersCache.applySnapshot(
+          snap,
+          (data, id) => OrderModel.fromFirestore(data, id),
+        );
+        orders = _ordersCache.values.toList();
+        notifyListeners();
+      },
+      onError: _onDashboardStreamError,
+    );
+
+    _categoriesSub = _db.collection('categories').snapshots().listen(
+      (snap) {
+        categoriesCount = snap.docs.length;
+        notifyListeners();
+      },
+      onError: _onDashboardStreamError,
+    );
+
+    bannersLoading = true;
+    _bannersSub = _db.collection('banners').snapshots().listen(
+      (snap) {
+        banners = snap.docs
+            .map((d) => BannerModel.fromFirestore(d.data(), d.id))
+            .toList()
+          ..sort((a, b) => b.priority.compareTo(a.priority));
+        bannersLoading = false;
+        notifyListeners();
+      },
+      onError: (Object e) {
+        bannersLoading = false;
+        _onDashboardStreamError(e);
+      },
+    );
+  }
+
+  void _onDashboardStreamError(Object e) {
+    dashboardError = e.toString();
+    dashboardSyncState = dashboardSyncState.copyWith(
+      isLoading: false,
+      hasError: true,
+      errorMessage: e.toString(),
+    );
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _productsSub?.cancel();
+    _vendorsSub?.cancel();
+    _customersSub?.cancel();
+    _ordersSub?.cancel();
+    _categoriesSub?.cancel();
+    _bannersSub?.cancel();
+    super.dispose();
+  }
 
   void setBannerType(String type) {
     bannerType = type;
@@ -150,112 +289,22 @@ class DashBoardServices extends ChangeNotifier {
     }
   }
 
-  Future<void> getVendors() async {
-    try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('vendors')
-          .get();
-      vendors = snapshot.docs.map((doc) {
-        return VendorModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
-      }).toList();
+  Future<void> getVendors() async => startRealtimeListeners();
 
-      notifyListeners();
-    } catch (e) {
-      print('Error fetching vendor: $e');
-    }
-  }
+  Future<void> getCustomers() async => startRealtimeListeners();
 
-  Future<void> getCustomers() async {
-    try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('customers')
-          .get();
-      customers = snapshot.docs.map((doc) {
-        return CustomerModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
-      }).toList();
+  Future<void> getOrders() async => startRealtimeListeners();
 
-      notifyListeners();
-    } catch (e) {
-      print('Error fetching vendor: $e');
-    }
-  }
+  Future<void> getProducts() async => startRealtimeListeners();
 
-  Future<void> getOrders() async {
-    try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('orders')
-          .get();
-      orders = snapshot.docs.map((doc) {
-        return OrderModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
-      }).toList();
-
-      notifyListeners();
-    } catch (e) {
-      print('Error fetching vendor: $e');
-    }
-  }
-
-  Future<void> getProducts() async {
-    try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('products')
-          .get();
-      products = snapshot.docs.map((doc) {
-        return ProductModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
-      }).toList();
-
-      notifyListeners();
-    } catch (e) {
-      print('Error fetching vendor: $e');
-    }
-  }
-
-  Future<void> fetchBanners() async {
-    bannersLoading = true;
-    notifyListeners();
-    try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('banners')
-          .get();
-
-      banners = snapshot.docs.map((doc) {
-        return BannerModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
-      }).toList()
-        ..sort((a, b) => b.priority.compareTo(a.priority));
-    } catch (e) {
-      print('Error fetching banners: $e');
-    } finally {
-      bannersLoading = false;
-      notifyListeners();
-    }
-  }
+  Future<void> fetchBanners() async => startRealtimeListeners();
 
   Future<void> deleteBanner(String id) async {
-    await FirebaseFirestore.instance.collection('banners').doc(id).delete();
-    await fetchBanners();
+    await _db.collection('banners').doc(id).delete();
   }
 
   Future<void> toggleBannerActive(String id, bool isActive) async {
-    await FirebaseFirestore.instance
-        .collection('banners')
-        .doc(id)
-        .update({'isActive': isActive});
-    await fetchBanners();
+    await _db.collection('banners').doc(id).update({'isActive': isActive});
   }
 
   Future<String> uploadImageToStorage(Uint8List imageData) async {
@@ -396,7 +445,7 @@ class DashBoardServices extends ChangeNotifier {
           const SnackBar(content: Text('Banner added successfully')),
         );
       }
-      fetchBanners();
+      startRealtimeListeners();
 
       isLoading = false;
       notifyListeners();
@@ -500,7 +549,6 @@ class DashBoardServices extends ChangeNotifier {
           const SnackBar(content: Text('Banner updated successfully')),
         );
       }
-      await fetchBanners();
     } catch (e) {
       print('Error updating banner: $e');
       if (context.mounted) {

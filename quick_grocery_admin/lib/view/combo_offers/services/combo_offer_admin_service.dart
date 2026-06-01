@@ -33,6 +33,17 @@ class ComboOfferAdminService {
     });
   }
 
+  Stream<List<ProductModel>> watchProducts() {
+    return _db.collection('products').snapshots().map((snap) {
+      final list = snap.docs
+          .map((d) => ProductModel.fromFirestore(d.data(), d.id))
+          .toList();
+      list.sort((a, b) => a.name.compareTo(b.name));
+      return list;
+    });
+  }
+
+  @Deprecated('Use watchProducts() for live catalog')
   Future<List<ProductModel>> fetchProducts() async {
     final snap = await _db.collection('products').get();
     return snap.docs
@@ -40,6 +51,17 @@ class ComboOfferAdminService {
         .toList();
   }
 
+  Stream<List<VendorModel>> watchVendors() {
+    return _db.collection('vendors').snapshots().map((snap) {
+      final list = snap.docs
+          .map((d) => VendorModel.fromFirestore(d.data(), d.id))
+          .toList();
+      list.sort((a, b) => a.shopName.compareTo(b.shopName));
+      return list;
+    });
+  }
+
+  @Deprecated('Use watchVendors() for live vendors')
   Future<List<VendorModel>> fetchVendors() async {
     final snap = await _db.collection('vendors').get();
     return snap.docs

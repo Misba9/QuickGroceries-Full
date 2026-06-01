@@ -25,6 +25,7 @@ class ProductModel {
   final List<dynamic> images;
   final List<dynamic> videos;
   final String specialCat;
+  final bool isDeleted;
 
   ProductModel({
     required this.id,
@@ -50,6 +51,7 @@ class ProductModel {
     required this.images,
     required this.videos,
     this.specialCat = '',
+    this.isDeleted = false,
   });
 
   bool get isActive => settings.isActive;
@@ -128,6 +130,7 @@ class ProductModel {
       images: gallery,
       videos: data['videos'] ?? [],
       specialCat: data['special_cat']?.toString() ?? '',
+      isDeleted: data['isDeleted'] == true || data['is_deleted'] == true,
     );
   }
 
@@ -154,7 +157,7 @@ class ProductModel {
       'stock': _stockInt(),
       'maxOrder': _orderInt(maxOrder),
       'minOrder': _orderInt(minOrder, fallback: 1),
-      'isAvailable': _stockInt() > 0,
+      'isAvailable': settings.isActive && _stockInt() > 0,
       'price': price,
       'slashedPrice': slashedPrice,
       'totalSold': totalSold,
@@ -179,7 +182,9 @@ class ProductModel {
       'stock': _stockInt(),
       'maxOrder': _orderInt(maxOrder),
       'minOrder': _orderInt(minOrder, fallback: 1),
-      'isAvailable': _stockInt() > 0,
+      'isAvailable': settings.isActive && _stockInt() > 0,
+      'isActive': settings.isActive,
+      'is_active': settings.isActive,
       'price': price,
       'slashedPrice': slashedPrice,
       'totalSold': totalSold,
@@ -189,6 +194,7 @@ class ProductModel {
       'shop_name': shopName,
       'videos': videos,
       'lastEdited': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     };
   }
 
@@ -229,6 +235,7 @@ class ProductModel {
       images: images ?? this.images,
       videos: videos,
       specialCat: specialCat,
+      isDeleted: isDeleted,
     );
   }
 }

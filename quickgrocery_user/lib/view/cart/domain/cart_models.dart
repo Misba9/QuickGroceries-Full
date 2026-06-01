@@ -578,11 +578,19 @@ enum PaymentMethod {
   }
 }
 
-/// Canonical order lifecycle for the new schema.
+/// Canonical order lifecycle for quick-commerce (Zepto / Blinkit model).
 enum OrderStatus {
   pending('pending'),
+  vendorAccepted('vendor_accepted'),
+  vendorRejected('vendor_rejected'),
   accepted('accepted'),
   packing('packing'),
+  readyForPickup('ready_for_pickup'),
+  riderAssigned('rider_assigned'),
+  riderAccepted('rider_accepted'),
+  reachedStore('reached_store'),
+  headingToStore('heading_to_store'),
+  pickedUp('picked_up'),
   outForDelivery('out_for_delivery'),
   delivered('delivered'),
   cancelled('cancelled');
@@ -599,10 +607,26 @@ enum OrderStatus {
     switch (this) {
       case OrderStatus.pending:
         return 'Pending';
+      case OrderStatus.vendorAccepted:
+        return 'Store confirmed';
+      case OrderStatus.vendorRejected:
+        return 'Declined by store';
       case OrderStatus.accepted:
-        return 'Accepted';
+        return 'Confirmed';
       case OrderStatus.packing:
-        return 'Packing';
+        return 'Preparing';
+      case OrderStatus.readyForPickup:
+        return 'Ready for pickup';
+      case OrderStatus.riderAssigned:
+        return 'Rider assigned';
+      case OrderStatus.riderAccepted:
+        return 'Rider accepted';
+      case OrderStatus.reachedStore:
+        return 'Rider at store';
+      case OrderStatus.headingToStore:
+        return 'Rider heading to store';
+      case OrderStatus.pickedUp:
+        return 'Picked up';
       case OrderStatus.outForDelivery:
         return 'Out for delivery';
       case OrderStatus.delivered:
@@ -611,6 +635,24 @@ enum OrderStatus {
         return 'Cancelled';
     }
   }
+
+  bool get isTerminal =>
+      this == OrderStatus.delivered ||
+      this == OrderStatus.cancelled ||
+      this == OrderStatus.vendorRejected;
+
+  bool get isInTransit =>
+      this == OrderStatus.reachedStore ||
+      this == OrderStatus.headingToStore ||
+      this == OrderStatus.pickedUp ||
+      this == OrderStatus.outForDelivery;
+
+  bool get isLiveTracking =>
+      this == OrderStatus.riderAccepted ||
+      this == OrderStatus.reachedStore ||
+      this == OrderStatus.headingToStore ||
+      this == OrderStatus.pickedUp ||
+      this == OrderStatus.outForDelivery;
 }
 
 /// In-memory cart state surfaced to the UI.

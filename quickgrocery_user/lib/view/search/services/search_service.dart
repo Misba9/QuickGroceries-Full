@@ -14,12 +14,15 @@ class SearchService extends ChangeNotifier {
             .collection('products')
             .get();
 
-        productsList = snapshot.docs.map((doc) {
-          return ProductModel.fromFirestore(
-            doc.data() as Map<String, dynamic>,
-            doc.id,
-          );
-        }).toList();
+        productsList = snapshot.docs
+            .map((doc) {
+              return ProductModel.fromFirestore(
+                doc.data() as Map<String, dynamic>,
+                doc.id,
+              );
+            })
+            .where((p) => p.isAvailable)
+            .toList();
 
         filteredProductsList = productsList;
         notifyListeners();

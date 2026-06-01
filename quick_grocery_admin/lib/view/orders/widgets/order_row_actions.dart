@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:quick_grocery_admin/model/delivery_boy_model.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
-import 'package:quick_grocery_admin/view/delivery_boy/services/delivery_boy_service.dart';
+import 'package:quick_grocery_admin/view/orders/widgets/assign_rider_dialog.dart';
 import 'package:quick_grocery_admin/view/orders/services/invoice_service.dart';
-import 'package:quick_grocery_admin/view/orders/services/order_service.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_contact_actions.dart';
-import 'package:provider/provider.dart';
 
 typedef OrderDrawerCallback = void Function(OrderModel order);
 
@@ -62,66 +59,11 @@ class OrderRowActions extends StatelessWidget {
   }
 
   Future<void> _assignDelivery(BuildContext context) async {
-    final deliverySvc = context.read<DeliveryBoyService>();
-    if (deliverySvc.deliveryBoys == null) {
-      await deliverySvc.getDeliveryBoys();
-    }
-    final boys = _uniqueDeliveryBoys(deliverySvc.deliveryBoys ?? []);
-    if (!context.mounted) return;
-
-    if (boys.isEmpty) {
+    final ok = await AssignRiderDialog.show(context, order: order);
+    if (ok == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No delivery partners found')),
-      );
-      return;
-    }
-
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Assign delivery partner'),
-        content: SizedBox(
-          width: 360,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: boys.length,
-            itemBuilder: (_, i) {
-              final b = boys[i];
-              return ListTile(
-                title: Text('${b.firstName} ${b.lastName}'),
-                subtitle: Text(b.phone),
-                onTap: () => Navigator.pop(ctx, b.id),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-
-    if (selected == null || !context.mounted) return;
-    try {
-      await context.read<OrderService>().assignDeliveryBoy(order.id, selected);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Delivery partner assigned')),
-      );
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to assign delivery partner')),
+        const SnackBar(content: Text('Rider assigned')),
       );
     }
-  }
-
-  static List<DeliveryPersonModel> _uniqueDeliveryBoys(
-    List<DeliveryPersonModel> boys,
-  ) {
-    return boys.fold<List<DeliveryPersonModel>>([], (list, boy) {
-      final id = boy.id.trim();
-      if (id.isNotEmpty && !list.any((e) => e.id == boy.id)) {
-        list.add(boy);
-      }
-      return list;
-    });
   }
 }

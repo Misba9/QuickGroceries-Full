@@ -323,7 +323,7 @@ class _ProductHeader extends ConsumerWidget {
     final summary = ref.watch(ratingSummaryProvider(product.id));
     final hasDiscount = product.hasDiscount;
     final stock = product.stock;
-    final inStock = product.isAvailable && stock > 0;
+    final inStock = product.isAvailable;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -354,7 +354,13 @@ class _ProductHeader extends ConsumerWidget {
                   ),
                 ),
               const Spacer(),
-              _StockBadge(inStock: inStock, stock: stock),
+              _StockBadge(
+                inStock: inStock,
+                stock: stock,
+                labelOverride: (!product.isActive || product.isDeleted)
+                    ? 'OUT OF STOCK'
+                    : null,
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -477,9 +483,14 @@ class _ProductHeader extends ConsumerWidget {
 }
 
 class _StockBadge extends StatelessWidget {
-  const _StockBadge({required this.inStock, required this.stock});
+  const _StockBadge({
+    required this.inStock,
+    required this.stock,
+    this.labelOverride,
+  });
   final bool inStock;
   final int stock;
+  final String? labelOverride;
 
   @override
   Widget build(BuildContext context) {
@@ -501,9 +512,10 @@ class _StockBadge extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            inStock
-                ? (stock > 0 && stock < 10 ? 'Only $stock left' : 'In stock')
-                : 'Out of stock',
+            labelOverride ??
+                (inStock
+                    ? (stock > 0 && stock < 10 ? 'Only $stock left' : 'In stock')
+                    : 'Out of stock'),
             style: GoogleFonts.poppins(
               fontSize: 10.5,
               fontWeight: FontWeight.w600,

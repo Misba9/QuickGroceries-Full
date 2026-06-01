@@ -11,11 +11,13 @@ class RiderCard extends StatelessWidget {
     required this.rider,
     required this.order,
     required this.onChat,
+    this.deliveryOtpCode,
   });
 
   final RiderLocation? rider;
   final LiveOrder order;
   final VoidCallback onChat;
+  final String? deliveryOtpCode;
 
   static Future<void> launchCall(String phone) async {
     final uri = Uri(scheme: 'tel', path: phone);
@@ -31,6 +33,9 @@ class RiderCard extends StatelessWidget {
     final r = rider;
     final name = r?.name ?? 'Your rider';
     final phone = r?.phone ?? '';
+    final otp = deliveryOtpCode ?? order.deliveryOtp;
+    final showOtp =
+        order.status == OrderStatus.outForDelivery && otp.length == 4;
 
     return FadeInUp(
       duration: const Duration(milliseconds: 420),
@@ -104,27 +109,29 @@ class RiderCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-            const Divider(height: 1, color: Colors.white12),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.lock_outline,
-                    color: AppColor.primary, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Delivery OTP — share with rider on arrival',
-                    style: TextStyle(
-                      color: Colors.grey.shade300,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+            if (showOtp) ...[
+              const SizedBox(height: 14),
+              const Divider(height: 1, color: Colors.white12),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.lock_outline,
+                      color: AppColor.primary, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Delivery OTP — share with rider on arrival',
+                      style: TextStyle(
+                        color: Colors.grey.shade300,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-                _OtpChip(otp: order.deliveryOtp),
-              ],
-            ),
+                  _OtpChip(otp: otp),
+                ],
+              ),
+            ],
           ],
         ),
       ),

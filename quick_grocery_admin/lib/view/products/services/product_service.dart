@@ -1,5 +1,9 @@
+import 'dart:async';
 import 'dart:developer';
 import 'dart:typed_data';
+
+import 'package:quick_grocery_admin/core/realtime/admin_live_sync.dart';
+import 'package:quick_grocery_admin/core/realtime/firestore_sync_cache.dart';
 import 'package:quick_grocery_admin/model/catrgory_model.dart';
 import 'package:quick_grocery_admin/model/product_model.dart';
 import 'package:quick_grocery_admin/model/vendor_model.dart';
@@ -9,6 +13,23 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ProductService extends ChangeNotifier {
+  static const int productPageSize = 50;
+
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirestoreSyncCache<ProductModel> _productsCache =
+      FirestoreSyncCache<ProductModel>();
+
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _productsSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _categoriesSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _vendorsSub;
+
+  AdminLiveSyncState productsSyncState = const AdminLiveSyncState();
+  AdminLiveSyncState categoriesSyncState = const AdminLiveSyncState();
+
+  String _searchQuery = '';
+  String? _categoryFilter;
+  int _visibleProductCount = productPageSize;
+
   Uint8List? imageBytes;
   List<Uint8List> imageBytesList = []; // For multiple images
   List<Uint8List> videoBytesList = []; // For multiple videos
@@ -120,36 +141,134 @@ class ProductService extends ChangeNotifier {
   }
 
   void onCategoryQuaryChange(String query) {
-    if (query.isEmpty) {
-      filteredProductsList = productsList;
-    } else {
-      filteredProductsList = productsList
-          ?.where(
-            (product) =>
-                product.category.toLowerCase().contains(query.toLowerCase()),
-          )
-          .toList();
-    }
-    notifyListeners();
+    _categoryFilter = query.isEmpty ? null : query;
+    selectedItem = query.isEmpty ? null : query;
+    _applyFilters();
   }
 
   void onSearchQuary(String query) {
-    if (query.isEmpty) {
-      filteredProductsList = productsList;
-    } else {
-      filteredProductsList = productsList
-          ?.where(
-            (product) =>
-                product.name.toLowerCase().contains(query.toLowerCase()),
-          )
-          .toList();
-    }
-    notifyListeners();
+    _searchQuery = query.trim();
+    _applyFilters();
   }
 
   void clear() {
-    filteredProductsList = productsList;
+    _categoryFilter = null;
+    _searchQuery = '';
+    selectedItem = null;
+    _applyFilters();
+  }
+
+  List<ProductModel> get pagedFilteredProducts =>
+      (filteredProductsList ?? []).take(_visibleProductCount).toList();
+
+  bool get hasMoreProducts =>
+      (filteredProductsList?.length ?? 0) > _visibleProductCount;
+
+  void loadMoreProducts() {
+    _visibleProductCount += productPageSize;
     notifyListeners();
+  }
+
+  void _applyFilters() {
+    var list = productsList ?? <ProductModel>[];
+    final cat = _categoryFilter;
+    if (cat != null && cat.isNotEmpty) {
+      final q = cat.toLowerCase();
+      list = list
+          .where((p) => p.category.toLowerCase().contains(q))
+          .toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      list = list.where((p) => p.name.toLowerCase().contains(q)).toList();
+    }
+    filteredProductsList = list;
+    _visibleProductCount = productPageSize;
+    notifyListeners();
+  }
+
+  void ensureProductsListener() {
+    if (_productsSub != null) return;
+    productsSyncState = productsSyncState.copyWith(isLoading: true);
+    notifyListeners();
+
+    _productsSub = _db.collection('products').snapshots().listen(
+      _onProductsSnapshot,
+      onError: (Object e) {
+        productsSyncState = productsSyncState.copyWith(
+          isLoading: false,
+          hasError: true,
+          errorMessage: e.toString(),
+        );
+        notifyListeners();
+      },
+    );
+  }
+
+  void _onProductsSnapshot(QuerySnapshot<Map<String, dynamic>> snap) {
+    _productsCache.applySnapshot(
+      snap,
+      (data, id) => ProductModel.fromFirestore(data, id),
+    );
+    productsList = _productsCache.sorted(
+      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+    );
+    productsSyncState = AdminLiveSyncState.fromSnapshotMetadata(
+      snap.metadata,
+      previous: productsSyncState,
+    );
+    _applyFilters();
+  }
+
+  void ensureCategoriesListener() {
+    if (_categoriesSub != null) return;
+    categoriesSyncState = categoriesSyncState.copyWith(isLoading: true);
+    notifyListeners();
+
+    _categoriesSub = _db.collection('categories').snapshots().listen(
+      (snap) {
+        category = snap.docs
+            .map(
+              (d) => CategoryModel.fromFirestore(d.data(), d.id),
+            )
+            .toList()
+          ..sort((a, b) => a.name.compareTo(b.name));
+        categories = category;
+        categoriesSyncState = AdminLiveSyncState.fromSnapshotMetadata(
+          snap.metadata,
+          previous: categoriesSyncState,
+        );
+        notifyListeners();
+      },
+      onError: (Object e) {
+        categoriesSyncState = categoriesSyncState.copyWith(
+          isLoading: false,
+          hasError: true,
+          errorMessage: e.toString(),
+        );
+        notifyListeners();
+      },
+    );
+  }
+
+  void ensureVendorsListener() {
+    if (_vendorsSub != null) return;
+    _vendorsSub = _db.collection('vendors').snapshots().listen((snap) {
+      vendors = snap.docs
+          .map((d) => VendorModel.fromFirestore(d.data(), d.id))
+          .toList()
+        ..sort((a, b) => a.shopName.compareTo(b.shopName));
+      notifyListeners();
+    });
+  }
+
+  void disposeRealtime() {
+    _productsSub?.cancel();
+    _categoriesSub?.cancel();
+    _vendorsSub?.cancel();
+    _productsSub = null;
+    _categoriesSub = null;
+    _vendorsSub = null;
   }
 
   Future<String> uploadImageToStorage(Uint8List imageData) async {
@@ -323,10 +442,10 @@ class ProductService extends ChangeNotifier {
   }
 
   Future<List<CategoryModel>?> fetchCategory() async {
+    ensureCategoriesListener();
+    if (category != null) return category;
     try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('categories')
-          .get();
+      QuerySnapshot snapshot = await _db.collection('categories').get();
 
       category = snapshot.docs.map((doc) {
         return CategoryModel.fromFirestore(
@@ -446,11 +565,6 @@ class ProductService extends ChangeNotifier {
       notifyListeners();
 
       showUpdateSuccessDialog(context);
-
-      // Refresh products list if it exists
-      if (productsList != null) {
-        await fetchProducts();
-      }
     } catch (e) {
       isLoading = false;
       notifyListeners();
@@ -460,17 +574,7 @@ class ProductService extends ChangeNotifier {
   }
 
   Future<List<VendorModel>?> fetchVendors() async {
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('vendors')
-        .get();
-
-    vendors = snapshot.docs.map((doc) {
-      return VendorModel.fromFirestore(
-        doc.data() as Map<String, dynamic>,
-        doc.id,
-      );
-    }).toList();
-    notifyListeners();
+    ensureVendorsListener();
     return vendors;
   }
 
@@ -519,24 +623,9 @@ class ProductService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Starts the live products listener; list updates via Firestore snapshots.
   Future<void> fetchProducts() async {
-    try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('products')
-          .get();
-
-      productsList = snapshot.docs.map((doc) {
-        return ProductModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
-      }).toList();
-
-      notifyListeners();
-      filteredProductsList = productsList;
-    } catch (e) {
-      log(e.toString());
-    }
+    ensureProductsListener();
   }
 
   Future<void> getCategories() async {

@@ -10,6 +10,11 @@ class DeliveryPersonModel {
   final String image;
   final String licenceNumber;
   bool isActive;
+  final bool isOnline;
+  final double lat;
+  final double lng;
+  final int activeOrders;
+  final String activeOrderId;
 
   DeliveryPersonModel({
     required this.id,
@@ -23,7 +28,18 @@ class DeliveryPersonModel {
     required this.image,
     required this.licenceNumber,
     required this.isActive,
+    this.isOnline = false,
+    this.lat = 0,
+    this.lng = 0,
+    this.activeOrders = 0,
+    this.activeOrderId = '',
   });
+
+  String get displayName => '$firstName $lastName'.trim().isEmpty
+      ? 'Rider'
+      : '$firstName $lastName'.trim();
+
+  bool get hasLiveLocation => lat != 0 || lng != 0;
 
   factory DeliveryPersonModel.fromFirestore(
       Map<String, dynamic> data, String id) {
@@ -38,7 +54,19 @@ class DeliveryPersonModel {
       address: data['address'] ?? '',
       image: data['image'] ?? '',
       licenceNumber: data['licence_number'] ?? '',
-      isActive: data['is_active'] ?? true,
+      isActive: data['is_active'] ?? data['isActive'] != false,
+      isOnline: data['isOnline'] == true || data['online_status'] == true,
+      lat: (data['lat'] as num?)?.toDouble() ??
+          (data['latitude'] as num?)?.toDouble() ??
+          0,
+      lng: (data['lng'] as num?)?.toDouble() ??
+          (data['longitude'] as num?)?.toDouble() ??
+          0,
+      activeOrders: (data['activeOrders'] as num?)?.toInt() ??
+          (data['active_orders'] as num?)?.toInt() ??
+          0,
+      activeOrderId: (data['activeOrderId'] ?? data['active_order_id'] ?? '')
+          .toString(),
     );
   }
 

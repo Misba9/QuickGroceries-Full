@@ -492,12 +492,20 @@ class ProfileActiveOrderCard extends ConsumerWidget {
     switch (order.status) {
       case OrderStatus.pending:
         return 0.15;
+      case OrderStatus.vendorAccepted:
       case OrderStatus.accepted:
         return 0.35;
       case OrderStatus.packing:
         return 0.55;
-      case OrderStatus.outForDelivery:
+      case OrderStatus.readyForPickup:
+        return 0.65;
+      case OrderStatus.riderAssigned:
+      case OrderStatus.headingToStore:
+        return 0.75;
+      case OrderStatus.pickedUp:
         return 0.85;
+      case OrderStatus.outForDelivery:
+        return 0.92;
       default:
         return 0.2;
     }

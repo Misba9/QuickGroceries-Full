@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +11,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:quickgrocery/core/firebase/firebase_auth_readiness.dart';
+import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
 import 'package:quickgrocery/view/auth/screens/customer_profile_add_screen.dart';
 import 'package:quickgrocery/view/auth/screens/otp_screen.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
@@ -159,6 +162,9 @@ class AuthService extends ChangeNotifier {
     FirebaseAuthReadiness.log(
       'verifyPhoneNumber start phone=$phoneNumber resend=${forceResendingToken != null}',
     );
+    if (kDebugMode) {
+      FirebaseAuthReadiness.log(FirebaseConfigAudit.emulatorTestNumberHint());
+    }
 
     Timer? watchdog;
     watchdog = Timer(const Duration(seconds: 90), () {
@@ -190,10 +196,13 @@ class AuthService extends ChangeNotifier {
             notifyListeners();
           }
         },
-        verificationFailed: (FirebaseAuthException e) {
+        verificationFailed: (FirebaseAuthException e) async {
           watchdog?.cancel();
           isLoading = false;
-          final message = _phoneAuthErrorMessage(e);
+          FirebaseAuthReadiness.log(
+            'verificationFailed: ${FirebaseConfigAudit.formatAuthException(e)}',
+          );
+          final message = await _phoneAuthErrorMessage(e);
           _setPhoneAuthError(message);
           log('verificationFailed: ${e.code} ${e.message}', error: e);
           if (context.mounted) {
@@ -234,8 +243,13 @@ class AuthService extends ChangeNotifier {
       watchdog.cancel();
       isLoading = false;
       final message = e is FirebaseAuthException
-          ? _phoneAuthErrorMessage(e)
+          ? await _phoneAuthErrorMessage(e)
           : 'Phone verification failed: $e';
+      if (e is FirebaseAuthException) {
+        FirebaseAuthReadiness.log(
+          'verifyPhoneNumber exception: ${FirebaseConfigAudit.formatAuthException(e)}',
+        );
+      }
       _setPhoneAuthError(message);
       log('verifyPhoneNumber threw', error: e, stackTrace: st);
       if (context.mounted) {
@@ -246,7 +260,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  String _phoneAuthErrorMessage(FirebaseAuthException e) {
+  Future<String> _phoneAuthErrorMessage(FirebaseAuthException e) async {
     switch (e.code) {
       case 'invalid-phone-number':
         return 'Invalid phone number. Use a valid 10-digit Indian mobile number.';
@@ -256,14 +270,12 @@ class AuthService extends ChangeNotifier {
         return 'SMS quota exceeded. Try again later or contact support.';
       case 'missing-client-identifier':
       case 'app-not-authorized':
-        return Platform.isIOS
-            ? 'iOS app is not authorized for phone auth. Ensure GoogleService-Info.plist, '
-                  'REVERSED_CLIENT_ID URL scheme, and APNs key are configured in Firebase Console.'
-            : (e.message ?? 'App not authorized for phone authentication.');
+      case 'invalid-app-credential':
+      case 'invalid-cert-hash':
       case 'captcha-check-failed':
-        return 'Verification check failed. Check network and Firebase iOS URL schemes.';
+        return FirebaseConfigAudit.messageForAuthException(e);
       default:
-        return e.message ?? 'Phone auth failed (${e.code}).';
+        return FirebaseConfigAudit.formatAuthException(e);
     }
   }
 
@@ -305,9 +317,10 @@ class AuthService extends ChangeNotifier {
         return false;
       }
       if (context.mounted) {
+        final message = await _phoneAuthErrorMessage(e);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.message ?? 'Phone auth failed'),
+            content: Text(message),
             backgroundColor: Colors.red,
           ),
         );

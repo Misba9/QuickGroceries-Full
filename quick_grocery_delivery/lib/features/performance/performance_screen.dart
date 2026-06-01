@@ -75,7 +75,7 @@ class _PerformanceScreenState extends State<PerformanceScreen> {
                     label: 'Completed trips',
                     value: '${_snap.completed}',
                     icon: Icons.local_shipping_outlined,
-                    subtitle: '${_snap.cancelled} cancelled · ${_snap.pending} pending offers',
+                    subtitle: '${_snap.cancelled} cancelled · ${_snap.pendingOffers} pending offers',
                   ),
                   const SizedBox(height: 20),
                   const Text(

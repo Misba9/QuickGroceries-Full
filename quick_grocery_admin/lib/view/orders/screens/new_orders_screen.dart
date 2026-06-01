@@ -4,6 +4,8 @@ import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/services/delivery_boy_service.dart';
 import 'package:quick_grocery_admin/view/orders/models/order_list_preset.dart';
 import 'package:quick_grocery_admin/view/orders/services/order_service.dart';
+import 'package:quick_grocery_admin/view/orders/services/rider_assignment_client.dart';
+import 'package:quick_grocery_admin/view/orders/widgets/assign_rider_dialog.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/new_orders_dispatch_queue.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/new_orders_live_stats.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/order_details_drawer.dart';
@@ -23,6 +25,8 @@ class NewOrdersScreen extends StatefulWidget {
 
 class _NewOrdersScreenState extends State<NewOrdersScreen> {
   int _ridersAvailable = 0;
+  final _riderClient = RiderAssignmentClient();
+  bool _batchAssigning = false;
 
   @override
   void initState() {
@@ -40,8 +44,10 @@ class _NewOrdersScreenState extends State<NewOrdersScreen> {
       await deliverySvc.getDeliveryBoys();
     }
     if (!mounted) return;
-    final active =
-        deliverySvc.deliveryBoys?.where((b) => b.isActive).length ?? 0;
+    final active = deliverySvc.deliveryBoys
+            ?.where((b) => b.isActive && b.isOnline)
+            .length ??
+        0;
     setState(() => _ridersAvailable = active);
   }
 
@@ -51,8 +57,62 @@ class _NewOrdersScreenState extends State<NewOrdersScreen> {
     if (mounted) {
       setState(() {
         _ridersAvailable =
-            deliverySvc.deliveryBoys?.where((b) => b.isActive).length ?? 0;
+            deliverySvc.deliveryBoys?.where((b) => b.isActive && b.isOnline).length ?? 0;
       });
+    }
+  }
+
+  Future<void> _assignRider(OrderModel order) async {
+    await AssignRiderDialog.show(context, order: order, client: _riderClient);
+  }
+
+  Future<void> _autoAssignRider(OrderModel order) async {
+    try {
+      final r = await _riderClient.autoAssign(order.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Auto-assigned ${r.riderName} (${r.distanceKm.toStringAsFixed(1)} km)',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(RiderAssignmentClient.errorMessage(e)),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _autoAssignAll() async {
+    if (_batchAssigning) return;
+    setState(() => _batchAssigning = true);
+    try {
+      final result = await _riderClient.autoAssignAll();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Auto-assigned ${result.assigned} of ${result.attempted} orders',
+          ),
+          backgroundColor: result.assigned > 0 ? Colors.green : Colors.orange,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(RiderAssignmentClient.errorMessage(e)),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _batchAssigning = false);
     }
   }
 
@@ -91,7 +151,13 @@ class _NewOrdersScreenState extends State<NewOrdersScreen> {
           else ...[
             LiveOrdersStatsRow(stats: statsWithRiders),
             const SizedBox(height: 24),
-            PendingDispatchQueue(orders: svc.dispatchQueue, onView: _openOrder),
+            PendingDispatchQueue(
+              orders: svc.unassignedOrders,
+              onView: _openOrder,
+              onAssignRider: _assignRider,
+              onAutoAssignRider: _autoAssignRider,
+              onAutoAssignAll: svc.unassignedOrders.isEmpty ? null : _autoAssignAll,
+            ),
             const SizedBox(height: 24),
             Text(
               'Live orders (${svc.filteredOrders.length})',

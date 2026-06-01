@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:quick_grocery_admin/core/theme/app_text_styles.dart';
 import 'package:quick_grocery_admin/core/widgets/admin_list_tile.dart';
@@ -35,26 +37,24 @@ class _ComboOffersScreenState extends State<ComboOffersScreen> {
   DateTime? _startsAt;
   DateTime? _endsAt;
   bool _saving = false;
+  StreamSubscription<List<ProductModel>>? _productsSub;
+  StreamSubscription<List<VendorModel>>? _vendorsSub;
 
   @override
   void initState() {
     super.initState();
-    _loadCatalog();
-  }
-
-  Future<void> _loadCatalog() async {
-    final products = await _svc.fetchProducts();
-    final vendors = await _svc.fetchVendors();
-    if (mounted) {
-      setState(() {
-        _allProducts = products;
-        _vendors = vendors;
-      });
-    }
+    _productsSub = _svc.watchProducts().listen((list) {
+      if (mounted) setState(() => _allProducts = list);
+    });
+    _vendorsSub = _svc.watchVendors().listen((list) {
+      if (mounted) setState(() => _vendors = list);
+    });
   }
 
   @override
   void dispose() {
+    _productsSub?.cancel();
+    _vendorsSub?.cancel();
     _title.dispose();
     _subtitle.dispose();
     _comboPrice.dispose();

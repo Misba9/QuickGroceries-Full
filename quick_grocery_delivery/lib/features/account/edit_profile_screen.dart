@@ -92,6 +92,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         documents: current.documents,
         acceptanceRate: current.acceptanceRate,
         onTimePercent: current.onTimePercent,
+        availability: current.availability,
       );
       await context.read<DriverProfileService>().updateProfile(updated);
       if (mounted) {

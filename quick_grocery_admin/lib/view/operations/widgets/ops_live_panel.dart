@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:quick_grocery_admin/view/operations/widgets/ops_activity_feed.dart';
 import 'package:quick_grocery_admin/view/operations/widgets/ops_dashboard_charts.dart';
 import 'package:quick_grocery_admin/view/operations/widgets/ops_dashboard_metrics.dart';
+import 'package:quick_grocery_admin/view/delivery_boy/widgets/active_riders_live_map.dart';
 import 'package:quick_grocery_admin/view/operations/widgets/ops_live_order_queue.dart';
 
 /// Real-time ops dashboard: revenue, metrics, queue, charts, activity.
@@ -39,6 +40,8 @@ class OpsLivePanel extends StatelessWidget {
             );
           },
         ),
+        const SizedBox(height: 20),
+        const ActiveRidersLiveMap(height: 280),
         const SizedBox(height: 20),
         const OpsDashboardCharts(),
       ],

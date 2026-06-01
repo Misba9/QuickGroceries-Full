@@ -7,6 +7,8 @@ import 'package:quick_grocery_delivery/features/payment/screens/scan_pay_screen.
 import 'package:quick_grocery_delivery/widgets/driver_stat_card.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_grocery_delivery/models/order_model.dart';
+import 'package:quick_grocery_delivery/features/orders/screens/pickup_process_screen.dart';
+import 'package:quick_grocery_delivery/services/driver_location_publisher.dart';
 import 'package:quick_grocery_delivery/support/support_contact_sheet.dart';
 
 class HomePage extends StatefulWidget {
@@ -17,13 +19,23 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final DriverLocationPublisher _locationPublisher = DriverLocationPublisher();
+
   @override
   void initState() {
-    Provider.of<OrderService>(context, listen: false).getDeliveryBoy();
-    Provider.of<OrderService>(context, listen: false).getTotalOrders();
-    Provider.of<OrderService>(context, listen: false).getOrders();
-    Provider.of<OrderService>(context, listen: false).updateAdminFcmToken();
     super.initState();
+    final orders = Provider.of<OrderService>(context, listen: false);
+    orders.getDeliveryBoy();
+    orders.getTotalOrders();
+    orders.startRealtimeOrders();
+    orders.updateAdminFcmToken();
+    _locationPublisher.start();
+  }
+
+  @override
+  void dispose() {
+    _locationPublisher.stop();
+    super.dispose();
   }
 
   @override
@@ -57,9 +69,7 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: RefreshIndicator(
-            onRefresh: () => provider.getOrders(),
-            child: SingleChildScrollView(
+          child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -134,12 +144,27 @@ class _HomePageState extends State<HomePage> {
                               products: cart.products,
                               isFastDelivery: cart.deliveryType == 'fast',
                               status: cart.orderStatus,
-                              onTap: () {
-                                p.showConfirmationDialog(
+                              onAccept: () async {
+                                final accepted =
+                                    await p.acceptDelivery(cart.id, order: cart);
+                                if (!context.mounted || accepted == null) return;
+                                Navigator.push(
                                   context,
-                                  p.newOrders[i].id,
-                                  p.newOrders[i].uuid,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        PickupProcessScreen(order: accepted),
+                                  ),
                                 );
+                              },
+                              onReject: () async {
+                                await p.rejectOrder(cart.id);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Delivery rejected'),
+                                    ),
+                                  );
+                                }
                               },
                               date: cart.createdDate.substring(0, 10),
                               orderId: cart.id.substring(0, 6),
@@ -179,7 +204,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -232,9 +256,11 @@ class OrderPendingCard extends StatelessWidget {
     required this.orderId,
     required this.customerName,
     required this.customerAddress,
-    required this.onTap,
     required this.status,
     required this.isFastDelivery,
+    this.onAccept,
+    this.onReject,
+    this.onTap,
   });
 
   final List<ProductItem> products;
@@ -242,7 +268,9 @@ class OrderPendingCard extends StatelessWidget {
   final String orderId;
   final String customerName;
   final String customerAddress;
-  final Function() onTap;
+  final VoidCallback? onAccept;
+  final VoidCallback? onReject;
+  final VoidCallback? onTap;
   final String status;
   final bool isFastDelivery;
 
@@ -261,20 +289,23 @@ class OrderPendingCard extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 10),
-          child: GestureDetector(
-            onTap: onTap,
-            child: Card(
-              margin: EdgeInsets.zero,
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  color: Colors.white,
-                ),
-                child: Column(
-                  children: [
-                    // Product + Customer Info
-                    Row(
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: Colors.white,
+              ),
+              child: Column(
+                children: [
+                  InkWell(
+                    onTap: onTap,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Column(
+                      children: [
+                        // Product + Customer Info
+                        Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Product Image
@@ -392,8 +423,40 @@ class OrderPendingCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                      ],
+                    ),
+                  ),
+                  if (onAccept != null || onReject != null) ...[
+                    AppSpacing.h10,
+                    Row(
+                      children: [
+                        if (onReject != null)
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: onReject,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(color: Colors.red),
+                              ),
+                              child: const Text('Reject Delivery'),
+                            ),
+                          ),
+                        if (onAccept != null && onReject != null)
+                          AppSpacing.w10,
+                        if (onAccept != null)
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: onAccept,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: GlobalVariables.primary,
+                              ),
+                              child: const Text('Accept Delivery'),
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
-                ),
+                ],
               ),
             ),
           ),

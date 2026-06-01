@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:quick_grocery_delivery/core/delivery_push_initializer.dart';
 import 'package:quick_grocery_delivery/core/fcm_bootstrap.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 // import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -30,6 +31,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
+  await DeliveryPushInitializer.ensureInitialized();
   if (kDebugMode) {
     debugPrint('[DeliveryFCM:bg] ${message.notification?.title}');
   }
@@ -61,6 +63,7 @@ Future<void> main() async {
     badge: true,
     sound: true,
   );
+  await DeliveryPushInitializer.ensureInitialized();
   final pref = await SharedPreferences.getInstance();
   final riderId =
       FirebaseAuth.instance.currentUser?.uid ??

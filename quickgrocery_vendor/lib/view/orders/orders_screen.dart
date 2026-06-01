@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/vendor_order_notification_controller.dart';
 import '../../models/order_model.dart';
 import '../../models/vendor_model.dart';
 import '../../services/order_service.dart';
@@ -6,14 +7,19 @@ import '../../style/app_color.dart';
 import '../../utils/app_spacing.dart';
 import 'order_detail_screen.dart';
 import 'invoice_screen.dart';
+import 'widgets/assign_rider_sheet.dart';
 
 class OrdersScreen extends StatefulWidget {
   final VendorModel vendor;
+  final VendorOrderNotificationController notifications;
+  final VoidCallback? onOpenNotificationCenter;
   final Widget? bottomNavigationBar;
 
   const OrdersScreen({
     super.key,
     required this.vendor,
+    required this.notifications,
+    this.onOpenNotificationCenter,
     this.bottomNavigationBar,
   });
 
@@ -111,6 +117,22 @@ class _OrdersScreenState extends State<OrdersScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          ListenableBuilder(
+            listenable: widget.notifications,
+            builder: (context, _) {
+              return IconButton(
+                tooltip: 'Notifications',
+                onPressed: widget.onOpenNotificationCenter,
+                icon: Badge(
+                  isLabelVisible: widget.notifications.badgeCount > 0,
+                  label: Text('${widget.notifications.badgeCount}'),
+                  child: const Icon(Icons.notifications_outlined),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -226,37 +248,42 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   );
                 }
 
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    // Stream will automatically update
-                    await Future.delayed(const Duration(milliseconds: 500));
-                  },
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: orders.length,
-                    itemBuilder: (context, index) {
-                      final order = orders[index];
-                      return _OrderCard(
-                        order: order,
-                        vendorId: widget.vendor.id,
-                        vendor: widget.vendor,
-                        orderService: _orderService,
-                        statusColor: _getStatusColor(order.orderStatus),
-                        statusIcon: _getStatusIcon(order.orderStatus),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => OrderDetailScreen(
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: orders.length,
+                  itemBuilder: (context, index) {
+                    final order = orders[index];
+                    final isNew = _isPendingNew(order);
+                    return _OrderCard(
+                      order: order,
+                      vendorId: widget.vendor.id,
+                      vendor: widget.vendor,
+                      orderService: _orderService,
+                      statusColor: _getStatusColor(order.orderStatus),
+                      statusIcon: _getStatusIcon(order.orderStatus),
+                      highlight: isNew,
+                      onAssignRider: order.deliveryBoyId.isEmpty &&
+                              !order.isDelivered &&
+                              !order.isCancelled
+                          ? () => AssignRiderSheet.show(
+                                context,
                                 order: order,
-                                vendor: widget.vendor,
-                              ),
+                                orderService: _orderService,
+                              )
+                          : null,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => OrderDetailScreen(
+                              order: order,
+                              vendor: widget.vendor,
                             ),
-                          );
-                        },
-                      );
-                    },
-                  ),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 );
               },
             ),
@@ -265,6 +292,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
       ),
       bottomNavigationBar: widget.bottomNavigationBar,
     );
+  }
+
+  bool _isPendingNew(OrderModel order) {
+    if (order.isDelivered || order.isCancelled) return false;
+    final s = order.orderStatus.toLowerCase();
+    return s.contains('waiting') ||
+        s.contains('pending') ||
+        s.contains('confirm') && order.confimedTime.isEmpty;
   }
 }
 
@@ -275,6 +310,8 @@ class _OrderCard extends StatelessWidget {
   final OrderService orderService;
   final Color statusColor;
   final IconData statusIcon;
+  final bool highlight;
+  final VoidCallback? onAssignRider;
   final VoidCallback onTap;
 
   const _OrderCard({
@@ -284,6 +321,8 @@ class _OrderCard extends StatelessWidget {
     required this.orderService,
     required this.statusColor,
     required this.statusIcon,
+    this.highlight = false,
+    this.onAssignRider,
     required this.onTap,
   });
 
@@ -304,9 +343,13 @@ class _OrderCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
+      elevation: highlight ? 4 : 2,
+      color: highlight ? Colors.orange.shade50 : null,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: highlight
+            ? BorderSide(color: Colors.orange.shade400, width: 2)
+            : BorderSide.none,
       ),
       child: InkWell(
         onTap: onTap,
@@ -513,7 +556,43 @@ class _OrderCard extends StatelessWidget {
                 ],
               ),
               AppSpacing.h15,
-              
+              if (onAssignRider != null) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 40,
+                  child: FilledButton.icon(
+                    onPressed: onAssignRider,
+                    icon: const Icon(Icons.delivery_dining, size: 18),
+                    label: const Text('Assign Driver'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColor.primary,
+                      foregroundColor: Colors.black,
+                    ),
+                  ),
+                ),
+                AppSpacing.h10,
+              ],
+              if (order.deliveryBoyId.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.two_wheeler, size: 16, color: Colors.grey[700]),
+                      AppSpacing.w10,
+                      Expanded(
+                        child: Text(
+                          'Rider assigned',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[800],
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               // Generate Invoice Button
               SizedBox(
                 width: double.infinity,

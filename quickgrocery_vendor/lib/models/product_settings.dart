@@ -52,7 +52,7 @@ class ProductSettings {
 
   factory ProductSettings.fromMap(Map<String, dynamic> data) {
     return ProductSettings(
-      isActive: _bool(data, 'is_active', alt: 'isAvailable', fallback: true),
+      isActive: _bool(data, 'isActive', alt: 'is_active', fallback: true),
       isFlashSale: _bool(data, 'is_flash_sale'),
       isTodaysBest: _bool(data, 'is_todays_best'),
       isMostSelling: _bool(data, 'is_most_selling', alt: 'most_sold'),
@@ -132,9 +132,10 @@ class ProductSettings {
   Map<String, dynamic> toFirestorePatch({String? existingSpecialCat}) {
     final now = FieldValue.serverTimestamp();
     final patch = <String, dynamic>{
+      'isActive': isActive,
       'is_active': isActive,
-      'isAvailable': isActive,
       'active': isActive,
+      'updatedAt': now,
       'is_flash_sale': isFlashSale,
       'is_todays_best': isTodaysBest,
       'is_most_selling': isMostSelling,
@@ -191,10 +192,12 @@ class ProductSettings {
     Map<String, dynamic> data,
     String key, {
     String? alt,
+    String? alt2,
     bool fallback = false,
   }) {
     if (data.containsKey(key)) return data[key] == true;
     if (alt != null && data.containsKey(alt)) return data[alt] == true;
+    if (alt2 != null && data.containsKey(alt2)) return data[alt2] == true;
     return fallback;
   }
 

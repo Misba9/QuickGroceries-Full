@@ -11,6 +11,7 @@ class OrderModel {
   String address;
   bool isPaid;
   String orderStatus;
+  String modernStatus;
   String deliveryBoyId;
   bool isDelivered;
   bool isCancelled;
@@ -40,6 +41,7 @@ class OrderModel {
     required this.address,
     required this.isPaid,
     required this.orderStatus,
+    this.modernStatus = '',
     required this.deliveryBoyId,
     required this.isDelivered,
     required this.isCancelled,
@@ -73,7 +75,9 @@ class OrderModel {
       address: data['address'] ?? '',
       isPaid: data['isPaid'] ?? false,
       orderStatus: data['order_status'] ?? '',
-      deliveryBoyId: data['deliveryBoyId'] ?? '',
+      modernStatus: data['status']?.toString() ?? '',
+      deliveryBoyId: (data['deliveryBoyId'] ?? data['delivery_boy_id'] ?? '')
+          .toString(),
       isDelivered: data['isDelivered'] ?? false,
       isCancelled: data['isCancelled'] ?? false,
       deliveryType: data['delivery_type'] ?? '',

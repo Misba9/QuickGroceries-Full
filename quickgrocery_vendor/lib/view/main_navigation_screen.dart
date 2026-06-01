@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import '../core/vendor_order_notification_controller.dart';
 import '../models/vendor_model.dart';
 import '../style/app_color.dart';
+import 'orders/widgets/vendor_notification_center.dart';
+import 'orders/widgets/vendor_order_realtime_host.dart';
 import 'home/home_screen.dart';
 import 'orders/orders_screen.dart';
 import 'products/products_screen.dart';
@@ -21,6 +24,8 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   VendorModel? _currentVendor;
+  final VendorOrderNotificationController _notifications =
+      VendorOrderNotificationController();
 
   @override
   void initState() {
@@ -53,15 +58,33 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       unselectedLabelStyle: const TextStyle(
         fontSize: 12,
       ),
-      items: const [
-        BottomNavigationBarItem(
+      items: [
+        const BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),
           activeIcon: Icon(Icons.home),
           label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart_outlined),
-          activeIcon: Icon(Icons.shopping_cart),
+          icon: ListenableBuilder(
+            listenable: _notifications,
+            builder: (context, _) {
+              return Badge(
+                isLabelVisible: _notifications.badgeCount > 0,
+                label: Text('${_notifications.badgeCount}'),
+                child: const Icon(Icons.shopping_cart_outlined),
+              );
+            },
+          ),
+          activeIcon: ListenableBuilder(
+            listenable: _notifications,
+            builder: (context, _) {
+              return Badge(
+                isLabelVisible: _notifications.badgeCount > 0,
+                label: Text('${_notifications.badgeCount}'),
+                child: const Icon(Icons.shopping_cart),
+              );
+            },
+          ),
           label: 'Orders',
         ),
         BottomNavigationBarItem(
@@ -88,14 +111,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     // Use IndexedStack to maintain state of each screen
     // Each screen has its own Scaffold with bottomNavigationBar
-    return IndexedStack(
-      index: _currentIndex,
-      children: [
-        _buildHomeScreen(),
-        _buildOrdersScreen(),
-        _buildProductsScreen(),
-        _buildProfileScreen(),
-      ],
+    return VendorOrderRealtimeHost(
+      vendor: _currentVendor!,
+      notifications: _notifications,
+      onViewAllOrders: () => setState(() => _currentIndex = 1),
+      child: IndexedStack(
+        index: _currentIndex,
+        children: [
+          _buildHomeScreen(),
+          _buildOrdersScreen(),
+          _buildProductsScreen(),
+          _buildProfileScreen(),
+        ],
+      ),
     );
   }
 
@@ -111,6 +139,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget _buildOrdersScreen() {
     return OrdersScreen(
       vendor: _currentVendor!,
+      notifications: _notifications,
+      onOpenNotificationCenter: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => VendorNotificationCenter(
+              vendorId: _currentVendor!.id,
+            ),
+          ),
+        );
+      },
       bottomNavigationBar: _buildBottomNavBar(),
     );
   }

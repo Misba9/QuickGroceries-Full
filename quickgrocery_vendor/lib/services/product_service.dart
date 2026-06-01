@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+
 import '../models/product_model.dart';
 import '../models/product_settings.dart';
 import 'product_settings_service.dart';
@@ -23,6 +25,7 @@ class ProductService {
         .map((snapshot) {
       return snapshot.docs
           .map((doc) => ProductModel.fromFirestore(doc.data(), doc.id))
+          .where((p) => !p.isDeleted)
           .toList();
     });
   }
@@ -79,7 +82,26 @@ class ProductService {
 
   ProductSettingsService get settingsService => _settingsService;
 
-  Future<void> deleteProduct(String productId) async {
+  /// Soft-delete — hidden from vendor list, user app, and search.
+  Future<void> softDeleteProduct(String productId) async {
+    if (kDebugMode) {
+      debugPrint('Deleting Product: $productId');
+    }
+    await _firestore.collection(_collectionName).doc(productId).update({
+      'isDeleted': true,
+      'is_deleted': true,
+      'deletedAt': FieldValue.serverTimestamp(),
+      'isActive': false,
+      'is_active': false,
+      'active': false,
+      'isAvailable': false,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'lastEdited': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Permanent remove (optional admin tooling).
+  Future<void> deleteProductPermanently(String productId) async {
     await _firestore.collection(_collectionName).doc(productId).delete();
   }
 
@@ -91,10 +113,23 @@ class ProductService {
   }
 
   Future<void> toggleProductStatus(String productId, bool isActive) async {
-    final settings = await _settingsService.fetchSettings(productId);
-    await _settingsService.patchSettings(
-      productId: productId,
-      settings: settings.copyWith(isActive: isActive),
-    );
+    if (kDebugMode) {
+      debugPrint('Product ID: $productId');
+      debugPrint('New Status: $isActive');
+    }
+
+    final doc = await _firestore.collection(_collectionName).doc(productId).get();
+    final data = doc.data() ?? {};
+    final stock = int.tryParse(data['stock']?.toString() ?? '') ?? 0;
+    final available = isActive && stock > 0;
+
+    await _firestore.collection(_collectionName).doc(productId).update({
+      'isActive': isActive,
+      'is_active': isActive,
+      'active': isActive,
+      'isAvailable': available,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'lastEdited': FieldValue.serverTimestamp(),
+    });
   }
 }

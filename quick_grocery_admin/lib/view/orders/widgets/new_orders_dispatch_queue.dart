@@ -7,16 +7,22 @@ import 'package:quick_grocery_admin/view/orders/utils/order_eta_utils.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/order_row_actions.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/order_status_badge.dart';
 
-/// Urgent dispatch queue — unassigned / delayed orders with quick actions.
+/// Urgent dispatch queue — unassigned orders with assign / auto-assign actions.
 class PendingDispatchQueue extends StatelessWidget {
   const PendingDispatchQueue({
     super.key,
     required this.orders,
     required this.onView,
+    this.onAssignRider,
+    this.onAutoAssignRider,
+    this.onAutoAssignAll,
   });
 
   final List<OrderModel> orders;
   final OrderDrawerCallback onView;
+  final Future<void> Function(OrderModel order)? onAssignRider;
+  final Future<void> Function(OrderModel order)? onAutoAssignRider;
+  final Future<void> Function()? onAutoAssignAll;
 
   @override
   Widget build(BuildContext context) {
@@ -28,13 +34,20 @@ class PendingDispatchQueue extends StatelessWidget {
           Row(
             children: [
               Text(
-                'Dispatch queue',
+                'Unassigned orders',
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const Spacer(),
+              if (onAutoAssignAll != null && orders.isNotEmpty)
+                TextButton.icon(
+                  onPressed: () => onAutoAssignAll!(),
+                  icon: const Icon(Icons.auto_mode_rounded, size: 18),
+                  label: const Text('Auto-assign all'),
+                ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -45,7 +58,7 @@ class PendingDispatchQueue extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  '${orders.length} waiting',
+                  '${orders.length} unassigned',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -80,6 +93,8 @@ class PendingDispatchQueue extends StatelessWidget {
                         child: LiveOrderQueueCard(
                           order: orders[i],
                           onView: onView,
+                          onAssignRider: onAssignRider,
+                          onAutoAssignRider: onAutoAssignRider,
                           width: _dispatchCardWidth(constraints.maxWidth),
                         ),
                       );
@@ -97,7 +112,7 @@ class PendingDispatchQueue extends StatelessWidget {
 /// Vertical space for one dispatch card (badges, slot, ETA row) — scales with text.
 double _dispatchQueueStripHeight(BuildContext context) {
   final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.4);
-  return 224 * scale;
+  return 224 * scale + 56;
 }
 
 double _dispatchCardWidth(double parentMaxWidth) {
@@ -111,6 +126,8 @@ class LiveOrderQueueCard extends StatefulWidget {
     super.key,
     required this.order,
     this.onView,
+    this.onAssignRider,
+    this.onAutoAssignRider,
     this.width,
     this.total,
     this.paymentLabel,
@@ -121,6 +138,8 @@ class LiveOrderQueueCard extends StatefulWidget {
 
   final OrderModel order;
   final OrderDrawerCallback? onView;
+  final Future<void> Function(OrderModel order)? onAssignRider;
+  final Future<void> Function(OrderModel order)? onAutoAssignRider;
   final double? width;
   final double? total;
   final String? paymentLabel;
@@ -290,6 +309,47 @@ class _LiveOrderQueueCardState extends State<LiveOrderQueueCard> {
                 ),
               ],
               const SizedBox(height: 8),
+              if (widget.onAssignRider != null ||
+                  widget.onAutoAssignRider != null) ...[
+                Row(
+                  children: [
+                    if (widget.onAssignRider != null)
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () => widget.onAssignRider!(order),
+                          icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
+                          label: const Text('Assign rider'),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            textStyle: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (widget.onAssignRider != null &&
+                        widget.onAutoAssignRider != null)
+                      const SizedBox(width: 8),
+                    if (widget.onAutoAssignRider != null)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => widget.onAutoAssignRider!(order),
+                          icon: const Icon(Icons.auto_mode_rounded, size: 16),
+                          label: const Text('Auto assign'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            textStyle: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [

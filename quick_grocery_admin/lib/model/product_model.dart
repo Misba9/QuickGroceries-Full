@@ -18,6 +18,7 @@ class ProductModel {
   final String vendorId;
   final bool isFlashSale;
   final bool isActive;
+  final bool isDeleted;
   final Timestamp lastEdited;
   final String unitPerItem;
   final List favorites;
@@ -45,6 +46,7 @@ class ProductModel {
     required this.vendorId,
     required this.isFlashSale,
     required this.isActive,
+    this.isDeleted = false,
     required this.lastEdited,
     required this.unitPerItem,
     required this.favorites,
@@ -54,6 +56,13 @@ class ProductModel {
     required this.images,
     required this.videos,
   });
+
+  static bool _readActiveFlag(Map<String, dynamic> data) {
+    if (data['isActive'] is bool) return data['isActive'] as bool;
+    if (data['is_active'] is bool) return data['is_active'] as bool;
+    if (data['active'] is bool) return data['active'] as bool;
+    return true;
+  }
 
   factory ProductModel.fromFirestore(Map<String, dynamic> data, String id) {
     return ProductModel(
@@ -73,7 +82,8 @@ class ProductModel {
       totalSold: data['totalSold'] ?? 0,
       vendorId: data['vendor_id'] ?? '',
       isFlashSale: data['is_flash_sale'] ?? false,
-      isActive: data['is_active'] ?? true,
+      isActive: _readActiveFlag(data),
+      isDeleted: data['isDeleted'] == true || data['is_deleted'] == true,
       lastEdited: data['lastEdited'] ?? Timestamp.now(),
       unitPerItem: data['unitPerItem'] ?? '',
       favorites: data['favorites'] ?? [],

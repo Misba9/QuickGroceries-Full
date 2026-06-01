@@ -1,10 +1,19 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:quick_grocery_delivery/features/orders/screens/pickup_process_screen.dart';
+import 'package:quick_grocery_delivery/features/orders/widgets/delivery_otp_sheet.dart';
+import 'package:quick_grocery_delivery/services/delivery_ops_api.dart';
+import 'package:quick_grocery_delivery/services/delivery_trip_tracker.dart';
+import 'package:quick_grocery_delivery/utils/delivery_route_utils.dart';
+import 'package:quick_grocery_delivery/core/delivery_push_initializer.dart';
+import 'package:quick_grocery_delivery/core/order_lifecycle.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/models/delivery_boy_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quick_grocery_delivery/models/order_model.dart';
 import 'package:googleapis_auth/auth_io.dart' as auth;
@@ -13,6 +22,11 @@ import 'package:googleapis/servicecontrol/v1.dart' as servicecontrol;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OrderService extends ChangeNotifier {
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _ordersSub;
+  String _subscribedRiderId = '';
+  int _lastNewOrderCount = 0;
+  bool _ordersPrimed = false;
+
   List<OrderModel>? orders;
   List<OrderModel> newOrders = [];
   List<OrderModel> myTransistOrders = [];
@@ -25,6 +39,8 @@ class OrderService extends ChangeNotifier {
   String orderStatus = '';
   DeliveryBoyModel? deliveryBoy;
   bool profileLoadFailed = false;
+  String? pickupActionOrderId;
+  String? deliveryActionOrderId;
   TextEditingController priceController = TextEditingController();
 
   void onSelectOrder(OrderModel order) async {
@@ -149,56 +165,48 @@ class OrderService extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> fetchTotalOrdersAndPrice() async {
-    final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-    double totalOrderPrice = 0.0;
-    int totalOrders = 0;
     final pref = await SharedPreferences.getInstance();
-    String token = pref.getString('deliveryBoyId') ?? "";
+    final riderId = pref.getString('deliveryBoyId') ?? '';
+    if (riderId.isEmpty) {
+      return {'totalOrders': 0, 'totalOrderPrice': 0.0};
+    }
 
     try {
-      QuerySnapshot querySnapshot = await _firestore
+      final querySnapshot = await FirebaseFirestore.instance
           .collection('orders')
-          .where('deliveryBoyId', isEqualTo: token)
+          .where('deliveryBoyId', isEqualTo: riderId)
+          .where('isDelivered', isEqualTo: true)
           .get();
 
-      totalOrders = querySnapshot.docs.length;
-
-      for (var doc in querySnapshot.docs) {
-        var data = doc.data() as Map<String, dynamic>;
-
-        double price;
-        int itemCount;
-
-        // Safely parse price
-        var rawPrice = data['price'];
-        if (rawPrice is int) {
-          price = rawPrice.toDouble();
-        } else if (rawPrice is double) {
-          price = rawPrice;
-        } else if (rawPrice is String) {
-          price = double.tryParse(rawPrice.trim()) ?? 0.0;
-        } else {
-          price = 0.0;
-        }
-
-        // Safely parse itemCount
-        var rawItemCount = data['itemCount'];
-        if (rawItemCount is int) {
-          itemCount = rawItemCount;
-        } else if (rawItemCount is String) {
-          itemCount = int.tryParse(rawItemCount.trim()) ?? 0;
-        } else {
-          itemCount = 0;
-        }
-
-        totalOrderPrice += (price * itemCount);
+      double totalOrderPrice = 0;
+      for (final doc in querySnapshot.docs) {
+        final order = OrderModel.fromFirestore(
+          doc.data(),
+          doc.id,
+        );
+        totalOrderPrice += _orderEarning(order);
       }
 
-      return {'totalOrders': totalOrders, 'totalOrderPrice': totalOrderPrice};
+      return {
+        'totalOrders': querySnapshot.docs.length,
+        'totalOrderPrice': totalOrderPrice,
+      };
     } catch (e) {
       print('Error fetching orders: $e');
       return {'totalOrders': 0, 'totalOrderPrice': 0.0};
     }
+  }
+
+  double _orderEarning(OrderModel order) {
+    if (order.deliveryCharge > 0) return order.deliveryCharge.toDouble();
+    final bill = order.bill;
+    if (bill != null && bill['deliveryFee'] != null) {
+      return (bill['deliveryFee'] as num).toDouble();
+    }
+    return order.products.fold<double>(
+      0,
+      (s, p) => s + ((p.price ?? 0) * (p.itemCount ?? 0)) * 0.05,
+    );
   }
 
   void onStatusChanged(String status) async {
@@ -261,80 +269,300 @@ class OrderService extends ChangeNotifier {
   }
 
   Future<void> getOrders() async {
+    startRealtimeOrders();
+  }
+
+  int get pendingAssignmentCount => newOrders.length;
+
+  /// Order id currently eligible for live GPS mirroring on `orders/{id}/live/rider`.
+  String? get activeTrackingOrderId {
+    for (final o in [
+      ...myTransistOrders,
+      ...myPickedOrders,
+      ...myAcceptedOrders,
+    ]) {
+      if (OrderLifecycle.isLiveTracking(_statusId(o))) return o.id;
+    }
+    return null;
+  }
+
+  Future<String> _currentRiderId() async {
+    final pref = await SharedPreferences.getInstance();
+    return pref.getString('deliveryBoyId') ??
+        FirebaseAuth.instance.currentUser?.uid ??
+        '';
+  }
+
+  Future<void> startRealtimeOrders() async {
+    final riderId = await _currentRiderId();
+    if (riderId.isEmpty) return;
+
+    if (_subscribedRiderId == riderId && _ordersSub != null) return;
+
+    await _ordersSub?.cancel();
+    _subscribedRiderId = riderId;
     orders = null;
+    _ordersPrimed = false;
+    _lastNewOrderCount = 0;
+    notifyListeners();
+
+    _ordersSub = FirebaseFirestore.instance
+        .collection('orders')
+        .where('deliveryBoyId', isEqualTo: riderId)
+        .snapshots()
+        .listen(
+      (snap) {
+        orders = snap.docs
+            .map(
+              (d) => OrderModel.fromFirestore(
+                d.data(),
+                d.id,
+              ),
+            )
+            .toList();
+        _rebucketOrders(riderId);
+        notifyListeners();
+      },
+      onError: (Object e) {
+        if (kDebugMode) debugPrint('orders stream error: $e');
+      },
+    );
+  }
+
+  String _statusId(OrderModel item) {
+    return OrderLifecycle.resolveStatus({
+      'status': item.modernStatus,
+      'order_status': item.orderStatus,
+      'isCancelled': item.isCancelled,
+      'isDelivered': item.isDelivered,
+    });
+  }
+
+  void _rebucketOrders(String riderId) {
     newOrders.clear();
     myTransistOrders.clear();
     myAcceptedOrders.clear();
     myPickedOrders.clear();
     myCancelledOrders.clear();
     myCompletedOrders.clear();
-    final pref = await SharedPreferences.getInstance();
-    String id = pref.getString('deliveryBoyId') ?? "";
-    try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('orders')
-          .get();
-      orders = snapshot.docs.map((doc) {
-        return OrderModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
-      }).toList();
-      notifyListeners();
-      log(orders!.length.toString());
-      if (orders != null) {
-        for (var item in orders!) {
-          if (item.deliveryBoyId == '' &&
-              item.isDelivered == false &&
-              item.orderStatus == 'Order Confirm') {
-            newOrders.add(item);
-            notifyListeners();
-          }
-          log(newOrders.length.toString());
-          if (item.deliveryBoyId == id && item.isCancelled) {
-            myCancelledOrders.add(item);
-          } else if (item.deliveryBoyId == id && item.isDelivered) {
-            myCompletedOrders.add(item);
-          } else if (item.deliveryBoyId == id) {
-            final st = item.orderStatus.toLowerCase();
-            if (st.contains('picked') || st.contains('on the way')) {
-              myPickedOrders.add(item);
-              myTransistOrders.add(item);
-            } else {
-              myAcceptedOrders.add(item);
-              myTransistOrders.add(item);
-            }
-          }
-          notifyListeners();
+
+    final list = orders ?? [];
+    for (final item in list) {
+      if (item.isCancelled) {
+        if (item.deliveryBoyId == riderId) myCancelledOrders.add(item);
+        continue;
+      }
+      if (item.isDelivered) {
+        if (item.deliveryBoyId == riderId) myCompletedOrders.add(item);
+        continue;
+      }
+
+      if (_isNewOffer(item, riderId)) {
+        newOrders.add(item);
+        continue;
+      }
+
+      if (item.deliveryBoyId == riderId) {
+        final st = _statusId(item);
+        if (st == OrderLifecycle.pickedUp || st == OrderLifecycle.outForDelivery) {
+          myPickedOrders.add(item);
+          myTransistOrders.add(item);
+        } else if (OrderLifecycle.isPickupPhase(st)) {
+          myAcceptedOrders.add(item);
         }
       }
-    } catch (e) {
-      print('Error fetching products: $e');
+    }
+
+    newOrders.sort((a, b) => b.createdDate.compareTo(a.createdDate));
+
+    if (_ordersPrimed) {
+      if (newOrders.length > _lastNewOrderCount) {
+        _playNewOrderAlert();
+      }
+    } else {
+      _ordersPrimed = true;
+    }
+    _lastNewOrderCount = newOrders.length;
+  }
+
+  bool _isNewOffer(OrderModel item, String riderId) {
+    if (item.isDelivered || item.isCancelled) return false;
+    if (item.deliveryBoyId != riderId || riderId.isEmpty) return false;
+    return OrderLifecycle.needsRiderAcceptance(_statusId(item));
+  }
+
+  Future<void> _playNewOrderAlert() async {
+    await DeliveryPushInitializer.playAssignmentAlert();
+  }
+
+  Future<OrderModel?> acceptDelivery(String orderId, {OrderModel? order}) async {
+    OrderModel? source = order;
+    if (source == null) {
+      for (final o in [...newOrders, ...?orders]) {
+        if (o.id == orderId) {
+          source = o;
+          break;
+        }
+      }
+    }
+    if (source == null) return null;
+
+    final patch = await _buildRiderAcceptancePatch(source);
+    await FirebaseFirestore.instance.collection('orders').doc(orderId).update(patch);
+
+    return source.copyWith(
+      modernStatus: OrderLifecycle.riderAccepted,
+      orderStatus: OrderLifecycle.legacyLabel(OrderLifecycle.riderAccepted),
+      vendorName: (patch['vendorName'] ?? source.vendorName).toString(),
+      vendorPhone: (patch['vendorPhone'] ?? source.vendorPhone).toString(),
+      pickupAddress: (patch['pickupAddress'] ?? source.pickupAddress).toString(),
+      pickupLat: (patch['pickupLat'] as num?)?.toDouble() ?? source.pickupLat,
+      pickupLng: (patch['pickupLng'] as num?)?.toDouble() ?? source.pickupLng,
+      routeDistanceKm:
+          (patch['routeDistanceKm'] as num?)?.toDouble() ?? source.routeDistanceKm,
+      expectedDeliveryMinutes: (patch['expectedDeliveryMinutes'] as num?)?.toInt() ??
+          source.expectedDeliveryMinutes,
+    );
+  }
+
+  OrderModel? orderById(String id) {
+    for (final o in [
+      ...newOrders,
+      ...myAcceptedOrders,
+      ...myPickedOrders,
+      ...myTransistOrders,
+      ...?orders,
+    ]) {
+      if (o.id == id) return o;
+    }
+    return null;
+  }
+
+  Future<void> markReachedStore(String orderId) async {
+    pickupActionOrderId = orderId;
+    notifyListeners();
+    try {
+      await FirebaseFirestore.instance.collection('orders').doc(orderId).update({
+        'order_status': OrderLifecycle.legacyLabel(OrderLifecycle.reachedStore),
+        'status': OrderLifecycle.reachedStore,
+        'reachedStoreAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } finally {
+      pickupActionOrderId = null;
+      notifyListeners();
     }
   }
 
-  Future<void> updateStatus(String status, String id) async {
-    print(selectedOrder!.orderStatus);
-    if (status == 'Going to Shop') {
-      await FirebaseFirestore.instance.collection('orders').doc(id).set({
-        "order_status": status,
-        "driverShop": DateTime.now().toString(),
-      }, SetOptions(merge: true));
-    } else if (status == "Order Picked") {
-      await FirebaseFirestore.instance.collection('orders').doc(id).set({
-        "order_status": status,
-        "pickedTime": DateTime.now().toString(),
-      }, SetOptions(merge: true));
-    } else if (status == 'On the Way') {
-      await FirebaseFirestore.instance.collection('orders').doc(id).set({
-        "order_status": status,
-        "onTheWayTime": DateTime.now().toString(),
-      }, SetOptions(merge: true));
-    }
-    selectedOrder!.orderStatus == status;
-    orderStatus = status;
+  Future<void> markPickedUp(String orderId) async {
+    pickupActionOrderId = orderId;
     notifyListeners();
-    print(selectedOrder!.orderStatus);
+    try {
+      await FirebaseFirestore.instance.collection('orders').doc(orderId).update({
+        'order_status': OrderLifecycle.legacyLabel(OrderLifecycle.pickedUp),
+        'status': OrderLifecycle.pickedUp,
+        'pickedTime': DateTime.now().toIso8601String(),
+        'pickedUpAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } finally {
+      pickupActionOrderId = null;
+      notifyListeners();
+    }
+  }
+
+  @Deprecated('Use markReachedStore')
+  Future<void> startHeadingToStore(String orderId) async {
+    await markReachedStore(orderId);
+  }
+
+  Future<void> rejectOrder(String orderId) async {
+    final riderId = await _currentRiderId();
+    if (riderId.isEmpty) return;
+    await DeliveryOpsApi().cancelOrderByRider(
+      orderId: orderId,
+      riderId: riderId,
+    );
+  }
+
+  void showAcceptRejectDialog(
+    BuildContext context,
+    OrderModel order,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('New Delivery Assigned'),
+        content: Text(
+          'Accept delivery for ${order.customerName}?\n${order.address}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await rejectOrder(order.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Delivery rejected')),
+                );
+              }
+            },
+            child: const Text('Reject', style: TextStyle(color: Colors.red)),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final accepted = await acceptDelivery(order.id, order: order);
+              if (context.mounted && accepted != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PickupProcessScreen(order: accepted),
+                  ),
+                );
+              }
+            },
+            child: const Text('Accept Delivery'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ordersSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> updateStatus(String status, String id) async {
+    String statusId;
+    final patch = <String, dynamic>{
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (status == 'Reached Store') {
+      statusId = OrderLifecycle.reachedStore;
+      patch['reachedStoreAt'] = FieldValue.serverTimestamp();
+    } else if (status == 'Order Picked') {
+      statusId = OrderLifecycle.pickedUp;
+      patch['pickedTime'] = DateTime.now().toIso8601String();
+    } else if (status == 'On the Way') {
+      statusId = OrderLifecycle.outForDelivery;
+      patch['onTheWayTime'] = DateTime.now().toIso8601String();
+    } else {
+      statusId = _statusId(selectedOrder!);
+    }
+
+    patch['order_status'] = OrderLifecycle.legacyLabel(statusId);
+    patch['status'] = statusId;
+
+    await FirebaseFirestore.instance.collection('orders').doc(id).set(
+      patch,
+      SetOptions(merge: true),
+    );
+    orderStatus = OrderLifecycle.legacyLabel(statusId);
+    notifyListeners();
   }
 
   void showConfirmationDialog(
@@ -342,6 +570,17 @@ class OrderService extends ChangeNotifier {
     String id,
     String customerId,
   ) {
+    OrderModel? order;
+    for (final o in [...newOrders, ...?orders]) {
+      if (o.id == id) {
+        order = o;
+        break;
+      }
+    }
+    if (order != null) {
+      showAcceptRejectDialog(context, order);
+      return;
+    }
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -357,18 +596,11 @@ class OrderService extends ChangeNotifier {
             ),
             TextButton(
               onPressed: () async {
-                final pref = await SharedPreferences.getInstance();
-                String ID = pref.getString('deliveryBoyId') ?? "";
-                await FirebaseFirestore.instance
-                    .collection('orders')
-                    .doc(id)
-                    .update({"deliveryBoyId": ID});
-                getOrders();
+                await acceptDelivery(id);
                 sendFCMMessage(customerId, 'Delivery Boy Accepted your Order');
-                // Handle the order confirmation logic here
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Order confirmed by you!")),
+                  const SnackBar(content: Text('Delivery accepted')),
                 );
               },
               child: const Text(
@@ -382,60 +614,103 @@ class OrderService extends ChangeNotifier {
     );
   }
 
-  Future<void> completeOrder(BuildContext context, String id) async {
-    OrderModel? order = selectedOrder;
-    if (orders != null) {
-      for (final o in orders!) {
-        if (o.id == id) {
-          order = o;
-          break;
-        }
-      }
-    }
-    if (order == null) return;
-    final earning = order.deliveryCharge > 0
-        ? order.deliveryCharge.toDouble()
-        : order.products.fold<double>(
-            0,
-            (s, p) => s + ((p.price ?? 0) * (p.itemCount ?? 0)) * 0.05,
-          );
-
-    await FirebaseFirestore.instance.collection('orders').doc(id).set({
-      "isDelivered": true,
-      "isPaid": true,
-      "order_status": "Order Delivered",
-      "deliveredTime": DateTime.now().toString(),
-    }, SetOptions(merge: true));
-
-    final pref = await SharedPreferences.getInstance();
-    final riderId = pref.getString('deliveryBoyId') ?? '';
-    if (riderId.isNotEmpty && earning > 0) {
-      await FirebaseFirestore.instance.collection('delivery_boys').doc(riderId).set({
-        'wallet_balance': FieldValue.increment(earning),
-        'total_earnings': FieldValue.increment(earning),
-        'completed_orders': FieldValue.increment(1),
-        'total_deliveries': FieldValue.increment(1),
-      }, SetOptions(merge: true));
-      await FirebaseFirestore.instance
-          .collection('delivery_boys')
-          .doc(riderId)
-          .collection('wallet_transactions')
-          .add({
-        'type': 'delivery_earning',
-        'amount': earning,
-        'order_id': id,
-        'note': 'Delivery completed',
-        'createdAt': FieldValue.serverTimestamp(),
+  Future<void> markOutForDelivery(String orderId) async {
+    deliveryActionOrderId = orderId;
+    notifyListeners();
+    try {
+      DeliveryTripTracker.instance.start(orderId);
+      await FirebaseFirestore.instance.collection('orders').doc(orderId).update({
+        'order_status': OrderLifecycle.legacyLabel(OrderLifecycle.outForDelivery),
+        'status': OrderLifecycle.outForDelivery,
+        'onTheWayTime': DateTime.now().toIso8601String(),
+        'outForDeliveryAt': FieldValue.serverTimestamp(),
+        'deliveryLegStartedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
+    } finally {
+      deliveryActionOrderId = null;
+      notifyListeners();
     }
+  }
 
-    getOrders();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order delivered! Earnings credited to wallet.')),
+  Future<void> markDelivered(
+    BuildContext context,
+    String id, {
+    required String otp,
+  }) async {
+    deliveryActionOrderId = id;
+    notifyListeners();
+    try {
+      final metrics = DeliveryTripTracker.instance.metrics();
+      final riderId = await _currentRiderId();
+      if (riderId.isEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Rider session not found')),
+          );
+        }
+        return;
+      }
+
+      await DeliveryOpsApi().confirmDeliveryWithOtp(
+        orderId: id,
+        riderId: riderId,
+        otp: otp,
+        deliveryDurationSec: metrics.durationSec,
+        distanceTravelledKm: metrics.distanceKm,
       );
-      Navigator.pop(context);
+
+      DeliveryTripTracker.instance.stop();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Order delivered! Earnings credited to wallet.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().replaceFirst('Exception: ', ''),
+            ),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      deliveryActionOrderId = null;
+      notifyListeners();
     }
+  }
+
+  Future<void> promptDeliveryOtpAndComplete(
+    BuildContext context,
+    String id, {
+    String? customerName,
+  }) async {
+    final otp = await showDeliveryOtpSheet(
+      context,
+      customerName: customerName,
+    );
+    if (otp == null || otp.length != 4 || !context.mounted) return;
+    await markDelivered(context, id, otp: otp);
+  }
+
+  Future<void> completeOrder(
+    BuildContext context,
+    String id, {
+    String? customerName,
+  }) async {
+    await promptDeliveryOtpAndComplete(
+      context,
+      id,
+      customerName: customerName,
+    );
   }
 
   void getCashByCustomer(BuildContext context, String amount, String id) {
@@ -574,15 +849,9 @@ class OrderService extends ChangeNotifier {
                       ),
                       const SizedBox(width: 10),
                       ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           Navigator.pop(context);
-                          completeOrder(context, id);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              backgroundColor: Colors.green,
-                              content: Text("Order Delivered"),
-                            ),
-                          );
+                          await completeOrder(context, id);
                         },
                         child: const Text("Complete Order"),
                       ),
@@ -625,5 +894,78 @@ class OrderService extends ChangeNotifier {
         );
       },
     );
+  }
+
+  Future<Map<String, dynamic>> _buildRiderAcceptancePatch(OrderModel order) async {
+    final patch = <String, dynamic>{
+      'order_status': OrderLifecycle.legacyLabel(OrderLifecycle.riderAccepted),
+      'status': OrderLifecycle.riderAccepted,
+      'acceptedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    var vendorName = order.vendorName;
+    var vendorPhone = order.vendorPhone;
+    var pickupAddress = order.pickupAddress;
+    var pickupLat = order.pickupLat;
+    var pickupLng = order.pickupLng;
+    final vendorId = order.primaryVendorId;
+
+    if (vendorId.isNotEmpty &&
+        (vendorName.isEmpty || pickupAddress.isEmpty)) {
+      final snap = await FirebaseFirestore.instance
+          .collection('vendors')
+          .doc(vendorId)
+          .get();
+      if (snap.exists) {
+        final d = snap.data() ?? {};
+        vendorName = (d['shopName'] ?? d['shop_name'] ?? vendorName).toString();
+        vendorPhone = (d['phone'] ?? vendorPhone).toString();
+        pickupAddress =
+            (d['shopAddress'] ?? d['shop_address'] ?? pickupAddress).toString();
+        pickupLat ??=
+            _optionalDouble(d['lat'] ?? d['latitude'] ?? d['shop_lat']);
+        pickupLng ??=
+            _optionalDouble(d['lng'] ?? d['longitude'] ?? d['shop_lng']);
+      }
+    }
+
+    double? routeKm = order.routeDistanceKm;
+    if ((routeKm == null || routeKm <= 0) &&
+        pickupLat != null &&
+        pickupLng != null &&
+        order.latitude != null &&
+        order.longitude != null) {
+      routeKm = DeliveryRouteUtils.haversineKm(
+        pickupLat,
+        pickupLng,
+        order.latitude!,
+        order.longitude!,
+      );
+    }
+
+    int? etaMin = order.expectedDeliveryMinutes;
+    if ((etaMin == null || etaMin <= 0) && routeKm != null && routeKm > 0) {
+      etaMin = DeliveryRouteUtils.estimateMinutes(routeKm);
+    }
+
+    patch['vendorId'] = vendorId;
+    patch['vendorName'] = vendorName;
+    patch['vendorPhone'] = vendorPhone;
+    patch['pickupAddress'] = pickupAddress;
+    if (pickupLat != null) patch['pickupLat'] = pickupLat;
+    if (pickupLng != null) patch['pickupLng'] = pickupLng;
+    if (routeKm != null && routeKm > 0) patch['routeDistanceKm'] = routeKm;
+    if (etaMin != null && etaMin > 0) {
+      patch['expectedDeliveryMinutes'] = etaMin;
+    }
+
+    return patch;
+  }
+
+  double? _optionalDouble(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is num) return raw.toDouble();
+    return double.tryParse(raw.toString());
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_admin/core/realtime/admin_live_sync.dart';
 import 'package:quick_grocery_admin/core/layout/admin_page_wrapper.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
@@ -89,9 +90,26 @@ class _CouponManagementScreenState extends State<CouponManagementScreen> {
           child: StreamBuilder<List<AdminCouponModel>>(
             stream: _service.watchCoupons(),
             builder: (context, snap) {
-              if (!snap.hasData) {
+              final syncState = snap.hasError
+                  ? AdminLiveSyncState(
+                      isLoading: false,
+                      hasError: true,
+                      errorMessage: snap.error.toString(),
+                    )
+                  : snap.hasData
+                      ? AdminLiveSyncState(
+                          isLoading: false,
+                          lastSyncAt: DateTime.now(),
+                        )
+                      : const AdminLiveSyncState();
+              if (!snap.hasData && !snap.hasError) {
                 return const AdminBoundedCenter(
                   child: CircularProgressIndicator(),
+                );
+              }
+              if (snap.hasError) {
+                return AdminBoundedCenter(
+                  child: Text('Error: ${snap.error}'),
                 );
               }
               final all = snap.data!;
@@ -108,6 +126,11 @@ class _CouponManagementScreenState extends State<CouponManagementScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    AdminLiveSyncBar(
+                      state: syncState,
+                      label: 'Coupons',
+                    ),
+                    AppSpacing.h10,
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

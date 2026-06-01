@@ -39,7 +39,7 @@ class AdminNotificationService extends ChangeNotifier {
   OpsNotificationModel? latestToast;
 
   final Set<String> _seenIds = {};
-  final Set<String> _alertedOrderIds = {};
+  final Set<String> _alertedKeys = {};
   bool _skipInitialAlerts = true;
   bool _skipInitialOrderAlerts = true;
   DocumentSnapshot<Map<String, dynamic>>? _lastDoc;
@@ -148,7 +148,7 @@ class AdminNotificationService extends ChangeNotifier {
         if (_skipInitialOrderAlerts) {
           for (final change in snap.docChanges) {
             if (change.type == DocumentChangeType.added) {
-              _alertedOrderIds.add(change.doc.id);
+              _alertedKeys.add('${change.doc.id}:new_order');
             }
           }
           _skipInitialOrderAlerts = false;
@@ -183,7 +183,9 @@ class AdminNotificationService extends ChangeNotifier {
       _seenIds.addAll(items.map((e) => e.id));
       for (final n in items) {
         final oid = n.orderId;
-        if (oid != null && oid.isNotEmpty) _alertedOrderIds.add(oid);
+        if (oid != null && oid.isNotEmpty) {
+          _alertedKeys.add('$oid:${n.type}');
+        }
       }
       _skipInitialAlerts = false;
       return;
@@ -256,10 +258,10 @@ class AdminNotificationService extends ChangeNotifier {
       id.length > 6 ? id.substring(id.length - 6) : id;
 
   void _emitAlert(OpsNotificationModel n) {
-    final orderId = n.orderId;
-    if (orderId != null && orderId.isNotEmpty) {
-      if (_alertedOrderIds.contains(orderId)) return;
-      _alertedOrderIds.add(orderId);
+    final dedupeKey = _alertDedupeKey(n);
+    if (dedupeKey != null) {
+      if (_alertedKeys.contains(dedupeKey)) return;
+      _alertedKeys.add(dedupeKey);
     }
 
     toastQueue.add(n);
@@ -267,12 +269,20 @@ class AdminNotificationService extends ChangeNotifier {
     notifyListeners();
 
     if (n.soundAlert) {
-      _playSound(n.soundType, orderId: orderId);
+      _playSound(n.soundType, dedupeKey: dedupeKey);
     }
 
-    if (n.type == 'new_order') {
+    if (n.type == 'new_order' || n.type == 'order_cancelled') {
       _showBrowserAlert(n);
     }
+  }
+
+  String? _alertDedupeKey(OpsNotificationModel n) {
+    final orderId = n.orderId;
+    if (orderId != null && orderId.isNotEmpty) {
+      return '${orderId}:${n.type}';
+    }
+    return n.id.isNotEmpty ? n.id : null;
   }
 
   void _showBrowserAlert(OpsNotificationModel n) {
@@ -294,7 +304,7 @@ class AdminNotificationService extends ChangeNotifier {
     );
   }
 
-  void _playSound(String soundType, {String? orderId}) {
+  void _playSound(String soundType, {String? dedupeKey}) {
     final prefs = _soundPrefs;
     if (prefs == null || !prefs.enabled) return;
     unawaited(
@@ -302,7 +312,7 @@ class AdminNotificationService extends ChangeNotifier {
         soundType,
         enabled: prefs.enabled,
         volume: prefs.volume,
-        orderId: orderId,
+        dedupeKey: dedupeKey,
       ),
     );
   }

@@ -31,7 +31,7 @@ import 'package:quick_grocery_admin/view/products/screens/add_category_screen.da
 import 'package:quick_grocery_admin/view/products/screens/add_subcategory_screen.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_add_screen.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_list.dart';
-import 'package:quick_grocery_admin/view/products/services/product_service.dart';
+import 'package:quick_grocery_admin/core/realtime/admin_realtime_bootstrap.dart';
 import 'package:quick_grocery_admin/view/push_notifications/presentation/screens/notification_history_screen.dart';
 import 'package:quick_grocery_admin/view/push_notifications/presentation/screens/notification_templates_screen.dart';
 import 'package:quick_grocery_admin/view/push_notifications/presentation/screens/push_notifications_screen.dart';
@@ -64,13 +64,13 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!AdminRoutes.all.contains(_selectedScreen)) {
       _selectedScreen = AdminRoutes.dashboard;
     }
-    Provider.of<ProductService>(context, listen: false).fetchProducts();
     _routeIndex = {
       for (var i = 0; i < AdminRoutes.all.length; i++) AdminRoutes.all[i]: i,
     };
     _pages = _buildPages();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      AdminRealtimeBootstrap.start(context);
       syncOrderServiceForRoute(context, _selectedScreen);
       syncCustomerServiceForRoute(context, _selectedScreen);
     });

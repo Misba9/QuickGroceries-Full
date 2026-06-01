@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/auth/vendor_auth_errors.dart';
+import '../../core/fcm_bootstrap.dart';
 import '../../models/vendor_model.dart';
 import '../../services/vendor_auth_service.dart';
 import 'login_screen.dart';
@@ -34,6 +35,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
         final blocked = VendorModel.loginBlockedReason(vendor.toFirestore());
         if (blocked == null) {
           final forceChange = await _authService.shouldForcePasswordChange();
+          try {
+            await VendorFcmBootstrap.configureForVendor(vendor.id);
+          } catch (e) {
+            VendorAuthErrors.logDebug('FCM restore skipped: $e');
+          }
           if (mounted) {
             setState(() {
               _initialScreen = forceChange

@@ -5,6 +5,7 @@ import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
 
 import '../../domain/order_models.dart';
+import '../../services/delivery_otp_service.dart';
 import '../providers/orders_providers.dart';
 import '../providers/reorder_controller.dart';
 import '../widgets/delivered_celebration.dart';
@@ -158,9 +159,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
             final timeline = buildTimeline(order);
             final eta = ref.watch(etaProvider(order.id));
-            final riderAsync = order.hasRider
-                ? ref.watch(riderLocationStreamProvider(order.deliveryBoyId))
-                : const AsyncValue<RiderLocation?>.data(null);
+  final riderAsync = order.hasRider
+      ? ref.watch(riderLocationStreamProvider((order.deliveryBoyId, order.id)))
+      : const AsyncValue<RiderLocation?>.data(null);
             final rider = riderAsync.value;
             final isDelivered = order.isDelivered;
 
@@ -186,20 +187,29 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             firestoreField: 'vendor_rating',
                           ),
                         )
-                      else
+                      else if (order.isLiveTracking) ...[
                         OrderTrackingHeader(order: order, eta: eta),
-                      const SizedBox(height: 14),
-                      if (!isDelivered)
+                        const SizedBox(height: 14),
                         LiveTrackingMap(
                           dropLocation: order.dropLatLng,
                           rider: rider,
                           eta: eta,
                         ),
-                      if (!isDelivered) const SizedBox(height: 14),
-                      RiderCard(
-                        rider: rider,
-                        order: order,
-                        onChat: _openSupport,
+                        const SizedBox(height: 14),
+                      ] else if (!isDelivered) ...[
+                        OrderTrackingHeader(order: order, eta: eta),
+                        const SizedBox(height: 14),
+                      ],
+                      StreamBuilder<String?>(
+                        stream: DeliveryOtpService.watchOtp(order.id),
+                        builder: (context, otpSnap) {
+                          return RiderCard(
+                            rider: rider,
+                            order: order,
+                            deliveryOtpCode: otpSnap.data,
+                            onChat: _openSupport,
+                          );
+                        },
                       ),
                       const SizedBox(height: 14),
                       if (!order.structuredInstructions.isEmpty)

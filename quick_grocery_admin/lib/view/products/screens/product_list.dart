@@ -1,5 +1,5 @@
+import 'package:quick_grocery_admin/core/realtime/admin_live_sync.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
-import 'package:quick_grocery_admin/model/catrgory_model.dart';
 import 'package:quick_grocery_admin/model/product_model.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
@@ -23,8 +23,16 @@ class _ProductListScreenState extends State<ProductListScreen> {
   @override
   void initState() {
     super.initState();
-    Provider.of<ProductService>(context, listen: false).fetchVendors();
-    Provider.of<ProductService>(context, listen: false).fetchCategory();
+    final svc = Provider.of<ProductService>(context, listen: false);
+    svc.ensureProductsListener();
+    svc.ensureCategoriesListener();
+    svc.ensureVendorsListener();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -59,6 +67,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     ),
                   ),
                   AppSpacing.h10,
+                  AdminLiveSyncBar(
+                    state: provider.productsSyncState,
+                    label: 'Products',
+                  ),
+                  AppSpacing.h10,
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(15),
@@ -83,10 +96,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 decoration: InputDecoration(
                                   hintText: 'Search...',
                                   prefixIcon: const Icon(Icons.search),
-                                  suffixIcon: IconButton(
-                                    icon: const Icon(Icons.arrow_forward),
-                                    onPressed: () {},
-                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
@@ -130,10 +139,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                   decoration: InputDecoration(
                                     hintText: 'Search...',
                                     prefixIcon: const Icon(Icons.search),
-                                    suffixIcon: IconButton(
-                                      icon: const Icon(Icons.arrow_forward),
-                                      onPressed: () {},
-                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
                                     ),
@@ -144,42 +149,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                             ],
                           ),
                         AppSpacing.h20,
-                        Consumer<ProductService>(
-                          builder: (context, p, _) {
-                            if (p.filteredProductsList == null) {
-                              return const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(24),
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                            }
-                            return ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: p.filteredProductsList!.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (context, i) {
-                                final product = p.filteredProductsList![i];
-                                return _ProductRowCard(
-                                  narrow: narrow,
-                                  product: product,
-                                  onEdit: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ProductEditScreen(
-                                          product: product,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                            );
-                          },
-                        ),
+                        _ProductListBody(narrow: narrow),
                       ],
                     ),
                   ),
@@ -193,54 +163,197 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   Widget _categoryDropdown(ProductService provider) {
-    return FutureBuilder<List<CategoryModel>?>(
-      future: provider.fetchCategory(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Text('Error: ${snapshot.error}');
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No items found.'));
-        }
-        final items = snapshot.data!;
-        return DropdownButtonFormField<String>(
-          isExpanded: true,
-          decoration: InputDecoration(
-            hintText: 'Select product category',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.grey, width: 0.5),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.grey, width: 0.5),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppColor.primary, width: 0.8),
-            ),
+    if (provider.categoriesSyncState.hasError) {
+      return Text(
+        provider.categoriesSyncState.errorMessage ?? 'Could not load categories',
+        style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+      );
+    }
+    if (provider.category == null && provider.categoriesSyncState.isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: SizedBox(
+            height: 24,
+            width: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          value: provider.selectedItem,
-          items: items
-              .map(
-                (item) => DropdownMenuItem<String>(
-                  value: item.name,
-                  child: Text(
-                    item.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+        ),
+      );
+    }
+    final items = provider.category ?? [];
+    if (items.isEmpty) {
+      return const Text('No categories yet.');
+    }
+    return DropdownButtonFormField<String>(
+      isExpanded: true,
+      decoration: InputDecoration(
+        hintText: 'Select product category',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.grey, width: 0.5),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.grey, width: 0.5),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColor.primary, width: 0.8),
+        ),
+      ),
+      value: provider.selectedItem,
+      items: items
+          .map(
+            (item) => DropdownMenuItem<String>(
+              value: item.name,
+              child: Text(
+                item.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
+          .toList(),
+      onChanged: (value) {
+        if (value != null) provider.onCategoryQuaryChange(value);
+      },
+    );
+  }
+}
+
+class _ProductListBody extends StatelessWidget {
+  const _ProductListBody({required this.narrow});
+
+  final bool narrow;
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ProductService>(
+      builder: (context, p, _) {
+        if (p.productsSyncState.hasError) {
+          return _ProductListMessage(
+            icon: Icons.cloud_off_rounded,
+            title: 'Could not load products',
+            subtitle: p.productsSyncState.errorMessage ?? 'Unknown error',
+            action: FilledButton(
+              onPressed: p.ensureProductsListener,
+              child: const Text('Retry'),
+            ),
+          );
+        }
+        if (p.filteredProductsList == null && p.productsSyncState.isLoading) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        final page = p.pagedFilteredProducts;
+        if (page.isEmpty) {
+          return _ProductListMessage(
+            icon: Icons.inventory_2_outlined,
+            title: 'No products',
+            subtitle: p.productsList?.isEmpty ?? true
+                ? 'Add a product from Admin or Vendor app — it will appear here live.'
+                : 'No products match your filters.',
+          );
+        }
+        return Column(
+          children: [
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: page.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, i) {
+                final product = page[i];
+                return _ProductRowCard(
+                  narrow: narrow,
+                  product: product,
+                  onEdit: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProductEditScreen(
+                          product: product,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+            if (p.hasMoreProducts) ...[
+              AppSpacing.h15,
+              OutlinedButton(
+                onPressed: p.loadMoreProducts,
+                child: Text(
+                  'Load more (${p.filteredProductsList!.length - page.length} remaining)',
                 ),
-              )
-              .toList(),
-          onChanged: (value) {
-            if (value != null) provider.onCategoryQuaryChange(value);
-          },
+              ),
+            ],
+          ],
         );
       },
     );
   }
 }
+
+class _ProductListMessage extends StatelessWidget {
+  const _ProductListMessage({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      child: Column(
+        children: [
+          Icon(icon, size: 48, color: Colors.grey.shade400),
+          AppSpacing.h10,
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          AppSpacing.h10,
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey.shade700),
+          ),
+          if (action != null) ...[AppSpacing.h15, action!],
+        ],
+      ),
+    );
+  }
+}
+
+Widget _statusChip(String label, Color fg, Color bg) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: fg,
+        ),
+      ),
+    );
 
 class _ProductRowCard extends StatelessWidget {
   const _ProductRowCard({
@@ -279,6 +392,19 @@ class _ProductRowCard extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        AppSpacing.h10,
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            if (product.isDeleted)
+              _statusChip('Deleted', Colors.black87, Colors.grey.shade300)
+            else if (product.isActive)
+              _statusChip('Active', Colors.green.shade800, Colors.green.shade50)
+            else
+              _statusChip('Inactive', Colors.red.shade800, Colors.red.shade50),
+          ],
         ),
         AppSpacing.h10,
         NamedFieldWidget(label: 'Brand', value: product.category),
