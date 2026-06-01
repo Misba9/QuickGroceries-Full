@@ -7,44 +7,6 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:970937777233:android:498b6496346e5e226e0c70",
-        "android_client_info": {
-          "package_name": "com.example.quick_grocery_delivery"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyBd3A_4BYlsczbs76kU30p11o4-cwkFDK8"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:970937777233:android:bd216adee4a01c456e0c70",
-        "android_client_info": {
-          "package_name": "com.quickgrocery.io"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyBd3A_4BYlsczbs76kU30p11o4-cwkFDK8"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
         "mobilesdk_app_id": "1:970937777233:android:db7a0d4e8b73454f6e0c70",
         "android_client_info": {
           "package_name": "com.quickgrocery.io"

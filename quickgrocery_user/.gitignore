@@ -27,6 +27,13 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+**/flutter_build/
+*.dill
+**/*.dill
+# Accidental build cache dir (corrupt .dart_tool → "  9rea" on disk)
+  9rea/
+**/  9rea/
+**/9rea/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/

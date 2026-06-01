@@ -377,7 +377,7 @@ class _LocationPickerState extends State<LocationPicker> {
                       children: [
                         TileLayer(
                           urlTemplate: _tileUrl,
-                          userAgentPackageName: 'com.quickgrocery.app',
+                          userAgentPackageName: 'com.quickgrocery.io',
                           maxZoom: 19,
                           subdomains: _isDark
                               ? const ['a', 'b', 'c', 'd']

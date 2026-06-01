@@ -5,12 +5,12 @@ import 'package:flutter/foundation.dart';
 
 import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
 import 'package:quickgrocery/core/firebase/firebase_options.dart';
+import 'package:quickgrocery/core/firebase/firebase_startup_validation.dart';
 
 /// Initializes Firebase with bounded retries (transient startup / network).
 ///
-/// Uses default native options from `google-services.json` / `GoogleService-Info.plist`.
-/// For explicit Dart options across flavors, run `flutterfire configure` and pass
-/// [FirebaseOptions] to [Firebase.initializeApp].
+/// Always uses [DefaultFirebaseOptions.currentPlatform] so the runtime appId
+/// matches "customer new" (db7a0d4…) and never the removed duplicate app.
 Future<void> initializeFirebaseWithRetry({
   int maxAttempts = 5,
   Duration initialDelay = const Duration(milliseconds: 400),
@@ -22,52 +22,19 @@ Future<void> initializeFirebaseWithRetry({
       if (Firebase.apps.isEmpty) {
         if (kIsWeb) {
           await Firebase.initializeApp();
-        } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-          // Prefer GoogleService-Info.plist in the app bundle when present.
-          try {
-            await Firebase.initializeApp();
-            if (kDebugMode) {
-              debugPrint(
-                '[Firebase] iOS initialized from GoogleService-Info.plist '
-                'appId=${Firebase.app().options.appId} '
-                'bundle=${Firebase.app().options.iosBundleId}',
-              );
-            }
-          } catch (_) {
-            await Firebase.initializeApp(
-              options: DefaultFirebaseOptions.ios,
-            );
-            if (kDebugMode) {
-              debugPrint(
-                '[Firebase] iOS initialized from Dart options '
-                'appId=${DefaultFirebaseOptions.ios.appId} '
-                'bundle=${DefaultFirebaseOptions.ios.iosBundleId}',
-              );
-            }
-          }
         } else {
-          // Prefer native google-services.json; fall back to Dart options.
-          try {
-            await Firebase.initializeApp();
-            if (kDebugMode) {
-              debugPrint(
-                '[Firebase] Android initialized from google-services.json '
-                'appId=${Firebase.app().options.appId}',
-              );
-            }
-          } catch (_) {
-            await Firebase.initializeApp(
-              options: DefaultFirebaseOptions.android,
+          await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform,
+          );
+          if (kDebugMode) {
+            debugPrint(
+              '[Firebase] initialized with DefaultFirebaseOptions.currentPlatform '
+              'appId=${DefaultFirebaseOptions.currentPlatform.appId}',
             );
-            if (kDebugMode) {
-              debugPrint(
-                '[Firebase] Android initialized from Dart options '
-                'appId=${DefaultFirebaseOptions.android.appId}',
-              );
-            }
           }
         }
       }
+      await FirebaseStartupValidation.logAndValidate();
       await FirebaseConfigAudit.logConfiguration();
       return;
     } catch (e, st) {

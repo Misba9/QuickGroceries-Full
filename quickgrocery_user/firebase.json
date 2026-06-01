@@ -1,0 +1,30 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "quikgroceries",
+          "appId": "1:970937777233:android:db7a0d4e8b73454f6e0c70",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "quikgroceries",
+          "appId": "1:970937777233:ios:10b9106006f6e0c66e0c70",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/core/firebase/firebase_options.dart": {
+          "projectId": "quikgroceries",
+          "configurations": {
+            "android": "1:970937777233:android:db7a0d4e8b73454f6e0c70",
+            "ios": "1:970937777233:ios:10b9106006f6e0c66e0c70"
+          }
+        }
+      }
+    }
+  }
+}

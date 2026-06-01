@@ -23,4 +23,4 @@ flutter run
 
  #deploy on firebase
 
-  firebase deploy --only functions,
+  firebase deploy --only functions

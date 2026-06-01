@@ -23,13 +23,15 @@ class FirebaseAuthReadiness {
     );
 
     final report = await FirebaseConfigAudit.runAudit();
+    log(report.toDebugString());
     if (!report.isReadyForPhoneAuth) {
-      log(report.toDebugString());
       return report.toUserFacingSummary();
     }
-
-    if (kDebugMode) {
-      log(FirebaseConfigAudit.emulatorTestNumberHint());
+    if (report.issues.any((i) => i.id == 'missing-sha-oauth-client')) {
+      log(
+        'WARN: oauth_client empty — Phone Auth may fail until SHA creates '
+        'OAuth client in Firebase.',
+      );
     }
 
     return null;

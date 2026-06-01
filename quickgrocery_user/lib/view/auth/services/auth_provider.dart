@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:image_picker/image_picker.dart';
@@ -162,9 +161,6 @@ class AuthService extends ChangeNotifier {
     FirebaseAuthReadiness.log(
       'verifyPhoneNumber start phone=$phoneNumber resend=${forceResendingToken != null}',
     );
-    if (kDebugMode) {
-      FirebaseAuthReadiness.log(FirebaseConfigAudit.emulatorTestNumberHint());
-    }
 
     Timer? watchdog;
     watchdog = Timer(const Duration(seconds: 90), () {

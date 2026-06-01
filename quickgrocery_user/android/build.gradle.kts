@@ -1,8 +1,6 @@
 import org.gradle.api.Project
 
-plugins {
-    id("com.google.gms.google-services") version "4.4.4" apply false
-}
+// google-services version is declared in settings.gradle.kts (FlutterFire).
 
 fun applyAndroidJava17(project: Project) {
     val android = project.extensions.findByName("android") ?: return

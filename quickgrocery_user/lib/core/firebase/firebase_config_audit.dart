@@ -1,13 +1,12 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:quickgrocery/core/firebase/firebase_options.dart';
+import 'package:quickgrocery/core/firebase/google_services_parser.dart';
 
 /// A single misconfiguration detected during Firebase Phone Auth audit.
 class FirebaseConfigIssue {
@@ -132,7 +131,29 @@ class FirebaseConfigAudit {
   static const debugSha256 =
       '6F:CD:6C:DF:D7:96:79:B8:51:AB:91:FD:AF:24:71:B6:9E:EE:C2:3F:28:85:1E:93:22:6C:56:63:70:84:F1:C6';
 
-  static const _googleServicesAsset = 'android/app/google-services.json';
+  /// Why [oauth_client] can be empty even when SHA is shown in Firebase Console.
+  static String oauthClientEmptyExplanation({
+    required String firebaseAppId,
+    required String packageName,
+  }) {
+    return 'WHY oauth_client IS EMPTY\n'
+        'Firebase app: $firebaseAppId\n'
+        'Package: $packageName ("customer new")\n\n'
+        'The Firebase API still returns oauth_client: [] for this app. '
+        'That means Google Cloud has not created an Android OAuth 2.0 client '
+        'linked to your SHA-1 yet — Phone Auth then fails with '
+        '"missing a valid app identifier".\n\n'
+        'Fix in Firebase Console (app "customer new"):\n'
+        '1. Project settings → Android app com.quickgrocery.io\n'
+        '2. Confirm SHA-1 exactly matches debug keystore:\n'
+        '   $debugSha1\n'
+        '3. Remove wrong SHA entries, re-add, wait 5–15 min\n'
+        '4. Download google-services.json again (oauth_client must be non-empty)\n'
+        '5. Google Cloud Console → APIs & Credentials → OAuth 2.0 Client IDs\n'
+        '   → verify Android client for $packageName exists\n'
+        '6. Authentication → Sign-in method → Phone → enabled\n'
+        '7. App Check → register debug token if Auth is enforced';
+  }
 
   static Future<PhoneAuthConfigReport> runAudit() async {
     final issues = <FirebaseConfigIssue>[];
@@ -218,7 +239,7 @@ class FirebaseConfigAudit {
     int? oauthCount;
     String? gsAppId;
     if (Platform.isAndroid) {
-      final gs = await _parseGoogleServicesJson();
+      final gs = await GoogleServicesConfig.loadFromAssets();
       if (gs == null) {
         issues.add(
           const FirebaseConfigIssue(
@@ -234,7 +255,8 @@ class FirebaseConfigAudit {
           ),
         );
       } else {
-        final match = gs.clientsForPackage(installedId);
+        final match =
+            gs.clients.where((c) => c.packageName == installedId).toList();
         if (match.isEmpty) {
           issues.add(
             FirebaseConfigIssue(
@@ -264,7 +286,7 @@ class FirebaseConfigAudit {
                   '${withOAuth.isEmpty ? ' None have oauth_client in google-services.json yet — re-download the file.' : ''}',
               fixSteps: [
                 'Firebase Console → "customer new" (com.quickgrocery.io) → Download google-services.json',
-                'Delete the older duplicate Android app (bd216ade…) if unused',
+                'Remove unused duplicate Android apps in Firebase Console if any',
                 'Keep appId: $expectedAndroidAppId',
               ],
               severity: severity,
@@ -272,22 +294,24 @@ class FirebaseConfigAudit {
           );
         }
 
-        // Prefer the registered app + any client that already has oauth entries.
-        final matchForPackage = gs.clientsForPackage(installedId);
-        final primary = matchForPackage.firstWhere(
-          (c) => c.appId == expectedAndroidAppId,
-          orElse: () => matchForPackage.firstWhere(
-            (c) => c.oauthClientCount > 0,
-            orElse: () => matchForPackage.firstWhere(
-              (c) => c.appId == appId,
-              orElse: () => matchForPackage.first,
+        final primary = gs.clientForAppId(expectedAndroidAppId) ??
+            gs.clientForPackage(installedId);
+        if (primary == null) {
+          issues.add(
+            FirebaseConfigIssue(
+              id: 'gs-client-missing',
+              title: 'google-services.json client not found',
+              detail: 'No entry for $expectedAndroidAppId / $installedId.',
+              fixSteps: [
+                'Replace android/app/google-services.json from Firebase Console.',
+              ],
             ),
-          ),
-        );
-        gsAppId = primary.appId;
+          );
+        } else {
+        gsAppId = primary.mobileSdkAppId;
         oauthCount = primary.oauthClientCount;
 
-        if (primary.appId == expectedAndroidAppId) {
+        if (primary.mobileSdkAppId == expectedAndroidAppId) {
           passed.add('google-services.json appId matches firebase_options.dart');
         } else if (appId == expectedAndroidAppId) {
           issues.add(
@@ -296,7 +320,7 @@ class FirebaseConfigAudit {
               title: 'google-services.json points to wrong Firebase app',
               detail:
                   'Expected appId $expectedAndroidAppId ("customer new") but '
-                  'google-services.json primary entry is ${primary.appId}.',
+                  'google-services.json primary entry is ${primary.mobileSdkAppId}.',
               fixSteps: [
                 'Firebase Console → "customer new" → Download google-services.json',
                 'Replace android/app/google-services.json',
@@ -310,23 +334,24 @@ class FirebaseConfigAudit {
           issues.add(
             FirebaseConfigIssue(
               id: 'missing-sha-oauth-client',
-              title: 'SHA-1 / SHA-256 not registered (oauth_client empty)',
-              detail:
-                  'google-services.json has empty oauth_client for $installedId. '
-                  'Phone auth returns "missing a valid app identifier" without SHA keys.',
+              title: 'oauth_client empty (Google OAuth client not created)',
+              detail: oauthClientEmptyExplanation(
+                firebaseAppId: primary.mobileSdkAppId,
+                packageName: primary.packageName,
+              ),
               fixSteps: [
-                'Firebase Console → "customer new" (com.quickgrocery.io) → Download google-services.json',
-                'SHA-1 should be: $debugSha1',
-                'SHA-256 should be: $debugSha256',
-                'Replace android/app/google-services.json (oauth_client must not be empty)',
-                'flutter clean && flutter run',
+                'Re-add SHA-1 $debugSha1 on Firebase app db7a0d4…',
+                'Re-download google-services.json when oauth_client is populated',
+                'Open Firebase diagnostics screen in app (debug login)',
               ],
+              severity: 'warning',
             ),
           );
         } else {
           passed.add(
             'google-services.json has ${primary.oauthClientCount} oauth_client(s)',
           );
+        }
         }
       }
     }
@@ -441,15 +466,16 @@ class FirebaseConfigAudit {
       passed.add('iOS appId is configured');
     }
 
-    if (DefaultFirebaseOptions.iosReversedClientId.contains('REPLACE_WITH')) {
+    if (appId != DefaultFirebaseOptions.ios.appId) {
       issues.add(
-        const FirebaseConfigIssue(
-          id: 'ios-reversed-client-id-placeholder',
-          title: 'REVERSED_CLIENT_ID not configured',
+        FirebaseConfigIssue(
+          id: 'ios-app-id-mismatch',
+          title: 'iOS Firebase appId mismatch',
           detail:
-              'Info.plist CFBundleURLSchemes must include REVERSED_CLIENT_ID from GoogleService-Info.plist.',
+              'Runtime appId "$appId" ≠ firebase_options ${DefaultFirebaseOptions.ios.appId}.',
           fixSteps: [
-            'Copy REVERSED_CLIENT_ID from GoogleService-Info.plist into Info.plist URL schemes.',
+            'Run: flutterfire configure',
+            'Ensure ios/Runner/GoogleService-Info.plist matches.',
           ],
           severity: 'warning',
         ),
@@ -513,62 +539,5 @@ class FirebaseConfigAudit {
       }
     }
     return buffer.toString().trim();
-  }
-
-  static String emulatorTestNumberHint() {
-    if (!kDebugMode) return '';
-    return 'Emulator/testing: add numbers in Firebase Console → Authentication → '
-        'Sign-in method → Phone → Phone numbers for testing. '
-        'Use the exact number and fixed OTP from the console (no SMS sent).';
-  }
-}
-
-class _GoogleServicesClient {
-  _GoogleServicesClient({
-    required this.packageName,
-    required this.appId,
-    required this.oauthClientCount,
-  });
-
-  final String packageName;
-  final String appId;
-  final int oauthClientCount;
-}
-
-class _GoogleServicesParseResult {
-  _GoogleServicesParseResult({required this.clients});
-
-  final List<_GoogleServicesClient> clients;
-
-  List<_GoogleServicesClient> clientsForPackage(String packageName) =>
-      clients.where((c) => c.packageName == packageName).toList();
-}
-
-Future<_GoogleServicesParseResult?> _parseGoogleServicesJson() async {
-  try {
-    final raw = await rootBundle.loadString(FirebaseConfigAudit._googleServicesAsset);
-    final json = jsonDecode(raw) as Map<String, dynamic>;
-    final clients = <_GoogleServicesClient>[];
-    final clientList = json['client'] as List<dynamic>? ?? [];
-    for (final entry in clientList) {
-      final map = entry as Map<String, dynamic>;
-      final info = map['client_info'] as Map<String, dynamic>?;
-      final android = info?['android_client_info'] as Map<String, dynamic>?;
-      final package = android?['package_name'] as String? ?? '';
-      final appId = info?['mobilesdk_app_id'] as String? ?? '';
-      final oauth = map['oauth_client'] as List<dynamic>? ?? [];
-      if (package.isNotEmpty) {
-        clients.add(
-          _GoogleServicesClient(
-            packageName: package,
-            appId: appId,
-            oauthClientCount: oauth.length,
-          ),
-        );
-      }
-    }
-    return _GoogleServicesParseResult(clients: clients);
-  } catch (_) {
-    return null;
   }
 }
