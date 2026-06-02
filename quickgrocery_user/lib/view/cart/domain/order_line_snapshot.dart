@@ -10,8 +10,11 @@ class OrderLineSnapshot {
   static Map<String, dynamic> fromCartItem(CartItem item) {
     final pack = _packFor(item);
     final qty = item.itemCount > 0 ? item.itemCount : 1;
-    final unitPrice = item.unitEffectivePrice;
-    final totalPrice = unitPrice * qty;
+    final sellingPrice = item.unitEffectivePrice;
+    final originalPrice = item.unitEffectiveSlashedPrice;
+    final discountAmount =
+        (originalPrice - sellingPrice).clamp(0.0, double.infinity);
+    final lineTotal = sellingPrice * qty;
     final variant = _variantFor(item, pack);
 
     return {
@@ -32,10 +35,14 @@ class OrderLineSnapshot {
         'measurementType': item.measurementType,
       'selectedWeightInGrams': item.selectedWeightInGrams,
       'unitType': item.unit,
-      'price': unitPrice,
-      'unitPrice': unitPrice,
-      'totalPrice': totalPrice,
-      'slashedPrice': item.unitEffectiveSlashedPrice,
+      'originalPrice': originalPrice,
+      'sellingPrice': sellingPrice,
+      'discountAmount': discountAmount,
+      'lineTotal': lineTotal,
+      'price': sellingPrice,
+      'unitPrice': sellingPrice,
+      'totalPrice': lineTotal,
+      'slashedPrice': originalPrice,
       'vendor_id': item.vendorId,
       'vendorId': item.vendorId,
       'isVegetable': item.isVegetable,

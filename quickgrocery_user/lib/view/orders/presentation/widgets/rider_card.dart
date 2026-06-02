@@ -11,13 +11,11 @@ class RiderCard extends StatelessWidget {
     required this.rider,
     required this.order,
     required this.onChat,
-    this.deliveryOtpCode,
   });
 
   final RiderLocation? rider;
   final LiveOrder order;
   final VoidCallback onChat;
-  final String? deliveryOtpCode;
 
   static Future<void> launchCall(String phone) async {
     final uri = Uri(scheme: 'tel', path: phone);
@@ -33,9 +31,6 @@ class RiderCard extends StatelessWidget {
     final r = rider;
     final name = r?.name ?? 'Your rider';
     final phone = r?.phone ?? '';
-    final otp = deliveryOtpCode ?? order.deliveryOtp;
-    final showOtp =
-        order.status == OrderStatus.outForDelivery && otp.length == 4;
 
     return FadeInUp(
       duration: const Duration(milliseconds: 420),
@@ -47,91 +42,64 @@ class RiderCard extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Column(
+        child: Row(
           children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: AppColor.primary,
-                  backgroundImage: (r?.image ?? '').isNotEmpty
-                      ? NetworkImage(r!.image)
-                      : null,
-                  child: (r?.image ?? '').isEmpty
-                      ? const Icon(Icons.delivery_dining, color: Colors.black)
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                        ),
-                      ),
-                      Text(
-                        phone.isEmpty ? 'On the way' : phone,
-                        style: TextStyle(
-                          color: Colors.grey.shade400,
-                          fontSize: 12,
-                        ),
-                      ),
-                      if ((r?.vehicleType ?? '').isNotEmpty ||
-                          (r?.vehicleNumber ?? '').isNotEmpty)
-                        Text(
-                          [
-                            if ((r?.vehicleType ?? '').isNotEmpty) r!.vehicleType,
-                            if ((r?.vehicleNumber ?? '').isNotEmpty)
-                              r!.vehicleNumber,
-                          ].join(' · '),
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 11,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                _RoundIconBtn(
-                  icon: Icons.chat_bubble_outline,
-                  onTap: onChat,
-                ),
-                const SizedBox(width: 8),
-                _RoundIconBtn(
-                  icon: Icons.call,
-                  enabled: phone.isNotEmpty,
-                  onTap: () => RiderCard.launchCall(phone),
-                ),
-              ],
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: AppColor.primary,
+              backgroundImage: (r?.image ?? '').isNotEmpty
+                  ? NetworkImage(r!.image)
+                  : null,
+              child: (r?.image ?? '').isEmpty
+                  ? const Icon(Icons.delivery_dining, color: Colors.black)
+                  : null,
             ),
-            if (showOtp) ...[
-              const SizedBox(height: 14),
-              const Divider(height: 1, color: Colors.white12),
-              const SizedBox(height: 12),
-              Row(
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.lock_outline,
-                      color: AppColor.primary, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Delivery OTP — share with rider on arrival',
-                      style: TextStyle(
-                        color: Colors.grey.shade300,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
                     ),
                   ),
-                  _OtpChip(otp: otp),
+                  Text(
+                    phone.isEmpty ? 'On the way' : phone,
+                    style: TextStyle(
+                      color: Colors.grey.shade400,
+                      fontSize: 12,
+                    ),
+                  ),
+                  if ((r?.vehicleType ?? '').isNotEmpty ||
+                      (r?.vehicleNumber ?? '').isNotEmpty)
+                    Text(
+                      [
+                        if ((r?.vehicleType ?? '').isNotEmpty) r!.vehicleType,
+                        if ((r?.vehicleNumber ?? '').isNotEmpty)
+                          r!.vehicleNumber,
+                      ].join(' · '),
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 11,
+                      ),
+                    ),
                 ],
               ),
-            ],
+            ),
+            _RoundIconBtn(
+              icon: Icons.chat_bubble_outline,
+              onTap: onChat,
+            ),
+            const SizedBox(width: 8),
+            _RoundIconBtn(
+              icon: Icons.call,
+              enabled: phone.isNotEmpty,
+              onTap: () => RiderCard.launchCall(phone),
+            ),
           ],
         ),
       ),
@@ -206,55 +174,6 @@ class _RoundIconBtn extends StatelessWidget {
         ),
         child: Icon(icon, color: enabled ? Colors.black : Colors.white54,
             size: 20),
-      ),
-    );
-  }
-}
-
-class _OtpChip extends StatefulWidget {
-  const _OtpChip({required this.otp});
-
-  final String otp;
-
-  @override
-  State<_OtpChip> createState() => _OtpChipState();
-}
-
-class _OtpChipState extends State<_OtpChip> {
-  bool _revealed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final display = _revealed
-        ? widget.otp
-        : widget.otp.replaceAll(RegExp(r'\d'), '•');
-    return InkWell(
-      onTap: () => setState(() => _revealed = !_revealed),
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColor.primary,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              display,
-              style: const TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
-                letterSpacing: 4,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Icon(
-              _revealed ? Icons.visibility_off : Icons.visibility,
-              size: 16,
-            ),
-          ],
-        ),
       ),
     );
   }

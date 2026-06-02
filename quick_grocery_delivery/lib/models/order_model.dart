@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class OrderModel {
   String id;
   List<ProductItem> products;
@@ -25,8 +27,13 @@ class OrderModel {
   double? longitude;
   String vendorId;
   String vendorName;
+  String storeName;
   String vendorPhone;
   String pickupAddress;
+  DateTime? acceptedAt;
+  DateTime? pickedUpAt;
+  DateTime? outForDeliveryAt;
+  DateTime? deliveredAt;
   double? pickupLat;
   double? pickupLng;
   double? routeDistanceKm;
@@ -64,8 +71,13 @@ class OrderModel {
     this.longitude,
     this.vendorId = '',
     this.vendorName = '',
+    this.storeName = '',
     this.vendorPhone = '',
     this.pickupAddress = '',
+    this.acceptedAt,
+    this.pickedUpAt,
+    this.outForDeliveryAt,
+    this.deliveredAt,
     this.pickupLat,
     this.pickupLng,
     this.routeDistanceKm,
@@ -89,9 +101,11 @@ class OrderModel {
       id: id,
       products: parsedProducts,
       createdDate: data['created_date'] ?? '',
-      customerName: data['customer_name'] ?? '',
-      phone: data['phone'] ?? '',
-      address: data['address'] ?? '',
+      customerName: (data['customer_name'] ?? data['customerName'] ?? '')
+          .toString(),
+      phone: (data['phone'] ?? data['customerPhone'] ?? data['mobile'] ?? '')
+          .toString(),
+      address: (data['address'] ?? data['deliveryAddress'] ?? '').toString(),
       isPaid: data['isPaid'] ?? false,
       orderStatus: data['order_status'] ?? '',
       modernStatus: data['status']?.toString() ?? '',
@@ -114,6 +128,12 @@ class OrderModel {
       longitude: data['lng'] != null ? (data['lng'] as num).toDouble() : null,
       vendorId: (data['vendorId'] ?? data['vendor_id'] ?? '').toString(),
       vendorName: (data['vendorName'] ?? data['vendor_name'] ?? '').toString(),
+      storeName: (data['storeName'] ??
+              data['store_name'] ??
+              data['shopName'] ??
+              data['shop_name'] ??
+              '')
+          .toString(),
       vendorPhone: (data['vendorPhone'] ?? data['vendor_phone'] ?? '').toString(),
       pickupAddress:
           (data['pickupAddress'] ?? data['pickup_address'] ?? '').toString(),
@@ -135,7 +155,27 @@ class OrderModel {
         data['deliveryInstructions'] ?? data['delivery_instructions'],
       ),
       bill: _asMap(data['bill']),
+      acceptedAt: _parseDateTime(
+        data['acceptedAt'] ?? data['riderAcceptedAt'] ?? data['confrimTime'],
+      ),
+      pickedUpAt: _parseDateTime(data['pickedUpAt'] ?? data['pickedTime']),
+      outForDeliveryAt: _parseDateTime(
+        data['outForDeliveryAt'] ?? data['onTheWayTime'],
+      ),
+      deliveredAt: _parseDateTime(
+        data['deliveredAt'] ?? data['deliveredTime'],
+      ),
     );
+  }
+
+  static DateTime? _parseDateTime(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is DateTime) return raw;
+    if (raw is String && raw.trim().isNotEmpty) {
+      return DateTime.tryParse(raw.trim());
+    }
+    return null;
   }
 
   static Map<String, dynamic>? _asMap(dynamic raw) {
@@ -172,8 +212,13 @@ class OrderModel {
     String? modernStatus,
     String? orderStatus,
     String? vendorName,
+    String? storeName,
     String? vendorPhone,
     String? pickupAddress,
+    DateTime? acceptedAt,
+    DateTime? pickedUpAt,
+    DateTime? outForDeliveryAt,
+    DateTime? deliveredAt,
     double? pickupLat,
     double? pickupLng,
     double? routeDistanceKm,
@@ -206,8 +251,13 @@ class OrderModel {
       longitude: longitude,
       vendorId: vendorId,
       vendorName: vendorName ?? this.vendorName,
+      storeName: storeName ?? this.storeName,
       vendorPhone: vendorPhone ?? this.vendorPhone,
       pickupAddress: pickupAddress ?? this.pickupAddress,
+      acceptedAt: acceptedAt ?? this.acceptedAt,
+      pickedUpAt: pickedUpAt ?? this.pickedUpAt,
+      outForDeliveryAt: outForDeliveryAt ?? this.outForDeliveryAt,
+      deliveredAt: deliveredAt ?? this.deliveredAt,
       pickupLat: pickupLat ?? this.pickupLat,
       pickupLng: pickupLng ?? this.pickupLng,
       routeDistanceKm: routeDistanceKm ?? this.routeDistanceKm,
@@ -311,16 +361,54 @@ class ProductItem {
   });
 
   factory ProductItem.fromMap(Map<String, dynamic> data) {
+    final qty = (data['quantity'] as num?)?.toInt() ??
+        (data['itemCount'] as num?)?.toInt() ??
+        0;
+    final effectiveQty = qty > 0 ? qty : 1;
+    final resolved = _resolveOrderLinePrices(data, effectiveQty);
+
     return ProductItem(
-      name: data['name'] ?? '',
+      name: (data['productName'] ?? data['name'] ?? '').toString(),
       image: data['image'] ?? '',
       description: data['description'] ?? '',
       category: data['category'] ?? '',
-      unit: data['unit'] ?? '',
-      price: (data['price'] ?? 0).toDouble(),
-      slashedPrice: (data['slashedPrice'] ?? 0).toDouble(),
-      itemCount: data['itemCount'] ?? 0,
-      vendorId: data['vendor_id'] ?? '',
+      unit: (data['unitType'] ?? data['unit'] ?? '').toString(),
+      price: resolved.selling,
+      slashedPrice: resolved.original,
+      itemCount: effectiveQty,
+      vendorId: (data['vendor_id'] ?? data['vendorId'] ?? '').toString(),
+    );
+  }
+
+  static _OrderLinePrices _resolveOrderLinePrices(
+    Map<String, dynamic> data,
+    int qty,
+  ) {
+    double d(dynamic v) {
+      if (v is num) return v.toDouble();
+      if (v is String && v.trim().isNotEmpty) {
+        return double.tryParse(v.trim()) ?? 0;
+      }
+      return 0;
+    }
+
+    final sellingExplicit = d(data['sellingPrice']);
+    if (sellingExplicit > 0) {
+      final original = d(data['originalPrice']);
+      return _OrderLinePrices(
+        selling: sellingExplicit,
+        original: original > 0 ? original : sellingExplicit,
+      );
+    }
+
+    var unitPrice = d(data['unitPrice'] ?? data['price']);
+    final slashed = d(data['slashedPrice']);
+    if (slashed > 0 && slashed < unitPrice) {
+      return _OrderLinePrices(selling: slashed, original: unitPrice);
+    }
+    return _OrderLinePrices(
+      selling: unitPrice,
+      original: slashed > unitPrice ? slashed : unitPrice,
     );
   }
 
@@ -337,4 +425,11 @@ class ProductItem {
       'vendor_id': vendorId,
     };
   }
+}
+
+class _OrderLinePrices {
+  const _OrderLinePrices({required this.selling, required this.original});
+
+  final double selling;
+  final double original;
 }

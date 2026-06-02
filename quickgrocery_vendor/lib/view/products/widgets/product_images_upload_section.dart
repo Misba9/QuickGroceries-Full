@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:quickgrocery_vendor/constants/product_image_limits.dart';
 import 'package:quickgrocery_vendor/models/product_image_slot.dart';
+import 'package:quickgrocery_vendor/services/product_image_processor.dart';
 import 'package:quickgrocery_vendor/services/product_image_upload_service.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
 import 'package:quickgrocery_vendor/utils/app_spacing.dart';
@@ -110,6 +109,47 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
       _showError(e.message);
     } catch (e) {
       _showError('Upload failed, retry again');
+    }
+  }
+
+  Future<void> _replaceAt(int index) async {
+    try {
+      final files = await _pickerService.pickFromGallery(remainingSlots: 1);
+      if (files.isEmpty) return;
+      final prepared = await ProductImageProcessor.prepareForUpload(files.first);
+      setState(() {
+        _slots[index] = ProductImageSlot(
+          key: 'local_${prepared.path}_${DateTime.now().microsecondsSinceEpoch}',
+          localFile: prepared,
+        );
+      });
+      _notify();
+    } on ProductImageException catch (e) {
+      _showError(e.message);
+    } catch (e) {
+      _showError('Could not replace image');
+    }
+  }
+
+  Future<void> _rotateAt(int index) async {
+    final slot = _slots[index];
+    if (!slot.isLocal || slot.localFile == null) {
+      _showError('Only local images can be rotated before upload');
+      return;
+    }
+    try {
+      final rotated = await _pickerService.rotateImage(slot.localFile!);
+      setState(() {
+        _slots[index] = ProductImageSlot(
+          key: 'local_${rotated.path}_${DateTime.now().microsecondsSinceEpoch}',
+          localFile: rotated,
+        );
+      });
+      _notify();
+    } on ProductImageException catch (e) {
+      _showError(e.message);
+    } catch (e) {
+      _showError('Could not rotate image');
     }
   }
 
@@ -247,7 +287,9 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
             ),
             const SizedBox(height: 4),
             Text(
-              'Min ${ProductImageLimits.minImages}, max ${ProductImageLimits.maxImages} · JPG, PNG, WebP',
+              'Min ${ProductImageLimits.minImages}, max ${ProductImageLimits.maxImages} · '
+              'JPG, PNG, WebP · min ${ProductImageLimits.minWidth}×${ProductImageLimits.minHeight}px · '
+              'recommended ${ProductImageLimits.recommendedWidth}×${ProductImageLimits.recommendedHeight}',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
             ),
             if (widget.isUploading) ...[
@@ -315,6 +357,36 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
                       ),
               ),
             ),
+            if (hasImages) ...[
+              AppSpacing.h10,
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: widget.isUploading
+                        ? null
+                        : () => _replaceAt(_previewIndex),
+                    icon: const Icon(Icons.swap_horiz, size: 18),
+                    label: const Text('Replace'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: widget.isUploading || !_slots[_previewIndex].isLocal
+                        ? null
+                        : () => _rotateAt(_previewIndex),
+                    icon: const Icon(Icons.rotate_90_degrees_cw, size: 18),
+                    label: const Text('Rotate'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: widget.isUploading
+                        ? null
+                        : () => _removeAt(_previewIndex),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Delete'),
+                  ),
+                ],
+              ),
+            ],
             AppSpacing.h10,
             SizedBox(
               height: 108,

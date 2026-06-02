@@ -16,8 +16,9 @@ class OrderProductParse {
 
   static ProductItem fromMap(Map<String, dynamic> data) {
     final qty = _qty(data);
-    var unitPrice = _dbl(data['unitPrice'] ?? data['price']);
-    var totalPrice = _dbl(data['totalPrice']);
+    final prices = _resolveLinePrices(data, qty);
+    var unitPrice = prices.selling;
+    var totalPrice = prices.lineTotal;
     if (unitPrice <= 0 && totalPrice > 0 && qty > 0) {
       unitPrice = totalPrice / qty;
     }
@@ -36,7 +37,7 @@ class OrderProductParse {
       category: (data['category'] ?? '').toString(),
       unit: (data['unitType'] ?? '').toString(),
       price: unitPrice,
-      slashedPrice: _dbl(data['slashedPrice']),
+      slashedPrice: prices.original,
       itemCount: qty,
       vendorId: (data['vendor_id'] ?? data['vendorId'] ?? '').toString(),
       unitPerItem: (data['unitPerItem'] ?? '').toString(),
@@ -72,6 +73,44 @@ class OrderProductParse {
     for (var i = 0; i < items.length; i++) {
       debugLogItem(items[i], index: i);
     }
+  }
+
+  static ({double selling, double original, double lineTotal}) _resolveLinePrices(
+    Map<String, dynamic> data,
+    int qty,
+  ) {
+    final sellingExplicit = _dbl(data['sellingPrice']);
+    final originalExplicit = _dbl(data['originalPrice']);
+    final lineTotalExplicit = _dbl(data['lineTotal'] ?? data['totalPrice']);
+
+    if (sellingExplicit > 0) {
+      return (
+        selling: sellingExplicit,
+        original: originalExplicit > 0 ? originalExplicit : sellingExplicit,
+        lineTotal: lineTotalExplicit > 0
+            ? lineTotalExplicit
+            : sellingExplicit * qty,
+      );
+    }
+
+    var unitPrice = _dbl(data['unitPrice'] ?? data['price']);
+    final slashed = _dbl(data['slashedPrice']);
+    var lineTotal = lineTotalExplicit;
+    if (unitPrice <= 0 && lineTotal > 0 && qty > 0) {
+      unitPrice = lineTotal / qty;
+    }
+    if (slashed > 0 && slashed < unitPrice) {
+      return (
+        selling: slashed,
+        original: unitPrice,
+        lineTotal: lineTotal > 0 ? lineTotal : slashed * qty,
+      );
+    }
+    return (
+      selling: unitPrice,
+      original: slashed > unitPrice ? slashed : unitPrice,
+      lineTotal: lineTotal > 0 ? lineTotal : unitPrice * qty,
+    );
   }
 
   static int _qty(Map<String, dynamic> data) {

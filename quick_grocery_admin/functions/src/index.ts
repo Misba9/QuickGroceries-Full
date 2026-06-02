@@ -46,7 +46,10 @@ export {
   autoAssignAllUnassignedCallable,
   rankRidersForOrderCallable,
 } from "./operations/assign_rider_callables";
-export { confirmDeliveryWithOtp } from "./operations/delivery_callables";
+export {
+  confirmDelivery,
+  reportCustomerNotReachable,
+} from "./operations/delivery_callables";
 export {
   cancelOrderByCustomer,
   cancelOrderByVendor,

@@ -22,8 +22,6 @@ import {
   vendorMirrorPatch,
 } from "./order_lifecycle";
 import { autoAssignNearestRider, haversineKm } from "./rider_assignment";
-import { issueDeliveryOtp } from "./delivery_otp";
-
 const db = admin.firestore();
 
 function orderTotal(data: Record<string, unknown>): number {
@@ -461,17 +459,36 @@ async function handleStatusTransition(
       break;
 
     case OrderStatus.OUT_FOR_DELIVERY:
-      await issueDeliveryOtp(orderId, after, uid);
+      if (uid) {
+        await notifyCustomer(uid, {
+          title: "Out for delivery",
+          body: `Your order #${orderId.slice(-6)} is on the way.`,
+          type: "order_out_for_delivery",
+          orderId,
+        });
+        await writeUserInbox(uid, {
+          title: "Out for delivery",
+          body: `Your order #${orderId.slice(-6)} is on the way to you.`,
+          type: "delivery",
+          targetId: orderId,
+          deepLink: `/orders/${orderId}`,
+        });
+      }
       break;
 
-    case OrderStatus.DELIVERED:
+    case OrderStatus.DELIVERED: {
+      const riderId = str(after.deliveryBoyId ?? after.delivery_boy_id);
       await appendDeliveryTracking(orderId, "delivered", {
-        deliveryDurationSec: num(after.deliveryDurationSec ?? after.delivery_duration_seconds),
-        distanceTravelledKm: num(after.distanceTravelledKm ?? after.distance_travelled_km),
+        deliveryDurationSec: num(
+          after.deliveryDurationSec ?? after.delivery_duration_seconds
+        ),
+        distanceTravelledKm: num(
+          after.distanceTravelledKm ?? after.distance_travelled_km
+        ),
       });
       await notifyAdmins({
-        title: "Order delivered",
-        message: `Order #${orderId.slice(-6)} marked delivered.`,
+        title: "Order completed",
+        message: `Order #${orderId.slice(-6)} has been delivered.`,
         type: "order_delivered",
         category: "delivery",
         metadata: { orderId },
@@ -479,21 +496,36 @@ async function handleStatusTransition(
       for (const vendorId of vendorIds(after)) {
         await notifyVendor(vendorId, {
           title: "Order delivered",
-          message: `Order #${orderId.slice(-6)} delivered to ${customer}.`,
+          message: `Order #${orderId.slice(-6)} was delivered.`,
           type: "order_delivered",
           metadata: { orderId },
         });
       }
       if (uid) {
+        await notifyCustomer(uid, {
+          title: "Delivered",
+          body: "Your order has been delivered successfully.",
+          type: "order_delivered",
+          orderId,
+        });
         await writeUserInbox(uid, {
           title: "Delivered",
-          body: `Your order #${orderId.slice(-6)} has been delivered. Enjoy!`,
+          body: "Your order has been delivered successfully.",
           type: "delivery",
           targetId: orderId,
           deepLink: `/orders/${orderId}`,
         });
       }
+      if (riderId) {
+        await notifyDeliveryRider(riderId, {
+          title: "Delivery completed",
+          message: `Order #${orderId.slice(-6)} delivery completed.`,
+          type: "delivery_completed",
+          metadata: { orderId },
+        });
+      }
       break;
+    }
 
     default:
       break;

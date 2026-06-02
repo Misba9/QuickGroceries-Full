@@ -31,6 +31,7 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
   bool _loading = true;
   int _qty = 1;
   String? _error;
+  bool _justAdded = false;
 
   @override
   void initState() {
@@ -88,9 +89,10 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
           bundleCount: _qty,
         );
     ref.read(comboOfferServiceProvider).incrementOrderCount(widget.combo.id);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${widget.combo.title} added to cart')),
-    );
+    setState(() => _justAdded = true);
+    Future<void>.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _justAdded = false);
+    });
   }
 
   @override
@@ -268,12 +270,33 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                             borderRadius: BorderRadius.circular(AppRadii.md),
                           ),
                         ),
-                        onPressed: combo.isAvailableNow
+                        onPressed: combo.isAvailableNow && !_justAdded
                             ? () => _addToCart(_products!)
                             : null,
-                        child: Text(
-                          'Add all to cart',
-                          style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: _justAdded
+                              ? Row(
+                                  key: const ValueKey('added'),
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.check_rounded, size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Added',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  key: const ValueKey('add'),
+                                  'Add all to cart',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
                         ),
                       ),
                     ),

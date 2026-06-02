@@ -6,7 +6,6 @@ import 'package:provider/provider.dart' as legacy;
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
-import 'package:quickgrocery/core/widgets/floating_cart_pill.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/category/widgets/category_sidebar_tile.dart';
@@ -57,23 +56,13 @@ class _CategoryScreenState extends State<CategoryScreen> {
       backgroundColor: AppSurface.background,
       body: SafeArea(
         bottom: false,
-        child: Stack(
+        child: Column(
           children: [
-            Column(
-              children: [
-                _Header(
-                  category: widget.category,
-                  searchController: _searchController,
-                ),
-                const Expanded(child: _Body()),
-              ],
+            _Header(
+              category: widget.category,
+              searchController: _searchController,
             ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: FloatingCartPill.positionedBottomFullScreen(context),
-              child: const FloatingCartPill(),
-            ),
+            const Expanded(child: _Body()),
           ],
         ),
       ),

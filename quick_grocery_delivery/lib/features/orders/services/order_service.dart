@@ -4,7 +4,7 @@ import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:quick_grocery_delivery/features/orders/screens/pickup_process_screen.dart';
-import 'package:quick_grocery_delivery/features/orders/widgets/delivery_otp_sheet.dart';
+import 'package:quick_grocery_delivery/features/orders/widgets/confirm_delivery_dialog.dart';
 import 'package:quick_grocery_delivery/services/delivery_ops_api.dart';
 import 'package:quick_grocery_delivery/services/delivery_trip_tracker.dart';
 import 'package:quick_grocery_delivery/utils/delivery_route_utils.dart';
@@ -41,6 +41,7 @@ class OrderService extends ChangeNotifier {
   bool profileLoadFailed = false;
   String? pickupActionOrderId;
   String? deliveryActionOrderId;
+  String? customerNotReachableOrderId;
   TextEditingController priceController = TextEditingController();
 
   void onSelectOrder(OrderModel order) async {
@@ -414,6 +415,7 @@ class OrderService extends ChangeNotifier {
       modernStatus: OrderLifecycle.riderAccepted,
       orderStatus: OrderLifecycle.legacyLabel(OrderLifecycle.riderAccepted),
       vendorName: (patch['vendorName'] ?? source.vendorName).toString(),
+      storeName: (patch['storeName'] ?? source.storeName).toString(),
       vendorPhone: (patch['vendorPhone'] ?? source.vendorPhone).toString(),
       pickupAddress: (patch['pickupAddress'] ?? source.pickupAddress).toString(),
       pickupLat: (patch['pickupLat'] as num?)?.toDouble() ?? source.pickupLat,
@@ -633,11 +635,52 @@ class OrderService extends ChangeNotifier {
     }
   }
 
-  Future<void> markDelivered(
+  Future<void> reportCustomerNotReachable(
     BuildContext context,
-    String id, {
-    required String otp,
-  }) async {
+    String orderId,
+  ) async {
+    customerNotReachableOrderId = orderId;
+    notifyListeners();
+    try {
+      final riderId = await _currentRiderId();
+      if (riderId.isEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Rider session not found')),
+          );
+        }
+        return;
+      }
+      await DeliveryOpsApi().reportCustomerNotReachable(
+        orderId: orderId,
+        riderId: riderId,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Admin notified — customer marked not reachable'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.toString().replaceFirst('Exception: ', ''),
+            ),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      customerNotReachableOrderId = null;
+      notifyListeners();
+    }
+  }
+
+  Future<void> markDelivered(BuildContext context, String id) async {
     deliveryActionOrderId = id;
     notifyListeners();
     try {
@@ -652,10 +695,9 @@ class OrderService extends ChangeNotifier {
         return;
       }
 
-      await DeliveryOpsApi().confirmDeliveryWithOtp(
+      await DeliveryOpsApi().confirmDelivery(
         orderId: id,
         riderId: riderId,
-        otp: otp,
         deliveryDurationSec: metrics.durationSec,
         distanceTravelledKm: metrics.distanceKm,
       );
@@ -688,29 +730,10 @@ class OrderService extends ChangeNotifier {
     }
   }
 
-  Future<void> promptDeliveryOtpAndComplete(
-    BuildContext context,
-    String id, {
-    String? customerName,
-  }) async {
-    final otp = await showDeliveryOtpSheet(
-      context,
-      customerName: customerName,
-    );
-    if (otp == null || otp.length != 4 || !context.mounted) return;
-    await markDelivered(context, id, otp: otp);
-  }
-
-  Future<void> completeOrder(
-    BuildContext context,
-    String id, {
-    String? customerName,
-  }) async {
-    await promptDeliveryOtpAndComplete(
-      context,
-      id,
-      customerName: customerName,
-    );
+  Future<void> completeOrder(BuildContext context, String id) async {
+    final confirmed = await showConfirmDeliveryDialog(context);
+    if (!confirmed || !context.mounted) return;
+    await markDelivered(context, id);
   }
 
   void getCashByCustomer(BuildContext context, String amount, String id) {
@@ -866,34 +889,17 @@ class OrderService extends ChangeNotifier {
     );
   }
 
-  void showOrderConfirmationDialog(
+  Future<void> showOrderConfirmationDialog(
     BuildContext context,
     String id,
     String userID,
-  ) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Confirm Order"),
-          content: const Text("Do you want to complete this order?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(), // Cancel action
-              child: const Text("No"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                sendFCMMessage(userID, 'Your Order Delivered Successfully');
-                // Add your order completion logic here
-                completeOrder(context, id);
-              },
-              child: const Text("Yes"),
-            ),
-          ],
-        );
-      },
-    );
+  ) async {
+    final confirmed = await showConfirmDeliveryDialog(context);
+    if (!confirmed || !context.mounted) return;
+    await markDelivered(context, id);
+    if (context.mounted && userID.isNotEmpty) {
+      sendFCMMessage(userID, 'Your order has been delivered successfully.');
+    }
   }
 
   Future<Map<String, dynamic>> _buildRiderAcceptancePatch(OrderModel order) async {
@@ -905,6 +911,7 @@ class OrderService extends ChangeNotifier {
     };
 
     var vendorName = order.vendorName;
+    var storeName = order.storeName;
     var vendorPhone = order.vendorPhone;
     var pickupAddress = order.pickupAddress;
     var pickupLat = order.pickupLat;
@@ -919,7 +926,9 @@ class OrderService extends ChangeNotifier {
           .get();
       if (snap.exists) {
         final d = snap.data() ?? {};
-        vendorName = (d['shopName'] ?? d['shop_name'] ?? vendorName).toString();
+        storeName = (d['shopName'] ?? d['shop_name'] ?? storeName).toString();
+        vendorName = (d['ownerName'] ?? d['name'] ?? vendorName).toString();
+        if (vendorName.isEmpty) vendorName = storeName;
         vendorPhone = (d['phone'] ?? vendorPhone).toString();
         pickupAddress =
             (d['shopAddress'] ?? d['shop_address'] ?? pickupAddress).toString();
@@ -951,6 +960,10 @@ class OrderService extends ChangeNotifier {
 
     patch['vendorId'] = vendorId;
     patch['vendorName'] = vendorName;
+    if (storeName.isNotEmpty) {
+      patch['storeName'] = storeName;
+      patch['store_name'] = storeName;
+    }
     patch['vendorPhone'] = vendorPhone;
     patch['pickupAddress'] = pickupAddress;
     if (pickupLat != null) patch['pickupLat'] = pickupLat;

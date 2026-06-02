@@ -314,8 +314,6 @@ class CartService extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
 
-    // Convert all selectedProduct to ProductItem list
-    // Use effectivePrice for vegetables (weight-based) or regular price for others
     List<ProductItem> productItems = selectedProduct.map((v) {
       return ProductItem(
         name: v.name,
@@ -323,9 +321,9 @@ class CartService extends ChangeNotifier {
         description: v.description,
         category: v.category,
         unit: v.unit,
-        price: v
-            .effectivePrice, // Use effective price (weight-based for vegetables)
-        slashedPrice: v.effectiveSlashedPrice, // Use effective slashed price
+        price: v.unitSellingPrice,
+        slashedPrice:
+            v.hasDiscount ? v.unitOriginalPrice : v.unitSellingPrice,
         itemCount: v.itemCount,
         vendorId: v.vendorId,
       );
@@ -337,11 +335,9 @@ class CartService extends ChangeNotifier {
     final pinCode = addressService.pinCode;
     final zoneDeliveryCharge = await getDeliveryChargeFromZone(pinCode);
 
-    // Calculate item total to check for free delivery
-    // Use effectivePrice for vegetables (weight-based) or regular price for others
     double itemTotal = selectedProduct.fold(
       0.0,
-      (sum, product) => sum + (product.effectivePrice * product.itemCount),
+      (sum, product) => sum + (product.unitSellingPrice * product.itemCount),
     );
 
     // Apply free delivery logic (if order >= 99)

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -55,6 +56,16 @@ class _CartActionBarState extends ConsumerState<CartActionBar> {
     );
 
     cart.addProductDirectly(copy);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('item_added_to_cart'.tr()),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
 
     // Fly-to-cart animation, anchored on the bottom-bar thumbnail.
     final ctx = _imageKey.currentContext;

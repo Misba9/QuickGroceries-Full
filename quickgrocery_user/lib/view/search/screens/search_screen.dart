@@ -2,7 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
-import 'package:quickgrocery/core/widgets/floating_cart_pill.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/search/services/search_service.dart';
@@ -207,12 +206,6 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   ),
               ],
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: FloatingCartPill.positionedBottomFullScreen(context),
-              child: const FloatingCartPill(),
             ),
           ],
         ),

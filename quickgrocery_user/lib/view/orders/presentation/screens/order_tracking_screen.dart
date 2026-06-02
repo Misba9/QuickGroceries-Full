@@ -5,7 +5,6 @@ import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
 
 import '../../domain/order_models.dart';
-import '../../services/delivery_otp_service.dart';
 import '../providers/orders_providers.dart';
 import '../providers/reorder_controller.dart';
 import '../widgets/delivered_celebration.dart';
@@ -200,16 +199,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         OrderTrackingHeader(order: order, eta: eta),
                         const SizedBox(height: 14),
                       ],
-                      StreamBuilder<String?>(
-                        stream: DeliveryOtpService.watchOtp(order.id),
-                        builder: (context, otpSnap) {
-                          return RiderCard(
-                            rider: rider,
-                            order: order,
-                            deliveryOtpCode: otpSnap.data,
-                            onChat: _openSupport,
-                          );
-                        },
+                      RiderCard(
+                        rider: rider,
+                        order: order,
+                        onChat: _openSupport,
                       ),
                       const SizedBox(height: 14),
                       if (!order.structuredInstructions.isEmpty)

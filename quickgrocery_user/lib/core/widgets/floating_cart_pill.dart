@@ -1,103 +1,63 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/view/cart/domain/cart_models.dart';
+import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
-import 'package:quickgrocery/view/category/services/category_service.dart';
 
 import '../design/app_tokens.dart';
 
-/// Premium "view cart" pill that floats above the content.
-///
-/// Reads the legacy [CategoryService] cart so it works app-wide. Drops
-/// itself when the cart is empty. Use [FloatingCartPill.scaffold] to
-/// stack it above any existing screen body.
-class FloatingCartPill extends StatelessWidget {
+/// Premium "view cart" pill — reads [cartProvider] (single source of truth).
+class FloatingCartPill extends ConsumerWidget {
   const FloatingCartPill({
     super.key,
-    this.bottomInset = 12,
     this.horizontalInset = 24,
   });
 
-  /// Same vertical band as [PremiumFiveTabNav.floatingCartGapAboveBar].
   static const double kGapAboveTabBar = 12;
 
-  /// [Positioned.bottom] when the stack fills the screen (no tab bar) but
-  /// [SafeArea] bottom is off — adds [MediaQuery.padding.bottom] for the
-  /// home indicator / gesture inset.
   static double positionedBottomFullScreen(BuildContext context) =>
       kGapAboveTabBar + MediaQuery.paddingOf(context).bottom;
 
-  /// Wrap any [body] with the pill stacked at the bottom. Use this on
-  /// screens that don't already have their own floating cart bar.
-  static Widget scaffold({
-    required Widget body,
-    double bottomInset = 12,
-    double horizontalInset = 24,
-  }) {
-    return Stack(
-      children: [
-        body,
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: bottomInset,
-          child: FloatingCartPill(
-            bottomInset: bottomInset,
-            horizontalInset: horizontalInset,
-          ),
-        ),
-      ],
-    );
-  }
-
-  final double bottomInset;
   final double horizontalInset;
 
   @override
-  Widget build(BuildContext context) {
-    return legacy.Consumer<CategoryService>(
-      builder: (context, cart, _) {
-        final items = cart.selectedProduct;
-        final visible = items.isNotEmpty;
-        return AnimatedSlide(
-          offset: visible ? Offset.zero : const Offset(0, 1.6),
-          duration: AppMotion.medium,
-          curve: AppMotion.emphasized,
-          child: AnimatedOpacity(
-            opacity: visible ? 1 : 0,
-            duration: AppMotion.medium,
-            child: visible
-                ? _PillBody(
-                    horizontalInset: horizontalInset,
-                  )
-                : const SizedBox.shrink(),
-          ),
-        );
-      },
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cart = ref.watch(cartProvider);
+    if (cart.isEmpty) return const SizedBox.shrink();
+
+    return AnimatedSlide(
+      offset: Offset.zero,
+      duration: AppMotion.medium,
+      curve: AppMotion.emphasized,
+      child: AnimatedOpacity(
+        opacity: 1,
+        duration: AppMotion.medium,
+        child: _PillBody(
+          cart: cart,
+          horizontalInset: horizontalInset,
+        ),
+      ),
     );
   }
 }
 
 class _PillBody extends StatelessWidget {
-  const _PillBody({required this.horizontalInset});
+  const _PillBody({
+    required this.cart,
+    required this.horizontalInset,
+  });
+
+  final CartState cart;
   final double horizontalInset;
 
   @override
   Widget build(BuildContext context) {
-    final cart = legacy.Provider.of<CategoryService>(context);
-    final items = cart.selectedProduct;
-    final totalCount =
-        items.fold<int>(0, (acc, p) => acc + (p.itemCount <= 0 ? 1 : p.itemCount));
-
-    final total = items.fold<double>(
-      0,
-      (acc, p) {
-        final unit = p.price <= 0 ? p.slashedPrice.toDouble() : p.price.toDouble();
-        return acc + unit * (p.itemCount <= 0 ? 1 : p.itemCount);
-      },
-    );
+    final totalCount = cart.totalUnits;
+    final total = cart.bill.total > 0 ? cart.bill.total : cart.bill.subtotal;
+    final preview = cart.items.take(3).toList();
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: horizontalInset),
@@ -111,7 +71,10 @@ class _PillBody extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const CartScreen()),
+              MaterialPageRoute<void>(
+                settings: const RouteSettings(name: '/cart'),
+                builder: (_) => const CartScreen(),
+              ),
             );
           },
           child: Ink(
@@ -120,10 +83,9 @@ class _PillBody extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadii.pill),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 8,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -131,7 +93,7 @@ class _PillBody extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
                 children: [
-                  _Avatars(items: items, max: 3),
+                  _Avatars(items: preview, max: 3, extra: cart.items.length),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -139,7 +101,7 @@ class _PillBody extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '$totalCount item${totalCount == 1 ? '' : 's'}',
+                          '🛒 $totalCount ${totalCount == 1 ? 'item' : 'items'}',
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -201,17 +163,37 @@ class _PillBody extends StatelessWidget {
 }
 
 class _Avatars extends StatelessWidget {
-  const _Avatars({required this.items, required this.max});
-  final List items;
+  const _Avatars({
+    required this.items,
+    required this.max,
+    required this.extra,
+  });
+
+  final List<CartItem> items;
   final int max;
+  final int extra;
 
   @override
   Widget build(BuildContext context) {
     final shown = items.take(max).toList();
-    final extra = items.length - shown.length;
+    final extraCount = extra - shown.length;
+
+    if (shown.isEmpty) {
+      return Container(
+        width: 36,
+        height: 36,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white,
+          border: Border.all(color: Colors.white, width: 2),
+        ),
+        child: const Icon(Icons.shopping_cart_outlined, size: 18),
+      );
+    }
 
     return SizedBox(
-      width: shown.length * 28.0 + (extra > 0 ? 24 : 0),
+      width: shown.length * 28.0 + (extraCount > 0 ? 24 : 0),
       height: 36,
       child: Stack(
         children: [
@@ -249,7 +231,7 @@ class _Avatars extends StatelessWidget {
                 ),
               ),
             ),
-          if (extra > 0)
+          if (extraCount > 0)
             Positioned(
               left: shown.length * 22.0,
               child: Container(
@@ -262,7 +244,7 @@ class _Avatars extends StatelessWidget {
                   border: Border.all(color: Colors.white, width: 2),
                 ),
                 child: Text(
-                  '+$extra',
+                  '+$extraCount',
                   style: GoogleFonts.poppins(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w800,

@@ -39,6 +39,7 @@ import 'package:quickgrocery/view/tracking/services/tracking_service.dart';
 import 'package:quickgrocery/view/delivery_location/services/delivery_zone_service.dart';
 import 'package:quickgrocery/view/wishlist/services/wishlist_service.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/cart_bootstrap.dart';
+import 'package:quickgrocery/view/cart/presentation/widgets/global_cart_overlay.dart';
 import 'package:provider/provider.dart' hide Consumer;
 import 'package:provider/provider.dart' as legacy_provider show Consumer;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -318,7 +319,9 @@ class _MyAppState extends State<MyApp> {
                         textDirection: AppLocales.isRtl(locale)
                             ? ui.TextDirection.rtl
                             : ui.TextDirection.ltr,
-                        child: child ?? const SizedBox.shrink(),
+                        child: GlobalCartOverlay(
+                          child: child ?? const SizedBox.shrink(),
+                        ),
                       );
                     },
                     home: Consumer(

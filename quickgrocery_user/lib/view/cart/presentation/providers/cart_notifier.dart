@@ -284,7 +284,8 @@ class CartNotifier extends Notifier<CartState> {
     final idx = items.indexWhere(
       (c) => c.productId == product.id && !c.isComboLine,
     );
-    if (idx == -1) {
+    final isNewLine = idx == -1;
+    if (isNewLine) {
       final qty = InventoryLimits.clampQuantity(
         requested: product.minOrderQuantity > 1 ? product.minOrderQuantity : 1,
         stock: product.stock,
@@ -307,6 +308,9 @@ class CartNotifier extends Notifier<CartState> {
       );
     }
     _writeLocal(items);
+    if (isNewLine) {
+      _feedback('Item added to cart');
+    }
     return true;
   }
 
@@ -337,6 +341,7 @@ class CartNotifier extends Notifier<CartState> {
       );
     }
     _writeLocal(items);
+    _feedback('Combo added to cart'); // shown via [cartFeedbackProvider]
   }
 
   bool increment(String productId) {

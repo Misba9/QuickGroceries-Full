@@ -143,32 +143,40 @@ class CartItem {
     if (comboGroupKey != null) 'comboGroupKey': comboGroupKey,
   };
 
-  /// Per-item price after weight-variant adjustment.
+  /// Catalog discount: [slashedPrice] is the selling price, [price] is MRP.
+  bool get hasCatalogDiscount =>
+      slashedPrice > 0 && slashedPrice < price;
+
+  /// Combo lines store allocated price in [price] and MRP in [slashedPrice].
+  bool get hasComboMrpReference =>
+      !hasCatalogDiscount && slashedPrice > price + 0.5;
+
+  /// Per-unit amount the customer pays (after weight variant).
   double get unitEffectivePrice {
+    final base = hasCatalogDiscount ? slashedPrice : price;
     if (isVegetable) {
-      return (price * selectedWeightInGrams) / 1000.0;
+      return (base * selectedWeightInGrams) / 1000.0;
     }
-    return price;
+    return base;
   }
 
-  /// Per-item slashed/MRP price after weight-variant adjustment.
+  /// Per-unit MRP / reference price for savings display.
   double get unitEffectiveSlashedPrice {
     if (isVegetable) {
-      return (slashedPrice * selectedWeightInGrams) / 1000.0;
+      final mrpBase = hasComboMrpReference ? slashedPrice : price;
+      return (mrpBase * selectedWeightInGrams) / 1000.0;
     }
-    return slashedPrice;
+    if (hasCatalogDiscount || hasComboMrpReference) {
+      return hasComboMrpReference ? slashedPrice : price;
+    }
+    return unitEffectivePrice;
   }
 
   /// Total line price before global discounts/fees.
   double get lineTotal => unitEffectivePrice * itemCount;
 
   /// Sum of MRPs (used to compute "you save" badge).
-  double get lineSlashedTotal {
-    final ref = unitEffectiveSlashedPrice > 0
-        ? unitEffectiveSlashedPrice
-        : unitEffectivePrice;
-    return ref * itemCount;
-  }
+  double get lineSlashedTotal => unitEffectiveSlashedPrice * itemCount;
 
   CartItem copyWith({
     int? itemCount,

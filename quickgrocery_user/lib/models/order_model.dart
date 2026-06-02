@@ -161,15 +161,14 @@ class ProductItem {
     final qty = (data['quantity'] as num?)?.toInt() ??
         (data['itemCount'] as num?)?.toInt() ??
         0;
-    var unitPrice = (data['unitPrice'] as num?)?.toDouble() ??
-        (data['price'] as num?)?.toDouble() ??
-        0.0;
-    var lineTotal = (data['totalPrice'] as num?)?.toDouble();
-    if (unitPrice <= 0 && lineTotal != null && lineTotal > 0 && qty > 0) {
-      unitPrice = lineTotal / qty;
-    }
     final effectiveQty = qty > 0 ? qty : 1;
-    if (unitPrice > 0) {
+    final resolved = _resolveOrderLinePrices(data, effectiveQty);
+    var unitPrice = resolved.selling;
+    var lineTotal = resolved.lineTotal;
+    if (unitPrice <= 0 && lineTotal > 0) {
+      unitPrice = lineTotal / effectiveQty;
+    }
+    if (lineTotal <= 0 && unitPrice > 0) {
       lineTotal = unitPrice * effectiveQty;
     }
 
@@ -185,7 +184,7 @@ class ProductItem {
       category: (data['category'] ?? '').toString(),
       unit: (data['unitType'] ?? '').toString(),
       price: unitPrice,
-      slashedPrice: (data['slashedPrice'] as num?)?.toDouble() ?? 0,
+      slashedPrice: resolved.original,
       itemCount: qty > 0 ? qty : 1,
       vendorId: (data['vendor_id'] ?? data['vendorId'] ?? '').toString(),
       variantName: variant,
@@ -199,6 +198,57 @@ class ProductItem {
     if (v is num) return v;
     if (v is String && v.trim().isNotEmpty) return num.tryParse(v.trim());
     return null;
+  }
+
+  static _OrderLinePrices _resolveOrderLinePrices(
+    Map<String, dynamic> data,
+    int qty,
+  ) {
+    double d(dynamic v) {
+      if (v is num) return v.toDouble();
+      if (v is String && v.trim().isNotEmpty) {
+        return double.tryParse(v.trim()) ?? 0;
+      }
+      return 0;
+    }
+
+    final sellingExplicit = d(data['sellingPrice']);
+    final originalExplicit = d(data['originalPrice']);
+    final lineTotalExplicit = d(data['lineTotal'] ?? data['totalPrice']);
+
+    if (sellingExplicit > 0) {
+      final original =
+          originalExplicit > 0 ? originalExplicit : sellingExplicit;
+      final lineTotal =
+          lineTotalExplicit > 0 ? lineTotalExplicit : sellingExplicit * qty;
+      return _OrderLinePrices(
+        selling: sellingExplicit,
+        original: original,
+        lineTotal: lineTotal,
+      );
+    }
+
+    var unitPrice = d(data['unitPrice'] ?? data['price']);
+    final slashed = d(data['slashedPrice']);
+    var lineTotal = lineTotalExplicit;
+    if (unitPrice <= 0 && lineTotal > 0 && qty > 0) {
+      unitPrice = lineTotal / qty;
+    }
+
+    // Legacy bug: stored MRP in `price` and selling price in `slashedPrice`.
+    if (slashed > 0 && slashed < unitPrice) {
+      return _OrderLinePrices(
+        selling: slashed,
+        original: unitPrice,
+        lineTotal: lineTotal > 0 ? lineTotal : slashed * qty,
+      );
+    }
+
+    return _OrderLinePrices(
+      selling: unitPrice,
+      original: slashed > unitPrice ? slashed : unitPrice,
+      lineTotal: lineTotal > 0 ? lineTotal : unitPrice * qty,
+    );
   }
 
   Map<String, dynamic> toMap() {
@@ -217,10 +267,27 @@ class ProductItem {
       if (variantName.isNotEmpty) 'variantName': variantName,
       'price': price,
       'unitPrice': price,
+      'sellingPrice': price,
+      'originalPrice': slashedPrice,
       'totalPrice': lineTotal,
+      'lineTotal': lineTotal,
       'slashedPrice': slashedPrice,
+      if (slashedPrice > price)
+        'discountAmount': slashedPrice - price,
       'vendor_id': vendorId,
       'vendorId': vendorId,
     };
   }
+}
+
+class _OrderLinePrices {
+  const _OrderLinePrices({
+    required this.selling,
+    required this.original,
+    required this.lineTotal,
+  });
+
+  final double selling;
+  final double original;
+  final double lineTotal;
 }

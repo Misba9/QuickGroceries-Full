@@ -108,13 +108,6 @@ class LiveOrder {
     ).grandTotal;
   }
 
-  /// Fallback 4-digit code when server OTP is not yet available.
-  String get deliveryOtp {
-    if (id.isEmpty) return '0000';
-    final hash = id.codeUnits.fold<int>(7, (a, b) => (a * 31 + b) & 0xFFFFFF);
-    return (hash % 10000).toString().padLeft(4, '0');
-  }
-
   String get deliverySlotLabel {
     if (slotLabel == null || slotLabel!.isEmpty) return '—';
     if (slotExpress) {

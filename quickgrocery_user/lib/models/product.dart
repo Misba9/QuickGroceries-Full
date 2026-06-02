@@ -353,6 +353,18 @@ class ProductModel {
     }
     return slashedPrice;
   }
+
+  /// Per-unit selling price (what the customer pays).
+  double get unitSellingPrice {
+    if (isVegetable) {
+      final base = hasDiscount ? slashedPrice : price;
+      return (base * selectedWeightInGrams) / 1000.0;
+    }
+    return hasDiscount ? slashedPrice : price;
+  }
+
+  /// Per-unit MRP for strikethrough / savings.
+  double get unitOriginalPrice => effectivePrice;
 }
 
 String _firstNonEmptyString(Map<String, dynamic> data, List<String> keys) {

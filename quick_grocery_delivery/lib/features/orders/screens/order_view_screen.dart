@@ -4,7 +4,8 @@ import 'package:quick_grocery_delivery/constants/app_spacing.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/features/orders/screens/order_status_screen.dart';
 import 'package:quick_grocery_delivery/features/orders/services/order_service.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:quick_grocery_delivery/features/orders/widgets/delivery_order_detail_panel.dart';
+import 'package:quick_grocery_delivery/features/orders/widgets/order_live_builder.dart';
 
 class OrderViewScreen extends StatelessWidget {
   const OrderViewScreen({super.key, required this.isCompleted});
@@ -92,93 +93,12 @@ class OrderViewScreen extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 15),
-                const Text('Customer Details'),
-                const SizedBox(height: 10),
-                Container(
-                  width: MediaQuery.of(context).size.width,
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Customer Name: ${selectedOrder.customerName}",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text("Address: ${selectedOrder.address}"),
-                      const SizedBox(height: 5),
-                      Text("Phone: ${selectedOrder.phone}"),
-                      if (selectedOrder.latitude != null &&
-                          selectedOrder.longitude != null) ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          "Location: ${selectedOrder.latitude}, ${selectedOrder.longitude}",
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 15),
-                GestureDetector(
-                  onTap: () async {
-                    if (selectedOrder.latitude != null &&
-                        selectedOrder.longitude != null) {
-                      // Use coordinates
-                      final String googleMapsUrl =
-                          'https://www.google.com/maps/dir/?api=1&destination=${selectedOrder.latitude},${selectedOrder.longitude}';
-                      final Uri mapsUri = Uri.parse(googleMapsUrl);
-                      if (await canLaunchUrl(mapsUri)) {
-                        await launchUrl(
-                          mapsUri,
-                          mode: LaunchMode.externalApplication,
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Could not open Google Maps'),
-                          ),
-                        );
-                      }
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Location coordinates not available'),
-                        ),
-                      );
-                    }
-                  },
-                  child: Container(
-                    width: MediaQuery.of(context).size.width,
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: Colors.blue.shade100,
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.map, color: Colors.blue),
-                        AppSpacing.w10,
-                        Text(
-                          'Open Map',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ],
-                    ),
+                OrderLiveBuilder(
+                  orderId: selectedOrder.id,
+                  seed: selectedOrder,
+                  builder: (context, live) => DeliveryOrderDetailPanel(
+                    order: live,
+                    showCustomerNotReachable: false,
                   ),
                 ),
                 const SizedBox(height: 15),

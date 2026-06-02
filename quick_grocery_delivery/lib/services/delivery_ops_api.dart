@@ -14,26 +14,22 @@ class DeliveryOpsApi {
 
   final FirebaseFunctions _fn;
 
-  Future<Map<String, dynamic>> confirmDeliveryWithOtp({
+  Future<Map<String, dynamic>> confirmDelivery({
     required String orderId,
     required String riderId,
-    required String otp,
     required int deliveryDurationSec,
     required double distanceTravelledKm,
   }) async {
     final payload = sanitizeCallableData({
       'orderId': orderId,
       'riderId': riderId,
-      'otp': otp.trim(),
       'deliveryDurationSec': deliveryDurationSec,
       'distanceTravelledKm': distanceTravelledKm,
     });
-    debugCallableData('confirmDeliveryWithOtp', payload);
+    debugCallableData('confirmDelivery', payload);
 
     try {
-      final res = await _fn
-          .httpsCallable('confirmDeliveryWithOtp')
-          .call(payload);
+      final res = await _fn.httpsCallable('confirmDelivery').call(payload);
       final data = res.data;
       if (data is Map) {
         return Map<String, dynamic>.from(data);
@@ -41,6 +37,24 @@ class DeliveryOpsApi {
       return {};
     } on FirebaseFunctionsException catch (e) {
       throw Exception(e.message ?? 'Delivery confirmation failed');
+    }
+  }
+
+  Future<void> reportCustomerNotReachable({
+    required String orderId,
+    required String riderId,
+    String? note,
+  }) async {
+    final payload = sanitizeCallableData({
+      'orderId': orderId,
+      'riderId': riderId,
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+    });
+    debugCallableData('reportCustomerNotReachable', payload);
+    try {
+      await _fn.httpsCallable('reportCustomerNotReachable').call(payload);
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(e.message ?? 'Could not report issue');
     }
   }
 

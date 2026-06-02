@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:quickgrocery_vendor/constants/product_image_limits.dart';
 import 'package:quickgrocery_vendor/models/product_image_slot.dart';
+import 'package:quickgrocery_vendor/services/product_image_processor.dart';
 import 'package:quickgrocery_vendor/services/storage_service.dart';
 
 class ProductImageUploadService {
@@ -25,7 +26,11 @@ class ProductImageUploadService {
       maxHeight: ProductImageLimits.maxHeight.toDouble(),
     );
     if (files.isEmpty) return [];
-    return files.take(remainingSlots).map(_validateFile).toList();
+    final out = <File>[];
+    for (final f in files.take(remainingSlots)) {
+      out.add(await _validateFile(f));
+    }
+    return out;
   }
 
   Future<File> pickFromCamera() async {
@@ -41,18 +46,16 @@ class ProductImageUploadService {
     return _validateFile(file);
   }
 
-  File _validateFile(XFile file) {
+  Future<File> rotateImage(File file) => ProductImageProcessor.rotate90(file);
+
+  Future<File> _validateFile(XFile file) async {
     final path = file.path;
     if (!ProductImageLimits.isAllowedExtension(path)) {
-      throw ProductImageException('Unsupported file format');
-    }
-    final bytes = File(path).lengthSync();
-    if (bytes > ProductImageLimits.maxFileBytes) {
       throw ProductImageException(
-        'Image is too large (max ${ProductImageLimits.maxFileBytes ~/ (1024 * 1024)} MB)',
+        'Only JPG, PNG, and WEBP are allowed',
       );
     }
-    return File(path);
+    return ProductImageProcessor.prepareForUpload(File(path));
   }
 
   Future<List<String>> uploadSlots({
