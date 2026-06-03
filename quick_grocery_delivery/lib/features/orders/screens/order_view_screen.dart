@@ -7,6 +7,7 @@ import 'package:quick_grocery_delivery/features/orders/services/order_service.da
 import 'package:quick_grocery_delivery/features/orders/widgets/delivery_order_detail_panel.dart';
 import 'package:quick_grocery_delivery/features/orders/widgets/order_earnings_card.dart';
 import 'package:quick_grocery_delivery/features/orders/widgets/order_live_builder.dart';
+import 'package:quick_grocery_delivery/features/payment/screens/order_collect_payment_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class OrderViewScreen extends StatelessWidget {
@@ -23,9 +24,18 @@ class OrderViewScreen extends StatelessWidget {
       0,
       (sum, item) => sum + (item.itemCount),
     );
-    final double totalAmount =
-        products.fold(0.0, (sum, item) => sum + (item.price * item.itemCount)) +
-        selectedOrder.deliveryCharge;
+    final double mrpTotal = products.fold(
+      0.0,
+      (sum, item) =>
+          sum + ((item.unitMrp > item.unitPricePaid ? item.unitMrp : item.unitPricePaid) * item.itemCount),
+    );
+    final bill = selectedOrder.bill ?? const <String, dynamic>{};
+    double n(dynamic v) {
+      if (v is num) return v.toDouble();
+      return double.tryParse('$v') ?? 0;
+    }
+    final productDiscount = (mrpTotal - n(bill['subtotal'])).clamp(0.0, double.infinity);
+    final totalAmount = n(bill['grandTotal'] ?? bill['total']);
 
     return Scaffold(
       appBar: AppBar(),
@@ -153,16 +163,28 @@ class OrderViewScreen extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 4),
                                       Text("Qty: ${product.itemCount}"),
-                                      Text(
-                                        "${product.itemCount} × ₹${product.unitPricePaid.toStringAsFixed(0)} = ₹${product.lineTotal.toStringAsFixed(0)}",
-                                      ),
                                       if (product.hasPurchasedDiscount)
                                         Text(
-                                          "MRP ₹${product.unitMrp.toStringAsFixed(0)}",
+                                          "₹${product.unitMrp.toStringAsFixed(0)}",
                                           style: TextStyle(
                                             decoration: TextDecoration.lineThrough,
                                             color: Colors.grey.shade600,
                                             fontSize: 12,
+                                          ),
+                                        ),
+                                      Text(
+                                        "₹${product.lineTotal.toStringAsFixed(0)}",
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      if (product.hasPurchasedDiscount)
+                                        Text(
+                                          "Saved ₹${((product.unitMrp - product.unitPricePaid) * product.itemCount).toStringAsFixed(0)}",
+                                          style: const TextStyle(
+                                            color: Color(0xFF2E7D32),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                     ],
@@ -177,12 +199,58 @@ class OrderViewScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          const Text('MRP Total', style: TextStyle(fontWeight: FontWeight.w600)),
+                          Text('₹${mrpTotal.toStringAsFixed(0)}'),
+                        ],
+                      ),
+                      if (productDiscount > 0)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Product Discount', style: TextStyle(fontWeight: FontWeight.w600)),
+                            Text('-₹${productDiscount.toStringAsFixed(0)}'),
+                          ],
+                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Item Total', style: TextStyle(fontWeight: FontWeight.w700)),
+                          Text('₹${n(bill['subtotal']).toStringAsFixed(0)}'),
+                        ],
+                      ),
+                      if (n(bill['handlingCharge']) > 0)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Handling Fee'),
+                            Text('₹${n(bill['handlingCharge']).toStringAsFixed(0)}'),
+                          ],
+                        ),
+                      if (n(bill['platformFee']) > 0)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Platform Fee'),
+                            Text('₹${n(bill['platformFee']).toStringAsFixed(0)}'),
+                          ],
+                        ),
+                      if (n(bill['deliveryPartnerTip'] ?? bill['tipAmount']) > 0)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Delivery Partner Tip'),
+                            Text('₹${n(bill['deliveryPartnerTip'] ?? bill['tipAmount']).toStringAsFixed(0)}'),
+                          ],
+                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
                           Text(
                             "Total Items: $totalQty",
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           Text(
-                            "Total Amount: ₹$totalAmount",
+                            "Grand Total: ₹${totalAmount.toStringAsFixed(0)}",
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.green,
@@ -236,7 +304,7 @@ class OrderViewScreen extends StatelessWidget {
                         const Text('Order Status:'),
                         AppSpacing.w10,
                         Text(
-                          '${provider.orderStatus}',
+                          provider.orderStatus,
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
@@ -250,11 +318,13 @@ class OrderViewScreen extends StatelessWidget {
                 Visibility(
                   visible: !isCompleted && !selectedOrder.isPaid,
                   child: GestureDetector(
-                    onTap: () {
-                      provider.getCashByCustomer(
+                    onTap: () async {
+                      await Navigator.push<bool>(
                         context,
-                        "${products.fold(0.0, (sum, item) => sum + ((double.tryParse(item.price.toString()) ?? 0.0).round() * item.itemCount)).round()}",
-                        selectedOrder.id,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              OrderCollectPaymentScreen(order: selectedOrder),
+                        ),
                       );
                     },
                     child: Container(
@@ -269,7 +339,7 @@ class OrderViewScreen extends StatelessWidget {
                           Icon(Icons.payments_outlined),
                           AppSpacing.w10,
                           Text(
-                            'Get the cash and Complete Order',
+                            'Collect Payment',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,

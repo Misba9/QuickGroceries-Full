@@ -5,9 +5,8 @@ import 'package:quick_grocery_delivery/features/orders/tabs/cancel_order.dart';
 import 'package:quick_grocery_delivery/features/orders/tabs/new_order.dart';
 import 'package:quick_grocery_delivery/features/orders/tabs/transist_screen.dart';
 import 'package:quick_grocery_delivery/core/order_lifecycle.dart';
-import 'package:quick_grocery_delivery/features/orders/screens/delivery_process_screen.dart';
+import 'package:quick_grocery_delivery/features/orders/screens/delivery_details_screen.dart';
 import 'package:quick_grocery_delivery/features/orders/screens/order_view_screen.dart';
-import 'package:quick_grocery_delivery/features/orders/screens/pickup_process_screen.dart';
 import 'package:quick_grocery_delivery/models/order_model.dart';
 import 'package:quick_grocery_delivery/widgets/driver_empty_state.dart';
 import 'package:provider/provider.dart';
@@ -158,11 +157,9 @@ class _OrderListTile extends StatelessWidget {
         trailing: Text('#${order.id.length > 6 ? order.id.substring(0, 6) : order.id}'),
         onTap: () {
           context.read<OrderService>().onSelectOrder(order);
-          final screen = showPickupDetail
-              ? PickupProcessScreen(order: order)
-              : showDeliveryDetail
-                  ? DeliveryProcessScreen(order: order)
-                  : const OrderViewScreen(isCompleted: false);
+          final screen = (showPickupDetail || showDeliveryDetail)
+              ? DeliveryDetailsScreen(order: order)
+              : const OrderViewScreen(isCompleted: false);
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => screen),

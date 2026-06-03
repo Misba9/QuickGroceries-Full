@@ -20,46 +20,19 @@ class OrderProductLineTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pricing = OrderLinePricing.fromProductItem(product);
-    final unitFmt = formatOrderMoney(pricing.pricePaid);
-    final lineFmt = formatOrderMoney(pricing.lineTotal);
+    final paidLineFmt = formatOrderMoney(pricing.lineTotal);
+    final mrpLineFmt = formatOrderMoney(pricing.mrp * pricing.quantity);
+    final paidUnitFmt = formatOrderMoney(pricing.pricePaid);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                product.name,
-                style: GoogleFonts.poppins(
-                  fontSize: compact ? 13 : 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '₹$lineFmt',
-                  style: GoogleFonts.poppins(
-                    fontSize: compact ? 13 : 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                if (pricing.hasDiscount)
-                  Text(
-                    '₹${formatOrderMoney(pricing.mrp * pricing.quantity)}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: AppSurface.textMuted,
-                      decoration: TextDecoration.lineThrough,
-                    ),
-                  ),
-              ],
-            ),
-          ],
+        Text(
+          product.name,
+          style: GoogleFonts.poppins(
+            fontSize: compact ? 13 : 14,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
@@ -69,8 +42,26 @@ class OrderProductLineTile extends StatelessWidget {
             color: AppSurface.textSecondary,
           ),
         ),
+        const SizedBox(height: 6),
+        if (pricing.hasDiscount)
+          Text(
+            '₹$mrpLineFmt',
+            style: GoogleFonts.poppins(
+              fontSize: 11.5,
+              color: AppSurface.textMuted,
+              decoration: TextDecoration.lineThrough,
+            ),
+          ),
         Text(
-          '${pricing.quantity} × ₹$unitFmt = ₹$lineFmt',
+          '₹$paidLineFmt',
+          style: GoogleFonts.poppins(
+            fontSize: compact ? 13 : 14,
+            color: AppSurface.text,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Text(
+          '${pricing.quantity} × ₹$paidUnitFmt',
           style: GoogleFonts.poppins(
             fontSize: 11.5,
             color: AppSurface.textMuted,

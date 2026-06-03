@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:quick_grocery_delivery/features/orders/screens/delivery_process_screen.dart';
+import 'package:quick_grocery_delivery/features/orders/screens/delivery_details_screen.dart';
 import 'package:quick_grocery_delivery/features/orders/widgets/confirm_delivery_dialog.dart';
 import 'package:quick_grocery_delivery/services/delivery_ops_api.dart';
 import 'package:quick_grocery_delivery/services/delivery_trip_tracker.dart';
@@ -519,7 +519,7 @@ class OrderService extends ChangeNotifier {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => DeliveryProcessScreen(order: accepted),
+                    builder: (_) => DeliveryDetailsScreen(order: accepted),
                   ),
                 );
               }
@@ -680,10 +680,39 @@ class OrderService extends ChangeNotifier {
     }
   }
 
+  Future<void> recordCodPayment({
+    required String orderId,
+    required String collectionMethod,
+  }) async {
+    final riderId = await _currentRiderId();
+    if (riderId.isEmpty) {
+      throw Exception('Rider session not found');
+    }
+    await DeliveryOpsApi().recordDeliveryPayment(
+      orderId: orderId,
+      riderId: riderId,
+      collectionMethod: collectionMethod,
+    );
+    notifyListeners();
+  }
+
   Future<void> markDelivered(BuildContext context, String id) async {
     deliveryActionOrderId = id;
     notifyListeners();
     try {
+      final order = orderById(id);
+      if (order != null && order.payment.requiresCodCollection) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Collect payment first'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
       final metrics = DeliveryTripTracker.instance.metrics();
       final riderId = await _currentRiderId();
       if (riderId.isEmpty) {

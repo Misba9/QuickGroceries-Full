@@ -257,15 +257,23 @@ class _CustomerContactCard extends StatelessWidget {
   }
 
   Future<void> _navigateCustomer(BuildContext context) async {
+    if (!order.hasCustomerCoordinates) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Customer GPS coordinates not available for navigation'),
+        ),
+      );
+      return;
+    }
     final ok = await DeliveryRouteUtils.openNavigation(
       lat: order.latitude,
       lng: order.longitude,
-      address: order.address,
+      coordinatesOnly: true,
     );
     if (!context.mounted) return;
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Customer location not available')),
+        const SnackBar(content: Text('Could not open maps')),
       );
     }
   }
@@ -318,7 +326,7 @@ class _VendorContactCard extends StatelessWidget {
               ),
               _ContactAction(
                 icon: Icons.navigation,
-                label: 'Navigate Store',
+                label: 'Navigate To Store',
                 color: Colors.deepOrange,
                 onTap: () => _navigateStore(context),
               ),
@@ -330,15 +338,23 @@ class _VendorContactCard extends StatelessWidget {
   }
 
   Future<void> _navigateStore(BuildContext context) async {
+    if (!order.hasVendorCoordinates) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Store GPS coordinates not available for navigation'),
+        ),
+      );
+      return;
+    }
     final ok = await DeliveryRouteUtils.openNavigation(
       lat: order.pickupLat,
       lng: order.pickupLng,
-      address: order.pickupAddress,
+      coordinatesOnly: true,
     );
     if (!context.mounted) return;
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Store location not available')),
+        const SnackBar(content: Text('Could not open maps')),
       );
     }
   }

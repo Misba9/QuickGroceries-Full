@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:quick_grocery_delivery/features/orders/services/order_service.dart';
 import 'package:quick_grocery_delivery/constants/delivery_branding.dart';
 import 'package:quick_grocery_delivery/constants/app_style.dart';
+import 'package:quick_grocery_delivery/constants/app_spacing.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/features/payment/screens/scan_pay_screen.dart';
 import 'package:quick_grocery_delivery/widgets/driver_stat_card.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_grocery_delivery/models/order_model.dart';
-import 'package:quick_grocery_delivery/features/orders/screens/pickup_process_screen.dart';
+import 'package:quick_grocery_delivery/features/orders/screens/delivery_details_screen.dart';
 import 'package:quick_grocery_delivery/services/driver_location_publisher.dart';
 import 'package:quick_grocery_delivery/support/support_contact_sheet.dart';
 
@@ -152,7 +153,7 @@ class _HomePageState extends State<HomePage> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) =>
-                                        PickupProcessScreen(order: accepted),
+                                        DeliveryDetailsScreen(order: accepted),
                                   ),
                                 );
                               },

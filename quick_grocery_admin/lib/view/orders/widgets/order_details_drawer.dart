@@ -7,7 +7,6 @@ import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/orders/screens/order_details_screen.dart';
 import 'package:quick_grocery_admin/view/orders/services/invoice_service.dart';
 import 'package:quick_grocery_admin/view/orders/services/order_service.dart';
-import 'package:quick_grocery_admin/view/orders/utils/order_bill_totals.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_contact_actions.dart';
 import 'package:quick_grocery_admin/view/orders/utils/receipt_product_format.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/order_status_badge.dart';
@@ -164,6 +163,12 @@ class _OrderDetailsDrawerBodyState extends State<OrderDetailsDrawerBody> {
                 child: Builder(
                   builder: (context) {
                     final bill = o.billTotals;
+                    final mrpTotal = o.products.fold<double>(
+                      0,
+                      (sum, p) => sum + (p.slashedPrice > p.price ? p.slashedPrice : p.price) * p.itemCount,
+                    );
+                    final productDiscount =
+                        (mrpTotal - bill.subtotal).clamp(0.0, double.infinity);
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -178,23 +183,39 @@ class _OrderDetailsDrawerBodyState extends State<OrderDetailsDrawerBody> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        _kv('Subtotal', '₹${bill.subtotal.toStringAsFixed(2)}'),
+                        _kv('MRP Total', '₹${mrpTotal.toStringAsFixed(2)}'),
+                        if (productDiscount > 0)
+                          _kv(
+                            'Product Discount',
+                            '- ₹${productDiscount.toStringAsFixed(2)}',
+                          ),
+                        _kv('Item Total', '₹${bill.subtotal.toStringAsFixed(2)}'),
                         if (bill.couponDiscount > 0)
                           _kv(
-                            'Discount',
+                            'Coupon discount',
                             '- ₹${bill.couponDiscount.toStringAsFixed(2)}',
                           ),
                         _kv(
-                          'Delivery',
+                          'Delivery Fee',
                           '₹${bill.deliveryFee.toStringAsFixed(2)}',
                         ),
+                        if (bill.handlingCharge > 0)
+                          _kv(
+                            'Handling Fee',
+                            '₹${bill.handlingCharge.toStringAsFixed(2)}',
+                          ),
                         if (bill.platformFee > 0)
                           _kv(
-                            'Platform fee',
+                            'Platform Fee',
                             '₹${bill.platformFee.toStringAsFixed(2)}',
                           ),
                         if (bill.tax > 0)
                           _kv('Tax', '₹${bill.tax.toStringAsFixed(2)}'),
+                        if (bill.deliveryPartnerTip > 0)
+                          _kv(
+                            'Delivery Partner Tip',
+                            '₹${bill.deliveryPartnerTip.toStringAsFixed(2)}',
+                          ),
                       ],
                     );
                   },
@@ -222,7 +243,28 @@ class _OrderDetailsDrawerBodyState extends State<OrderDetailsDrawerBody> {
                         ),
                       ),
                       title: Text(p.name, style: const TextStyle(fontSize: 13)),
-                      subtitle: Text(productInvoiceQtyLine(p)),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(productInvoiceQtyLine(p)),
+                          Text(
+                            'Paid ₹${p.lineTotal.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                          if (p.slashedPrice > p.price + 0.01)
+                            Text(
+                              'MRP ₹${(p.slashedPrice * p.itemCount).toStringAsFixed(0)}',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                decoration: TextDecoration.lineThrough,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                        ],
+                      ),
                       trailing: Text(
                         '₹${p.lineTotal.toStringAsFixed(0)}',
                         style: const TextStyle(fontWeight: FontWeight.w700),

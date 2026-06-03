@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:quick_grocery_delivery/widgets/delivery_logo.dart';
 import 'package:quick_grocery_delivery/constants/delivery_branding.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
@@ -40,21 +41,21 @@ class _LoginScreenBody extends StatelessWidget {
                 child: Container(
                   width: width,
                   height: (height * .25).clamp(120.0, 200.0),
-                decoration: const BoxDecoration(color: Colors.white),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: DeliveryLogo(
-                    height: (height * .22).clamp(110.0, 160.0),
-                    showTitle: false,
+                  decoration: const BoxDecoration(color: Colors.white),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: DeliveryLogo(
+                      height: (height * .22).clamp(110.0, 160.0),
+                      showTitle: false,
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 40),
-            Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Column(
-                children: [
+              const SizedBox(height: 40),
+              Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Column(
+                  children: [
                   Text(
                     DeliveryBranding.loginTitle,
                     style: const TextStyle(
@@ -177,10 +178,11 @@ class _LoginScreenBody extends StatelessWidget {
                       );
                     },
                   ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

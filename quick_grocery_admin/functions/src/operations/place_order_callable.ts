@@ -465,6 +465,14 @@ export const placeOrderCallable = onCall(
           paymentMethod,
           paymentStatus: isPaid ? "paid" : "pending",
           ...(paymentRef ? { paymentRef } : {}),
+          ...(isPaid
+            ? {
+                razorpayPaymentId: paymentRef,
+                transactionId: paymentRef,
+                paidAmount: num(bill.total ?? bill.grandTotal),
+                paidAt: admin.firestore.FieldValue.serverTimestamp(),
+              }
+            : {}),
           delivery_instructions: instr.legacy,
           deliveryInstructions: instr.structured,
           ...(slotRaw ? { delivery_slot: slotRaw, deliverySlot: slotRaw } : {}),

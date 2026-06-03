@@ -1,5 +1,5 @@
 import 'package:quick_grocery_delivery/features/home/pages/home_page.dart';
-import 'package:quick_grocery_delivery/features/orders/screens/pickup_process_screen.dart';
+import 'package:quick_grocery_delivery/features/orders/screens/delivery_details_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:quick_grocery_delivery/features/orders/services/order_service.dart';
 import 'package:provider/provider.dart';
@@ -29,7 +29,7 @@ class NewOrderTab extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => PickupProcessScreen(order: accepted),
+                    builder: (_) => DeliveryDetailsScreen(order: accepted),
                   ),
                 );
               },

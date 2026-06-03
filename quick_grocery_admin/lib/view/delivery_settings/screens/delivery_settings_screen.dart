@@ -6,6 +6,7 @@ import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/delivery_settings/services/delivery_settings_service.dart';
+import 'package:quick_grocery_admin/view/delivery_settings/widgets/payment_collection_stats_card.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
 
 /// **Platform Fee → Delivery Settings**
@@ -84,6 +85,8 @@ class _DeliverySettingsScreenState extends State<DeliverySettingsScreen> {
                           const SizedBox(height: 8),
                           _LiveSyncRow(lastUpdated: service.lastUpdatedAt),
                           SizedBox(height: pad),
+                          const PaymentCollectionStatsCard(),
+                          const SizedBox(height: 16),
 
                           // SECTION 1
                           _AdminSectionCard(

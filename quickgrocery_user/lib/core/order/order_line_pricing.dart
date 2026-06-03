@@ -1,145 +1,109 @@
 import 'package:flutter/foundation.dart';
-import 'package:quickgrocery/core/widgets/discount_badge.dart';
 import 'package:quickgrocery/models/order_model.dart';
 
-/// Resolved unit/line amounts from an order snapshot line (never live catalog).
+@immutable
 class OrderLinePricing {
   const OrderLinePricing({
-    required this.pricePaid,
     required this.mrp,
-    required this.lineTotal,
+    required this.pricePaid,
     required this.quantity,
-    required this.discountAmount,
+    required this.lineTotal,
   });
 
-  final double pricePaid;
   final double mrp;
-  final double lineTotal;
+  final double pricePaid;
   final int quantity;
-  final double discountAmount;
+  final double lineTotal;
 
   bool get hasDiscount => mrp > pricePaid + 0.01;
-
-  int get discountPercent => DiscountBadge.calculate(
-        price: pricePaid,
-        originalPrice: mrp,
-      );
+  double get savingsAmount =>
+      hasDiscount ? (mrp - pricePaid) * quantity : 0.0;
+  int get savingsPercent =>
+      hasDiscount && mrp > 0 ? ((1 - (pricePaid / mrp)) * 100).round() : 0;
 
   String get savingsLabel {
     if (!hasDiscount) return '';
-    if (discountPercent > 0) return '$discountPercent% OFF';
-    return 'Saved ₹${discountAmount.round()}';
+    if (savingsPercent > 0) return '$savingsPercent% OFF';
+    return 'Saved ₹${savingsAmount.toStringAsFixed(0)}';
   }
 
-  static OrderLinePricing fromProductItem(ProductItem item) {
-    final unitPaid = item.unitPricePaid;
-    final unitMrp = item.unitMrp;
-    final qty = item.itemCount > 0 ? item.itemCount : 1;
-    final line = item.lineTotal;
-    final unitDiscount =
-        (unitMrp - unitPaid).clamp(0.0, double.infinity);
+  factory OrderLinePricing.fromProductItem(ProductItem p) {
+    final qty = p.itemCount > 0 ? p.itemCount : 1;
+    final paid = _positive(p.unitPricePaid, fallback: p.price);
+    final mrp = _positive(p.unitMrp, fallback: paid);
+    final line = _positive(
+      p.lineTotal,
+      fallback: paid * qty,
+    );
     return OrderLinePricing(
-      pricePaid: unitPaid,
-      mrp: unitMrp,
-      lineTotal: line,
+      mrp: mrp,
+      pricePaid: paid,
       quantity: qty,
-      discountAmount: unitDiscount * qty,
+      lineTotal: line,
     );
   }
 }
 
-/// Parse persisted order line prices (checkout snapshot + legacy orders).
 OrderLinePricing resolveOrderLinePricing(
   Map<String, dynamic> data,
   int quantity,
 ) {
-  double d(dynamic v) {
-    if (v == null) return 0;
+  final qty = quantity > 0 ? quantity : 1;
+  double n(dynamic v) {
     if (v is num) return v.toDouble();
-    return double.tryParse(v.toString().trim()) ?? 0;
+    return double.tryParse('$v') ?? 0;
   }
 
-  final qty = quantity > 0 ? quantity : 1;
-  final lineTotalExplicit = d(data['lineTotal'] ?? data['totalPrice']);
-
-  final pricePaid = d(
-    data['pricePaid'] ??
-        data['sellingPrice'] ??
-        data['discountedPrice'] ??
-        data['unitPrice'],
+  final unitPaid = _positive(
+    n(data['sellingPrice']) > 0 ? n(data['sellingPrice']) : n(data['pricePaid']),
+    fallback: n(data['discountedPrice']) > 0
+        ? n(data['discountedPrice'])
+        : (n(data['price']) > 0 ? n(data['price']) : n(data['unitPrice'])),
+  );
+  final unitMrp = _positive(
+    n(data['mrp']) > 0 ? n(data['mrp']) : n(data['originalPrice']),
+    fallback: n(data['slashedPrice']) > 0 ? n(data['slashedPrice']) : unitPaid,
   );
 
-  if (pricePaid > 0) {
-    var mrp = d(data['mrp'] ?? data['originalPrice']);
-    if (mrp <= pricePaid) {
-      mrp = d(data['slashedPrice']);
-      if (mrp <= pricePaid) mrp = pricePaid;
-    }
-    final discountAmount = d(data['discountAmount']);
-    final lineTotal = lineTotalExplicit > 0
-        ? lineTotalExplicit
-        : pricePaid * qty;
-    return OrderLinePricing(
-      pricePaid: pricePaid,
-      mrp: mrp,
-      lineTotal: lineTotal,
-      quantity: qty,
-      discountAmount: discountAmount > 0
-          ? discountAmount
-          : (mrp - pricePaid).clamp(0.0, double.infinity) * qty,
-    );
-  }
+  final lineTotal = _positive(
+    n(data['lineTotal']) > 0 ? n(data['lineTotal']) : n(data['totalPrice']),
+    fallback: unitPaid * qty,
+  );
 
-  var unitPrice = d(data['price']);
-  final slashed = d(data['slashedPrice']);
-  var lineTotal = lineTotalExplicit;
-  if (unitPrice <= 0 && lineTotal > 0) {
-    unitPrice = lineTotal / qty;
-  }
+  final discountAmount = n(data['discountAmount']);
+  final mrpFromDiscount = unitPaid + (discountAmount > 0 ? discountAmount : 0);
+  final resolvedMrp = mrpFromDiscount > unitMrp ? mrpFromDiscount : unitMrp;
 
-  // Legacy: MRP in `price`, selling in `slashedPrice`.
-  if (slashed > 0 && slashed < unitPrice) {
-    final selling = slashed;
-    final mrp = unitPrice;
-    lineTotal = lineTotal > 0 ? lineTotal : selling * qty;
-    return OrderLinePricing(
-      pricePaid: selling,
-      mrp: mrp,
-      lineTotal: lineTotal,
-      quantity: qty,
-      discountAmount: (mrp - selling).clamp(0.0, double.infinity) * qty,
-    );
-  }
-
-  final mrp = slashed > unitPrice + 0.01 ? slashed : unitPrice;
-  lineTotal = lineTotal > 0 ? lineTotal : unitPrice * qty;
   return OrderLinePricing(
-    pricePaid: unitPrice,
-    mrp: mrp,
-    lineTotal: lineTotal,
+    mrp: resolvedMrp,
+    pricePaid: unitPaid,
     quantity: qty,
-    discountAmount: (mrp - unitPrice).clamp(0.0, double.infinity) * qty,
+    lineTotal: lineTotal,
   );
 }
 
+String formatOrderMoney(double v) =>
+    v == v.roundToDouble() ? v.round().toString() : v.toStringAsFixed(2);
+
 void validateOrderLinesAgainstSubtotal({
-  required Iterable<ProductItem> products,
+  required List<ProductItem> products,
   required double subtotal,
   String? tag,
 }) {
   if (!kDebugMode) return;
-  final itemsTotal = products.fold<double>(0, (s, p) => s + p.lineTotal);
-  if ((itemsTotal - subtotal).abs() > 0.02) {
+  final fromLines = products.fold<double>(
+    0,
+    (sum, p) => sum + OrderLinePricing.fromProductItem(p).lineTotal,
+  );
+  if ((fromLines - subtotal).abs() > 0.05) {
     debugPrint(
       '${tag != null ? '[$tag] ' : ''}'
-      'BILL WARNING: sum(line paid totals)=$itemsTotal != subtotal=$subtotal',
+      'ORDER LINE WARNING: line sum=$fromLines != subtotal=$subtotal',
     );
   }
 }
 
-String formatOrderMoney(double value) {
-  final v = value.abs();
-  return v == v.roundToDouble()
-      ? v.round().toString()
-      : v.toStringAsFixed(2);
+double _positive(double value, {required double fallback}) {
+  if (value > 0) return value;
+  return fallback > 0 ? fallback : 0;
 }

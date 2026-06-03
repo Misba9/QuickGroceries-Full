@@ -47,13 +47,16 @@ class DeliveryRouteUtils {
     double? lat,
     double? lng,
     String? address,
+    bool coordinatesOnly = false,
   }) async {
     Uri uri;
-    if (lat != null && lng != null) {
+    if (lat != null && lng != null && lat != 0 && lng != 0) {
       uri = Uri.parse(
         'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
       );
-    } else if (address != null && address.trim().isNotEmpty) {
+    } else if (!coordinatesOnly &&
+        address != null &&
+        address.trim().isNotEmpty) {
       uri = Uri.parse(
         'https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent(address.trim())}&travelmode=driving',
       );

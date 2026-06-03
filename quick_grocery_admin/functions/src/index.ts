@@ -55,6 +55,7 @@ export {
   confirmDelivery,
   reportCustomerNotReachable,
 } from "./operations/delivery_callables";
+export { recordDeliveryPaymentCallable } from "./operations/delivery_payment_callables";
 export {
   cancelOrderByCustomer,
   cancelOrderByVendor,

@@ -462,6 +462,19 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  Builder(
+                                    builder: (_) {
+                                      final mrpLine =
+                                          (product.slashedPrice > product.price
+                                                  ? product.slashedPrice
+                                                  : product.price) *
+                                              product.itemCount;
+                                      final hasDiscount = mrpLine > product.lineTotal + 0.01;
+                                      final discount = (mrpLine - product.lineTotal)
+                                          .clamp(0.0, double.infinity);
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
                                   Text(
                                     product.name,
                                     style: const TextStyle(
@@ -479,6 +492,40 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                     ),
                                   ),
                                   AppSpacing.h10,
+                                  if (hasDiscount)
+                                    Text(
+                                      'MRP ₹${mrpLine.toStringAsFixed(0)}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
+                                    ),
+                                  Text(
+                                    'Paid ₹${product.lineTotal.toStringAsFixed(0)}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  if (hasDiscount)
+                                    Container(
+                                      margin: const EdgeInsets.only(top: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFD1EEDB),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'Saved ₹${discount.toStringAsFixed(0)}',
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF2E7D32),
+                                        ),
+                                      ),
+                                    ),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
@@ -498,6 +545,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                         ),
                                       ),
                                     ],
+                                  ),
+                                        ],
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
@@ -533,10 +584,31 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   builder: (context) {
                     final bill = _currentOrder.billTotals;
                     bill.debugLog(tag: 'vendor-order-detail');
+                    final mrpTotal = _currentOrder.products.fold<double>(
+                      0,
+                      (sum, p) =>
+                          sum +
+                          ((p.slashedPrice > p.price ? p.slashedPrice : p.price) *
+                              p.itemCount),
+                    );
+                    final productDiscount =
+                        (mrpTotal - bill.subtotal).clamp(0.0, double.infinity);
                     return Column(
                   children: [
                     _SummaryRow(
-                      label: 'Subtotal',
+                      label: 'MRP Total',
+                      value: '₹${mrpTotal.toStringAsFixed(2)}',
+                    ),
+                    if (productDiscount > 0) ...[
+                      AppSpacing.h10,
+                      _SummaryRow(
+                        label: 'Product Discount',
+                        value: '- ₹${productDiscount.toStringAsFixed(2)}',
+                      ),
+                    ],
+                    AppSpacing.h10,
+                    _SummaryRow(
+                      label: 'Item Total',
                       value: '₹${bill.subtotal.toStringAsFixed(2)}',
                     ),
                     if (bill.couponDiscount > 0) ...[
@@ -548,13 +620,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     ],
                     AppSpacing.h10,
                     _SummaryRow(
-                      label: 'Delivery',
+                      label: 'Delivery Fee',
                       value: '₹${bill.deliveryFee.toStringAsFixed(2)}',
                     ),
+                    if (bill.handlingCharge > 0) ...[
+                      AppSpacing.h10,
+                      _SummaryRow(
+                        label: 'Handling Fee',
+                        value: '₹${bill.handlingCharge.toStringAsFixed(2)}',
+                      ),
+                    ],
                     if (bill.platformFee > 0) ...[
                       AppSpacing.h10,
                       _SummaryRow(
-                        label: 'Platform fee',
+                        label: 'Platform Fee',
                         value: '₹${bill.platformFee.toStringAsFixed(2)}',
                       ),
                     ],
@@ -563,6 +642,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       _SummaryRow(
                         label: 'Tax',
                         value: '₹${bill.tax.toStringAsFixed(2)}',
+                      ),
+                    ],
+                    if (bill.deliveryPartnerTip > 0) ...[
+                      AppSpacing.h10,
+                      _SummaryRow(
+                        label: 'Delivery Partner Tip',
+                        value: '₹${bill.deliveryPartnerTip.toStringAsFixed(2)}',
                       ),
                     ],
                     AppSpacing.h15,
@@ -579,7 +665,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColor.primary.withOpacity(0.1),
+                        color: AppColor.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(

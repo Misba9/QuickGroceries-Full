@@ -183,6 +183,16 @@ class DeliveryProcessScreen extends StatelessWidget {
     OrderService svc,
     String orderId,
   ) async {
+    final order = svc.orderById(orderId);
+    if (order != null && order.payment.requiresCodCollection) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Collect payment first'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     final confirmed = await showConfirmDeliveryDialog(context);
     if (!confirmed || !context.mounted) return;
     await svc.markDelivered(context, orderId);

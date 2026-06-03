@@ -113,7 +113,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   // Order Items Table
                   WrapperWidget(
                     child: DataTable(
-                      dataRowHeight: 80,
+                      dataRowMinHeight: 80,
+                      dataRowMaxHeight: 80,
                       columns: const [
                         DataColumn(
                           label: Text(
@@ -129,19 +130,31 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         ),
                         DataColumn(
                           label: Text(
-                            'Item price',
+                            'MRP',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                         DataColumn(
                           label: Text(
-                            'Item discount',
+                            'Selling Price',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                         DataColumn(
                           label: Text(
-                            'Total price',
+                            'Discount',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Quantity',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Total Paid',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -206,8 +219,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                 ],
                               ),
                             ),
-                            DataCell(Text("₹${itemTotal.toStringAsFixed(2)}")),
+                            DataCell(Text("₹${unitMrp.toStringAsFixed(2)}")),
+                            DataCell(Text("₹${unitPaid.toStringAsFixed(2)}")),
                             DataCell(Text("₹${discount.toStringAsFixed(2)}")),
+                            DataCell(Text("${product.itemCount}")),
                             DataCell(Text("₹${itemTotal.toStringAsFixed(2)}")),
                           ],
                         );

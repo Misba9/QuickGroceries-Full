@@ -13,6 +13,7 @@ class OrderBillTotals {
     this.handlingCharge = 0,
     this.platformFee = 0,
     this.tax = 0,
+    this.deliveryPartnerTip = 0,
     required this.grandTotal,
   });
 
@@ -24,6 +25,7 @@ class OrderBillTotals {
   final double handlingCharge;
   final double platformFee;
   final double tax;
+  final double deliveryPartnerTip;
   final double grandTotal;
 
   double get discount => couponDiscount;
@@ -35,6 +37,7 @@ class OrderBillTotals {
             surgeFee +
             handlingCharge +
             platformFee +
+            deliveryPartnerTip +
             tax,
       );
 
@@ -55,6 +58,7 @@ class OrderBillTotals {
     final handling = n(m['handlingCharge']);
     final platform = n(m['platformFee']);
     final taxAmt = n(m['tax']);
+    final tip = n(m['deliveryPartnerTip'] ?? m['tipAmount']);
 
     if (grand <= 0 && subtotal > 0) {
       grand = OrderBillTotals(
@@ -64,6 +68,7 @@ class OrderBillTotals {
         surgeFee: surge,
         handlingCharge: handling,
         platformFee: platform,
+        deliveryPartnerTip: tip,
         tax: taxAmt,
         grandTotal: 0,
       ).computeGrandTotal();
@@ -77,6 +82,7 @@ class OrderBillTotals {
       surgeFee: surge,
       handlingCharge: handling,
       platformFee: platform,
+      deliveryPartnerTip: tip,
       tax: taxAmt,
       grandTotal: grand,
     );
@@ -113,7 +119,7 @@ class OrderBillTotals {
   void debugLog({String? tag}) {
     if (!kDebugMode) return;
     final p = tag != null ? '[$tag] ' : '';
-    debugPrint('${p}Items Total: ${subtotal}');
+    debugPrint('${p}Items Total: $subtotal');
     debugPrint('${p}Subtotal: $subtotal');
     debugPrint('${p}Discount: $couponDiscount');
     debugPrint('${p}Delivery: $deliveryFee');

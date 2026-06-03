@@ -49,6 +49,7 @@ abstract final class AdminRoutes {
   static const notificationHistory = 'Notification History';
   static const appContent = 'App Content';
   static const supportSettings = 'Support Settings';
+  static const paymentSettings = 'Payment Settings';
   static const maintenance = 'Maintenance & Availability';
 
   static const all = <String>[
@@ -82,6 +83,7 @@ abstract final class AdminRoutes {
     notificationHistory,
     appContent,
     supportSettings,
+    paymentSettings,
     maintenance,
   ];
 }

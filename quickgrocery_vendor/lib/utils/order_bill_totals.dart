@@ -13,6 +13,7 @@ class OrderBillTotals {
     this.handlingCharge = 0,
     this.platformFee = 0,
     this.tax = 0,
+    this.deliveryPartnerTip = 0,
     required this.grandTotal,
   });
 
@@ -24,6 +25,7 @@ class OrderBillTotals {
   final double handlingCharge;
   final double platformFee;
   final double tax;
+  final double deliveryPartnerTip;
   final double grandTotal;
 
   double get discount => couponDiscount;
@@ -48,6 +50,7 @@ class OrderBillTotals {
           n(m['surgeFee']) +
           n(m['handlingCharge']) +
           n(m['platformFee']) +
+          n(m['deliveryPartnerTip'] ?? m['tipAmount']) +
           n(m['tax']);
     }
 
@@ -59,6 +62,7 @@ class OrderBillTotals {
       surgeFee: n(m['surgeFee']),
       handlingCharge: n(m['handlingCharge']),
       platformFee: n(m['platformFee']),
+      deliveryPartnerTip: n(m['deliveryPartnerTip'] ?? m['tipAmount']),
       tax: n(m['tax']),
       grandTotal: grand,
     );

@@ -1,24 +1,40 @@
 # quick_grocery_delivery
 
-A new Flutter project.
+## Go to user app folder:
 
-## Getting Started
+```bash
+cd quickgrocery_delivery/  
+```
 
+## Run locally
 
-
-#for run command application
-
+```bash
 flutter clean
-flutter pub get 
+flutter pub get
 flutter run
+```
+
+## Build APK (Android)
+
+```bash
+flutter clean
+flutter pub get
+flutter build apk --release
+```
+Output: `build/app/outputs/flutter-apk/app-release.apk`
 
 
- #for apk build
+## Build Android App Bundle (Play Store)
 
- flutter pub get 
- flutter build apk --release
+```bash
+flutter clean
+flutter pub get
+flutter build appbundle --release
+```
+Output: `build/app/outputs/bundle/release/app-release.aab`
 
- demo sigin in 
- 
-ehsanksa2025@gmail.com
-test1234
+
+## Demo sign-in (if configured)
+
+- Email: `ehsanksa2025@gmail.com`
+- Password: `test1234`

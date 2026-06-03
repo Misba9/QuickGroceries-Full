@@ -34,6 +34,11 @@ class OrderDetailsCard extends StatelessWidget {
       tag: 'order-details',
     );
     bill.debugLog(tag: 'order-details');
+    final mrpTotal = order.legacy.products.fold<double>(
+      0,
+      (sum, p) => sum + (p.unitMrp * p.itemCount),
+    );
+    final productDiscount = (mrpTotal - bill.subtotal).clamp(0.0, double.infinity);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -60,14 +65,18 @@ class OrderDetailsCard extends StatelessWidget {
             ),
           ),
           const Divider(height: 24),
-          _BillLine(label: 'Subtotal', value: bill.subtotal),
-          if (bill.itemSavings > 0)
+          _BillLine(label: 'MRP Total', value: mrpTotal),
+          if (productDiscount > 0)
             _BillLine(
-              label: 'You saved on MRP',
-              value: bill.itemSavings,
+              label: 'Product Discount',
+              value: -productDiscount,
               valueColor: AppSurface.success,
-              informational: true,
             ),
+          _BillLine(
+            label: 'Item Total',
+            value: bill.subtotal,
+            valueColor: AppSurface.text,
+          ),
           if (bill.couponDiscount > 0)
             _BillLine(
               label: 'Coupon discount',
@@ -75,12 +84,12 @@ class OrderDetailsCard extends StatelessWidget {
               valueColor: AppSurface.success,
             ),
           if (bill.deliveryFee > 0)
-            _BillLine(label: 'Delivery', value: bill.deliveryFee),
+            _BillLine(label: 'Delivery Fee', value: bill.deliveryFee),
           if (bill.surgeFee > 0) _BillLine(label: 'Surge fee', value: bill.surgeFee),
           if (bill.handlingCharge > 0)
-            _BillLine(label: 'Handling', value: bill.handlingCharge),
+            _BillLine(label: 'Handling Fee', value: bill.handlingCharge),
           if (bill.platformFee > 0)
-            _BillLine(label: 'Platform fee', value: bill.platformFee),
+            _BillLine(label: 'Platform Fee', value: bill.platformFee),
           if (bill.tax > 0) _BillLine(label: 'Tax', value: bill.tax),
           if (bill.deliveryPartnerTip > 0)
             _BillLine(
@@ -118,21 +127,15 @@ class _BillLine extends StatelessWidget {
     required this.label,
     required this.value,
     this.valueColor,
-    this.informational = false,
   });
 
   final String label;
   final double value;
   final Color? valueColor;
-  final bool informational;
 
   @override
   Widget build(BuildContext context) {
-    final prefix = informational
-        ? '₹'
-        : value < 0
-            ? '- ₹'
-            : '₹';
+    final prefix = value < 0 ? '- ₹' : '₹';
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(

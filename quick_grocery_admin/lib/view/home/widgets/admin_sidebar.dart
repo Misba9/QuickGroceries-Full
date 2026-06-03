@@ -106,6 +106,7 @@ class AdminSidebar extends StatelessWidget {
       routes: [
         AdminRoutes.appContent,
         AdminRoutes.supportSettings,
+        AdminRoutes.paymentSettings,
         AdminRoutes.maintenance,
       ],
     ),

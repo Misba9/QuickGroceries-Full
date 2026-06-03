@@ -52,6 +52,12 @@ class ThermalReceiptPdf {
     final paid = order.paymentStatus.toLowerCase().contains('paid') ||
         order.paymentStatus.toLowerCase().contains('success');
     final trackUrl = 'quickgrocery.app/order/${order.id}';
+    final mrpTotal = products.fold<double>(
+      0,
+      (sum, p) => sum + (p.unitMrp * p.itemCount),
+    );
+    final itemTotal = (bill['subtotal'] as num?)?.toDouble() ?? 0;
+    final productDiscount = (mrpTotal - itemTotal).clamp(0.0, double.infinity);
 
     doc.addPage(
       pw.MultiPage(
@@ -122,7 +128,12 @@ class ThermalReceiptPdf {
             );
           }),
           _divider(),
-          ..._billLines(bill),
+          ..._billLines(
+            bill,
+            mrpTotal: mrpTotal,
+            productDiscount: productDiscount,
+            itemTotal: itemTotal,
+          ),
           pw.SizedBox(height: 2),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -214,31 +225,63 @@ class ThermalReceiptPdf {
         ),
       );
 
-  static List<pw.Widget> _billLines(Map<String, dynamic> bill) {
-    const keys = [
-      ('Subtotal', 'subtotal'),
-      ('Coupon', 'couponDiscount'),
-      ('Delivery', 'deliveryFee'),
-      ('Surge', 'surgeFee'),
-      ('Handling', 'handlingCharge'),
-      ('Platform fee', 'platformFee'),
-      ('Tax', 'tax'),
-      ('Delivery tip', 'deliveryPartnerTip'),
+  static List<pw.Widget> _billLines(
+    Map<String, dynamic> bill, {
+    required double mrpTotal,
+    required double productDiscount,
+    required double itemTotal,
+  }) {
+    final rows = <({String title, double value})>[
+      (title: 'MRP Total', value: mrpTotal),
+      if (productDiscount > 0)
+        (title: 'Product Discount', value: -productDiscount),
+      (title: 'Item Total', value: itemTotal),
+      if ((bill['couponDiscount'] as num?)?.toDouble() != null &&
+          (bill['couponDiscount'] as num).toDouble() > 0)
+        (
+          title: 'Coupon Discount',
+          value: -(bill['couponDiscount'] as num).toDouble(),
+        ),
+      if ((bill['deliveryFee'] as num?)?.toDouble() != null &&
+          (bill['deliveryFee'] as num).toDouble() != 0)
+        (title: 'Delivery Fee', value: (bill['deliveryFee'] as num).toDouble()),
+      if ((bill['surgeFee'] as num?)?.toDouble() != null &&
+          (bill['surgeFee'] as num).toDouble() != 0)
+        (title: 'Surge Fee', value: (bill['surgeFee'] as num).toDouble()),
+      if ((bill['handlingCharge'] as num?)?.toDouble() != null &&
+          (bill['handlingCharge'] as num).toDouble() != 0)
+        (
+          title: 'Handling Fee',
+          value: (bill['handlingCharge'] as num).toDouble(),
+        ),
+      if ((bill['platformFee'] as num?)?.toDouble() != null &&
+          (bill['platformFee'] as num).toDouble() != 0)
+        (title: 'Platform Fee', value: (bill['platformFee'] as num).toDouble()),
+      if ((bill['tax'] as num?)?.toDouble() != null &&
+          (bill['tax'] as num).toDouble() != 0)
+        (title: 'Tax', value: (bill['tax'] as num).toDouble()),
+      if ((bill['deliveryPartnerTip'] as num?)?.toDouble() != null &&
+          (bill['deliveryPartnerTip'] as num).toDouble() != 0)
+        (
+          title: 'Delivery Partner Tip',
+          value: (bill['deliveryPartnerTip'] as num).toDouble(),
+        ),
     ];
-    return [
-      for (final (title, key) in keys)
-        if (bill[key] != null && (bill[key] as num) != 0)
-          pw.Padding(
+
+    return rows
+        .map(
+          (row) => pw.Padding(
             padding: const pw.EdgeInsets.only(bottom: 1.5),
             child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text(title, style: _text(8)),
-                pw.Text(formatInr(bill[key] as num), style: _bold(8)),
+                pw.Text(row.title, style: _text(8)),
+                pw.Text(formatInr(row.value), style: _bold(8)),
               ],
             ),
           ),
-    ];
+        )
+        .toList();
   }
 
   static pw.Widget _badge(String label, bool paid) => pw.Container(

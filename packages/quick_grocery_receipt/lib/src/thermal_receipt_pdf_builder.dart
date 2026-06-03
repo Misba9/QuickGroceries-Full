@@ -134,10 +134,23 @@ class ThermalReceiptPdfBuilder {
           if (data.showPrices) ...[
             _divider(dashed: false),
             _sectionTitle('TOTALS', scale),
-            _moneyRow('Subtotal', data.bill.subtotal, scale, inrBold),
+            _moneyRow(
+              'MRP Total',
+              data.bill.subtotal + data.bill.itemSavings,
+              scale,
+              inrBold,
+            ),
+            if (data.bill.itemSavings > 0)
+              _moneyRow(
+                'Product Discount',
+                -data.bill.itemSavings,
+                scale,
+                inrBold,
+              ),
+            _moneyRow('Item Total', data.bill.subtotal, scale, inrBold),
             if (data.bill.couponDiscount > 0)
               _moneyRow(
-                'Discount',
+                'Coupon Discount',
                 -data.bill.couponDiscount,
                 scale,
                 inrBold,

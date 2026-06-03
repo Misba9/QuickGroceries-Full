@@ -40,6 +40,7 @@ import 'package:quick_grocery_admin/view/push_notifications/presentation/screens
 import 'package:quick_grocery_admin/view/reviews/screens/review_analytics_screen.dart';
 import 'package:quick_grocery_admin/view/reviews/screens/review_management_screen.dart';
 import 'package:quick_grocery_admin/view/support_settings/screens/support_settings_screen.dart';
+import 'package:quick_grocery_admin/view/payment_settings/screens/payment_settings_screen.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_add_screen.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_list_screen.dart';
 import 'package:quick_grocery_admin/view/vendor/screens/vendor_requests_screen.dart';
@@ -132,6 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
       slot(AdminRoutes.notificationHistory, const NotificationHistoryScreen()),
       slot(AdminRoutes.appContent, const AppContentManagementScreen()),
       slot(AdminRoutes.supportSettings, const SupportSettingsScreen()),
+      slot(AdminRoutes.paymentSettings, const PaymentSettingsScreen()),
       slot(AdminRoutes.maintenance, const MaintenanceManagementScreen()),
     ];
   }

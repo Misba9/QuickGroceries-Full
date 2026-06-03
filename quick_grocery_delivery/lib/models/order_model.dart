@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'order_payment.dart';
+
 class OrderModel {
   String id;
   List<ProductItem> products;
   String createdDate;
+  DateTime? createdAt;
   String customerName;
   String phone;
   String address;
@@ -45,11 +48,21 @@ class OrderModel {
   final Map<String, dynamic>? bill;
   final double tipAmount;
   final String tipStatus;
+  final String paymentMethod;
+  final String paymentStatus;
+  final String razorpayPaymentId;
+  final String transactionId;
+  final double paidAmount;
+  final DateTime? paidAt;
+  final String collectionMethod;
+  final String fullAddress;
+  final OrderPaymentInfo payment;
 
   OrderModel({
     required this.id,
     required this.products,
     required this.createdDate,
+    this.createdAt,
     required this.customerName,
     required this.phone,
     required this.address,
@@ -91,7 +104,40 @@ class OrderModel {
     this.bill,
     this.tipAmount = 0,
     this.tipStatus = '',
-  });
+    this.paymentMethod = 'cod',
+    this.paymentStatus = 'pending',
+    this.razorpayPaymentId = '',
+    this.transactionId = '',
+    this.paidAmount = 0,
+    this.paidAt,
+    this.collectionMethod = '',
+    this.fullAddress = '',
+    OrderPaymentInfo? payment,
+  }) : payment = payment ??
+            OrderPaymentInfo(
+              paymentMethod: paymentMethod,
+              paymentStatus: paymentStatus,
+              isPaidLegacy: isPaid,
+              razorpayPaymentId: razorpayPaymentId,
+              transactionId: transactionId,
+              paidAmount: paidAmount,
+              paidAt: paidAt,
+              collectionMethod: collectionMethod,
+              bill: bill,
+              productsSubtotal: 0,
+              deliveryCharge: deliveryCharge,
+            );
+
+  static DateTime? _parseCreatedAt(Map<String, dynamic> data) {
+    final raw = data['createdAt'] ?? data['created_at'];
+    if (raw is Timestamp) return raw.toDate();
+    if (raw is DateTime) return raw;
+    final legacy = data['created_date']?.toString().trim();
+    if (legacy != null && legacy.isNotEmpty) {
+      return DateTime.tryParse(legacy);
+    }
+    return null;
+  }
 
   factory OrderModel.fromFirestore(Map<String, dynamic> data, String id) {
     List<ProductItem> parsedProducts = [];
@@ -101,16 +147,33 @@ class OrderModel {
       ).map((e) => ProductItem.fromMap(e)).toList();
     }
 
+    final deliveryCharge = (data['delivery_charge'] ?? data['deliveryCharge'] ?? 0) is int
+        ? (data['delivery_charge'] ?? data['deliveryCharge'] ?? 0) as int
+        : ((data['delivery_charge'] ?? data['deliveryCharge'] ?? 0) as num).toInt();
+    final productsSubtotal = parsedProducts.fold<double>(
+      0,
+      (s, p) => s + p.lineTotal,
+    );
+    final billMap = _asMap(data['bill']);
+    final paymentInfo = OrderPaymentInfo.fromOrderData(
+      data,
+      productsSubtotal: productsSubtotal,
+      deliveryCharge: deliveryCharge,
+      bill: billMap,
+    );
+
     return OrderModel(
       id: id,
       products: parsedProducts,
       createdDate: data['created_date'] ?? '',
+      createdAt: _parseCreatedAt(data),
       customerName: (data['customer_name'] ?? data['customerName'] ?? '')
           .toString(),
       phone: (data['phone'] ?? data['customerPhone'] ?? data['mobile'] ?? '')
           .toString(),
       address: (data['address'] ?? data['deliveryAddress'] ?? '').toString(),
-      isPaid: data['isPaid'] ?? false,
+      fullAddress: _fullAddress(data),
+      isPaid: data['isPaid'] ?? paymentInfo.isPaymentCollected,
       orderStatus: data['order_status'] ?? '',
       modernStatus: data['status']?.toString() ?? '',
       deliveryBoyId: data['deliveryBoyId'] ?? data['delivery_boy_id'] ?? '',
@@ -124,12 +187,18 @@ class OrderModel {
       orderPickedTime: data['pickedTime'] ?? '',
       onTheWayTime: data['onTheWayTime'] ?? '',
       orderDeliveredTime: data['deliveredTime'] ?? '',
-      deliveryCharge: (data['delivery_charge'] ?? data['deliveryCharge'] ?? 0) is int
-          ? (data['delivery_charge'] ?? data['deliveryCharge'] ?? 0) as int
-          : ((data['delivery_charge'] ?? data['deliveryCharge'] ?? 0) as num).toInt(),
+      deliveryCharge: deliveryCharge,
       uuid: data['uuid'] ?? '',
-      latitude: data['lat'] != null ? (data['lat'] as num).toDouble() : null,
-      longitude: data['lng'] != null ? (data['lng'] as num).toDouble() : null,
+      latitude: _customerLat(data),
+      longitude: _customerLng(data),
+      paymentMethod: paymentInfo.paymentMethod,
+      paymentStatus: paymentInfo.paymentStatus,
+      razorpayPaymentId: paymentInfo.razorpayPaymentId,
+      transactionId: paymentInfo.transactionId,
+      paidAmount: paymentInfo.paidAmount,
+      paidAt: paymentInfo.paidAt,
+      collectionMethod: paymentInfo.collectionMethod,
+      payment: paymentInfo,
       vendorId: (data['vendorId'] ?? data['vendor_id'] ?? '').toString(),
       vendorName: (data['vendorName'] ?? data['vendor_name'] ?? '').toString(),
       storeName: (data['storeName'] ??
@@ -158,7 +227,7 @@ class OrderModel {
       deliveryInstructionsRaw: _instructionsMap(
         data['deliveryInstructions'] ?? data['delivery_instructions'],
       ),
-      bill: _asMap(data['bill']),
+      bill: billMap,
       tipAmount: _tipFromData(data),
       tipStatus: (data['tipStatus'] ?? '').toString(),
       acceptedAt: _parseDateTime(
@@ -188,6 +257,46 @@ class OrderModel {
     if (raw is Map) return Map<String, dynamic>.from(raw);
     return null;
   }
+
+  static String _fullAddress(Map<String, dynamic> data) {
+    final direct = (data['fullAddress'] ?? '').toString().trim();
+    if (direct.isNotEmpty) return direct;
+    final snap = data['address_snapshot'];
+    if (snap is Map) {
+      final m = Map<String, dynamic>.from(snap);
+      final line = '${m['address'] ?? ''} ${m['area'] ?? ''}'.trim();
+      if (line.isNotEmpty) return line;
+    }
+    return (data['address'] ?? data['deliveryAddress'] ?? '').toString().trim();
+  }
+
+  static double? _customerLat(Map<String, dynamic> data) {
+    if (data['lat'] != null) return (data['lat'] as num).toDouble();
+    if (data['latitude'] != null) return (data['latitude'] as num).toDouble();
+    final snap = data['address_snapshot'];
+    if (snap is Map) {
+      final lat = snap['lat'] ?? snap['latitude'];
+      if (lat is num) return lat.toDouble();
+    }
+    return null;
+  }
+
+  static double? _customerLng(Map<String, dynamic> data) {
+    if (data['lng'] != null) return (data['lng'] as num).toDouble();
+    if (data['longitude'] != null) return (data['longitude'] as num).toDouble();
+    final snap = data['address_snapshot'];
+    if (snap is Map) {
+      final lng = snap['lng'] ?? snap['longitude'];
+      if (lng is num) return lng.toDouble();
+    }
+    return null;
+  }
+
+  bool get hasCustomerCoordinates =>
+      latitude != null && longitude != null && latitude != 0 && longitude != 0;
+
+  bool get hasVendorCoordinates =>
+      pickupLat != null && pickupLng != null && pickupLat != 0 && pickupLng != 0;
 
   static double _tipFromData(Map<String, dynamic> data) {
     final direct = data['tipAmount'];
@@ -260,6 +369,7 @@ class OrderModel {
       id: id,
       products: products,
       createdDate: createdDate,
+      createdAt: createdAt,
       customerName: customerName,
       phone: phone,
       address: address,
@@ -298,6 +408,17 @@ class OrderModel {
       deliverySlotRaw: deliverySlotRaw,
       deliveryInstructionsRaw: deliveryInstructionsRaw,
       bill: bill,
+      tipAmount: tipAmount,
+      tipStatus: tipStatus,
+      paymentMethod: paymentMethod,
+      paymentStatus: paymentStatus,
+      razorpayPaymentId: razorpayPaymentId,
+      transactionId: transactionId,
+      paidAmount: paidAmount,
+      paidAt: paidAt,
+      collectionMethod: collectionMethod,
+      fullAddress: fullAddress,
+      payment: payment,
     );
   }
 

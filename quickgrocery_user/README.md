@@ -1,26 +1,33 @@
-# quickgrocery
+## Go to user app folder:
 
-A new Flutter project.
+```bash
+cd quickgrocery_user/  
+```
 
-## Getting Started
+## Run locally
 
-This project is a starting point for a Flutter application.
-
-
-#for run command application
-
+```bash
 flutter clean
-flutter pub get 
+flutter pub get
 flutter run
+```
+
+## Build APK (Android)
+
+```bash
+flutter clean
+flutter pub get
+flutter build apk --release
+```
+Output: `build/app/outputs/flutter-apk/app-release.apk`
 
 
- #for apk build
+## Build Android App Bundle (Play Store)
 
- flutter pub get 
- flutter build apk --release
+```bash
+flutter clean
+flutter pub get
+flutter build appbundle --release
+```
+Output: `build/app/outputs/bundle/release/app-release.aab`
 
-
-
- #deploy on firebase
-
-  firebase deploy --only functions

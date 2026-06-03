@@ -1,4 +1,7 @@
 {
+  "firestore": {
+    "indexes": "quick_grocery_admin/firestore.indexes.json"
+  },
   "functions": [
     {
       "source": "functions",
@@ -11,9 +14,33 @@
         "firebase-debug.*.log",
         "*.local"
       ],
-      "predeploy": [
-        "npm --prefix \"$RESOURCE_DIR\" run build"
-      ]
+      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
+    }
+  ],
+  "hosting": [
+    {
+      "target": "admin",
+      "public": "quick_grocery_admin/build/web",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    },
+    {
+      "target": "user",
+      "public": "quickgrocery_user/build/web",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    },
+    {
+      "target": "vendor",
+      "public": "quickgrocery_vendor/build/web",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    },
+    {
+      "target": "delivery",
+      "public": "quick_grocery_delivery/build/web",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
     }
   ]
 }

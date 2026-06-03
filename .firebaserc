@@ -1,5 +1,24 @@
 {
   "projects": {
     "default": "quikgroceries"
-  }
+  },
+  "targets": {
+    "quikgroceries": {
+      "hosting": {
+        "admin": [
+          "quikgroceries"
+        ],
+        "user": [
+          "quikgroceries-user"
+        ],
+        "vendor": [
+          "quikgroceries-vendor"
+        ],
+        "delivery": [
+          "quikgroceries-delivery"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

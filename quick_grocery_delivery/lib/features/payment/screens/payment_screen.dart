@@ -131,9 +131,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       shrinkWrap: true,
                       itemBuilder: (context, i) {
                         final order = filteredOrders[i];
-                        final totalAmount = order.products.fold<double>(
-                          0.0,
-                          (sum, item) => sum + (item.price * item.itemCount),
+                        double n(dynamic v) {
+                          if (v is num) return v.toDouble();
+                          return double.tryParse('$v') ?? 0;
+                        }
+
+                        final bill = order.bill ?? const <String, dynamic>{};
+                        final totalAmount = n(
+                          bill['grandTotal'] ?? bill['total'],
                         );
                         final totalItems = order.products.fold<int>(
                           0,
@@ -222,7 +227,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                           ),
                                         ),
                                         Text(
-                                          '₹${(product.price * product.itemCount).toStringAsFixed(0)}',
+                                          '₹${product.lineTotal.toStringAsFixed(0)}',
                                           style: const TextStyle(fontSize: 14),
                                         ),
                                       ],

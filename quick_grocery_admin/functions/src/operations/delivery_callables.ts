@@ -65,6 +65,19 @@ export const confirmDelivery = onCall(
       );
     }
 
+    const paymentMethod = str(order.paymentMethod ?? order.payment_method).toLowerCase();
+    const paymentStatus = str(order.paymentStatus ?? order.payment_status).toLowerCase();
+    const isCod =
+      paymentMethod === "cod" || paymentMethod === "cash_on_delivery";
+    const isPaid =
+      order.isPaid === true || paymentStatus === "paid";
+    if (isCod && !isPaid) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Collect payment before marking delivered.",
+      );
+    }
+
     const deliveredAt = new Date();
     const earning = orderEarning(order);
 
