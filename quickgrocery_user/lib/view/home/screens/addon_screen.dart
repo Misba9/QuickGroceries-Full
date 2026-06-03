@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
 import 'package:quickgrocery/models/product.dart';
-import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 
 class AddonSelector extends StatefulWidget {
@@ -171,12 +171,7 @@ class _AddonSelectorState extends State<AddonSelector> {
               SafeArea(
                 child: GestureDetector(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CartScreen(),
-                      ),
-                    );
+                    Navigator.push(context, AppPageRoutes.cart());
                   },
                   child: Container(
                     padding: const EdgeInsets.all(10),

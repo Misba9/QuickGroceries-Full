@@ -3,6 +3,7 @@ import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_eta_utils.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/order_row_actions.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/order_status_badge.dart';
+import 'package:quick_grocery_admin/core/widgets/admin_text_selection.dart';
 
 /// [PaginatedDataTable] source — one row per order, no duplicate layout code.
 class OrdersDataTableSource extends DataTableSource {
@@ -78,9 +79,9 @@ class OrdersDataTableSource extends DataTableSource {
       id.length > 10 ? '${id.substring(0, 10)}…' : id;
 
   static Widget _cellText(String text, {bool bold = false}) {
-    return Text(
+    return AdminSelectableText(
       text,
-      overflow: TextOverflow.ellipsis,
+      maxLines: 1,
       style: TextStyle(
         fontSize: 13,
         fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
@@ -93,13 +94,12 @@ class OrdersDataTableSource extends DataTableSource {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
+        AdminSelectableText(
           o.customerName,
           maxLines: 1,
-          overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
         ),
-        Text(
+        AdminSelectableText(
           o.phone,
           style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
         ),

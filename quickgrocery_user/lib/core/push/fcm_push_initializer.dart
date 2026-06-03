@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
 
 /// Foreground + tap handling via [flutter_local_notifications] (mobile only).
@@ -71,18 +71,20 @@ class FcmPushInitializer {
     }
 
     if (defaultTargetPlatform == TargetPlatform.iOS) {
-      await _plugin
-          .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>()
-          ?.requestPermissions(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
+      if (!await AppPermissionCoordinator.notificationAlreadyAsked()) {
+        await _plugin
+            .resolvePlatformSpecificImplementation<
+                IOSFlutterLocalNotificationsPlugin>()
+            ?.requestPermissions(
+              alert: true,
+              badge: true,
+              sound: true,
+            );
+      }
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
-      await Permission.notification.request();
+      await AppPermissionCoordinator.requestAndroidNotificationOnce();
     }
 
     _initialized = true;

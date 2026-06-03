@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:quickgrocery/core/user/user_profile_repository.dart';
 import 'package:quickgrocery/models/address_model.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +17,7 @@ class AddressService extends ChangeNotifier {
   }
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final UserProfileRepository _profileRepo = UserProfileRepository();
   static const _cacheAddressIdKey = 'selected_address_id';
   static const _cacheLatKey = 'selected_address_latitude';
   static const _cacheLngKey = 'selected_address_longitude';
@@ -130,6 +132,10 @@ class AddressService extends ChangeNotifier {
       debugPrint('AddressService: using cached validated address');
       return;
     }
+    if (!force && hasSavedAddresses) {
+      debugPrint('AddressService: using saved address — skip GPS');
+      return;
+    }
     try {
       _isLoading = true;
 
@@ -142,7 +148,7 @@ class AddressService extends ChangeNotifier {
         return;
       }
 
-      // 🔹 Check and request permission
+      // Check permission — do not re-prompt if already granted.
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -277,6 +283,7 @@ class AddressService extends ChangeNotifier {
       _isLoading = false;
       _editingAddressId = null;
       notifyListeners();
+      await _syncProfileAddress();
       if (context.mounted) Navigator.pop(context, true);
     } catch (e) {
       _isLoading = false;
@@ -357,6 +364,7 @@ class AddressService extends ChangeNotifier {
       invalidateAddressValidation(notify: false);
     }
     notifyListeners();
+    unawaited(_syncProfileAddress());
   }
 
   Future<void> getAddress() async {
@@ -375,6 +383,7 @@ class AddressService extends ChangeNotifier {
         );
       }).toList();
       _applyCachedSelection();
+      await _syncProfileAddress();
 
       notifyListeners(); // Notify UI or listeners if you're using a state management solution
     } catch (e) {
@@ -451,6 +460,7 @@ class AddressService extends ChangeNotifier {
     await prefs.setBool(_cacheServiceableKey, serviceable);
     await prefs.setInt(_cacheTimestampKey, _validatedAt!.millisecondsSinceEpoch);
     notifyListeners();
+    unawaited(_syncProfileAddress());
   }
 
   Future<void> invalidateAddressValidation({bool notify = true}) async {
@@ -489,5 +499,48 @@ class AddressService extends ChangeNotifier {
     _address = '${selected.address}, ${selected.area}';
     _pinCode = _extractPinCodeFromAddress('${selected.address} ${selected.area}') ??
         _pinCode;
+  }
+
+  Future<void> _syncProfileAddress() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final list = addresses;
+    if (list == null || list.isEmpty) return;
+
+    final idx = _selectedIndex.clamp(0, list.length - 1);
+    final selected = list[idx];
+    final full = '${selected.address}, ${selected.area}';
+    final pin = _extractPinCodeFromAddress(full) ?? _pinCode;
+    final point = latLng;
+
+    final saved = list
+        .map(
+          (a) => {
+            'id': a.id,
+            'type': a.type,
+            'address': a.address,
+            'area': a.area,
+            'name': a.name,
+            'mobile': a.mobile,
+          },
+        )
+        .toList();
+
+    try {
+      await _profileRepo.syncDefaultAddress(
+        uid: uid,
+        addressId: selected.id,
+        fullAddress: full,
+        area: selected.area,
+        addressType: selected.type,
+        pincode: pin,
+        latitude: point?.latitude,
+        longitude: point?.longitude,
+        savedAddresses: saved,
+      );
+    } catch (e) {
+      debugPrint('AddressService: profile sync failed: $e');
+    }
   }
 }

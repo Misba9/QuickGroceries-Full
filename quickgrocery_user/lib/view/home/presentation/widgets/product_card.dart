@@ -4,19 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
 import 'package:quickgrocery/core/product/product_quantity_label.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/widgets/discount_badge.dart';
 import 'package:quickgrocery/core/widgets/product_badges.dart';
 import 'package:quickgrocery/models/product.dart';
-import 'package:quickgrocery/view/cart/presentation/providers/cart_feedback_provider.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
+import 'package:quickgrocery/view/cart/presentation/utils/cart_quantity_actions.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_image_carousel.dart'
     show productHeroTag;
-import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 
 /// Modern, Zepto/Blinkit-style product card used by every home rail and
 /// the explore grid. Bridges the new dynamic homepage with the legacy
@@ -69,9 +70,7 @@ class HomeProductCard extends ConsumerWidget {
                 HapticFeedback.selectionClick();
                 await Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => ProductViewScreen(product: product),
-                  ),
+                  AppPageRoutes.product(product),
                 );
                 onAfterProductDetailClosed?.call();
               },
@@ -105,33 +104,28 @@ class HomeProductCard extends ConsumerWidget {
                       count: count,
                       onAdd: () {
                         final wasEmpty = count == 0;
-                        final ok = ref
-                            .read(cartProvider.notifier)
-                            .addProduct(product);
-                        if (!ok) return;
-                        if (wasEmpty) {
-                          cartService.showAddonPopupIfNeeded(
-                            context,
-                            product,
-                          );
-                        }
+                        tryAddProductToCart(
+                          context,
+                          ref,
+                          product: product,
+                          onAdded: wasEmpty
+                              ? () => cartService.showAddonPopupIfNeeded(
+                                    context,
+                                    product,
+                                  )
+                              : null,
+                        );
                       },
-                      onIncrement: () {
-                        if (!ref
-                            .read(cartProvider.notifier)
-                            .increment(product.id)) {
-                          final ok = cartService.addProductCount(
-                            product.id,
-                            catalogProduct: product,
-                          );
-                          if (!ok) {
-                            showCartFeedback(
-                              ref,
-                              'Maximum order limit reached',
-                            );
-                          }
-                        }
-                      },
+                      onIncrement: () => tryIncrementProductInCart(
+                        context,
+                        ref,
+                        product: product,
+                        legacyCart: cartService,
+                      ),
+                      onMaxReached: () => showTopErrorToast(
+                        context,
+                        maxQuantityMessageFor(product),
+                      ),
                       onDecrement: () {
                         ref.read(cartProvider.notifier).decrement(product.id);
                         cartService.removeProductCount(product.id);
@@ -185,6 +179,7 @@ class _ProductDetails extends StatelessWidget {
     required this.onAdd,
     required this.onIncrement,
     required this.onDecrement,
+    required this.onMaxReached,
   });
 
   final ProductModel product;
@@ -193,6 +188,7 @@ class _ProductDetails extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
+  final VoidCallback onMaxReached;
 
   @override
   Widget build(BuildContext context) {
@@ -245,6 +241,7 @@ class _ProductDetails extends StatelessWidget {
                 onAdd: onAdd,
                 onIncrement: onIncrement,
                 onDecrement: onDecrement,
+                onMaxReached: onMaxReached,
               ),
             ],
           ),
@@ -439,6 +436,7 @@ class _CartControl extends StatelessWidget {
     required this.onAdd,
     required this.onIncrement,
     required this.onDecrement,
+    required this.onMaxReached,
   });
 
   final ProductModel product;
@@ -446,6 +444,7 @@ class _CartControl extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
+  final VoidCallback onMaxReached;
 
   static const double _h = 32;
 
@@ -548,8 +547,14 @@ class _CartControl extends StatelessWidget {
           ),
           _StepBtn(
             icon: Icons.add,
-            onTap: atMax ? null : onIncrement,
-            disabled: atMax,
+            onTap: () {
+              if (atMax) {
+                onMaxReached();
+              } else {
+                onIncrement();
+              }
+            },
+            disabled: false,
           ),
         ],
       ),

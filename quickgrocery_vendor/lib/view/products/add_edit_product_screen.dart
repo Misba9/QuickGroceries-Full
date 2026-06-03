@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../models/product_model.dart';
@@ -10,8 +9,9 @@ import '../../models/product_image_slot.dart';
 import '../../services/product_service.dart';
 import '../../services/category_service.dart';
 import '../../services/product_image_upload_service.dart';
-import '../../style/app_color.dart';
 import '../../utils/app_spacing.dart';
+import '../../widgets/keyboard_safe_body.dart';
+import '../../widgets/vendor_form_fields.dart';
 import 'widgets/product_images_upload_section.dart';
 import 'widgets/product_settings_panel.dart';
 
@@ -320,20 +320,11 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: AppColor.primary,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        title: Text(
-          widget.product != null ? 'Edit Product' : 'Add Product',
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: Text(widget.product != null ? 'Edit Product' : 'Add Product'),
       ),
-      body: SingleChildScrollView(
+      resizeToAvoidBottomInset: true,
+      body: KeyboardSafeBody(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
@@ -348,19 +339,14 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               ),
               AppSpacing.h20,
 
-              // Product Name
-              TextFormField(
+              VendorTextFormField(
                 controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: 'Product Name *',
-                  hintText: 'Enter product name',
-                  prefixIcon: const Icon(Icons.shopping_bag_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+                label: 'Product Name *',
+                hint: 'Enter product name',
+                prefixIcon: Icons.shopping_bag_outlined,
+                textInputAction: TextInputAction.next,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Please enter product name';
                   }
                   return null;
@@ -368,20 +354,15 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               ),
               AppSpacing.h20,
 
-              // Description
-              TextFormField(
+              VendorTextFormField(
                 controller: _descriptionController,
+                label: 'Description *',
+                hint: 'Enter product description',
+                prefixIcon: Icons.description_outlined,
                 maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Description *',
-                  hintText: 'Enter product description',
-                  prefixIcon: const Icon(Icons.description_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+                textInputAction: TextInputAction.newline,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Please enter description';
                   }
                   return null;
@@ -389,19 +370,13 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               ),
               AppSpacing.h20,
 
-              // Category Dropdown
               _isLoadingCategories
                   ? const Center(child: CircularProgressIndicator())
-                  : DropdownButtonFormField<String>(
+                  : VendorDropdownFormField<String>(
                       value: _selectedCategoryId,
-                      decoration: InputDecoration(
-                        labelText: 'Category *',
-                        hintText: 'Select category',
-                        prefixIcon: const Icon(Icons.category_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
+                      label: 'Category *',
+                      hint: 'Select category',
+                      prefixIcon: Icons.category_outlined,
                       items: _categories.map((category) {
                         return DropdownMenuItem<String>(
                           value: category.id,
@@ -420,7 +395,6 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                             _selectedSubcategoryName = null;
                             _subcategories = [];
                           });
-                          // Load subcategories using category name since main_category stores the name
                           _loadSubcategories(selectedCategory.name);
                         }
                       },
@@ -433,69 +407,57 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                     ),
               AppSpacing.h20,
 
-              // Subcategory Dropdown
-              _selectedCategoryId == null
-                  ? const SizedBox.shrink()
-                  : DropdownButtonFormField<String>(
-                      value: _selectedSubcategoryId,
-                      decoration: InputDecoration(
-                        labelText: 'Subcategory (Optional)',
-                        hintText: 'Select subcategory',
-                        prefixIcon: const Icon(Icons.subdirectory_arrow_right),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      items: _subcategories.isEmpty
-                          ? [
-                              const DropdownMenuItem<String>(
-                                value: null,
-                                child: Text('No subcategories available'),
-                              )
-                            ]
-                          : [
-                              const DropdownMenuItem<String>(
-                                value: null,
-                                child: Text('None'),
-                              ),
-                              ..._subcategories.map((subcategory) {
-                                return DropdownMenuItem<String>(
-                                  value: subcategory.id,
-                                  child: Text(subcategory.name),
-                                );
-                              }),
-                            ],
-                      onChanged: (String? value) {
-                        setState(() {
-                          _selectedSubcategoryId = value;
-                          _selectedSubcategoryName = value != null
-                              ? _subcategories
-                                  .firstWhere((sub) => sub.id == value)
-                                  .name
-                              : null;
-                        });
-                      },
-                    ),
-              AppSpacing.h20,
+              if (_selectedCategoryId != null) ...[
+                VendorDropdownFormField<String>(
+                  value: _selectedSubcategoryId,
+                  label: 'Subcategory (Optional)',
+                  hint: 'Select subcategory',
+                  prefixIcon: Icons.subdirectory_arrow_right,
+                  items: _subcategories.isEmpty
+                      ? [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            child: Text('No subcategories available'),
+                          ),
+                        ]
+                      : [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            child: Text('None'),
+                          ),
+                          ..._subcategories.map((subcategory) {
+                            return DropdownMenuItem<String>(
+                              value: subcategory.id,
+                              child: Text(subcategory.name),
+                            );
+                          }),
+                        ],
+                  onChanged: (String? value) {
+                    setState(() {
+                      _selectedSubcategoryId = value;
+                      _selectedSubcategoryName = value != null
+                          ? _subcategories
+                              .firstWhere((sub) => sub.id == value)
+                              .name
+                          : null;
+                    });
+                  },
+                ),
+                AppSpacing.h20,
+              ],
 
-              // Price and Slashed Price Row
               Row(
                 children: [
                   Expanded(
-                    child: TextFormField(
+                    child: VendorTextFormField(
                       controller: _priceController,
+                      label: 'Price *',
+                      hint: '0.00',
+                      prefixIcon: Icons.currency_rupee,
                       keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Price *',
-                        hintText: '0.00',
-                        prefixIcon: const Icon(Icons.currency_rupee),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Required';
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter price';
                         }
                         return null;
                       },
@@ -503,41 +465,36 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                   ),
                   AppSpacing.w15,
                   Expanded(
-                    child: TextFormField(
+                    child: VendorTextFormField(
                       controller: _slashedPriceController,
+                      label: 'Discount Price *',
+                      hint: '0.00',
+                      prefixIcon: Icons.currency_rupee,
                       keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Slashed Price',
-                        hintText: '0.00',
-                        prefixIcon: const Icon(Icons.currency_rupee),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter discount price';
+                        }
+                        return null;
+                      },
                     ),
                   ),
                 ],
               ),
               AppSpacing.h20,
 
-              // Stock and Max Order Row
               Row(
                 children: [
                   Expanded(
-                    child: TextFormField(
+                    child: VendorTextFormField(
                       controller: _stockController,
+                      label: 'Stock *',
+                      hint: 'Enter stock quantity',
+                      prefixIcon: Icons.inventory_2_outlined,
                       keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Stock *',
-                        hintText: 'Enter stock',
-                        prefixIcon: const Icon(Icons.inventory_2_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Required';
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter stock';
                         }
                         return null;
                       },
@@ -545,20 +502,15 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                   ),
                   AppSpacing.w15,
                   Expanded(
-                    child: TextFormField(
+                    child: VendorTextFormField(
                       controller: _maxOrderController,
+                      label: 'Max Order *',
+                      hint: 'Max per order',
+                      prefixIcon: Icons.shopping_cart_outlined,
                       keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Max Order *',
-                        hintText: 'Enter max order',
-                        prefixIcon: const Icon(Icons.shopping_cart_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Required';
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter max order';
                         }
                         return null;
                       },
@@ -568,23 +520,17 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               ),
               AppSpacing.h20,
 
-              // Unit and Unit Per Item Row
               Row(
                 children: [
                   Expanded(
-                    child: TextFormField(
+                    child: VendorTextFormField(
                       controller: _unitController,
-                      decoration: InputDecoration(
-                        labelText: 'Unit *',
-                        hintText: 'e.g., kg, pcs',
-                        prefixIcon: const Icon(Icons.scale_outlined),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
+                      label: 'Unit *',
+                      hint: 'e.g., kg, pcs',
+                      prefixIcon: Icons.scale_outlined,
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Required';
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter unit';
                         }
                         return null;
                       },
@@ -592,16 +538,17 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                   ),
                   AppSpacing.w15,
                   Expanded(
-                    child: TextFormField(
+                    child: VendorTextFormField(
                       controller: _unitPerItemController,
-                      decoration: InputDecoration(
-                        labelText: 'Unit Per Item',
-                        hintText: 'e.g., 1kg',
-                        prefixIcon: const Icon(Icons.format_list_numbered),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
+                      label: 'Weight *',
+                      hint: 'e.g., 1 kg',
+                      prefixIcon: Icons.format_list_numbered,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter weight';
+                        }
+                        return null;
+                      },
                     ),
                   ),
                 ],
@@ -631,14 +578,6 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: (_isLoading || _isUploadingImages) ? null : _saveProduct,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColor.primary,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                  ),
                   child: _isLoading || _isUploadingImages
                       ? const SizedBox(
                           height: 20,
@@ -650,10 +589,6 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                         )
                       : Text(
                           widget.product != null ? 'Update Product' : 'Add Product',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
                         ),
                 ),
               ),

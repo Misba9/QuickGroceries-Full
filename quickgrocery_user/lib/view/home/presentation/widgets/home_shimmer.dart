@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/view/category/presentation/utils/category_grid_layout.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -26,16 +27,22 @@ class HomeShimmer {
   static Widget categoriesGrid({int count = 8, int crossAxisCount = 4}) {
     const crossSpacing = 10.0;
     const mainSpacing = 14.0;
-    const labelGap = 8.0;
-    const labelHeight = 32.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final tileWidth =
             (constraints.maxWidth - crossSpacing * (crossAxisCount - 1)) /
                 crossAxisCount;
-        final tileHeight = tileWidth + labelGap + labelHeight;
-        final ratio = tileWidth / tileHeight;
+        final ratio = CategoryGridLayout.childAspectRatio(
+          context,
+          tileWidth,
+          imageToTextGap: CategoryGridLayout.homeImageGap,
+          includeItemCount: false,
+        );
+        final labelHeight = CategoryGridLayout.textBlockHeight(
+          context,
+          includeItemCount: false,
+        );
 
         return GridView.builder(
           shrinkWrap: true,
@@ -59,7 +66,7 @@ class HomeShimmer {
                   ),
                 ),
               ),
-              const SizedBox(height: labelGap),
+              const SizedBox(height: CategoryGridLayout.homeImageGap),
               SizedBox(
                 height: labelHeight,
                 child: Center(

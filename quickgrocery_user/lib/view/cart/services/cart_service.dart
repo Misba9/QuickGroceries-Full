@@ -10,7 +10,7 @@ import 'package:quickgrocery/models/address_model.dart';
 import 'package:quickgrocery/models/coupon_model.dart';
 import 'package:quickgrocery/models/order_model.dart';
 import 'package:quickgrocery/models/product.dart';
-import 'package:quickgrocery/view/cart/screen/cart_screen.dart' as cart_screen;
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
 import 'package:quickgrocery/view/delivery_location/services/delivery_zone_service.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
@@ -279,10 +279,7 @@ class CartService extends ChangeNotifier {
 
     notifyListeners();
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => cart_screen.CartScreen()),
-    );
+    Navigator.push(context, AppPageRoutes.cart());
   }
 
   Future<String?> getAdminFcmToken() async {

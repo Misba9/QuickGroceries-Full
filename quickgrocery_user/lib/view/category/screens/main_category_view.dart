@@ -10,6 +10,7 @@ import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/home_branding.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/core/widgets/skeleton.dart';
@@ -17,6 +18,7 @@ import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
+import 'package:quickgrocery/view/category/presentation/utils/category_grid_layout.dart';
 import 'package:quickgrocery/view/category/presentation/widgets/animated_category_card.dart';
 import 'package:quickgrocery/view/category/presentation/widgets/featured_products_section.dart';
 import 'package:quickgrocery/view/category/presentation/widgets/flash_sale_widget.dart';
@@ -28,7 +30,6 @@ import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart'
 import 'package:quickgrocery/view/home/presentation/widgets/home_banner_video_rail.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/recommendations_section.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
-import 'package:quickgrocery/view/search/screens/search_screen.dart';
 
 /// Categories discovery screen — premium animated grocery experience.
 ///
@@ -116,12 +117,8 @@ class _MainCategoryViewScreenState
                           'search_hint_snacks'.tr(),
                           'search_hint_fruits'.tr(),
                         ],
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SearchScreen(),
-                          ),
-                        ),
+                        onTap: () =>
+                            Navigator.push(context, AppPageRoutes.search()),
                       ),
                     ),
                     if (appContent.showTrendingCategories)
@@ -503,16 +500,9 @@ class _AllCategoriesSection extends ConsumerWidget {
   final String heading;
   final bool headingLoading;
 
-  /// Compute a safe `childAspectRatio` so each tile can fit
-  /// image (square via [AspectRatio(1)]) + 6 px gap + 32 px text label.
-  ///
-  /// Without this the grid overflows on narrow phones — especially with
-  /// the 8-column layout on small tablets.
-  double _aspectFor(double cellWidth) {
-    const labelHeight = 32.0;
-    const gap = 6.0;
-    final tileHeight = cellWidth + gap + labelHeight;
-    return cellWidth / tileHeight;
+  /// Matches [AnimatedCategoryCard] tile layout (image + labels + item count).
+  double _aspectFor(BuildContext context, double cellWidth) {
+    return CategoryGridLayout.childAspectRatio(context, cellWidth);
   }
 
   @override
@@ -537,7 +527,7 @@ class _AllCategoriesSection extends ConsumerWidget {
               crossAxisCount: cols,
               crossAxisSpacing: spacing,
               mainAxisSpacing: 12,
-              childAspectRatio: _aspectFor(available),
+              childAspectRatio: _aspectFor(context, available),
             ),
             itemCount: count,
             itemBuilder: builder,

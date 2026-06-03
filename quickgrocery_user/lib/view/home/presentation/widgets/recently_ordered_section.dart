@@ -11,12 +11,14 @@ import 'package:quickgrocery/core/widgets/skeleton.dart';
 import 'package:quickgrocery/core/widgets/staggered_fade_in.dart';
 import 'package:quickgrocery/models/order_model.dart';
 import 'package:quickgrocery/models/product.dart';
+import 'package:quickgrocery/view/cart/presentation/utils/cart_quantity_actions.dart';
+import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
-import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 
 /// "Recently ordered" rail — surfaces unique items from the user's
 /// past orders so reordering staples is one tap away.
@@ -138,12 +140,7 @@ class _RecentTile extends StatelessWidget {
           borderRadius: AppRadii.all(AppRadii.md),
           onTap: () {
             if (canonical == null) return;
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ProductViewScreen(product: canonical),
-              ),
-            );
+            Navigator.push(context, AppPageRoutes.product(canonical));
           },
           child: Container(
             padding: const EdgeInsets.all(8),
@@ -198,17 +195,19 @@ class _RecentTile extends StatelessWidget {
   }
 }
 
-class _ReorderButton extends StatelessWidget {
+class _ReorderButton extends ConsumerWidget {
   const _ReorderButton({required this.canonical, required this.fallback});
   final ProductModel? canonical;
   final ProductItem fallback;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cart = legacy.Provider.of<CategoryService>(context);
     final canAdd = canonical != null;
-    final inCart = canonical != null &&
-        cart.selectedProduct.any((p) => p.id == canonical!.id);
+    final product = canonical!;
+    final inCart = canAdd &&
+        (ref.watch(cartProvider).items.any((e) => e.productId == product.id) ||
+            cart.selectedProduct.any((p) => p.id == product.id));
 
     return SizedBox(
       width: double.infinity,
@@ -218,9 +217,14 @@ class _ReorderButton extends StatelessWidget {
             ? null
             : () {
                 if (inCart) {
-                  cart.addProductCount(canonical!.id);
+                  tryIncrementProductInCart(
+                    context,
+                    ref,
+                    product: product,
+                    legacyCart: cart,
+                  );
                 } else {
-                  cart.addProduct(context, canonical!);
+                  tryAddProductToCart(context, ref, product: product);
                 }
               },
         child: Container(

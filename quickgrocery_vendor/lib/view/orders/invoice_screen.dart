@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quickgrocery_vendor/constants/vendor_branding.dart';
 import 'package:quick_grocery_receipt/quick_grocery_receipt.dart';
 
 import '../../models/order_model.dart';
@@ -60,7 +61,7 @@ class InvoiceScreen extends StatelessWidget {
             InvoiceTemplateWidget(
               data: receiptData,
               logo: Image.asset(
-                'assets/images/logo.png',
+                VendorBranding.logoAsset,
                 width: 40,
                 height: 40,
                 errorBuilder: (_, __, ___) => const Icon(

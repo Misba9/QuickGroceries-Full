@@ -169,3 +169,4 @@ final unreadNotificationsCountProvider =
       .watch(realtimeNotificationRepositoryProvider)
       .watchUnreadCount(uid);
 });
+

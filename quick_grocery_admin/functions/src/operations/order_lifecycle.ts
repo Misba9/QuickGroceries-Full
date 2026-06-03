@@ -1,19 +1,10 @@
 /**
- * Canonical quick-commerce order lifecycle (Zepto / Blinkit model).
- * Both `status` (snake_case id) and `order_status` (legacy display) are kept in sync.
+ * Simplified quick-commerce order lifecycle (4 customer-visible steps).
+ * Both `status` (snake_case id) and `order_status` (legacy display) stay in sync.
  */
 export const OrderStatus = {
-  PENDING: "pending",
-  VENDOR_ACCEPTED: "vendor_accepted",
-  VENDOR_REJECTED: "vendor_rejected",
-  ACCEPTED: "accepted",
-  PACKING: "packing",
-  READY_FOR_PICKUP: "ready_for_pickup",
-  RIDER_ASSIGNED: "rider_assigned",
-  RIDER_ACCEPTED: "rider_accepted",
-  REACHED_STORE: "reached_store",
-  HEADING_TO_STORE: "heading_to_store",
-  PICKED_UP: "picked_up",
+  ORDER_PLACED: "order_placed",
+  DELIVERY_ASSIGNED: "delivery_assigned",
   OUT_FOR_DELIVERY: "out_for_delivery",
   DELIVERED: "delivered",
   CANCELLED: "cancelled",
@@ -24,33 +15,51 @@ export const OrderStatus = {
 
 export type OrderStatusId = (typeof OrderStatus)[keyof typeof OrderStatus];
 
+const CANONICAL = new Set<string>(Object.values(OrderStatus));
+
+/** Map legacy / granular statuses to the simplified model when reading Firestore. */
+export function normalizeStatus(status: string): string {
+  const s = str(status).toLowerCase();
+  if (!s) return OrderStatus.ORDER_PLACED;
+
+  if (CANONICAL.has(s)) return s;
+
+  if (
+    s === "cancelled_by_customer" ||
+    s === "cancelled_by_vendor" ||
+    s === "cancelled_by_rider" ||
+    s === "cancelled" ||
+    s === "vendor_rejected"
+  ) {
+    return cancellationStatusFromId(s);
+  }
+
+  if (s === "delivered") return OrderStatus.DELIVERED;
+  if (s === "out_for_delivery" || s === "picked_up") {
+    return OrderStatus.OUT_FOR_DELIVERY;
+  }
+  if (
+    s === "delivery_assigned" ||
+    s === "rider_assigned" ||
+    s === "rider_accepted" ||
+    s === "reached_store" ||
+    s === "heading_to_store"
+  ) {
+    return OrderStatus.DELIVERY_ASSIGNED;
+  }
+
+  return OrderStatus.ORDER_PLACED;
+}
+
 /** Legacy display string written to `order_status`. */
 export function statusToLegacy(status: string): string {
-  switch (status.toLowerCase()) {
-    case OrderStatus.PENDING:
-      return "Pending";
-    case OrderStatus.VENDOR_ACCEPTED:
-      return "Vendor Accepted";
-    case OrderStatus.VENDOR_REJECTED:
-      return "Vendor Rejected";
-    case OrderStatus.ACCEPTED:
-      return "Order Confirm";
-    case OrderStatus.PACKING:
-      return "Preparing";
-    case OrderStatus.READY_FOR_PICKUP:
-      return "Ready for Pickup";
-    case OrderStatus.RIDER_ASSIGNED:
-      return "Rider Assigned";
-    case OrderStatus.RIDER_ACCEPTED:
-      return "Rider Accepted";
-    case OrderStatus.REACHED_STORE:
-      return "Reached Store";
-    case OrderStatus.HEADING_TO_STORE:
-      return "Going to Shop";
-    case OrderStatus.PICKED_UP:
-      return "Order Picked";
+  switch (normalizeStatus(status)) {
+    case OrderStatus.ORDER_PLACED:
+      return "Order Placed";
+    case OrderStatus.DELIVERY_ASSIGNED:
+      return "Delivery Partner Assigned";
     case OrderStatus.OUT_FOR_DELIVERY:
-      return "On the Way";
+      return "Out For Delivery";
     case OrderStatus.DELIVERED:
       return "Order Delivered";
     case OrderStatus.CANCELLED_BY_CUSTOMER:
@@ -66,39 +75,48 @@ export function statusToLegacy(status: string): string {
   }
 }
 
+function cancellationStatusFromId(s: string): string {
+  if (s === OrderStatus.CANCELLED_BY_CUSTOMER) return s;
+  if (s === OrderStatus.CANCELLED_BY_VENDOR || s === "vendor_rejected") {
+    return OrderStatus.CANCELLED_BY_VENDOR;
+  }
+  if (s === OrderStatus.CANCELLED_BY_RIDER) return s;
+  return OrderStatus.CANCELLED;
+}
+
 /** Resolve canonical `status` from legacy `order_status` or modern field. */
 export function resolveStatus(data: Record<string, unknown>): string {
-  const modern = str(data.status);
-  if (modern && isKnownStatus(modern)) return modern;
-
   if (data.isCancelled === true) {
     return cancellationStatusFromMeta(data);
   }
   if (data.isDelivered === true) return OrderStatus.DELIVERED;
 
+  const modern = str(data.status);
+  if (modern) return normalizeStatus(modern);
+
   const legacy = str(data.order_status).toLowerCase();
   if (legacy.includes("cancel")) return OrderStatus.CANCELLED;
   if (legacy.includes("deliver")) return OrderStatus.DELIVERED;
-  if (legacy.includes("way")) return OrderStatus.OUT_FOR_DELIVERY;
-  if (legacy.includes("picked")) return OrderStatus.PICKED_UP;
-  if (legacy.includes("reached") && legacy.includes("store")) return OrderStatus.REACHED_STORE;
-  if (legacy.includes("going") || legacy.includes("shop")) return OrderStatus.HEADING_TO_STORE;
-  if (legacy.includes("rider") && legacy.includes("accept")) return OrderStatus.RIDER_ACCEPTED;
-  if (legacy.includes("rider") && legacy.includes("assign")) return OrderStatus.RIDER_ASSIGNED;
-  if (legacy.includes("ready")) return OrderStatus.READY_FOR_PICKUP;
-  if (legacy.includes("reject")) return OrderStatus.VENDOR_REJECTED;
-  if (legacy.includes("vendor") && legacy.includes("accept")) return OrderStatus.VENDOR_ACCEPTED;
-  if (legacy.includes("prepar") || legacy.includes("pack")) return OrderStatus.PACKING;
-  if (legacy.includes("confirm") || legacy.includes("accept")) {
-    return OrderStatus.VENDOR_ACCEPTED;
+  if (legacy.includes("way") || legacy.includes("out for")) {
+    return OrderStatus.OUT_FOR_DELIVERY;
   }
-  if (legacy.includes("pending") || legacy.includes("waiting")) return OrderStatus.PENDING;
-  return OrderStatus.PENDING;
+  if (legacy.includes("picked")) return OrderStatus.OUT_FOR_DELIVERY;
+  if (legacy.includes("rider") || legacy.includes("assign") || legacy.includes("delivery partner")) {
+    return OrderStatus.DELIVERY_ASSIGNED;
+  }
+  if (legacy.includes("reject")) return OrderStatus.CANCELLED_BY_VENDOR;
+  if (legacy.includes("prepar") || legacy.includes("pack") || legacy.includes("confirm") || legacy.includes("accept")) {
+    return OrderStatus.ORDER_PLACED;
+  }
+  if (legacy.includes("pending") || legacy.includes("waiting") || legacy.includes("placed")) {
+    return OrderStatus.ORDER_PLACED;
+  }
+  return OrderStatus.ORDER_PLACED;
 }
 
 export function cancellationStatusFromMeta(data: Record<string, unknown>): string {
   const modern = str(data.status);
-  if (isCancellationStatus(modern)) return modern;
+  if (modern) return normalizeStatus(modern);
   const by = str(data.cancelledBy).toLowerCase();
   if (by === "customer") return OrderStatus.CANCELLED_BY_CUSTOMER;
   if (by === "vendor") return OrderStatus.CANCELLED_BY_VENDOR;
@@ -108,72 +126,61 @@ export function cancellationStatusFromMeta(data: Record<string, unknown>): strin
 }
 
 export function isCancellationStatus(status: string): boolean {
+  const s = normalizeStatus(status);
   return (
-    status === OrderStatus.CANCELLED ||
-    status === OrderStatus.CANCELLED_BY_CUSTOMER ||
-    status === OrderStatus.CANCELLED_BY_VENDOR ||
-    status === OrderStatus.CANCELLED_BY_RIDER ||
-    status === OrderStatus.VENDOR_REJECTED
+    s === OrderStatus.CANCELLED ||
+    s === OrderStatus.CANCELLED_BY_CUSTOMER ||
+    s === OrderStatus.CANCELLED_BY_VENDOR ||
+    s === OrderStatus.CANCELLED_BY_RIDER
   );
 }
 
 export function isBeforePickup(status: string): boolean {
-  return (
-    status !== OrderStatus.PICKED_UP &&
-    status !== OrderStatus.OUT_FOR_DELIVERY &&
-    status !== OrderStatus.DELIVERED &&
-    !isCancellationStatus(status)
-  );
+  const s = normalizeStatus(status);
+  return s === OrderStatus.ORDER_PLACED || s === OrderStatus.DELIVERY_ASSIGNED;
 }
 
-function isKnownStatus(s: string): boolean {
-  return Object.values(OrderStatus).includes(s as OrderStatusId);
+export function isActiveStatus(status: string): boolean {
+  return normalizeStatus(status) !== OrderStatus.DELIVERED && !isCancellationStatus(status);
+}
+
+export function isPendingVendorAction(status: string): boolean {
+  return normalizeStatus(status) === OrderStatus.ORDER_PLACED;
+}
+
+export function isVendorRejected(status: string): boolean {
+  return normalizeStatus(status) === OrderStatus.CANCELLED_BY_VENDOR;
+}
+
+/** @deprecated Use [isPendingVendorAction] — vendor assigns rider from order_placed. */
+export function isReadyForDispatch(status: string): boolean {
+  return normalizeStatus(status) === OrderStatus.ORDER_PLACED;
+}
+
+export function needsRiderAcceptance(status: string): boolean {
+  return normalizeStatus(status) === OrderStatus.DELIVERY_ASSIGNED;
+}
+
+export function isInTransit(status: string): boolean {
+  return normalizeStatus(status) === OrderStatus.OUT_FOR_DELIVERY;
+}
+
+export function isPickupPhase(status: string): boolean {
+  return false;
+}
+
+export function isRiderAccepted(status: string): boolean {
+  const s = normalizeStatus(status);
+  return s === OrderStatus.DELIVERY_ASSIGNED || s === OrderStatus.OUT_FOR_DELIVERY;
+}
+
+export function isLiveTracking(status: string): boolean {
+  return normalizeStatus(status) === OrderStatus.OUT_FOR_DELIVERY;
 }
 
 function str(v: unknown): string {
   if (v == null) return "";
   return String(v).trim();
-}
-
-export function isActiveStatus(status: string): boolean {
-  return status !== OrderStatus.DELIVERED && !isCancellationStatus(status);
-}
-
-export function isPendingVendorAction(status: string): boolean {
-  return status === OrderStatus.PENDING;
-}
-
-export function isVendorRejected(status: string): boolean {
-  return status === OrderStatus.VENDOR_REJECTED;
-}
-
-export function isReadyForDispatch(status: string): boolean {
-  return status === OrderStatus.READY_FOR_PICKUP;
-}
-
-export function needsRiderAcceptance(status: string): boolean {
-  return status === OrderStatus.RIDER_ASSIGNED;
-}
-
-export function isInTransit(status: string): boolean {
-  return (
-    status === OrderStatus.REACHED_STORE ||
-    status === OrderStatus.HEADING_TO_STORE ||
-    status === OrderStatus.PICKED_UP ||
-    status === OrderStatus.OUT_FOR_DELIVERY
-  );
-}
-
-export function isPickupPhase(status: string): boolean {
-  return (
-    status === OrderStatus.RIDER_ACCEPTED ||
-    status === OrderStatus.REACHED_STORE ||
-    status === OrderStatus.HEADING_TO_STORE
-  );
-}
-
-export function isRiderAccepted(status: string): boolean {
-  return status === OrderStatus.RIDER_ACCEPTED;
 }
 
 /** Fields to mirror into vendor_orders on every order update. */

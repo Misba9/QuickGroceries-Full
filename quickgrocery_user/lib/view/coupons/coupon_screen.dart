@@ -7,6 +7,7 @@ import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
 import 'package:quickgrocery/view/cart/data/coupon_service.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.dart';
+import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 
 class CouponScreen extends ConsumerStatefulWidget {
@@ -43,9 +44,7 @@ class _CouponScreenState extends ConsumerState<CouponScreen> {
     if (!mounted) return;
     setState(() => _applying = false);
     if (err != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(err), backgroundColor: Colors.red.shade700),
-      );
+      showTopErrorToast(context, err);
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
@@ -312,9 +311,7 @@ class _CouponTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      coupon.description.isEmpty
-                          ? coupon.displayDiscount
-                          : coupon.description,
+                      coupon.displaySubtitle,
                       style: TextStyle(
                         color: Colors.grey.shade700,
                         fontSize: 12,

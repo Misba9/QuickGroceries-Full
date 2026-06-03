@@ -5,6 +5,7 @@ import 'package:quickgrocery_vendor/models/vendor_model.dart';
 import 'package:quickgrocery_vendor/services/preference_service.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
 import 'package:quickgrocery_vendor/utils/app_spacing.dart';
+import 'package:quickgrocery_vendor/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery_vendor/view/main_navigation_screen.dart';
 
 class ForcePasswordChangeScreen extends StatefulWidget {
@@ -65,8 +66,9 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Change Password')),
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: KeyboardSafeBody(
           padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,

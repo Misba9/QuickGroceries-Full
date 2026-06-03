@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:quick_grocery_delivery/features/orders/screens/pickup_process_screen.dart';
+import 'package:quick_grocery_delivery/features/orders/screens/delivery_process_screen.dart';
 import 'package:quick_grocery_delivery/features/orders/widgets/confirm_delivery_dialog.dart';
 import 'package:quick_grocery_delivery/services/delivery_ops_api.dart';
 import 'package:quick_grocery_delivery/services/delivery_trip_tracker.dart';
@@ -412,8 +412,8 @@ class OrderService extends ChangeNotifier {
     await FirebaseFirestore.instance.collection('orders').doc(orderId).update(patch);
 
     return source.copyWith(
-      modernStatus: OrderLifecycle.riderAccepted,
-      orderStatus: OrderLifecycle.legacyLabel(OrderLifecycle.riderAccepted),
+      modernStatus: OrderLifecycle.deliveryAssigned,
+      orderStatus: OrderLifecycle.legacyLabel(OrderLifecycle.deliveryAssigned),
       vendorName: (patch['vendorName'] ?? source.vendorName).toString(),
       storeName: (patch['storeName'] ?? source.storeName).toString(),
       vendorPhone: (patch['vendorPhone'] ?? source.vendorPhone).toString(),
@@ -519,7 +519,7 @@ class OrderService extends ChangeNotifier {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => PickupProcessScreen(order: accepted),
+                    builder: (_) => DeliveryProcessScreen(order: accepted),
                   ),
                 );
               }
@@ -904,8 +904,9 @@ class OrderService extends ChangeNotifier {
 
   Future<Map<String, dynamic>> _buildRiderAcceptancePatch(OrderModel order) async {
     final patch = <String, dynamic>{
-      'order_status': OrderLifecycle.legacyLabel(OrderLifecycle.riderAccepted),
-      'status': OrderLifecycle.riderAccepted,
+      'order_status': OrderLifecycle.legacyLabel(OrderLifecycle.deliveryAssigned),
+      'status': OrderLifecycle.deliveryAssigned,
+      'riderAcceptedAt': FieldValue.serverTimestamp(),
       'acceptedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };

@@ -1,3 +1,4 @@
+import 'package:quickgrocery/core/order/order_line_pricing.dart';
 import 'package:quickgrocery/models/order_model.dart';
 
 /// Compact qty line for order UI: `Qty: 1 | 500 gm`
@@ -9,6 +10,13 @@ String orderLineQtyDetail(ProductItem p) {
     return 'Qty: ${p.itemCount} | pcs';
   }
   return 'Qty: ${p.itemCount} | $size';
+}
+
+/// `1 × ₹169 = ₹169` using snapshot paid prices.
+String orderLinePaidQtySummary(ProductItem p) {
+  final unit = formatOrderMoney(p.unitPricePaid);
+  final line = formatOrderMoney(p.lineTotal);
+  return '${p.itemCount} × ₹$unit = ₹$line';
 }
 
 String orderLinePackSize(ProductItem p) {

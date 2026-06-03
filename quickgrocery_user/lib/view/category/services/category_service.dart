@@ -6,9 +6,20 @@ import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/home/screens/addon_screen.dart';
 
+/// Product list fetch lifecycle for category / subcategory screens.
+enum CategoryProductsState {
+  idle,
+  loading,
+  ready,
+  error,
+}
+
 class CategoryService extends ChangeNotifier {
   String _selectedCategory = '';
   String get selectedCategory => _selectedCategory;
+
+  String _mainCategory = '';
+  String get mainCategory => _mainCategory;
 
   List<ProductModel> _products = [];
   List<ProductModel> selectedProduct = [];
@@ -18,23 +29,37 @@ class CategoryService extends ChangeNotifier {
   String _searchQuery = '';
   List<ProductModel> allProducts = [];
 
+  CategoryProductsState _productsState = CategoryProductsState.idle;
+  CategoryProductsState get productsState => _productsState;
+
+  bool get isProductsLoading =>
+      _productsState == CategoryProductsState.loading;
+
+  String? _productsError;
+  String? get productsError => _productsError;
+
+  /// Bumped on every category/subcategory navigation — use as [ValueKey] for transitions.
+  int _loadGeneration = 0;
+  int get loadGeneration => _loadGeneration;
+
   /// Lets newer cart plumbing rebuild legacy listeners without exposing
   /// `notifyListeners()` publicly across the whole codebase.
   void notifyCartListeners() => notifyListeners();
 
   // ─────────────────────────────
-  // 🔹 When a main category changes
+  // 🔹 When a subcategory changes (sidebar tap)
   // ─────────────────────────────
   void onCategoryChanged(String category) {
+    if (category.isEmpty) return;
+    final generation = ++_loadGeneration;
     _selectedCategory = category;
+    _productsState = CategoryProductsState.loading;
+    _productsError = null;
+    _products = [];
+    filteredProducts = [];
+    _searchQuery = '';
     notifyListeners();
-
-    _products.clear();
-    filteredProducts.clear();
-    getProducts();
-    // notifyListeners();
-
-    // getSubCategories(category);
+    _fetchProductsForSubcategory(generation);
   }
 
   // ─────────────────────────────
@@ -62,9 +87,12 @@ class CategoryService extends ChangeNotifier {
       _searchQuery.isEmpty ? _products : filteredProducts;
 
   void filterProducts(String query) {
+    if (_productsState == CategoryProductsState.loading) {
+      return;
+    }
     _searchQuery = query;
     if (query.isEmpty) {
-      filteredProducts = _products;
+      filteredProducts = List<ProductModel>.from(_products);
     } else {
       filteredProducts = _products
           .where(
@@ -76,18 +104,30 @@ class CategoryService extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearProductSearch() {
+    _searchQuery = '';
+    if (_products.isNotEmpty) {
+      filteredProducts = List<ProductModel>.from(_products);
+      notifyListeners();
+    }
+  }
+
   // ─────────────────────────────
   // 🔹 Fetch subcategories for a main category
   // ─────────────────────────────
   Future<void> getSubCategories(String mainCategory) async {
-    try {
-      // Clear old data
-      subCategories.clear();
-      _products.clear();
-      filteredProducts.clear();
-      _selectedCategory = '';
+    final generation = ++_loadGeneration;
+    _mainCategory = mainCategory;
+    _productsState = CategoryProductsState.loading;
+    _productsError = null;
+    subCategories = [];
+    _selectedCategory = '';
+    _products = [];
+    filteredProducts = [];
+    _searchQuery = '';
+    notifyListeners();
 
-      // Get subcategories - try with orderBy first, fallback without if index missing
+    try {
       QuerySnapshot snapshot;
       try {
         snapshot = await FirebaseFirestore.instance
@@ -96,13 +136,14 @@ class CategoryService extends ChangeNotifier {
             .orderBy('order')
             .get();
       } catch (e) {
-        // If orderBy fails (missing index), try without it
         log("OrderBy failed, trying without order: $e");
         snapshot = await FirebaseFirestore.instance
             .collection('subcategories')
             .where('main_category', isEqualTo: mainCategory)
             .get();
       }
+
+      if (generation != _loadGeneration) return;
 
       subCategories = snapshot.docs
           .map(
@@ -112,63 +153,20 @@ class CategoryService extends ChangeNotifier {
 
       log("Found ${subCategories.length} subcategories for $mainCategory");
 
-      // ✅ If subcategories exist → auto select the first one
       if (subCategories.isNotEmpty) {
         _selectedCategory = subCategories.first.name;
         log("Auto-selected subcategory: $_selectedCategory");
-        await getProducts();
+        await _fetchProductsForSubcategory(generation);
       } else {
-        // ❗ No subcategories → fetch products directly under main category
         log("No subcategories found, fetching products by main_category");
-        QuerySnapshot productSnapshot;
-
-        try {
-          // Try querying by main_category first
-          productSnapshot = await FirebaseFirestore.instance
-              .collection('products')
-              .where('main_category', isEqualTo: mainCategory)
-              .where('is_active', isEqualTo: true)
-              .get();
-        } catch (e) {
-          // If main_category field doesn't exist, try category field as fallback
-          log("Query by main_category failed, trying category field: $e");
-          try {
-            productSnapshot = await FirebaseFirestore.instance
-                .collection('products')
-                .where('category', isEqualTo: mainCategory)
-                .where('is_active', isEqualTo: true)
-                .get();
-          } catch (e2) {
-            log("Query by category also failed: $e2");
-            // If both fail, try without is_active filter
-            productSnapshot = await FirebaseFirestore.instance
-                .collection('products')
-                .where('category', isEqualTo: mainCategory)
-                .get();
-          }
-        }
-
-        _products = productSnapshot.docs
-            .map(
-              (doc) => ProductModel.fromFirestore(
-                doc.data() as Map<String, dynamic>,
-                doc.id,
-              ),
-            )
-            .where((p) => p.isAvailable)
-            .toList();
-
-        filteredProducts = _products;
-        log(
-          "Found ${_products.length} products for main category $mainCategory",
-        );
+        await _fetchProductsForMainCategory(mainCategory, generation);
       }
-
-      notifyListeners();
     } catch (e, stackTrace) {
+      if (generation != _loadGeneration) return;
       log("Error getting subcategories: $e");
       log("Stack trace: $stackTrace");
-      // Ensure UI is updated even on error
+      _productsState = CategoryProductsState.error;
+      _productsError = 'Could not load category';
       notifyListeners();
     }
   }
@@ -317,21 +315,17 @@ class CategoryService extends ChangeNotifier {
     int platformFee = 0,
     int handlingCharge = 0,
   }) {
-    // Calculate item total (before discount)
-    // Use effectivePrice for vegetables (weight-based) or regular price for others
     double itemTotal = selectedProduct.fold(
       0.0,
       (sum, product) => sum + (product.effectivePrice * product.itemCount),
     );
 
-    // Apply discount if any
     double totalAmount = itemTotal;
     if (discountPercentage != null) {
       double discountAmount = totalAmount * (discountPercentage / 100);
       totalAmount -= discountAmount;
     }
 
-    // Free delivery logic - check on item total before discount
     int actualDeliveryCharge = deliveryCharge;
     if (itemTotal >= 99) {
       actualDeliveryCharge = 0;
@@ -345,32 +339,51 @@ class CategoryService extends ChangeNotifier {
   }
 
   // ─────────────────────────────
-  // 🔹 Fetch products of selected subcategory
+  // 🔹 Fetch products of selected subcategory (public alias)
   // ─────────────────────────────
   Future<void> getProducts() async {
     if (_selectedCategory.isEmpty) {
       log("getProducts called but _selectedCategory is empty");
       return;
     }
+    final generation = ++_loadGeneration;
+    _productsState = CategoryProductsState.loading;
+    _products = [];
+    filteredProducts = [];
+    _searchQuery = '';
+    notifyListeners();
+    await _fetchProductsForSubcategory(generation);
+  }
+
+  Future<void> _fetchProductsForSubcategory(int generation) async {
+    final subcategory = _selectedCategory;
+    if (subcategory.isEmpty) {
+      if (generation != _loadGeneration) return;
+      _productsState = CategoryProductsState.ready;
+      notifyListeners();
+      return;
+    }
 
     try {
-      log("Fetching products for subcategory: $_selectedCategory");
+      log("Fetching products for subcategory: $subcategory");
       QuerySnapshot snapshot;
 
       try {
-        // Query by subcategory (camelCase) with is_active filter
         snapshot = await FirebaseFirestore.instance
             .collection('products')
-            .where('subcategory', isEqualTo: _selectedCategory)
+            .where('subcategory', isEqualTo: subcategory)
             .where('is_active', isEqualTo: true)
             .get();
       } catch (e) {
-        // If query with is_active fails, try without filter
         log("Query with is_active failed, trying without filter: $e");
         snapshot = await FirebaseFirestore.instance
             .collection('products')
-            .where('subcategory', isEqualTo: _selectedCategory)
+            .where('subcategory', isEqualTo: subcategory)
             .get();
+      }
+
+      if (generation != _loadGeneration || _selectedCategory != subcategory) {
+        return;
       }
 
       _products = snapshot.docs
@@ -383,14 +396,82 @@ class CategoryService extends ChangeNotifier {
           .where((p) => p.isAvailable)
           .toList();
 
-      filteredProducts = _products;
+      filteredProducts = List<ProductModel>.from(_products);
+      _productsState = CategoryProductsState.ready;
+      _productsError = null;
+      log("Found ${_products.length} products for subcategory $subcategory");
+      notifyListeners();
+    } catch (e, stackTrace) {
+      if (generation != _loadGeneration || _selectedCategory != subcategory) {
+        return;
+      }
+      log("Error getting products: $e");
+      log("Stack trace: $stackTrace");
+      _productsState = CategoryProductsState.error;
+      _productsError = 'Could not load products';
+      notifyListeners();
+    }
+  }
+
+  Future<void> _fetchProductsForMainCategory(
+    String mainCategory,
+    int generation,
+  ) async {
+    try {
+      QuerySnapshot productSnapshot;
+
+      try {
+        productSnapshot = await FirebaseFirestore.instance
+            .collection('products')
+            .where('main_category', isEqualTo: mainCategory)
+            .where('is_active', isEqualTo: true)
+            .get();
+      } catch (e) {
+        log("Query by main_category failed, trying category field: $e");
+        try {
+          productSnapshot = await FirebaseFirestore.instance
+              .collection('products')
+              .where('category', isEqualTo: mainCategory)
+              .where('is_active', isEqualTo: true)
+              .get();
+        } catch (e2) {
+          log("Query by category also failed: $e2");
+          productSnapshot = await FirebaseFirestore.instance
+              .collection('products')
+              .where('category', isEqualTo: mainCategory)
+              .get();
+        }
+      }
+
+      if (generation != _loadGeneration || _mainCategory != mainCategory) {
+        return;
+      }
+
+      _products = productSnapshot.docs
+          .map(
+            (doc) => ProductModel.fromFirestore(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
+          )
+          .where((p) => p.isAvailable)
+          .toList();
+
+      filteredProducts = List<ProductModel>.from(_products);
+      _productsState = CategoryProductsState.ready;
+      _productsError = null;
       log(
-        "Found ${_products.length} products for subcategory $_selectedCategory",
+        "Found ${_products.length} products for main category $mainCategory",
       );
       notifyListeners();
     } catch (e, stackTrace) {
-      log("Error getting products: $e");
+      if (generation != _loadGeneration || _mainCategory != mainCategory) {
+        return;
+      }
+      log("Error fetching main category products: $e");
       log("Stack trace: $stackTrace");
+      _productsState = CategoryProductsState.error;
+      _productsError = 'Could not load products';
       notifyListeners();
     }
   }

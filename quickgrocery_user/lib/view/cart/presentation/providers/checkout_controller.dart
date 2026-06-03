@@ -1,28 +1,15 @@
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/cart_models.dart';
 import 'cart_notifier.dart';
 import 'delivery_slots_provider.dart';
+import 'package:quickgrocery/core/user/checkout_preferences_store.dart';
 
-/// Local-only state for the checkout flow (selected address index, slot,
-/// instructions, payment method, placing-order spinner). Lives only while
-/// the user is on the checkout screen.
-///
-/// **Initialization order**
-///   - Default state is [CheckoutState.initial] (slot = null, COD).
-///   - The first delivery slot is selected lazily via [_seedSlot] which
-///     is invoked **after** the StateNotifier finishes constructing, so
-///     reading [deliverySlotsProvider] cannot trigger an "uninitialized
-///     provider" error.
-///   - Methods are no-ops after [dispose] (StateNotifier handles this
-///     itself by throwing on stale state writes; we add explicit guards
-///     for clarity).
+/// Local checkout state with session persistence for payment, address, instructions.
 class CheckoutController extends StateNotifier<CheckoutState> {
   CheckoutController(this._ref) : super(CheckoutState.initial) {
-    // Defer dependent provider reads until after super() finishes.
-    Future.microtask(_seedSlot);
-    // React to cart changes (e.g. cart cleared / hydrated late) by
-    // resetting transient flags so the UI doesn't get stuck spinning.
+    Future.microtask(_bootstrap);
     _cartListener = _ref.listen<CartState>(cartProvider, (prev, next) {
       if (!mounted) return;
       if (next.isEmpty && state.isPlacingOrder) {
@@ -33,6 +20,22 @@ class CheckoutController extends StateNotifier<CheckoutState> {
 
   final Ref _ref;
   ProviderSubscription<CartState>? _cartListener;
+  bool _hydrated = false;
+
+  Future<void> _bootstrap() async {
+    if (!mounted) return;
+    _seedSlot();
+
+    final saved = await CheckoutPreferencesStore.loadInitial();
+    if (!mounted || saved == null) return;
+
+    state = state.copyWith(
+      paymentMethod: saved.paymentMethod,
+      selectedAddressIndex: saved.selectedAddressIndex,
+      instructions: saved.instructions,
+    );
+    _hydrated = true;
+  }
 
   void _seedSlot() {
     if (!mounted) return;
@@ -42,14 +45,18 @@ class CheckoutController extends StateNotifier<CheckoutState> {
       if (slots.isNotEmpty) {
         state = state.copyWith(slot: slots.first);
       }
-    } catch (_) {
-      // Slot list not available yet — UI will let the user pick manually.
-    }
+    } catch (_) {}
+  }
+
+  void _persist() {
+    if (!_hydrated && state == CheckoutState.initial) return;
+    CheckoutPreferencesStore.persistFromState(state);
   }
 
   void selectAddress(int index) {
     if (!mounted) return;
     state = state.copyWith(selectedAddressIndex: index);
+    _persist();
   }
 
   void selectSlot(DeliverySlot slot) {
@@ -60,11 +67,18 @@ class CheckoutController extends StateNotifier<CheckoutState> {
   void setInstructions(DeliveryInstructions instructions) {
     if (!mounted) return;
     state = state.copyWith(instructions: instructions);
+    _persist();
   }
 
   void selectPaymentMethod(PaymentMethod method) {
     if (!mounted) return;
     state = state.copyWith(paymentMethod: method);
+    _persist();
+  }
+
+  void setDeliveryTip(double amount) {
+    if (!mounted) return;
+    state = state.copyWith(deliveryTipAmount: amount < 0 ? 0 : amount);
   }
 
   void setPlacingOrder(bool placing) {

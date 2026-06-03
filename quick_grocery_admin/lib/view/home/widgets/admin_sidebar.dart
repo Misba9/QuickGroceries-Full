@@ -3,22 +3,25 @@ import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import 'package:quick_grocery_admin/core/layout/admin_routes.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
+import 'package:quick_grocery_admin/core/widgets/admin_list_tile.dart';
 import 'package:quick_grocery_admin/core/widgets/admin_nav_item.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/operations/services/admin_notification_service.dart';
 
-/// Fixed-width scrollable admin sidebar (Flutter Web safe, explicit hit targets).
+/// Scrollable admin sidebar — expanded labels or collapsed icon rail.
 class AdminSidebar extends StatelessWidget {
   const AdminSidebar({
     super.key,
     required this.selectedRoute,
     required this.onSelect,
-    this.width = adminDesktopSidebarWidth,
+    this.width = adminDesktopSidebarExpandedWidth,
+    this.collapsed = false,
   });
 
   final String selectedRoute;
   final ValueChanged<String> onSelect;
   final double width;
+  final bool collapsed;
 
   static final _sections = <_SectionDef>[
     _SectionDef(
@@ -81,7 +84,12 @@ class AdminSidebar extends StatelessWidget {
     _SectionDef(
       icon: 'assets/icons/coupon.svg',
       title: 'Coupon',
-      routes: [AdminRoutes.addCoupon, AdminRoutes.comboOffers],
+      routes: [
+        AdminRoutes.addCoupon,
+        AdminRoutes.comboOffers,
+        AdminRoutes.referEarn,
+        AdminRoutes.deliveryTips,
+      ],
     ),
     _SectionDef(
       icon: 'assets/icons/sms.svg',
@@ -106,48 +114,93 @@ class AdminSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: width,
-      child: ColoredBox(
-        color: Colors.white,
-        child: SafeArea(
-          right: false,
-          child: ListView(
-            padding: const EdgeInsets.all(12),
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(4, 8, 4, 12),
-                child: Text(
-                  'Quick Grocery',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 22,
-                    color: AppColor.primary,
-                    fontWeight: FontWeight.bold,
+        width: width,
+        child: ColoredBox(
+          color: Colors.white,
+          child: SafeArea(
+            right: false,
+            child: ListView(
+              padding: EdgeInsets.all(collapsed ? 8 : 12),
+              children: [
+                _SidebarBrand(collapsed: collapsed),
+                SizedBox(height: collapsed ? 8 : 4),
+                for (final section in _sections)
+                  _SidebarSection(
+                    key: ValueKey('${section.title}-${collapsed ? 'c' : 'e'}'),
+                    def: section,
+                    selectedRoute: selectedRoute,
+                    onSelect: onSelect,
+                    collapsed: collapsed,
                   ),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(4, 0, 4, 8),
-                child: Text(
-                  'MANAGEMENT',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              for (final section in _sections)
-                _SidebarSection(
-                  key: ValueKey(section.title),
-                  def: section,
-                  selectedRoute: selectedRoute,
-                  onSelect: onSelect,
-                ),
-            ],
+              ],
+            ),
           ),
         ),
+      );
+  }
+}
+
+class _SidebarBrand extends StatelessWidget {
+  const _SidebarBrand({required this.collapsed});
+
+  final bool collapsed;
+
+  @override
+  Widget build(BuildContext context) {
+    if (collapsed) {
+      return Tooltip(
+        message: 'Quick Grocery Admin',
+        waitDuration: const Duration(milliseconds: 400),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Center(
+            child: Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColor.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'QG',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColor.primary,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(4, 8, 4, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Quick Grocery',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 22,
+              color: AppColor.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'MANAGEMENT',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -171,11 +224,13 @@ class _SidebarSection extends StatefulWidget {
     required this.def,
     required this.selectedRoute,
     required this.onSelect,
+    required this.collapsed,
   });
 
   final _SectionDef def;
   final String selectedRoute;
   final ValueChanged<String> onSelect;
+  final bool collapsed;
 
   @override
   State<_SidebarSection> createState() => _SidebarSectionState();
@@ -210,6 +265,48 @@ class _SidebarSectionState extends State<_SidebarSection> {
     );
   }
 
+  Future<void> _openCollapsedMenu(BuildContext context) async {
+    final box = context.findRenderObject()! as RenderBox;
+    final offset = box.localToGlobal(Offset.zero);
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        offset.dx + box.size.width + 6,
+        offset.dy,
+        offset.dx + box.size.width + 280,
+        offset.dy + box.size.height,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 8,
+      items: [
+        for (final route in widget.def.routes)
+          PopupMenuItem<String>(
+            value: route,
+            child: Row(
+              children: [
+                if (widget.selectedRoute == route)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: Icon(Icons.check_rounded, size: 18, color: AppColor.primary),
+                  ),
+                Expanded(
+                  child: Text(
+                    route,
+                    style: TextStyle(
+                      fontWeight: widget.selectedRoute == route
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (selected != null) widget.onSelect(selected);
+  }
+
   @override
   Widget build(BuildContext context) {
     final sectionActive = widget.def.routes.contains(widget.selectedRoute);
@@ -226,6 +323,32 @@ class _SidebarSectionState extends State<_SidebarSection> {
         onTap: () => widget.onSelect(route),
         height: 52,
         badgeCount: badge,
+        collapsed: widget.collapsed,
+        tooltip: widget.def.title,
+      );
+    }
+
+    if (widget.collapsed) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Tooltip(
+          message: widget.def.title,
+          waitDuration: const Duration(milliseconds: 400),
+          child: Material(
+            color: sectionActive ? kAdminNavSelectedBg : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => _openCollapsedMenu(context),
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                height: 52,
+                width: double.infinity,
+                child: Center(child: _sectionIcon(active: sectionActive)),
+              ),
+            ),
+          ),
+        ),
       );
     }
 

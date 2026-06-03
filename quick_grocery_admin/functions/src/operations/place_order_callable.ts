@@ -1,6 +1,13 @@
 import * as admin from "firebase-admin";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { callableBaseOptions } from "../https_callable_options";
+import {
+  getDeliveryTipSettings,
+} from "../delivery_tips/delivery_tips_settings";
+import {
+  mergeTipIntoBill,
+  validateTipAmount,
+} from "../delivery_tips/delivery_tips_engine";
 
 function num(v: unknown, fallback = 0): number {
   const n = Number(v);
@@ -133,6 +140,14 @@ export const placeOrderCallable = onCall(
 
     const db = admin.firestore();
     const orderRef = db.collection("orders").doc();
+    const tipAmount = Math.max(0, Math.round(num(req.data?.tipAmount)));
+    const tipSettings = await getDeliveryTipSettings();
+    if (tipAmount > 0) {
+      validateTipAmount(tipAmount, tipSettings);
+    }
+    const billRaw = (req.data?.bill ?? {}) as Record<string, unknown>;
+    const billWithTip =
+      tipAmount > 0 ? mergeTipIntoBill(billRaw, tipAmount) : billRaw;
 
     try {
       await db.runTransaction(async (tx) => {
@@ -291,14 +306,43 @@ export const placeOrderCallable = onCall(
 
           tx.update(snap.ref, patch);
 
-          const price = num(data.price);
-          const slashed = num(data.discountPrice ?? data.slashedPrice);
+          const catalogMrp = num(data.price);
+          const catalogSelling =
+            num(data.discountPrice ?? data.slashedPrice) || catalogMrp;
           const isVeg =
             str(data.category).toLowerCase().includes("vegetable") ||
             str(data.subcategory).toLowerCase().includes("vegetable");
           const grams = line.selectedWeightInGrams ?? 1000;
-          const unitPrice = isVeg ? (price * grams) / 1000 : price;
-          const unitSlashed = isVeg ? (slashed * grams) / 1000 : slashed;
+
+          let unitPrice = num(
+            raw.sellingPrice ??
+              raw.pricePaid ??
+              raw.discountedPrice ??
+              raw.unitPrice,
+          );
+          let unitMrp = num(raw.mrp ?? raw.originalPrice ?? raw.slashedPrice);
+
+          if (unitPrice <= 0) {
+            unitPrice = isVeg
+              ? (catalogSelling * grams) / 1000
+              : catalogSelling;
+            if (unitPrice <= 0) {
+              unitPrice = isVeg ? (catalogMrp * grams) / 1000 : catalogMrp;
+            }
+          }
+          if (unitMrp <= unitPrice) {
+            const fallbackMrp = isVeg
+              ? (catalogMrp * grams) / 1000
+              : catalogMrp;
+            unitMrp = fallbackMrp > unitPrice ? fallbackMrp : unitPrice;
+          }
+
+          const legacySlashed = num(raw.slashedPrice);
+          const legacyPrice = num(raw.price);
+          if (unitPrice <= 0 && legacySlashed > 0 && legacyPrice > legacySlashed) {
+            unitPrice = legacySlashed;
+            unitMrp = legacyPrice;
+          }
 
           const rawName = str(raw.name ?? raw.productName) || str(data.name);
           const rawWeight = num(raw.weight);
@@ -326,7 +370,10 @@ export const placeOrderCallable = onCall(
             }
           }
           const itemCount = line.itemCount;
-          const totalPrice = unitPrice * itemCount;
+          const lineTotalExplicit = num(raw.lineTotal ?? raw.totalPrice);
+          const totalPrice =
+            lineTotalExplicit > 0 ? lineTotalExplicit : unitPrice * itemCount;
+          const discountAmount = Math.max(0, unitMrp - unitPrice);
 
           orderProducts.push({
             productId: str(raw.productId) || snap.id,
@@ -347,17 +394,24 @@ export const placeOrderCallable = onCall(
               1000,
             ),
             unitType: str(raw.unitType || data.unit),
+            pricePaid: unitPrice,
+            sellingPrice: unitPrice,
+            discountedPrice: unitPrice,
+            mrp: unitMrp,
+            originalPrice: unitMrp,
+            discountAmount,
             price: unitPrice,
             unitPrice,
+            lineTotal: totalPrice,
             totalPrice,
-            slashedPrice: unitSlashed,
+            slashedPrice: unitMrp,
             vendor_id: vendorId,
             vendorId,
           });
         }
 
         const address = (req.data?.address ?? {}) as Record<string, unknown>;
-        const bill = (req.data?.bill ?? {}) as Record<string, unknown>;
+        const bill = billWithTip;
         const paymentMethod = str(req.data?.paymentMethod) || "cod";
         const paymentRef = str(req.data?.paymentRef);
         const isPaid = paymentMethod !== "cod" && paymentRef.length > 0;
@@ -378,7 +432,7 @@ export const placeOrderCallable = onCall(
           customer_name: str(address.name),
           phone: str(address.mobile),
           isPaid,
-          order_status: "Pending", // legacy display; canonical id is status: "pending"
+          order_status: "Order Placed",
           deliveryBoyId: "",
           isDelivered: false,
           isCancelled: false,
@@ -403,7 +457,7 @@ export const placeOrderCallable = onCall(
 
         tx.set(orderRef, {
           ...legacyOrder,
-          status: "pending",
+          status: "order_placed",
           vendorIds: orderVendorIds,
           ...(orderVendorIds.length === 1
             ? { vendorId: orderVendorIds[0], vendor_id: orderVendorIds[0] }
@@ -416,6 +470,13 @@ export const placeOrderCallable = onCall(
           ...(slotRaw ? { delivery_slot: slotRaw, deliverySlot: slotRaw } : {}),
           bill,
           ...(req.data?.coupon ? { coupon: req.data.coupon } : {}),
+          ...(tipAmount > 0
+            ? {
+                tipAmount,
+                tipStatus: "pending",
+                tipAddedAt: admin.firestore.FieldValue.serverTimestamp(),
+              }
+            : {}),
           address_snapshot: address,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });

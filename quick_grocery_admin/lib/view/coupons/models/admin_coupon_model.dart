@@ -5,6 +5,7 @@ class AdminCouponModel {
   AdminCouponModel({
     required this.id,
     required this.code,
+    this.title = '',
     required this.couponType,
     required this.discountPercent,
     required this.flatAmount,
@@ -32,6 +33,7 @@ class AdminCouponModel {
 
   final String id;
   final String code;
+  final String title;
   final CouponType couponType;
   final int discountPercent;
   final int flatAmount;
@@ -92,6 +94,7 @@ class AdminCouponModel {
     return AdminCouponModel(
       id: id,
       code: (m['code'] ?? '').toString().toUpperCase(),
+      title: (m['title'] ?? '').toString(),
       couponType: type,
       discountPercent: (m['discount'] as num?)?.toInt() ?? 0,
       flatAmount: (m['flat_amount'] as num?)?.toInt() ?? 0,
@@ -129,6 +132,7 @@ class AdminCouponModel {
   Map<String, dynamic> toFirestore() {
     return {
       'code': code.trim().toUpperCase(),
+      if (title.trim().isNotEmpty) 'title': title.trim(),
       'coupon_type': couponType.id,
       'discount': discountPercent,
       'flat_amount': flatAmount,

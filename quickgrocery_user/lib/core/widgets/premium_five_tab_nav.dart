@@ -2,7 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
-import 'package:quickgrocery/core/widgets/floating_cart_pill.dart';
+import 'package:quickgrocery/core/widgets/global_floating_cart_widget.dart';
 
 import '../design/app_tokens.dart';
 
@@ -15,10 +15,15 @@ class PremiumFiveTabNav extends StatelessWidget {
     this.offersBadgeCount,
   });
 
-  /// [Positioned.bottom] for overlays in the main tab [Scaffold.body] stack.
-  /// Uses [FloatingCartPill.kGapAboveTabBar] (compact band above this bar).
+  /// Total height of the bottom nav including safe-area inset.
+  static double tabBarHeight(BuildContext context) {
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    return safeBottom + 70;
+  }
+
+  /// [Positioned.bottom] for the floating cart above this bar (+ 12px gap).
   static double floatingOverlayBodyBottom(BuildContext context) =>
-      FloatingCartPill.kGapAboveTabBar;
+      tabBarHeight(context) + GlobalFloatingCartWidget.gapAboveTabBar;
 
   /// Tab index in [HomeProvider.pages]: 0–4 (Offers is **2**).
   final int currentIndex;

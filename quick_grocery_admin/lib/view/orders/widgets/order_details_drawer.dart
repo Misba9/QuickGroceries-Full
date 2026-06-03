@@ -11,6 +11,7 @@ import 'package:quick_grocery_admin/view/orders/utils/order_bill_totals.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_contact_actions.dart';
 import 'package:quick_grocery_admin/view/orders/utils/receipt_product_format.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/order_status_badge.dart';
+import 'package:quick_grocery_admin/core/widgets/admin_text_selection.dart';
 
 /// Opens order details as end drawer (desktop) or full-width sheet (mobile).
 Future<void> showOrderDetailsDrawer(
@@ -81,7 +82,7 @@ class _OrderDetailsDrawerBodyState extends State<OrderDetailsDrawerBody> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AdminSelectableText(
                       'Order #${o.id}',
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
@@ -116,13 +117,13 @@ class _OrderDetailsDrawerBodyState extends State<OrderDetailsDrawerBody> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AdminSelectableText(
                       o.customerName,
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
-                    Text(o.phone),
+                    AdminSelectableText(o.phone),
                     if (svc.customer != null)
-                      Text(
+                      AdminSelectableText(
                         svc.customer!.email,
                         style: TextStyle(color: Colors.grey.shade600),
                       ),
@@ -131,7 +132,7 @@ class _OrderDetailsDrawerBodyState extends State<OrderDetailsDrawerBody> {
               ),
               _section(
                 'Delivery address',
-                child: Text(o.address),
+                child: AdminSelectableText(o.address),
               ),
               if (o.deliverySlot != null)
                 _section(
@@ -237,7 +238,7 @@ class _OrderDetailsDrawerBodyState extends State<OrderDetailsDrawerBody> {
               if (svc.vendor != null)
                 _section(
                   'Shop',
-                  child: Text(svc.vendor!.shopName),
+                  child: AdminSelectableText(svc.vendor!.shopName),
                 ),
               const SizedBox(height: 8),
               Wrap(
@@ -321,7 +322,10 @@ class _OrderDetailsDrawerBodyState extends State<OrderDetailsDrawerBody> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(k, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-          Text(v, style: const TextStyle(fontWeight: FontWeight.w700)),
+          AdminSelectableText(
+            v,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
         ],
       );
 }

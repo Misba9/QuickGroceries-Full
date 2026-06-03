@@ -2,61 +2,64 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart' as legacy;
 
+import 'package:quickgrocery/core/navigation/app_route_names.dart';
+import 'package:quickgrocery/core/navigation/app_route_observer.dart';
+import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
+import 'package:quickgrocery/core/widgets/global_floating_cart_widget.dart';
+import 'package:quickgrocery/core/widgets/premium_five_tab_nav.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 
-/// Routes where the floating cart bar must not appear.
-const Set<String> kGlobalCartHiddenRouteNames = {
-  '/cart',
-  '/checkout',
-  '/login',
-  '/otp',
-  '/splash',
-  '/checkout-success',
-};
-
-/// Whether the global cart pill should render for the current navigation state.
+/// Whether the global floating cart bar should render.
 class GlobalCartVisibility {
   GlobalCartVisibility._();
 
-  static bool shouldShow(BuildContext context) {
-    if (FirebaseAuth.instance.currentUser == null) return false;
+  /// Height of a typical screen bottom bar (action + padding), above safe area.
+  static const double screenBottomChrome = 88;
 
-    final nav = rootNavigatorKey.currentState;
-    if (nav == null) return false;
-
-    final route = nav.overlay?.context != null
-        ? ModalRoute.of(rootNavigatorKey.currentContext!)
-        : null;
-    final routeName = route?.settings.name;
-    if (routeName != null && kGlobalCartHiddenRouteNames.contains(routeName)) {
-      return false;
-    }
-
-    // Root [LandingScreen]: hide on Profile tab (index 4).
-    final onRoot = !nav.canPop();
-    if (onRoot) {
-      try {
-        final home = legacy.Provider.of<HomeProvider>(context, listen: false);
-        if (home.selectedIndex == 4) return false;
-      } catch (_) {
-        // HomeProvider not in tree (e.g. during tests).
-      }
-      return true;
-    }
-
-    // Pushed shopping routes: show unless explicitly excluded by name.
-    return routeName == null ||
-        !kGlobalCartHiddenRouteNames.contains(routeName);
+  static bool _isHiddenRoute(String? routeName) {
+    if (routeName == null) return false;
+    return AppRoutes.hiddenFromFloatingCart.contains(routeName);
   }
 
-  /// Bottom offset for the pill above safe area / tab bar.
-  static double bottomOffset(BuildContext context) {
+  static bool shouldShow(BuildContext context) {
+    if (FirebaseAuth.instance.currentUser == null) return false;
+    if (FloatingCartSuppression.isActive) return false;
+
+    final routeName = appRouteObserver.topRouteName;
+    if (_isHiddenRoute(routeName)) return false;
+
     final nav = rootNavigatorKey.currentState;
     final onRoot = nav != null && !nav.canPop();
     if (onRoot) {
-      return 12; // [PremiumFiveTabNav.floatingOverlayBodyBottom] band
+      try {
+        final tab =
+            legacy.Provider.of<HomeProvider>(context, listen: false).selectedIndex;
+        if (tab == AppRoutes.profileTabIndex) return false;
+      } catch (_) {
+        /* HomeProvider not in tree */
+      }
     }
-    return 12 + MediaQuery.paddingOf(context).bottom;
+
+    return true;
+  }
+
+  /// Bottom offset placing the pill above tab bar, bottom chrome, or safe area.
+  static double bottomOffset(BuildContext context) {
+    final routeName = appRouteObserver.topRouteName;
+    final nav = rootNavigatorKey.currentState;
+    final onRoot = nav != null && !nav.canPop();
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+
+    if (onRoot) {
+      return PremiumFiveTabNav.floatingOverlayBodyBottom(context);
+    }
+
+    if (routeName != null &&
+        AppRoutes.routesWithBottomChrome.contains(routeName)) {
+      return screenBottomChrome + safeBottom + GlobalFloatingCartWidget.gapAboveTabBar;
+    }
+
+    return GlobalFloatingCartWidget.gapAboveTabBar + safeBottom;
   }
 }

@@ -5,7 +5,9 @@ import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/features/orders/screens/order_status_screen.dart';
 import 'package:quick_grocery_delivery/features/orders/services/order_service.dart';
 import 'package:quick_grocery_delivery/features/orders/widgets/delivery_order_detail_panel.dart';
+import 'package:quick_grocery_delivery/features/orders/widgets/order_earnings_card.dart';
 import 'package:quick_grocery_delivery/features/orders/widgets/order_live_builder.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class OrderViewScreen extends StatelessWidget {
   const OrderViewScreen({super.key, required this.isCompleted});
@@ -102,6 +104,8 @@ class OrderViewScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 15),
+                OrderEarningsCard(order: selectedOrder),
+                const SizedBox(height: 15),
                 const Text('Product Details'),
                 const SizedBox(height: 10),
                 Container(
@@ -150,8 +154,17 @@ class OrderViewScreen extends StatelessWidget {
                                       const SizedBox(height: 4),
                                       Text("Qty: ${product.itemCount}"),
                                       Text(
-                                        "Price: ₹${product.price * product.itemCount}",
+                                        "${product.itemCount} × ₹${product.unitPricePaid.toStringAsFixed(0)} = ₹${product.lineTotal.toStringAsFixed(0)}",
                                       ),
+                                      if (product.hasPurchasedDiscount)
+                                        Text(
+                                          "MRP ₹${product.unitMrp.toStringAsFixed(0)}",
+                                          style: TextStyle(
+                                            decoration: TextDecoration.lineThrough,
+                                            color: Colors.grey.shade600,
+                                            fontSize: 12,
+                                          ),
+                                        ),
                                     ],
                                   ),
                                 ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/category_model.dart';
+import 'package:quickgrocery/view/category/presentation/utils/category_grid_layout.dart';
 import 'package:quickgrocery/view/category/screens/category_screen.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
@@ -14,15 +15,11 @@ import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 ///   │ │                    │ │     to fit whatever vertical space
 ///   │ └────────────────────┘ │     the parent grants.
 ///   │ ── 8 px gap ──         │
-///   │ ┌────────────────────┐ │  ← SizedBox(height: 32) reserves
-///   │ │  Label · 2 lines   │ │     space for up to 2 lines of text
-///   │ └────────────────────┘ │     so the image never has to.
+///   │  Label · up to 2 lines │  ← flexible text block (ellipsis)
 ///   └────────────────────────┘
 ///
-/// The companion grid in `home_screen.dart` uses [LayoutBuilder] to
-/// compute a `childAspectRatio` that exactly matches this layout, so
-/// the tile renders pixel-perfect across small phones, large phones,
-/// and tablets without manual breakpoints.
+/// Grids should use [CategoryGridLayout.childAspectRatio] so cell height
+/// matches this column layout (including accessibility text scaling).
 class CategoryTile extends StatelessWidget {
   const CategoryTile({super.key, required this.category});
 
@@ -68,20 +65,19 @@ class CategoryTile extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 32,
+            const SizedBox(height: CategoryGridLayout.homeImageGap),
+            Flexible(
+              fit: FlexFit.loose,
               child: Text(
                 category.name,
-                maxLines: 2,
+                maxLines: CategoryGridLayout.nameMaxLines,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                softWrap: true,
                 style: GoogleFonts.poppins(
-                  fontSize: 11.5,
+                  fontSize: CategoryGridLayout.nameFontSize,
                   fontWeight: FontWeight.w600,
                   color: AppSurface.textPrimary,
-                  height: 1.15,
+                  height: CategoryGridLayout.nameLineHeight,
                 ),
               ),
             ),

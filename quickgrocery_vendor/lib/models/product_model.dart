@@ -26,6 +26,8 @@ class ProductModel {
   final List<dynamic> videos;
   final String specialCat;
   final bool isDeleted;
+  final bool isAvailable;
+  final String? stockStatus;
 
   ProductModel({
     required this.id,
@@ -52,7 +54,12 @@ class ProductModel {
     required this.videos,
     this.specialCat = '',
     this.isDeleted = false,
+    this.isAvailable = true,
+    this.stockStatus,
   });
+
+  bool get isOutOfStock =>
+      !isAvailable || stockStatus == 'out_of_stock' || stockInt <= 0;
 
   bool get isActive => settings.isActive;
   bool get isFlashSale => settings.isFlashSale;
@@ -131,6 +138,10 @@ class ProductModel {
       videos: data['videos'] ?? [],
       specialCat: data['special_cat']?.toString() ?? '',
       isDeleted: data['isDeleted'] == true || data['is_deleted'] == true,
+      isAvailable: data['isAvailable'] is bool
+          ? data['isAvailable'] as bool
+          : (int.tryParse(data['stock']?.toString() ?? '') ?? 0) > 0,
+      stockStatus: data['stockStatus']?.toString(),
     );
   }
 
@@ -236,6 +247,8 @@ class ProductModel {
       videos: videos,
       specialCat: specialCat,
       isDeleted: isDeleted,
+      isAvailable: isAvailable,
+      stockStatus: stockStatus,
     );
   }
 }

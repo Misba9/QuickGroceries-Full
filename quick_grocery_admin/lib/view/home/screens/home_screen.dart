@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:quick_grocery_admin/core/layout/admin_page_wrapper.dart';
 import 'package:quick_grocery_admin/core/layout/admin_routes.dart';
+import 'package:quick_grocery_admin/core/layout/admin_sidebar_prefs.dart';
 
 export 'package:quick_grocery_admin/core/layout/admin_routes.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
@@ -11,6 +11,8 @@ import 'package:quick_grocery_admin/view/add_banner.dart';
 import 'package:quick_grocery_admin/view/app_content_management/screens/app_content_management_screen.dart';
 import 'package:quick_grocery_admin/view/combo_offers/screens/combo_offers_screen.dart';
 import 'package:quick_grocery_admin/view/coupons/screens/coupon_management_screen.dart';
+import 'package:quick_grocery_admin/view/refer_earn/screens/refer_earn_management_screen.dart';
+import 'package:quick_grocery_admin/view/delivery_tips/screens/delivery_tips_management_screen.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/screens/add_delivery_boy.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/screens/delivery_boy_list.dart';
 import 'package:quick_grocery_admin/view/delivery_location/screens/delivery_location_list_screen.dart';
@@ -54,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedScreen = AdminRoutes.dashboard;
   late final List<Widget> _pages;
   late final Map<String, int> _routeIndex;
+  bool _sidebarCollapsed = false;
 
   /// Only the active route is laid out — avoids [IndexedStack] laying out all pages.
   final Map<int, Widget> _pageCache = {};
@@ -68,12 +71,25 @@ class _HomeScreenState extends State<HomeScreen> {
       for (var i = 0; i < AdminRoutes.all.length; i++) AdminRoutes.all[i]: i,
     };
     _pages = _buildPages();
+    _loadSidebarPrefs();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       AdminRealtimeBootstrap.start(context);
       syncOrderServiceForRoute(context, _selectedScreen);
       syncCustomerServiceForRoute(context, _selectedScreen);
     });
+  }
+
+  Future<void> _loadSidebarPrefs() async {
+    final collapsed = await AdminSidebarPrefs.loadCollapsed();
+    if (!mounted) return;
+    setState(() => _sidebarCollapsed = collapsed);
+  }
+
+  Future<void> _toggleSidebarCollapsed() async {
+    final next = !_sidebarCollapsed;
+    setState(() => _sidebarCollapsed = next);
+    await AdminSidebarPrefs.saveCollapsed(next);
   }
 
   List<Widget> _buildPages() {
@@ -108,6 +124,8 @@ class _HomeScreenState extends State<HomeScreen> {
       slot(AdminRoutes.addBanner, const AddBannerScreen()),
       slot(AdminRoutes.addCoupon, const CouponManagementScreen()),
       slot(AdminRoutes.comboOffers, const ComboOffersScreen()),
+      slot(AdminRoutes.referEarn, const ReferEarnManagementScreen()),
+      slot(AdminRoutes.deliveryTips, const DeliveryTipsManagementScreen()),
       slot(AdminRoutes.platformFee, PlatformFeeScreen()),
       slot(AdminRoutes.pushNotifications, const PushNotificationsScreen()),
       slot(AdminRoutes.notificationTemplates, const NotificationTemplatesScreen()),
@@ -160,35 +178,50 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final compact = adminIsMobileWidth(width);
+    final useDrawer = adminUsesDrawerLayout(width);
+    final isDesktop = !useDrawer;
+    final sidebarWidth = isDesktop
+        ? adminDesktopSidebarWidthFor(collapsed: _sidebarCollapsed)
+        : adminSidebarWidth(width);
+
+    final sidebar = AdminSidebar(
+      width: sidebarWidth,
+      collapsed: isDesktop && _sidebarCollapsed,
+      selectedRoute: _selectedScreen,
+      onSelect: useDrawer
+          ? (r) => _navigateTo(r, closeDrawer: true)
+          : _navigateTo,
+    );
 
     return AdminDashboardShell(
       scaffoldKey: _scaffoldKey,
-      compact: compact,
+      useDrawerLayout: useDrawer,
+      sidebarWidth: sidebarWidth,
       drawer: Drawer(
         width: adminSidebarWidth(width),
-        child: SafeArea(
-          child: AdminSidebar(
-            width: adminSidebarWidth(width),
-            selectedRoute: _selectedScreen,
-            onSelect: (r) => _navigateTo(r, closeDrawer: true),
-          ),
-        ),
+        child: SafeArea(child: sidebar),
       ),
-      sidebar: AdminSidebar(
-        selectedRoute: _selectedScreen,
-        onSelect: _navigateTo,
-      ),
+      sidebar: sidebar,
       topBar: AdminGlobalTopBar(
         title: _selectedScreen,
-        leading: compact
-            ? IconButton(
-                icon: const Icon(Icons.menu_rounded),
-                color: AppColor.primary,
-                tooltip: 'Menu',
-                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-              )
-            : null,
+        leading: IconButton(
+          icon: Icon(
+            isDesktop && !_sidebarCollapsed
+                ? Icons.menu_open_rounded
+                : Icons.menu_rounded,
+            color: AppColor.primary,
+          ),
+          tooltip: isDesktop
+              ? (_sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar')
+              : 'Open menu',
+          onPressed: () {
+            if (isDesktop) {
+              _toggleSidebarCollapsed();
+            } else {
+              _scaffoldKey.currentState?.openDrawer();
+            }
+          },
+        ),
       ),
       body: KeyedSubtree(
         key: ValueKey<int>(_selectedIndex),

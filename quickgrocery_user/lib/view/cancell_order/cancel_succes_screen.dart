@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
 import 'package:lottie/lottie.dart';
@@ -9,17 +10,23 @@ class CancellSuccesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(15.0),
-        child: Column(
-          children: [
-            LottieBuilder.asset('assets/lottie/no.json'),
-            const Text(
-              'Order Cancelled  Successfully',
-              style: TextStyle(fontSize: 16),
-            ),
-            const Spacer(),
-            PrimaryButton(
+      body: SafeArea(
+        child: KeyboardSafeBody(
+          padding: const EdgeInsets.all(15),
+          fillMinHeight: true,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                children: [
+                  LottieBuilder.asset('assets/lottie/no.json'),
+                  const Text(
+                    'Order Cancelled  Successfully',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
+              PrimaryButton(
               label: "Go Home",
               onTap: () {
                 Navigator.of(context).pushAndRemoveUntil(
@@ -29,8 +36,9 @@ class CancellSuccesScreen extends StatelessWidget {
                   (Route<dynamic> route) => false,
                 );
               },
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

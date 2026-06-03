@@ -6,6 +6,7 @@ import 'package:quickgrocery_vendor/core/auth/partner_auth_api.dart';
 import 'package:quickgrocery_vendor/core/auth/vendor_auth_errors.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
 import 'package:quickgrocery_vendor/utils/app_spacing.dart';
+import 'package:quickgrocery_vendor/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery_vendor/view/auth/forgot_password/forgot_password_reset_screen.dart';
 
 class ForgotPasswordVerifyScreen extends StatefulWidget {
@@ -127,8 +128,9 @@ class _ForgotPasswordVerifyScreenState extends State<ForgotPasswordVerifyScreen>
         foregroundColor: Colors.black87,
         title: const Text('Verify OTP'),
       ),
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: KeyboardSafeBody(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

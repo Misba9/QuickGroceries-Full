@@ -8,33 +8,28 @@ import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/services/language_service.dart';
-import 'package:quickgrocery/view/address/screens/address_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/user/user_profile_cache.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:quickgrocery/view/auth/screens/login_screen.dart';
-import 'package:quickgrocery/view/notifications/notification_center_screen.dart';
 import 'package:quickgrocery/view/orders/domain/order_models.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
 import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
 import 'package:quickgrocery/view/profile/domain/profile_models.dart';
 import 'package:quickgrocery/view/profile/presentation/providers/profile_providers.dart';
+import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
 import 'package:quickgrocery/view/profile/presentation/widgets/profile_ui.dart';
 import 'package:quickgrocery/view/profile/screens/edit_profile_screen.dart';
-import 'package:quickgrocery/view/profile/screens/support_screen.dart';
+import 'package:quickgrocery/view/cart/data/coupon_service.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.dart';
-import 'package:quickgrocery/view/cart/data/coupon_service.dart';
 import 'package:quickgrocery/view/coupons/coupon_screen.dart';
-import 'package:quickgrocery/view/support/presentation/providers/support_settings_providers.dart';
+import 'package:quickgrocery/view/profile/presentation/utils/profile_url_opener.dart';
+import 'package:quickgrocery/view/support/models/support_settings_defaults.dart';
 import 'package:quickgrocery/view/support/services/support_action_launcher.dart';
+import 'package:quickgrocery/view/refer/screens/refer_screen.dart';
 import 'package:quickgrocery/view/wishlist/screens/wishlist_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
-
-Future<void> _openProfileUrl(String url) async {
-  final uri = Uri.parse(url);
-  if (await canLaunchUrl(uri)) await launchUrl(uri);
-}
 
 // ─── Header ───────────────────────────────────────────────────────────────
 
@@ -283,10 +278,7 @@ class ProfileQuickActions extends ConsumerWidget {
               icon: Icons.location_on_outlined,
               label: 'quick_address'.tr(),
               value: '$addressCount',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AddressScreen()),
-              ),
+              onTap: () => Navigator.push(context, AppPageRoutes.address()),
             ),
           ),
         ],
@@ -490,24 +482,16 @@ class ProfileActiveOrderCard extends ConsumerWidget {
   double _statusProgress(LiveOrder order) {
     if (order.isDelivered) return 1;
     switch (order.status) {
-      case OrderStatus.pending:
-        return 0.15;
-      case OrderStatus.vendorAccepted:
-      case OrderStatus.accepted:
-        return 0.35;
-      case OrderStatus.packing:
-        return 0.55;
-      case OrderStatus.readyForPickup:
-        return 0.65;
-      case OrderStatus.riderAssigned:
-      case OrderStatus.headingToStore:
-        return 0.75;
-      case OrderStatus.pickedUp:
-        return 0.85;
-      case OrderStatus.outForDelivery:
-        return 0.92;
-      default:
+      case OrderStatus.orderPlaced:
         return 0.2;
+      case OrderStatus.deliveryAssigned:
+        return 0.5;
+      case OrderStatus.outForDelivery:
+        return 0.85;
+      case OrderStatus.delivered:
+        return 1;
+      default:
+        return 0.15;
     }
   }
 }
@@ -858,10 +842,7 @@ class ProfileAddressesSection extends ConsumerWidget {
           ProfileSectionTitle(
             title: 'saved_addresses'.tr(),
             actionLabel: 'manage_arrow'.tr(),
-            onAction: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AddressScreen()),
-            ),
+            onAction: () => Navigator.push(context, AppPageRoutes.address()),
           ),
           ProfileCard(
             child: addressesAsync.when(
@@ -880,12 +861,7 @@ class ProfileAddressesSection extends ConsumerWidget {
                   return ProfileListTile(
                     icon: Icons.add_location_alt_outlined,
                     title: 'add_first_address'.tr(),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddressScreen(),
-                      ),
-                    ),
+                    onTap: () => Navigator.push(context, AppPageRoutes.address()),
                   );
                 }
                 return Column(
@@ -894,12 +870,7 @@ class ProfileAddressesSection extends ConsumerWidget {
                       icon: addressTypeIcon(a.type),
                       title: a.type.isNotEmpty ? a.type : 'Address',
                       subtitle: '${a.address}, ${a.area}',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AddressScreen(),
-                        ),
-                      ),
+                      onTap: () => Navigator.push(context, AppPageRoutes.address()),
                     );
                   }).toList(),
                 );
@@ -912,33 +883,190 @@ class ProfileAddressesSection extends ConsumerWidget {
   }
 }
 
+// ─── Refer & Earn ─────────────────────────────────────────────────────────
+
+class ProfileReferEarnSection extends StatelessWidget {
+  const ProfileReferEarnSection({super.key, this.animationIndex = 8});
+
+  final int animationIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeInUp(
+      duration: Duration(milliseconds: 380 + animationIndex * 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ProfileSectionTitle(title: 'Refer & Earn'),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ReferScreen(),
+                ),
+              ),
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+              child: Ink(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColor.primary.withValues(alpha: 0.95),
+                      Color.lerp(AppColor.primary, Colors.deepOrange, 0.4)!,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
+                  boxShadow: AppShadow.primaryGlow,
+                ),
+                padding: const EdgeInsets.all(18),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.card_giftcard_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Invite Friends & Earn Rewards',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Share your code · Earn up to ₹50 per friend',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white.withValues(alpha: 0.88),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Share',
+                            style: GoogleFonts.poppins(
+                              color: AppColor.primary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 16,
+                            color: AppColor.primary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Notifications ────────────────────────────────────────────────────────
 
-class ProfileNotificationsSection extends ConsumerWidget {
+class ProfileNotificationsSection extends ConsumerStatefulWidget {
   const ProfileNotificationsSection({super.key, this.animationIndex = 9});
 
   final int animationIndex;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileNotificationsSection> createState() =>
+      _ProfileNotificationsSectionState();
+}
+
+class _ProfileNotificationsSectionState
+    extends ConsumerState<ProfileNotificationsSection> {
+  bool _showDeniedBanner = false;
+
+  @override
+  void initState() {
+    super.initState();
+    AppPermissionCoordinator.shouldShowNotificationDeniedBanner().then((v) {
+      if (mounted) setState(() => _showDeniedBanner = v);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final prefs = ref.watch(notificationPreferencesProvider);
     final notifier = ref.read(notificationPreferencesProvider.notifier);
 
     return FadeInUp(
-      duration: Duration(milliseconds: 380 + animationIndex * 40),
+      duration: Duration(milliseconds: 380 + widget.animationIndex * 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ProfileSectionTitle(
             title: 'notifications'.tr(),
             actionLabel: 'inbox'.tr(),
-            onAction: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const NotificationCenterScreen(),
+            onAction: () => Navigator.push(context, AppPageRoutes.notifications()),
+          ),
+          if (_showDeniedBanner) ...[
+            Material(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(12),
+              child: ListTile(
+                dense: true,
+                leading: Icon(Icons.notifications_off_outlined,
+                    color: Colors.orange.shade800),
+                title: Text(
+                  'Enable notifications in system settings for order alerts.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.orange.shade900,
+                  ),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () async {
+                    await AppPermissionCoordinator
+                        .markNotificationDeniedBannerShown();
+                    if (mounted) setState(() => _showDeniedBanner = false);
+                  },
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 10),
+          ],
           ProfileCard(
             child: Column(
               children: [
@@ -1065,15 +1193,16 @@ class ProfileLanguageSection extends StatelessWidget {
 
 // ─── Support ──────────────────────────────────────────────────────────────
 
-class ProfileSupportSection extends ConsumerWidget {
+class ProfileSupportSection extends StatelessWidget {
   const ProfileSupportSection({super.key, this.animationIndex = 12});
 
   final int animationIndex;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final settingsAsync = ref.watch(supportSettingsStreamProvider);
+  static const _phone = SupportSettingsDefaults.phone;
+  static const _email = SupportSettingsDefaults.email;
 
+  @override
+  Widget build(BuildContext context) {
     return FadeInUp(
       duration: Duration(milliseconds: 380 + animationIndex * 40),
       child: Column(
@@ -1081,66 +1210,30 @@ class ProfileSupportSection extends ConsumerWidget {
         children: [
           ProfileSectionTitle(title: 'support'.tr()),
           ProfileCard(
-            child: settingsAsync.when(
-              loading: () => const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(12),
-                  child: CircularProgressIndicator(strokeWidth: 2),
+            child: Column(
+              children: [
+                ProfileListTile(
+                  icon: Icons.call_outlined,
+                  title: 'call_support'.tr(),
+                  subtitle: _phone,
+                  onTap: () => SupportActionLauncher.callPhone(context, _phone),
                 ),
-              ),
-              error: (_, __) => Column(
-                children: [
-                  ProfileListTile(
-                    icon: Icons.call_outlined,
-                    title: 'call_support'.tr(),
-                    subtitle: '90242-83577',
-                    onTap: () =>
-                        SupportActionLauncher.callPhone(context, '9024283577'),
+                ProfileListTile(
+                  icon: Icons.email_outlined,
+                  title: 'email_support'.tr(),
+                  subtitle: _email,
+                  onTap: () => SupportActionLauncher.sendEmail(context, _email),
+                ),
+                ProfileListTile(
+                  icon: Icons.chat_outlined,
+                  title: 'WhatsApp Support',
+                  subtitle: SupportSettingsDefaults.whatsapp,
+                  onTap: () => SupportActionLauncher.openWhatsApp(
+                    context,
+                    SupportSettingsDefaults.whatsapp,
                   ),
-                  ProfileListTile(
-                    icon: Icons.email_outlined,
-                    title: 'email_support'.tr(),
-                    onTap: () => SupportActionLauncher.sendEmail(
-                      context,
-                      'support@quickgrocery.io',
-                    ),
-                  ),
-                  ProfileListTile(
-                    icon: Icons.help_outline_rounded,
-                    title: 'faq'.tr(),
-                    onTap: () => _openProfileUrl('https://quickgrocery.io/about'),
-                  ),
-                ],
-              ),
-              data: (settings) => Column(
-                children: [
-                  if (settings.hasPhone)
-                    ProfileListTile(
-                      icon: Icons.call_outlined,
-                      title: 'call_support'.tr(),
-                      subtitle: settings.phone,
-                      onTap: () => SupportActionLauncher.callPhone(
-                        context,
-                        settings.phone,
-                      ),
-                    ),
-                  if (settings.hasEmail)
-                    ProfileListTile(
-                      icon: Icons.email_outlined,
-                      title: 'email_support'.tr(),
-                      subtitle: settings.email,
-                      onTap: () => SupportActionLauncher.sendEmail(
-                        context,
-                        settings.email,
-                      ),
-                    ),
-                  ProfileListTile(
-                    icon: Icons.help_outline_rounded,
-                    title: 'faq'.tr(),
-                    onTap: () => _openProfileUrl('https://quickgrocery.io/about'),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1161,6 +1254,29 @@ class ProfileLegalSection extends StatelessWidget {
   final String appVersion;
   final int animationIndex;
 
+  static const _legalPages = <({String title, String url, IconData icon})>[
+    (
+      title: 'Safety',
+      url: 'https://www.quickgroceries.in/safety',
+      icon: Icons.shield_outlined,
+    ),
+    (
+      title: 'Terms & Conditions',
+      url: 'https://www.quickgroceries.in/terms',
+      icon: Icons.description_outlined,
+    ),
+    (
+      title: 'Privacy Policy',
+      url: 'https://www.quickgroceries.in/privacy',
+      icon: Icons.privacy_tip_outlined,
+    ),
+    (
+      title: 'About Us',
+      url: 'https://www.quickgroceries.in/about',
+      icon: Icons.info_outline_rounded,
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return FadeInUp(
@@ -1172,21 +1288,19 @@ class ProfileLegalSection extends StatelessWidget {
           ProfileCard(
             child: Column(
               children: [
-                ...[
-                  ('Privacy Policy', 'https://quickgrocery.io/privacy'),
-                  ('Terms & Conditions', 'https://quickgrocery.io/terms'),
-                  ('Refund Policy', 'https://quickgrocery.io/refund'),
-                  ('Shipping Policy', 'https://quickgrocery.io/shipping'),
-                  ('About Us', 'https://quickgrocery.io/about'),
-                ].map(
-                  (e) => ProfileListTile(
-                    icon: Icons.description_outlined,
-                    title: e.$1,
-                    onTap: () => _openProfileUrl(e.$2),
+                ..._legalPages.map(
+                  (page) => ProfileListTile(
+                    icon: page.icon,
+                    title: page.title,
+                    onTap: () => openProfileUrl(
+                      context,
+                      url: page.url,
+                      title: page.title,
+                    ),
                   ),
                 ),
                 ProfileListTile(
-                  icon: Icons.info_outline_rounded,
+                  icon: Icons.smartphone_outlined,
                   title: 'app_version'.tr(),
                   subtitle: appVersion,
                   trailing: const SizedBox.shrink(),
@@ -1200,142 +1314,10 @@ class ProfileLegalSection extends StatelessWidget {
   }
 }
 
-// ─── App settings ─────────────────────────────────────────────────────────
-
-class ProfileAppSettingsSection extends StatefulWidget {
-  const ProfileAppSettingsSection({super.key, this.animationIndex = 14});
-
-  final int animationIndex;
-
-  @override
-  State<ProfileAppSettingsSection> createState() =>
-      _ProfileAppSettingsSectionState();
-}
-
-class _ProfileAppSettingsSectionState extends State<ProfileAppSettingsSection> {
-  bool _darkMode = false;
-  bool _biometric = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final pref = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _darkMode = pref.getBool('dark_mode') ?? false;
-      _biometric = pref.getBool('biometric_login') ?? false;
-    });
-  }
-
-  Future<void> _setPref(String key, bool value) async {
-    final pref = await SharedPreferences.getInstance();
-    await pref.setBool(key, value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeInUp(
-      duration: Duration(milliseconds: 380 + widget.animationIndex * 40),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ProfileSectionTitle(title: 'app_settings'.tr()),
-          ProfileCard(
-            child: Column(
-              children: [
-                ProfileToggleTile(
-                  icon: Icons.dark_mode_outlined,
-                  title: 'dark_mode'.tr(),
-                  value: _darkMode,
-                  onChanged: (v) async {
-                    setState(() => _darkMode = v);
-                    await _setPref('dark_mode', v);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Dark mode preference saved (app-wide theme coming soon)',
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                ProfileToggleTile(
-                  icon: Icons.fingerprint_rounded,
-                  title: 'biometric_login'.tr(),
-                  value: _biometric,
-                  onChanged: (v) async {
-                    setState(() => _biometric = v);
-                    await _setPref('biometric_login', v);
-                  },
-                ),
-                ProfileListTile(
-                  icon: Icons.cleaning_services_outlined,
-                  title: 'clear_cache'.tr(),
-                  onTap: () async {
-                    final pref = await SharedPreferences.getInstance();
-                    final keys = pref.getKeys().where(
-                          (k) => k.startsWith('cache_'),
-                        );
-                    for (final k in keys) {
-                      await pref.remove(k);
-                    }
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Cache cleared')),
-                      );
-                    }
-                  },
-                ),
-                ProfileListTile(
-                  icon: Icons.delete_forever_outlined,
-                  title: 'delete_account'.tr(),
-                  onTap: () => showDialog<void>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Delete account?'),
-                      content: const Text(
-                        'Please contact support to permanently delete your account.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Cancel'),
-                        ),
-                        FilledButton(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SupportScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text('Contact Support'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ─── Logout ───────────────────────────────────────────────────────────────
 
 class ProfileLogoutSection extends StatelessWidget {
-  const ProfileLogoutSection({super.key, this.animationIndex = 15});
+  const ProfileLogoutSection({super.key, this.animationIndex = 14});
 
   final int animationIndex;
 
@@ -1387,6 +1369,7 @@ class ProfileLogoutSection extends StatelessWidget {
       ),
     );
     if (ok != true || !context.mounted) return;
+    await UserProfileCache.clearOnLogout();
     await FirebaseAuth.instance.signOut();
     if (!context.mounted) return;
     Navigator.pushAndRemoveUntil(

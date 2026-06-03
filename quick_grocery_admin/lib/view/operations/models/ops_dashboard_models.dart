@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_admin/core/order_lifecycle.dart';
 import 'package:quick_grocery_admin/core/utils/duration_format.dart';
 import 'package:quick_grocery_admin/view/operations/utils/ops_firestore_helpers.dart';
 import 'package:quick_grocery_admin/view/operations/utils/ops_order_priority.dart';
@@ -34,7 +35,7 @@ class OpsChartPoint {
   final double value;
 }
 
-enum OpsTimelineStep { placed, accepted, preparing, pickedUp, delivered }
+enum OpsTimelineStep { placed, assigned, outForDelivery, delivered }
 
 class OpsLiveOrder {
   const OpsLiveOrder({
@@ -111,20 +112,15 @@ class OpsLiveOrder {
   }
 
   static Map<OpsTimelineStep, bool> _timeline(Map<String, dynamic> d) {
-    bool filled(String key) {
-      final v = d[key];
-      return v != null && v.toString().trim().isNotEmpty;
-    }
-
-    final s = OpsFirestoreHelpers.orderStatusRaw(d);
+    final status = OrderLifecycle.resolveFromOrderData(d);
+    final hasRider = OpsFirestoreHelpers.riderId(d).isNotEmpty;
     return {
       OpsTimelineStep.placed: true,
-      OpsTimelineStep.accepted:
-          filled('confrimTime') || s.contains('accept') || s.contains('confirm'),
-      OpsTimelineStep.preparing:
-          filled('driverShop') || s.contains('pack') || s.contains('prepar'),
-      OpsTimelineStep.pickedUp:
-          filled('pickedTime') || s.contains('pick') || s.contains('rider'),
+      OpsTimelineStep.assigned:
+          hasRider || status == OrderLifecycle.deliveryAssigned,
+      OpsTimelineStep.outForDelivery:
+          status == OrderLifecycle.outForDelivery ||
+          OpsFirestoreHelpers.orderStatusRaw(d).contains('way'),
       OpsTimelineStep.delivered: OpsFirestoreHelpers.isDelivered(d),
     };
   }

@@ -12,8 +12,10 @@ import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/domain/cart_models.dart';
 import 'package:quickgrocery/view/cart/domain/pricing_calculator.dart';
+import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/inventory/inventory_limit_messages.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
-import 'package:quickgrocery/view/cart/presentation/screens/checkout_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/cart_header.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/cart_shimmer.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/free_delivery_banner.dart';
@@ -136,12 +138,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               helperIsError: !bill.meetsMinimumOrder ||
                   cart.items.any((e) => e.isUnavailable),
               onCheckout: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CheckoutScreen(),
-                  ),
-                );
+                Navigator.push(context, AppPageRoutes.checkout());
               },
             ),
     );
@@ -357,7 +354,17 @@ class _CartBody extends StatelessWidget {
                     from: 14,
                     child: PremiumCartItemCard(
                       item: item,
-                      onIncrement: () => notifier.increment(item.productId),
+                      onIncrement: () {
+                        if (notifier.increment(item.productId)) return;
+                        showTopErrorToast(
+                          context,
+                          InventoryLimitMessages.incrementBlocked(
+                            stock: item.stock,
+                            maxOrder: item.maxOrder,
+                            currentCount: item.itemCount,
+                          ),
+                        );
+                      },
                       onDecrement: () => notifier.decrement(item.productId),
                       onRemove: () => notifier.remove(item.productId),
                     ),

@@ -3,6 +3,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import 'package:quickgrocery/core/order/order_line_pricing.dart';
+
 import '../domain/order_models.dart';
 
 /// Compact 80mm thermal receipt with Noto Sans (INR + UTF-8).
@@ -90,7 +92,7 @@ class ThermalReceiptPdf {
           _label('ITEMS'),
           pw.SizedBox(height: 2),
           ...products.map((p) {
-            final t = p.price * p.itemCount;
+            final pricing = OrderLinePricing.fromProductItem(p);
             return pw.Padding(
               padding: const pw.EdgeInsets.only(bottom: 3),
               child: pw.Row(
@@ -102,14 +104,19 @@ class ThermalReceiptPdf {
                       children: [
                         pw.Text(p.name, style: _bold(8)),
                         pw.Text(
-                          '${p.itemCount} x ${formatInr(p.price)}',
+                          '${pricing.quantity} × ${formatInr(pricing.pricePaid)} = ${formatInr(pricing.lineTotal)}',
                           style: _muted(7),
                         ),
+                        if (pricing.hasDiscount)
+                          pw.Text(
+                            'MRP ${formatInr(pricing.mrp)} · ${pricing.savingsLabel}',
+                            style: _muted(6.5),
+                          ),
                       ],
                     ),
                   ),
                   pw.SizedBox(width: 6),
-                  pw.Text(formatInr(t), style: _bold(8)),
+                  pw.Text(formatInr(pricing.lineTotal), style: _bold(8)),
                 ],
               ),
             );
@@ -216,6 +223,7 @@ class ThermalReceiptPdf {
       ('Handling', 'handlingCharge'),
       ('Platform fee', 'platformFee'),
       ('Tax', 'tax'),
+      ('Delivery tip', 'deliveryPartnerTip'),
     ];
     return [
       for (final (title, key) in keys)

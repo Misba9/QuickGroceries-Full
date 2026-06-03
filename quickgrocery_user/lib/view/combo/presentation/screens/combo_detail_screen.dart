@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/combo_offer_model.dart';
 import 'package:quickgrocery/models/product.dart';
@@ -111,7 +113,7 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
         surfaceTintColor: Colors.transparent,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const _ComboDetailLoadingBody()
           : _error != null
               ? Center(child: Text(_error!))
               : CustomScrollView(
@@ -257,7 +259,14 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                   children: [
                     _QtyStepper(
                       qty: _qty,
+                      maxQty: combo.stock > 0 ? combo.stock : null,
                       onChanged: (v) => setState(() => _qty = v),
+                      onMaxReached: () => showTopErrorToast(
+                        context,
+                        combo.stock == 1
+                            ? 'Only 1 combo available'
+                            : 'Only ${combo.stock} combos available',
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -308,10 +317,45 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
   }
 }
 
+/// Hides the global cart pill while combo data is loading (no bottom bar yet).
+class _ComboDetailLoadingBody extends StatefulWidget {
+  const _ComboDetailLoadingBody();
+
+  @override
+  State<_ComboDetailLoadingBody> createState() => _ComboDetailLoadingBodyState();
+}
+
+class _ComboDetailLoadingBodyState extends State<_ComboDetailLoadingBody> {
+  @override
+  void initState() {
+    super.initState();
+    FloatingCartSuppression.acquire();
+  }
+
+  @override
+  void dispose() {
+    FloatingCartSuppression.release();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: CircularProgressIndicator());
+  }
+}
+
 class _QtyStepper extends StatelessWidget {
-  const _QtyStepper({required this.qty, required this.onChanged});
+  const _QtyStepper({
+    required this.qty,
+    required this.onChanged,
+    this.maxQty,
+    this.onMaxReached,
+  });
+
   final int qty;
+  final int? maxQty;
   final ValueChanged<int> onChanged;
+  final VoidCallback? onMaxReached;
 
   @override
   Widget build(BuildContext context) {
@@ -330,7 +374,14 @@ class _QtyStepper extends StatelessWidget {
           ),
           Text('$qty', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
           IconButton(
-            onPressed: () => onChanged(qty + 1),
+            onPressed: () {
+              final cap = maxQty;
+              if (cap != null && qty >= cap) {
+                onMaxReached?.call();
+                return;
+              }
+              onChanged(qty + 1);
+            },
             icon: const Icon(Icons.add, size: 20),
           ),
         ],

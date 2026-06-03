@@ -370,6 +370,7 @@ class BillBreakdown {
   final double handlingCharge;
   final double platformFee;
   final double tax;
+  final double deliveryPartnerTip;
   final double total;
   final bool isFreeDelivery;
   final bool meetsMinimumOrder;
@@ -385,11 +386,33 @@ class BillBreakdown {
     required this.handlingCharge,
     required this.platformFee,
     required this.tax,
+    this.deliveryPartnerTip = 0,
     required this.total,
     required this.isFreeDelivery,
     required this.meetsMinimumOrder,
     required this.minimumOrderValue,
   });
+
+  BillBreakdown withDeliveryTip(double tip) {
+    final t = tip < 0 ? 0.0 : tip;
+    final delta = t - deliveryPartnerTip;
+    return BillBreakdown(
+      subtotal: subtotal,
+      slashedSubtotal: slashedSubtotal,
+      itemSavings: itemSavings,
+      couponDiscount: couponDiscount,
+      deliveryFee: deliveryFee,
+      surgeFee: surgeFee,
+      handlingCharge: handlingCharge,
+      platformFee: platformFee,
+      tax: tax,
+      deliveryPartnerTip: t,
+      total: double.parse((total + delta).toStringAsFixed(2)),
+      isFreeDelivery: isFreeDelivery,
+      meetsMinimumOrder: meetsMinimumOrder,
+      minimumOrderValue: minimumOrderValue,
+    );
+  }
 
   static const BillBreakdown empty = BillBreakdown(
     subtotal: 0,
@@ -401,6 +424,7 @@ class BillBreakdown {
     handlingCharge: 0,
     platformFee: 0,
     tax: 0,
+    deliveryPartnerTip: 0,
     total: 0,
     isFreeDelivery: false,
     meetsMinimumOrder: false,
@@ -418,6 +442,7 @@ class BillBreakdown {
     'handlingCharge': handlingCharge,
     'platformFee': platformFee,
     'tax': tax,
+    if (deliveryPartnerTip > 0) 'deliveryPartnerTip': deliveryPartnerTip,
     'total': total,
     'grandTotal': total,
     'isFreeDelivery': isFreeDelivery,
@@ -586,60 +611,70 @@ enum PaymentMethod {
   }
 }
 
-/// Canonical order lifecycle for quick-commerce (Zepto / Blinkit model).
+/// Simplified order lifecycle (4 customer-visible steps).
 enum OrderStatus {
-  pending('pending'),
-  vendorAccepted('vendor_accepted'),
-  vendorRejected('vendor_rejected'),
-  accepted('accepted'),
-  packing('packing'),
-  readyForPickup('ready_for_pickup'),
-  riderAssigned('rider_assigned'),
-  riderAccepted('rider_accepted'),
-  reachedStore('reached_store'),
-  headingToStore('heading_to_store'),
-  pickedUp('picked_up'),
+  orderPlaced('order_placed'),
+  deliveryAssigned('delivery_assigned'),
   outForDelivery('out_for_delivery'),
   delivered('delivered'),
-  cancelled('cancelled');
+  cancelled('cancelled'),
+  vendorRejected('cancelled_by_vendor');
 
   const OrderStatus(this.id);
   final String id;
 
-  static OrderStatus fromId(String id) => OrderStatus.values.firstWhere(
-    (e) => e.id == id,
-    orElse: () => OrderStatus.pending,
-  );
+  static String normalizeId(String raw) {
+    final s = raw.trim().toLowerCase();
+    if (s.isEmpty) return orderPlaced.id;
+    switch (s) {
+      case 'order_placed':
+      case 'delivery_assigned':
+      case 'out_for_delivery':
+      case 'delivered':
+      case 'cancelled':
+      case 'cancelled_by_customer':
+      case 'cancelled_by_vendor':
+      case 'cancelled_by_rider':
+      case 'vendor_rejected':
+        return s == 'vendor_rejected' ? vendorRejected.id : s;
+      case 'pending':
+      case 'vendor_accepted':
+      case 'accepted':
+      case 'packing':
+      case 'ready_for_pickup':
+        return orderPlaced.id;
+      case 'rider_assigned':
+      case 'rider_accepted':
+        return deliveryAssigned.id;
+      case 'picked_up':
+      case 'reached_store':
+      case 'heading_to_store':
+        return outForDelivery.id;
+      default:
+        return orderPlaced.id;
+    }
+  }
+
+  static OrderStatus fromId(String id) {
+    final normalized = normalizeId(id);
+    return OrderStatus.values.firstWhere(
+      (e) => e.id == normalized,
+      orElse: () => OrderStatus.orderPlaced,
+    );
+  }
 
   String get displayName {
     switch (this) {
-      case OrderStatus.pending:
-        return 'Pending';
-      case OrderStatus.vendorAccepted:
-        return 'Store confirmed';
-      case OrderStatus.vendorRejected:
-        return 'Declined by store';
-      case OrderStatus.accepted:
-        return 'Confirmed';
-      case OrderStatus.packing:
-        return 'Preparing';
-      case OrderStatus.readyForPickup:
-        return 'Ready for pickup';
-      case OrderStatus.riderAssigned:
-        return 'Rider assigned';
-      case OrderStatus.riderAccepted:
-        return 'Rider accepted';
-      case OrderStatus.reachedStore:
-        return 'Rider at store';
-      case OrderStatus.headingToStore:
-        return 'Rider heading to store';
-      case OrderStatus.pickedUp:
-        return 'Picked up';
+      case OrderStatus.orderPlaced:
+        return 'Order placed';
+      case OrderStatus.deliveryAssigned:
+        return 'Delivery partner assigned';
       case OrderStatus.outForDelivery:
         return 'Out for delivery';
       case OrderStatus.delivered:
         return 'Delivered';
       case OrderStatus.cancelled:
+      case OrderStatus.vendorRejected:
         return 'Cancelled';
     }
   }
@@ -649,18 +684,9 @@ enum OrderStatus {
       this == OrderStatus.cancelled ||
       this == OrderStatus.vendorRejected;
 
-  bool get isInTransit =>
-      this == OrderStatus.reachedStore ||
-      this == OrderStatus.headingToStore ||
-      this == OrderStatus.pickedUp ||
-      this == OrderStatus.outForDelivery;
+  bool get isInTransit => this == OrderStatus.outForDelivery;
 
-  bool get isLiveTracking =>
-      this == OrderStatus.riderAccepted ||
-      this == OrderStatus.reachedStore ||
-      this == OrderStatus.headingToStore ||
-      this == OrderStatus.pickedUp ||
-      this == OrderStatus.outForDelivery;
+  bool get isLiveTracking => this == OrderStatus.outForDelivery;
 }
 
 /// In-memory cart state surfaced to the UI.
@@ -727,6 +753,7 @@ class CheckoutState {
   final DeliverySlot? slot;
   final DeliveryInstructions instructions;
   final PaymentMethod paymentMethod;
+  final double deliveryTipAmount;
   final bool isPlacingOrder;
   final String? errorMessage;
 
@@ -735,6 +762,7 @@ class CheckoutState {
     required this.slot,
     required this.instructions,
     required this.paymentMethod,
+    required this.deliveryTipAmount,
     required this.isPlacingOrder,
     required this.errorMessage,
   });
@@ -744,6 +772,7 @@ class CheckoutState {
     slot: null,
     instructions: DeliveryInstructions(),
     paymentMethod: PaymentMethod.cod,
+    deliveryTipAmount: 0,
     isPlacingOrder: false,
     errorMessage: null,
   );
@@ -753,6 +782,7 @@ class CheckoutState {
     DeliverySlot? slot,
     DeliveryInstructions? instructions,
     PaymentMethod? paymentMethod,
+    double? deliveryTipAmount,
     bool? isPlacingOrder,
     String? errorMessage,
     bool clearError = false,
@@ -762,6 +792,7 @@ class CheckoutState {
       slot: slot ?? this.slot,
       instructions: instructions ?? this.instructions,
       paymentMethod: paymentMethod ?? this.paymentMethod,
+      deliveryTipAmount: deliveryTipAmount ?? this.deliveryTipAmount,
       isPlacingOrder: isPlacingOrder ?? this.isPlacingOrder,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );

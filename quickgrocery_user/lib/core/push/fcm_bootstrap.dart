@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 
 /// One-time FCM setup: permissions, token, topic subscription, debug logs.
@@ -31,19 +32,7 @@ class FcmBootstrap {
 
     final messaging = FirebaseMessaging.instance;
 
-    final settings = await messaging.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
-    _log(
-      'permission status=${settings.authorizationStatus} '
-      'alert=${settings.alert}',
-    );
+    await AppPermissionCoordinator.requestNotificationPermissionOnce();
 
     await messaging.setForegroundNotificationPresentationOptions(
       alert: true,

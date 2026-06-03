@@ -5,10 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/core/firebase/callable_payload.dart';
 import 'package:quickgrocery/models/product.dart';
-import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
-import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -73,11 +72,7 @@ Future<void> _openProductById(BuildContext context, String? productId) async {
     if (data == null) return;
     final product = ProductModel.fromFirestore(data, snap.id);
     if (!context.mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ProductViewScreen(product: product),
-      ),
-    );
+    await Navigator.of(context).push(AppPageRoutes.product(product));
   } catch (_) {
     /* ignore */
   }
@@ -115,7 +110,7 @@ Future<void> handlePushNavigation(Map<String, dynamic> raw) async {
       home.onSelectedChange(0);
       await Navigator.of(
         ctx,
-      ).push(MaterialPageRoute<void>(builder: (_) => const CartScreen()));
+      ).push<void>(AppPageRoutes.cart());
       return;
     case 'order_details':
     case 'order_page':

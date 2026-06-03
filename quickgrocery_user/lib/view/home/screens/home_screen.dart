@@ -9,8 +9,8 @@ import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
-import 'package:quickgrocery/view/search/screens/search_screen.dart';
 import 'package:quickgrocery/core/widgets/home_section_error_card.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
 import 'package:quickgrocery/models/banner_model.dart';
@@ -340,12 +340,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   'Search "snacks"',
                   'Search "fruits"',
                 ],
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SearchScreen(),
-                  ),
-                ),
+                onTap: () => Navigator.push(context, AppPageRoutes.search()),
               ),
               if (pricingAsync.hasError)
                 SliverToBoxAdapter(

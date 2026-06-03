@@ -181,10 +181,9 @@ class OrderService {
     });
   }
 
+  /// Acknowledges receipt; status stays [OrderLifecycle.orderPlaced] until rider assign.
   Future<void> acceptOrder(String orderId, {required String vendorId}) async {
     await _firestore.collection(_collectionName).doc(orderId).update({
-      'order_status': OrderLifecycle.legacyLabel(OrderLifecycle.vendorAccepted),
-      'status': OrderLifecycle.vendorAccepted,
       'confrimTime': DateTime.now().toIso8601String(),
       'vendorAcceptedAt': FieldValue.serverTimestamp(),
       'vendorAcceptedBy': vendorId,
@@ -206,13 +205,11 @@ class OrderService {
     });
   }
 
-  Future<void> markPreparing(String orderId) async {
-    await updateOrderStatus(orderId, OrderLifecycle.packing);
-  }
+  @Deprecated('Removed — assign a delivery partner instead')
+  Future<void> markPreparing(String orderId) async {}
 
-  Future<void> markReadyForPickup(String orderId) async {
-    await updateOrderStatus(orderId, OrderLifecycle.readyForPickup);
-  }
+  @Deprecated('Removed — assign a delivery partner instead')
+  Future<void> markReadyForPickup(String orderId) async {}
 
   Future<void> updateOrderConfirmedTime(
     String orderId,
@@ -254,8 +251,8 @@ class OrderService {
       'delivery_boy_id': deliveryBoyId,
       'riderName': riderName,
       'riderPhone': riderPhone,
-      'order_status': OrderLifecycle.legacyLabel(OrderLifecycle.riderAssigned),
-      'status': OrderLifecycle.riderAssigned,
+      'order_status': OrderLifecycle.legacyLabel(OrderLifecycle.deliveryAssigned),
+      'status': OrderLifecycle.deliveryAssigned,
       'assignedAt': FieldValue.serverTimestamp(),
       'assignedBy': 'vendor',
       'updatedAt': FieldValue.serverTimestamp(),

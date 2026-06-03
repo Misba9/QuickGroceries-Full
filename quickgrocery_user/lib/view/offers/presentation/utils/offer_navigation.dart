@@ -8,7 +8,7 @@ import 'package:quickgrocery/view/category/screens/category_screen.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/offers/presentation/providers/offer_providers.dart';
-import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Routes offer banner taps based on admin [redirectType].
@@ -39,11 +39,7 @@ Future<void> navigateFromOffer(
           .cast<ProductModel?>()
           .firstWhere((p) => p != null, orElse: () => null);
       if (product != null && context.mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => ProductViewScreen(product: product),
-          ),
-        );
+        Navigator.of(context).push(AppPageRoutes.product(product));
       }
       break;
     case 'url':

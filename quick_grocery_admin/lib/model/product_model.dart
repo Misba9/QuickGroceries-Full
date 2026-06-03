@@ -18,6 +18,8 @@ class ProductModel {
   final String vendorId;
   final bool isFlashSale;
   final bool isActive;
+  final bool isAvailable;
+  final String? stockStatus;
   final bool isDeleted;
   final Timestamp lastEdited;
   final String unitPerItem;
@@ -46,6 +48,8 @@ class ProductModel {
     required this.vendorId,
     required this.isFlashSale,
     required this.isActive,
+    this.isAvailable = true,
+    this.stockStatus,
     this.isDeleted = false,
     required this.lastEdited,
     required this.unitPerItem,
@@ -63,6 +67,18 @@ class ProductModel {
     if (data['active'] is bool) return data['active'] as bool;
     return true;
   }
+
+  static bool _readIsAvailable(Map<String, dynamic> data) {
+    if (data['isAvailable'] is bool) return data['isAvailable'] as bool;
+    if (data['stockStatus']?.toString() == 'out_of_stock') return false;
+    final stock = int.tryParse(data['stock']?.toString() ?? '') ?? 0;
+    return stock > 0;
+  }
+
+  bool get isOutOfStock =>
+      isAvailable == false || stockStatus == 'out_of_stock';
+
+  bool get isInStock => !isDeleted && !isOutOfStock;
 
   factory ProductModel.fromFirestore(Map<String, dynamic> data, String id) {
     return ProductModel(
@@ -83,6 +99,8 @@ class ProductModel {
       vendorId: data['vendor_id'] ?? '',
       isFlashSale: data['is_flash_sale'] ?? false,
       isActive: _readActiveFlag(data),
+      isAvailable: _readIsAvailable(data),
+      stockStatus: data['stockStatus']?.toString(),
       isDeleted: data['isDeleted'] == true || data['is_deleted'] == true,
       lastEdited: data['lastEdited'] ?? Timestamp.now(),
       unitPerItem: data['unitPerItem'] ?? '',

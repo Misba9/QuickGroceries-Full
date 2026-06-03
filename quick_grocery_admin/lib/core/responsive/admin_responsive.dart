@@ -44,14 +44,29 @@ int adminResponsiveGridCount(double width) {
   return 3;
 }
 
-/// Fixed sidebar width on desktop (stable hit targets, no flex jitter).
-const double adminDesktopSidebarWidth = 260;
+/// Expanded desktop rail (240–260px).
+const double adminDesktopSidebarExpandedWidth = 252;
+
+/// Collapsed desktop rail (icons only).
+const double adminDesktopSidebarCollapsedWidth = 72;
+
+/// @deprecated Use [adminDesktopSidebarExpandedWidth].
+const double adminDesktopSidebarWidth = adminDesktopSidebarExpandedWidth;
+
+const Duration adminSidebarAnimationDuration = Duration(milliseconds: 250);
+
+/// Drawer overlay for handset + tablet; icon rail collapse on desktop.
+bool adminUsesDrawerLayout(double screenWidth) =>
+    screenWidth < AdminBreakpoints.desktop;
+
+double adminDesktopSidebarWidthFor({required bool collapsed}) =>
+    collapsed ? adminDesktopSidebarCollapsedWidth : adminDesktopSidebarExpandedWidth;
 
 double adminSidebarWidth(double screenWidth) {
   if (screenWidth < AdminBreakpoints.mobile) {
     return math.min(288, screenWidth * 0.88);
   }
-  return adminDesktopSidebarWidth;
+  return adminDesktopSidebarExpandedWidth;
 }
 
 /// Optional max width for main content on ultra-wide monitors.

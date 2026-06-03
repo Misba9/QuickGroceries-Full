@@ -11,9 +11,9 @@ class OrderLineSnapshot {
     final pack = _packFor(item);
     final qty = item.itemCount > 0 ? item.itemCount : 1;
     final sellingPrice = item.unitEffectivePrice;
-    final originalPrice = item.unitEffectiveSlashedPrice;
+    final mrp = item.unitEffectiveSlashedPrice;
     final discountAmount =
-        (originalPrice - sellingPrice).clamp(0.0, double.infinity);
+        (mrp - sellingPrice).clamp(0.0, double.infinity);
     final lineTotal = sellingPrice * qty;
     final variant = _variantFor(item, pack);
 
@@ -35,14 +35,17 @@ class OrderLineSnapshot {
         'measurementType': item.measurementType,
       'selectedWeightInGrams': item.selectedWeightInGrams,
       'unitType': item.unit,
-      'originalPrice': originalPrice,
+      'pricePaid': sellingPrice,
       'sellingPrice': sellingPrice,
+      'discountedPrice': sellingPrice,
+      'mrp': mrp,
+      'originalPrice': mrp,
       'discountAmount': discountAmount,
       'lineTotal': lineTotal,
       'price': sellingPrice,
       'unitPrice': sellingPrice,
       'totalPrice': lineTotal,
-      'slashedPrice': originalPrice,
+      'slashedPrice': mrp,
       'vendor_id': item.vendorId,
       'vendorId': item.vendorId,
       'isVegetable': item.isVegetable,

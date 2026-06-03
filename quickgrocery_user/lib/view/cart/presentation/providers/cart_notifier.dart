@@ -272,12 +272,10 @@ class CartNotifier extends Notifier<CartState> {
   bool addProduct(ProductModel product) {
     if (_disposed) return false;
     if (product.isOutOfStock) {
-      _feedback('This item is out of stock');
       return false;
     }
     final cap = product.effectiveMaxQuantity;
     if (cap <= 0) {
-      _feedback('This item is out of stock');
       return false;
     }
     final items = [...state.items];
@@ -296,7 +294,6 @@ class CartNotifier extends Notifier<CartState> {
     } else {
       final cur = items[idx];
       if (cur.itemCount >= cap) {
-        _feedback('Maximum order limit reached');
         return false;
       }
       final next = (cur.itemCount + 1).clamp(1, cap);
@@ -309,7 +306,7 @@ class CartNotifier extends Notifier<CartState> {
     }
     _writeLocal(items);
     if (isNewLine) {
-      _feedback('Item added to cart');
+      _feedbackSuccess('Item added to cart');
     }
     return true;
   }
@@ -341,7 +338,7 @@ class CartNotifier extends Notifier<CartState> {
       );
     }
     _writeLocal(items);
-    _feedback('Combo added to cart'); // shown via [cartFeedbackProvider]
+    _feedbackSuccess('Combo added to cart');
   }
 
   bool increment(String productId) {
@@ -355,12 +352,10 @@ class CartNotifier extends Notifier<CartState> {
       return true;
     }
     if (cur.isUnavailable && cur.stock <= 0) {
-      _feedback('This item is out of stock');
       return false;
     }
     final cap = cur.effectiveMaxQuantity;
     if (cap <= 0 || cur.itemCount >= cap) {
-      _feedback('Maximum order limit reached');
       return false;
     }
     items[idx] = cur.copyWith(itemCount: cur.itemCount + 1);
@@ -546,8 +541,11 @@ class CartNotifier extends Notifier<CartState> {
 
   // ── Internals ────────────────────────────────────────────────────────
 
-  void _feedback(String message) {
-    ref.read(cartFeedbackProvider.notifier).state = message;
+  void _feedbackSuccess(String message) {
+    ref.read(cartFeedbackProvider.notifier).state = CartFeedbackMessage(
+      text: message,
+      kind: CartFeedbackKind.success,
+    );
   }
 
   void _writeLocal(List<CartItem> items) {

@@ -30,6 +30,8 @@ class LiveOrder {
   final bool slotExpress;
   final Map<String, dynamic> billSnapshot;
   final Map<String, dynamic>? addressSnapshot;
+  final double tipAmount;
+  final String tipStatus;
 
   const LiveOrder({
     required this.legacy,
@@ -46,6 +48,8 @@ class LiveOrder {
     required this.slotExpress,
     required this.billSnapshot,
     required this.addressSnapshot,
+    this.tipAmount = 0,
+    this.tipStatus = '',
   });
 
   String get id => legacy.id;
@@ -65,8 +69,7 @@ class LiveOrder {
 
   bool get canCustomerCancel {
     if (isCancelled || isDelivered) return false;
-    if (status == OrderStatus.pickedUp ||
-        status == OrderStatus.outForDelivery) {
+    if (status == OrderStatus.outForDelivery) {
       return false;
     }
     if (_tryParse(legacy.orderPickedTime) != null) return false;
@@ -92,6 +95,19 @@ class LiveOrder {
       id.length > 8 ? id.substring(id.length - 8).toUpperCase() : id.toUpperCase();
 
   double billField(String key) => (billSnapshot[key] as num?)?.toDouble() ?? 0;
+
+  double get deliveryPartnerTip {
+    if (tipAmount > 0) return tipAmount;
+    return billField('deliveryPartnerTip');
+  }
+
+  bool get canIncreaseTip {
+    if (isCancelled) return false;
+    if (isDelivered) return true;
+    return status == OrderStatus.deliveryAssigned ||
+        status == OrderStatus.outForDelivery ||
+        status == OrderStatus.orderPlaced;
+  }
 
   /// Grand total from saved `bill` (single source of truth).
   double get total {
@@ -150,6 +166,11 @@ class LiveOrder {
       data['deliveryInstructions'] ?? data['delivery_instructions'],
     );
 
+    final tip = (data['tipAmount'] as num?)?.toDouble() ??
+        (bill is Map
+            ? (bill['deliveryPartnerTip'] as num?)?.toDouble() ?? 0
+            : 0);
+
     return LiveOrder(
       legacy: legacy,
       status: status,
@@ -170,6 +191,8 @@ class LiveOrder {
       addressSnapshot: addressSnap is Map
           ? Map<String, dynamic>.from(addressSnap)
           : null,
+      tipAmount: tip,
+      tipStatus: (data['tipStatus'] as String?) ?? '',
     );
   }
 
@@ -178,25 +201,20 @@ class LiveOrder {
     if (data['isDelivered'] == true) return OrderStatus.delivered.id;
     final modern = (data['status'] as String?)?.trim();
     if (modern != null && modern.isNotEmpty) {
-      return OrderStatus.fromId(modern).id;
+      return OrderStatus.normalizeId(modern);
     }
     final s = (data['order_status'] as String?)?.toLowerCase() ?? '';
-    if (s.contains('cancel')) return OrderStatus.cancelled.id;
-    if (s.contains('deliver')) return OrderStatus.delivered.id;
-    if (s.contains('way')) return OrderStatus.outForDelivery.id;
-    if (s.contains('picked')) return OrderStatus.pickedUp.id;
-    if (s.contains('reached') && s.contains('store')) {
-      return OrderStatus.reachedStore.id;
+    if (s.contains('cancel') || s.contains('reject')) {
+      return OrderStatus.cancelled.id;
     }
-    if (s.contains('going') || s.contains('shop')) return OrderStatus.headingToStore.id;
-    if (s.contains('rider') && s.contains('accept')) return OrderStatus.riderAccepted.id;
-    if (s.contains('rider') && s.contains('assign')) return OrderStatus.riderAssigned.id;
-    if (s.contains('ready')) return OrderStatus.readyForPickup.id;
-    if (s.contains('prepar') || s.contains('pack')) return OrderStatus.packing.id;
-    if (s.contains('reject')) return OrderStatus.vendorRejected.id;
-    if (s.contains('vendor') && s.contains('accept')) return OrderStatus.vendorAccepted.id;
-    if (s.contains('confirm') || s.contains('accept')) return OrderStatus.vendorAccepted.id;
-    return OrderStatus.pending.id;
+    if (s.contains('deliver')) return OrderStatus.delivered.id;
+    if (s.contains('way') || s.contains('out for') || s.contains('picked')) {
+      return OrderStatus.outForDelivery.id;
+    }
+    if (s.contains('rider') || s.contains('assign') || s.contains('delivery partner')) {
+      return OrderStatus.deliveryAssigned.id;
+    }
+    return OrderStatus.orderPlaced.id;
   }
 }
 
@@ -218,7 +236,7 @@ class OrderTimelineEntry {
   });
 }
 
-/// Build the canonical 8-step timeline for a [LiveOrder].
+/// Build the simplified 4-step timeline for a [LiveOrder].
 List<OrderTimelineEntry> buildTimeline(LiveOrder o) {
   if (o.isCancelled) {
     return [
@@ -244,56 +262,28 @@ List<OrderTimelineEntry> buildTimeline(LiveOrder o) {
       ? null
       : o.createdAt;
 
-  const steps = <({String title, String subtitle, DateTime? at})>[
+  const steps = <({String title, String subtitle})>[
     (
       title: 'Order placed',
       subtitle: 'We have received your order',
-      at: null,
-    ),
-    (
-      title: 'Order confirmed',
-      subtitle: 'Vendor has confirmed your order',
-      at: null,
-    ),
-    (
-      title: 'Vendor preparing order',
-      subtitle: 'Your items are being prepared',
-      at: null,
-    ),
-    (
-      title: 'Order ready for pickup',
-      subtitle: 'Waiting for the delivery partner',
-      at: null,
     ),
     (
       title: 'Delivery partner assigned',
-      subtitle: 'A rider is on the way to the store',
-      at: null,
-    ),
-    (
-      title: 'Picked up',
-      subtitle: 'Your order has left the store',
-      at: null,
+      subtitle: 'A delivery partner is on your order',
     ),
     (
       title: 'Out for delivery',
-      subtitle: 'Rider is heading to you',
-      at: null,
+      subtitle: 'Your order is on the way to you',
     ),
     (
       title: 'Delivered',
       subtitle: 'Order completed — enjoy!',
-      at: null,
     ),
   ];
 
   final times = <DateTime?>[
     placedAt,
-    _tryParse(o.legacy.confimedTime),
-    _tryParse(o.legacy.driverGoShopTime),
-    _tryParse(o.legacy.driverGoShopTime),
     o.hasRider ? _tryParse(o.legacy.driverGoShopTime) : null,
-    _tryParse(o.legacy.orderPickedTime),
     _tryParse(o.legacy.onTheWayTime) ?? _tryParse(o.legacy.orderPickedTime),
     _tryParse(o.legacy.orderDeliveredTime),
   ];
@@ -301,7 +291,7 @@ List<OrderTimelineEntry> buildTimeline(LiveOrder o) {
   return List.generate(steps.length, (i) {
     final step = steps[i];
     final done = o.isDelivered || i < activeStep || i == 0;
-    final active = o.isDelivered ? i == 7 : i == activeStep;
+    final active = o.isDelivered ? i == 3 : i == activeStep;
     return OrderTimelineEntry(
       title: step.title,
       subtitle: step.subtitle,
@@ -313,21 +303,12 @@ List<OrderTimelineEntry> buildTimeline(LiveOrder o) {
 }
 
 int _activeTrackingStep(LiveOrder o) {
-  if (o.isDelivered || o.status == OrderStatus.delivered) return 7;
-  if (o.status == OrderStatus.outForDelivery) return 6;
-  if (o.status == OrderStatus.pickedUp || _tryParse(o.legacy.orderPickedTime) != null) {
-    return 5;
+  if (o.isDelivered || o.status == OrderStatus.delivered) return 3;
+  if (o.status == OrderStatus.outForDelivery ||
+      _tryParse(o.legacy.onTheWayTime) != null) {
+    return 2;
   }
-  if (o.status == OrderStatus.reachedStore ||
-      o.status == OrderStatus.headingToStore) {
-    return 4;
-  }
-  if (o.status == OrderStatus.riderAccepted) return 4;
-  if (o.hasRider || o.status == OrderStatus.riderAssigned) return 4;
-  if (o.status == OrderStatus.readyForPickup) return 3;
-  if (o.status == OrderStatus.packing) return 3;
-  if (o.status == OrderStatus.accepted || o.status == OrderStatus.vendorAccepted) return 2;
-  if (_tryParse(o.legacy.confimedTime) != null) return 1;
+  if (o.hasRider || o.status == OrderStatus.deliveryAssigned) return 1;
   return 0;
 }
 

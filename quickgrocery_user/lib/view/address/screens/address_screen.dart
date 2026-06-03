@@ -13,7 +13,7 @@ import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/checkout/widgets/address_card.dart';
 import 'package:quickgrocery/view/checkout/widgets/checkout_bottom_bar.dart';
 import 'package:quickgrocery/view/checkout/widgets/empty_address_widget.dart';
-import 'package:quickgrocery/view/payment/screens/payment_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 
 /// Premium address book — saved addresses with select / edit / swipe-delete.
 class AddressScreen extends StatefulWidget {
@@ -37,7 +37,7 @@ class _AddressScreenState extends State<AddressScreen> {
     final service = Provider.of<AddressService>(context, listen: false);
     final ok = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => AddAdressScreen(editing: edit)),
+      AppPageRoutes.addAddress(editing: edit),
     );
     if (ok == true) await service.getAddress();
   }
@@ -106,10 +106,7 @@ class _AddressScreenState extends State<AddressScreen> {
             enabled: hasAddr,
             isLoading: false,
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => PaymentScreen()),
-              );
+              Navigator.push(context, AppPageRoutes.payment());
             },
           );
         },

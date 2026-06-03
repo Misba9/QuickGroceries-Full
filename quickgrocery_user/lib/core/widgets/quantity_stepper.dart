@@ -20,6 +20,7 @@ class QuantityStepper extends StatelessWidget {
     required this.onDecrement,
     this.size = QuantityStepperSize.medium,
     this.maxQuantity,
+    this.onMaxReached,
   });
 
   final int count;
@@ -27,6 +28,7 @@ class QuantityStepper extends StatelessWidget {
   final VoidCallback onDecrement;
   final QuantityStepperSize size;
   final int? maxQuantity;
+  final VoidCallback? onMaxReached;
 
   @override
   Widget build(BuildContext context) {
@@ -87,13 +89,15 @@ class QuantityStepper extends StatelessWidget {
                 icon: Icons.add_rounded,
                 size: dims.iconSize,
                 width: dims.tapWidth,
-                disabled: atMax,
-                onTap: atMax
-                    ? null
-                    : () {
-                        HapticFeedback.selectionClick();
-                        onIncrement();
-                      },
+                disabled: false,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  if (atMax) {
+                    onMaxReached?.call();
+                  } else {
+                    onIncrement();
+                  }
+                },
               ),
             ],
           ),

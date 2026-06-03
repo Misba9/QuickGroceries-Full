@@ -21,11 +21,12 @@ import 'package:quickgrocery/core/design/app_theme.dart';
 import 'package:quickgrocery/core/localization/app_locales.dart';
 import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
+import 'package:quickgrocery/core/navigation/app_route_observer.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/realtime/realtime_bootstrap.dart';
 import 'package:quickgrocery/services/language_service.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
-import 'package:quickgrocery/view/auth/screens/login_screen.dart';
+import 'package:quickgrocery/view/auth/auth_gate.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/services/cart_service.dart';
@@ -109,35 +110,25 @@ Future<void> handleReferralAfterInstall() async {
       .getInitialLink();
 
   if (initialLink != null) {
-    final Uri deepLink = initialLink.link;
-    if (deepLink.queryParameters.containsKey('ref')) {
-      String referrerId = deepLink.queryParameters['ref']!;
-      saveReferral(referrerId);
-    }
+    await _storePendingReferralCode(initialLink.link);
   }
 
   FirebaseDynamicLinks.instance.onLink
-      .listen((PendingDynamicLinkData data) {
-        final Uri deepLink = data.link;
-        if (deepLink.queryParameters.containsKey('ref')) {
-          String referrerId = deepLink.queryParameters['ref']!;
-          saveReferral(referrerId);
-        }
+      .listen((PendingDynamicLinkData data) async {
+        await _storePendingReferralCode(data.link);
       })
       .onError((error) {
         print("Dynamic Link Error: $error");
       });
 }
 
-Future<void> saveReferral(String referrerId) async {
-  await withFirestoreRetry(
-    () => FirebaseFirestore.instance
-        .collection('customers')
-        .doc(FirebaseAuth.instance.currentUser!.uid)
-        .set({'referred_by': referrerId}, SetOptions(merge: true)),
-  );
-
-  print("Referral saved! New user referred by: $referrerId");
+Future<void> _storePendingReferralCode(Uri deepLink) async {
+  final code = deepLink.queryParameters['code'] ??
+      deepLink.queryParameters['ref'] ??
+      '';
+  if (code.trim().isEmpty) return;
+  final pref = await SharedPreferences.getInstance();
+  await pref.setString('pending_referral_code', code.trim());
 }
 
 /// Strings (case-insensitive substrings) that we silence from `print` output
@@ -324,6 +315,7 @@ class _MyAppState extends State<MyApp> {
                         ),
                       );
                     },
+                    navigatorObservers: [appRouteObserver],
                     home: Consumer(
                       builder: (context, ref, _) {
                         return RealtimeBootstrap(
@@ -331,10 +323,7 @@ class _MyAppState extends State<MyApp> {
                             child: StreamBuilder(
                               stream: FirebaseAuth.instance.authStateChanges(),
                               builder: (context, userSnp) {
-                                if (userSnp.hasData) {
-                                  return const LandingScreen();
-                                }
-                                return const LoginScreen();
+                                return const AuthGate();
                               },
                             ),
                           ),

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:quickgrocery_vendor/controllers/auth_controller.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
 import 'package:quickgrocery_vendor/utils/app_spacing.dart';
+import 'package:quickgrocery_vendor/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery_vendor/view/auth/widgets/signup_image_upload.dart';
 import 'package:quickgrocery_vendor/view/auth/widgets/signup_section_card.dart';
 import 'login_screen.dart';
@@ -129,10 +130,10 @@ class _VendorSignupScreenState extends State<VendorSignupScreen> {
             foregroundColor: Colors.black87,
             title: const Text('Vendor Sign Up'),
           ),
+          resizeToAvoidBottomInset: true,
           body: SafeArea(
-            child: SingleChildScrollView(
+            child: KeyboardSafeBody(
               padding: const EdgeInsets.all(20),
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: Form(
                 key: _formKey,
                 child: Column(

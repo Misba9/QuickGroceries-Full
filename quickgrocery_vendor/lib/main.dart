@@ -8,7 +8,7 @@ import 'package:quickgrocery_vendor/core/vendor_push_initializer.dart';
 import 'package:quickgrocery_vendor/services/preference_service.dart';
 import 'package:quickgrocery_vendor/maintenance/maintenance_gate.dart';
 import 'view/auth/auth_wrapper.dart';
-import 'style/app_color.dart';
+import 'style/vendor_app_theme.dart';
 
 @pragma('vm:entry-point')
 Future<void> vendorFcmBackgroundHandler(RemoteMessage message) async {
@@ -67,21 +67,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'QuickGrocery Vendor',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColor.primary,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColor.primary,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      title: 'Vendor Quick QuickGroceries',
+      theme: VendorAppTheme.light(),
+      darkTheme: VendorAppTheme.dark(),
       themeMode: ThemeMode.system,
       home: const VendorMaintenanceGate(child: AuthWrapper()),
     );

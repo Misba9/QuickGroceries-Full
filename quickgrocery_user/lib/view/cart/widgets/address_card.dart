@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_icons.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
-import 'package:quickgrocery/view/address/screens/address_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:provider/provider.dart';
 
@@ -49,10 +49,7 @@ class AddressCard extends StatelessWidget {
         ),
         TextButton(
           onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AddressScreen()),
-            );
+            Navigator.push(context, AppPageRoutes.address());
           },
           child: const Text(
             'Change',

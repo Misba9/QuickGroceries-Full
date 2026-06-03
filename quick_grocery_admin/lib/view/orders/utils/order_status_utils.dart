@@ -55,29 +55,17 @@ class OrderStatusUtils {
       return OrderDisplayStatus.delivered;
     }
     switch (status) {
-      case OrderLifecycle.pending:
+      case OrderLifecycle.orderPlaced:
         return OrderDisplayStatus.pending;
-      case OrderLifecycle.vendorAccepted:
-      case OrderLifecycle.accepted:
-        return OrderDisplayStatus.accepted;
-      case OrderLifecycle.vendorRejected:
-        return OrderDisplayStatus.cancelled;
-      case OrderLifecycle.packing:
-        return OrderDisplayStatus.packing;
-      case OrderLifecycle.readyForPickup:
-        return OrderDisplayStatus.waiting;
-      case OrderLifecycle.riderAssigned:
+      case OrderLifecycle.deliveryAssigned:
         return OrderDisplayStatus.assigned;
-      case OrderLifecycle.riderAccepted:
-        return OrderDisplayStatus.outForDelivery;
-      case OrderLifecycle.reachedStore:
-        return OrderDisplayStatus.pickedUp;
-      case OrderLifecycle.headingToStore:
-        return OrderDisplayStatus.outForDelivery;
-      case OrderLifecycle.pickedUp:
-        return OrderDisplayStatus.pickedUp;
       case OrderLifecycle.outForDelivery:
         return OrderDisplayStatus.outForDelivery;
+      case OrderLifecycle.delivered:
+        return OrderDisplayStatus.delivered;
+      case OrderLifecycle.cancelled:
+      case OrderLifecycle.cancelledByVendor:
+        return OrderDisplayStatus.cancelled;
       default:
         if (order.deliveryBoyId.isNotEmpty) return OrderDisplayStatus.assigned;
         return OrderDisplayStatus.pending;

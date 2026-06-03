@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:quick_grocery_delivery/widgets/delivery_logo.dart';
+import 'package:quick_grocery_delivery/constants/delivery_branding.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/constants/primary_button.dart';
 import 'package:quick_grocery_delivery/features/login/forgot_password/forgot_password_email_screen.dart';
@@ -24,19 +25,28 @@ class _LoginScreenBody extends StatelessWidget {
     final height = MediaQuery.of(context).size.height;
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            SizedBox(height: height * .05),
-            ClipPath(
-              clipper: BottomClipper(),
-              child: Container(
-                width: width,
-                height: height * .25,
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+          ),
+          child: Column(
+            children: [
+              SizedBox(height: (height * .05).clamp(16.0, 40.0)),
+              ClipPath(
+                clipper: BottomClipper(),
+                child: Container(
+                  width: width,
+                  height: (height * .25).clamp(120.0, 200.0),
                 decoration: const BoxDecoration(color: Colors.white),
                 child: Padding(
-                  padding: const EdgeInsets.all(25.0),
-                  child: Image.asset('assets/images/logo2.png'),
+                  padding: const EdgeInsets.all(16),
+                  child: DeliveryLogo(
+                    height: (height * .22).clamp(110.0, 160.0),
+                    showTitle: false,
+                  ),
                 ),
               ),
             ),
@@ -45,13 +55,14 @@ class _LoginScreenBody extends StatelessWidget {
               padding: const EdgeInsets.all(10.0),
               child: Column(
                 children: [
-                  const Text(
-                    'Quick Groceries Delivery',
-                    style: TextStyle(
+                  Text(
+                    DeliveryBranding.loginTitle,
+                    style: const TextStyle(
                       fontSize: 20,
                       color: Colors.black,
                       fontWeight: FontWeight.bold,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                   SizedBox(height: height * .04),
                   const Row(

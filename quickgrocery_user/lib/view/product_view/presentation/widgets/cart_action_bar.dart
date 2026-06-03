@@ -5,8 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy;
 
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/inventory/inventory_limit_messages.dart';
 import 'package:quickgrocery/models/product.dart';
-import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/quantity_provider.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/fly_to_cart_animation.dart';
@@ -155,12 +157,24 @@ class _CartActionBarState extends ConsumerState<CartActionBar> {
             QuantitySelector(
               value: qty,
               disabled: unavailable,
-              onIncrement: () => quantityNotifier(
-                ref,
-                productId: widget.product.id,
-                stock: widget.product.stock,
-                maxOrder: widget.product.maxOrder,
-              ).increment(),
+              onIncrement: () {
+                final ok = quantityNotifier(
+                  ref,
+                  productId: widget.product.id,
+                  stock: widget.product.stock,
+                  maxOrder: widget.product.maxOrder,
+                ).increment();
+                if (!ok && context.mounted) {
+                  showTopErrorToast(
+                    context,
+                    InventoryLimitMessages.incrementBlocked(
+                      stock: widget.product.stock,
+                      maxOrder: widget.product.maxOrder,
+                      currentCount: qty,
+                    ),
+                  );
+                }
+              },
               onDecrement: () => quantityNotifier(
                 ref,
                 productId: widget.product.id,
@@ -261,10 +275,7 @@ class _GoToCartButton extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CartScreen()),
-          );
+          Navigator.push(context, AppPageRoutes.cart());
         },
         child: SizedBox(
           height: 50,

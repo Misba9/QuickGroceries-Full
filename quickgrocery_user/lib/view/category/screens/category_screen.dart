@@ -35,13 +35,29 @@ class CategoryScreen extends StatefulWidget {
 class _CategoryScreenState extends State<CategoryScreen> {
   final _searchController = TextEditingController();
 
+  void _loadCategory() {
+    _searchController.clear();
+    legacy.Provider.of<CategoryService>(context, listen: false)
+        .getSubCategories(widget.category);
+  }
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      legacy.Provider.of<CategoryService>(context, listen: false)
-          .getSubCategories(widget.category);
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadCategory());
+  }
+
+  @override
+  void didUpdateWidget(covariant CategoryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.category != widget.category) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadCategory());
+    }
+  }
+
+  void _onSubcategoryTap(CategoryService service, String name) {
+    _searchController.clear();
+    service.onCategoryChanged(name);
   }
 
   @override
@@ -62,7 +78,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
               category: widget.category,
               searchController: _searchController,
             ),
-            const Expanded(child: _Body()),
+            Expanded(
+              child: _Body(
+                onSubcategoryTap: _onSubcategoryTap,
+              ),
+            ),
           ],
         ),
       ),
@@ -144,7 +164,9 @@ class _Header extends StatelessWidget {
 // ──────────────────────────────────────────────────────────────────────────
 
 class _Body extends StatelessWidget {
-  const _Body();
+  const _Body({required this.onSubcategoryTap});
+
+  final void Function(CategoryService service, String name) onSubcategoryTap;
 
   @override
   Widget build(BuildContext context) {
@@ -153,14 +175,16 @@ class _Body extends StatelessWidget {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const _Sidebar(),
+            _Sidebar(onSubcategoryTap: onSubcategoryTap),
             const VerticalDivider(width: 1, color: AppSurface.border),
             Expanded(
-              child: _Grid(
+              child: _ProductPane(
+                loadKey: p.loadGeneration,
+                selectedCategory: p.selectedCategory,
                 products: p.products,
-                isLoading: p.subCategories.isNotEmpty &&
-                    p.products.isEmpty &&
-                    p.selectedCategory.isNotEmpty,
+                isLoading: p.isProductsLoading,
+                hasError: p.productsState == CategoryProductsState.error,
+                errorMessage: p.productsError,
               ),
             ),
           ],
@@ -173,7 +197,9 @@ class _Body extends StatelessWidget {
 // ── Sidebar ─────────────────────────────────────────────────────────────
 
 class _Sidebar extends StatelessWidget {
-  const _Sidebar();
+  const _Sidebar({required this.onSubcategoryTap});
+
+  final void Function(CategoryService service, String name) onSubcategoryTap;
 
   @override
   Widget build(BuildContext context) {
@@ -182,7 +208,7 @@ class _Sidebar extends StatelessWidget {
       color: const Color(0xFFFAFAFB),
       child: legacy.Consumer<CategoryService>(
         builder: (context, p, _) {
-          if (p.subCategories.isEmpty) {
+          if (p.isProductsLoading && p.subCategories.isEmpty) {
             return ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 8),
               itemCount: 6,
@@ -225,7 +251,7 @@ class _Sidebar extends StatelessWidget {
                 image: c.image,
                 title: c.name,
                 isSelected: p.selectedCategory == c.name,
-                onTap: () => p.onCategoryChanged(c.name),
+                onTap: () => onSubcategoryTap(p, c.name),
               );
             },
           );
@@ -235,51 +261,114 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-// ── Grid ────────────────────────────────────────────────────────────────
+// ── Product pane (shimmer → grid with fade) ───────────────────────────────
 
-class _Grid extends StatelessWidget {
-  const _Grid({required this.products, required this.isLoading});
+class _ProductPane extends StatelessWidget {
+  const _ProductPane({
+    required this.loadKey,
+    required this.selectedCategory,
+    required this.products,
+    required this.isLoading,
+    required this.hasError,
+    this.errorMessage,
+  });
 
+  final int loadKey;
+  final String selectedCategory;
   final List products;
   final bool isLoading;
+  final bool hasError;
+  final String? errorMessage;
+
+  static const _fadeDuration = Duration(milliseconds: 220);
 
   @override
   Widget build(BuildContext context) {
+    Widget child;
     if (isLoading) {
-      return Padding(
+      child = Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
         child: HomeShimmer.exploreGrid(count: 6),
       );
+    } else if (hasError) {
+      child = _LoadError(message: errorMessage);
+    } else if (products.isEmpty) {
+      child = _Empty();
+    } else {
+      child = legacy.Consumer<CategoryService>(
+        builder: (context, p, _) {
+          return GridView.builder(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 110),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 9,
+              childAspectRatio: 0.68,
+            ),
+            itemCount: p.products.length,
+            itemBuilder: (context, i) {
+              final product = p.products[i];
+              return LayoutBuilder(
+                builder: (context, c) {
+                  return ProductCardWidget(
+                    product: product,
+                    width: c.maxWidth,
+                  );
+                },
+              );
+            },
+          );
+        },
+      );
     }
 
-    if (products.isEmpty) {
-      return _Empty();
-    }
+    return AnimatedSwitcher(
+      duration: _fadeDuration,
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      child: KeyedSubtree(
+        key: ValueKey<String>(
+          isLoading
+              ? 'loading-$loadKey'
+              : hasError
+                  ? 'error-$loadKey'
+                  : products.isEmpty
+                      ? 'empty-$selectedCategory-$loadKey'
+                      : 'grid-$selectedCategory-$loadKey',
+        ),
+        child: child,
+      ),
+    );
+  }
+}
 
-    return legacy.Consumer<CategoryService>(
-      builder: (context, p, _) {
-        return GridView.builder(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 110),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 9,
-            childAspectRatio: 0.68,
-          ),
-          itemCount: p.products.length,
-          itemBuilder: (context, i) {
-            final product = p.products[i];
-            return LayoutBuilder(
-              builder: (context, c) {
-                return ProductCardWidget(
-                  product: product,
-                  width: c.maxWidth,
-                );
-              },
-            );
-          },
-        );
-      },
+class _LoadError extends StatelessWidget {
+  const _LoadError({this.message});
+
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 48, color: Colors.grey.shade500),
+            const SizedBox(height: 12),
+            Text(
+              message ?? 'Could not load products',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppSurface.text,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

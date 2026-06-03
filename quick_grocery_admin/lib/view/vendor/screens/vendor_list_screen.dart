@@ -10,6 +10,7 @@ import 'package:quick_grocery_admin/view/vendor/screens/vendor_details.dart';
 import 'package:quick_grocery_admin/view/vendor/widgets/vendor_auth_recovery_sheet.dart';
 import 'package:quick_grocery_admin/view/vendor/services/vendor_service.dart';
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_admin/core/widgets/admin_text_selection.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 
@@ -241,10 +242,9 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                           _vendorThumb(v.shopImage),
                                           const SizedBox(width: 8),
                                           Expanded(
-                                            child: Text(
+                                            child: AdminSelectableText(
                                               v.shopName,
                                               maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                         ],
@@ -252,10 +252,9 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                     ),
                                   ),
                                   DataCell(
-                                    Text(
+                                    AdminSelectableText(
                                       v.ownerName,
                                       maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                   DataCell(
@@ -266,15 +265,13 @@ class _VendorListScreenState extends State<VendorListScreen> {
                                             CrossAxisAlignment.start,
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Text(
+                                          AdminSelectableText(
                                             v.phone,
                                             maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          Text(
+                                          AdminSelectableText(
                                             v.email,
                                             maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ],
                                       ),

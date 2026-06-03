@@ -10,6 +10,7 @@ import 'package:quick_grocery_admin/model/vendor_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_admin/view/products/services/product_activity_log_service.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ProductService extends ChangeNotifier {
@@ -37,6 +38,10 @@ class ProductService extends ChangeNotifier {
   bool isLoading = false;
   bool isTodaysBest = false;
   bool isMostSelling = false;
+  final Set<String> _productActionBusy = {};
+
+  bool isProductActionBusy(String productId) =>
+      _productActionBusy.contains(productId);
 
   String selectedImage = '';
   Future<void> pickImage() async {
@@ -1065,6 +1070,104 @@ class ProductService extends ChangeNotifier {
         );
       },
     );
+  }
+
+  Future<bool> setProductOutOfStock(ProductModel product) async {
+    if (_productActionBusy.contains(product.id)) return false;
+    _productActionBusy.add(product.id);
+    notifyListeners();
+    try {
+      await _db.collection('products').doc(product.id).update({
+        'isAvailable': false,
+        'stockStatus': 'out_of_stock',
+        'lastEdited': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      await ProductActivityLogService.log(
+        actionType: ProductActivityLogService.actionMarkedOutOfStock,
+        productId: product.id,
+        productName: product.name,
+      );
+      return true;
+    } catch (e) {
+      log('setProductOutOfStock: $e');
+      return false;
+    } finally {
+      _productActionBusy.remove(product.id);
+      notifyListeners();
+    }
+  }
+
+  Future<bool> setProductInStock(ProductModel product) async {
+    if (_productActionBusy.contains(product.id)) return false;
+    _productActionBusy.add(product.id);
+    notifyListeners();
+    try {
+      await _db.collection('products').doc(product.id).update({
+        'isAvailable': true,
+        'stockStatus': 'in_stock',
+        'lastEdited': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      await ProductActivityLogService.log(
+        actionType: ProductActivityLogService.actionRestoredInStock,
+        productId: product.id,
+        productName: product.name,
+      );
+      return true;
+    } catch (e) {
+      log('setProductInStock: $e');
+      return false;
+    } finally {
+      _productActionBusy.remove(product.id);
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteProductPermanently(ProductModel product) async {
+    if (_productActionBusy.contains(product.id)) return false;
+    _productActionBusy.add(product.id);
+    notifyListeners();
+    try {
+      await _deleteProductMediaFromStorage(product);
+      await _db.collection('products').doc(product.id).delete();
+      await ProductActivityLogService.log(
+        actionType: ProductActivityLogService.actionDeleted,
+        productId: product.id,
+        productName: product.name,
+      );
+      return true;
+    } catch (e) {
+      log('deleteProductPermanently: $e');
+      return false;
+    } finally {
+      _productActionBusy.remove(product.id);
+      notifyListeners();
+    }
+  }
+
+  List<String> _collectProductMediaUrls(ProductModel product) {
+    final urls = <String>{};
+    if (product.image.trim().isNotEmpty) urls.add(product.image.trim());
+    for (final item in product.images) {
+      final s = item.toString().trim();
+      if (s.isNotEmpty) urls.add(s);
+    }
+    for (final item in product.videos) {
+      final s = item.toString().trim();
+      if (s.isNotEmpty) urls.add(s);
+    }
+    return urls.toList();
+  }
+
+  Future<void> _deleteProductMediaFromStorage(ProductModel product) async {
+    for (final url in _collectProductMediaUrls(product)) {
+      try {
+        await FirebaseStorage.instance.refFromURL(url).delete();
+      } catch (e) {
+        log('Storage delete failed for $url: $e');
+      }
+    }
   }
 
   void showDeleteDialog(BuildContext context, String id) {

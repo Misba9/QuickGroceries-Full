@@ -15,13 +15,18 @@ import {
 } from "./ops_notify";
 import {
   OrderStatus,
-  isReadyForDispatch,
   needsRiderAcceptance,
   resolveStatus,
   statusToLegacy,
   vendorMirrorPatch,
 } from "./order_lifecycle";
 import { autoAssignNearestRider, haversineKm } from "./rider_assignment";
+import { processReferralOnOrderDelivered } from "../refer_earn/refer_earn_engine";
+import {
+  currentTipAmount,
+  markTipEarnedOnDelivered,
+} from "../delivery_tips/delivery_tips_engine";
+import { orderTipAmount } from "./delivery_earnings";
 const db = admin.firestore();
 
 function orderTotal(data: Record<string, unknown>): number {
@@ -188,7 +193,7 @@ export const onOrderCreated = onDocumentCreated(
     if (uid) {
       await writeUserInbox(uid, {
         title: "Order placed",
-        body: `We received your order #${orderId.slice(-6)}. Waiting for store confirmation.`,
+        body: `We received your order #${orderId.slice(-6)}.`,
         type: "order",
         targetId: orderId,
         deepLink: `/orders/${orderId}`,
@@ -196,10 +201,17 @@ export const onOrderCreated = onDocumentCreated(
     }
 
     await appendDeliveryTracking(orderId, "order_placed", {
-      status: OrderStatus.PENDING,
+      status: OrderStatus.ORDER_PLACED,
       customer,
       total,
     });
+
+    const settings = await getOpsSettings();
+    if (settings.autoAssignDriver && !str(data.deliveryBoyId)) {
+      await autoAssignNearestRider(orderId).catch((e) =>
+        console.warn("[onOrderCreated] auto-assign failed", orderId, e),
+      );
+    }
   },
 );
 
@@ -228,7 +240,7 @@ export const onOrderUpdated = onDocumentUpdated(
         from: prevStatus,
         to: nextStatus,
       });
-      if (nextStatus === OrderStatus.RIDER_ACCEPTED) {
+      if (nextStatus === OrderStatus.DELIVERY_ASSIGNED) {
         await ensureRiderAcceptedSnapshot(orderId, after);
       }
       await handleStatusTransition(orderId, prevStatus, nextStatus, after, uid);
@@ -251,7 +263,7 @@ export const onOrderUpdated = onDocumentUpdated(
         .delete()
         .catch(() => undefined);
 
-      if (resolveStatus(after) === OrderStatus.READY_FOR_PICKUP) {
+      if (resolveStatus(after) === OrderStatus.ORDER_PLACED) {
         await notifyAdmins({
           title: "Rider cancelled assignment",
           message: `Order #${orderId.slice(-6)} returned to awaiting assignment.`,
@@ -266,28 +278,28 @@ export const onOrderUpdated = onDocumentUpdated(
         });
         await appendDeliveryTracking(orderId, "cancelled_by_rider", {
           riderId: prevRider,
-          returnedTo: OrderStatus.READY_FOR_PICKUP,
+          returnedTo: OrderStatus.ORDER_PLACED,
         });
-      }
-    }
-
-    // Auto-assign nearest online rider when vendor marks ready (Blinkit-style dispatch).
-    if (
-      isReadyForDispatch(nextStatus) &&
-      !isReadyForDispatch(prevStatus) &&
-      !nextRider &&
-      !nextCancelled
-    ) {
-      const settings = await getOpsSettings();
-      if (settings.autoAssignDriver) {
-        await autoAssignNearestRider(orderId).catch((e) =>
-          console.warn("[onOrderUpdated] auto-assign failed", orderId, e),
-        );
       }
     }
 
     const prevPaid = Boolean(before.isPaid);
     const nextPaid = Boolean(after.isPaid);
+    const prevTip = currentTipAmount(before);
+    const nextTip = currentTipAmount(after);
+    if (nextTip > prevTip && nextTip > 0) {
+      const riderId = str(after.deliveryBoyId ?? after.delivery_boy_id);
+      if (riderId) {
+        const delta = nextTip - prevTip;
+        await notifyDeliveryRider(riderId, {
+          title: "Tip received",
+          message: `🎉 You received a ₹${delta} tip from a customer.`,
+          type: "delivery_tip",
+          metadata: { orderId, tipAmount: nextTip, delta },
+        });
+      }
+    }
+
     if (nextPaid && !prevPaid) {
       const total = orderTotal(after);
       await notifyAdmins({
@@ -318,141 +330,47 @@ async function handleStatusTransition(
   uid: string,
 ): Promise<void> {
   const customer = str(after.customer_name || after.customerName);
+  const normalized = resolveStatus({ ...after, status: nextStatus });
 
-  switch (nextStatus) {
-    case OrderStatus.VENDOR_ACCEPTED:
-    case OrderStatus.ACCEPTED:
+  switch (normalized) {
+    case OrderStatus.ORDER_PLACED:
+      if (uid && prevStatus !== nextStatus) {
+        await writeUserInbox(uid, {
+          title: "Order placed",
+          body: `We received your order #${orderId.slice(-6)}.`,
+          type: "order",
+          targetId: orderId,
+          deepLink: `/orders/${orderId}`,
+        });
+      }
+      break;
+
+    case OrderStatus.DELIVERY_ASSIGNED:
       if (uid) {
         await notifyCustomer(uid, {
-          title: "✅ Order Accepted",
-          body: `Store confirmed your order #${orderId.slice(-6)}.`,
-          type: "order_accepted",
+          title: "Delivery partner assigned",
+          body: `A delivery partner is assigned to order #${orderId.slice(-6)}.`,
+          type: "delivery_assigned",
           orderId,
           deepLink: `/orders/${orderId}`,
         });
       }
-      await notifyAdmins({
-        title: "Vendor accepted order",
-        message: `Vendor accepted order #${orderId.slice(-6)}.`,
-        type: "order_accepted",
-        category: "orders",
-        metadata: { orderId },
-      });
-      break;
-
-    case OrderStatus.VENDOR_REJECTED:
-      if (uid) {
-        await notifyCustomer(uid, {
-          title: "❌ Order Rejected",
-          body: `The store could not fulfill order #${orderId.slice(-6)}.`,
-          type: "order_rejected",
-          orderId,
-        });
-      }
-      await notifyAdmins({
-        title: "Vendor rejected order",
-        message: `Vendor rejected order #${orderId.slice(-6)}.`,
-        type: "vendor_rejected",
-        category: "orders",
-        soundAlert: true,
-        metadata: { orderId },
-      });
-      break;
-
-    case OrderStatus.PACKING:
-      if (uid) {
-        await writeUserInbox(uid, {
-          title: "Packing your order",
-          body: `Your items are being packed for order #${orderId.slice(-6)}.`,
-          type: "order",
-          targetId: orderId,
-        });
-      }
-      break;
-
-    case OrderStatus.READY_FOR_PICKUP:
       for (const vendorId of vendorIds(after)) {
         await notifyVendor(vendorId, {
-          title: "Ready for pickup",
-          message: `Order #${orderId.slice(-6)} is ready — waiting for rider.`,
-          type: "order_accepted",
+          title: "Order assigned",
+          message: `Order #${orderId.slice(-6)} assigned to a delivery partner.`,
+          type: "driver_assigned",
           metadata: { orderId },
         });
       }
-      if (uid) {
-        await writeUserInbox(uid, {
-          title: "Finding a delivery partner",
-          body: `Your order #${orderId.slice(-6)} is packed. Assigning a rider.`,
-          type: "order",
-          targetId: orderId,
-        });
-      }
       break;
 
-    case OrderStatus.RIDER_ACCEPTED:
+    case OrderStatus.CANCELLED_BY_VENDOR:
       if (uid) {
         await notifyCustomer(uid, {
-          title: "🛵 Rider Assigned",
-          body: `Your delivery partner accepted order #${orderId.slice(-6)}.`,
-          type: "rider_assigned",
-          orderId,
-          deepLink: `/orders/${orderId}`,
-        });
-      }
-      await notifyAdmins({
-        title: "Rider accepted delivery",
-        message: `Rider accepted order #${orderId.slice(-6)}.`,
-        type: "driver_accepted",
-        category: "delivery",
-        metadata: { orderId, deliveryBoyId: str(after.deliveryBoyId) },
-      });
-      break;
-
-    case OrderStatus.REACHED_STORE:
-      for (const vendorId of vendorIds(after)) {
-        await notifyVendor(vendorId, {
-          title: "Rider at store",
-          message: `Rider reached your store for order #${orderId.slice(-6)}.`,
-          type: "order_accepted",
-          metadata: { orderId },
-        });
-      }
-      if (uid) {
-        await writeUserInbox(uid, {
-          title: "Rider at store",
-          body: `Delivery partner reached the store for order #${orderId.slice(-6)}.`,
-          type: "delivery",
-          targetId: orderId,
-          deepLink: `/orders/${orderId}`,
-        });
-      }
-      await notifyAdmins({
-        title: "Rider reached store",
-        message: `Rider at store for order #${orderId.slice(-6)}.`,
-        type: "delivery_assigned",
-        category: "delivery",
-        metadata: { orderId, deliveryBoyId: str(after.deliveryBoyId) },
-      });
-      break;
-
-    case OrderStatus.HEADING_TO_STORE:
-      if (uid) {
-        await writeUserInbox(uid, {
-          title: "Rider on the way to store",
-          body: `Delivery partner accepted and is heading to pick up order #${orderId.slice(-6)}.`,
-          type: "delivery",
-          targetId: orderId,
-          deepLink: `/orders/${orderId}`,
-        });
-      }
-      break;
-
-    case OrderStatus.PICKED_UP:
-      if (uid) {
-        await notifyCustomer(uid, {
-          title: "📦 Order Picked Up",
-          body: `Your order #${orderId.slice(-6)} has been picked up from the store.`,
-          type: "order_picked_up",
+          title: "Order cancelled",
+          body: `The store cancelled order #${orderId.slice(-6)}.`,
+          type: "order_cancelled",
           orderId,
         });
       }
@@ -502,15 +420,22 @@ async function handleStatusTransition(
         });
       }
       if (uid) {
+        const tip = orderTipAmount(after);
         await notifyCustomer(uid, {
           title: "Delivered",
-          body: "Your order has been delivered successfully.",
+          body:
+            tip > 0
+              ? "Your order has been delivered successfully."
+              : "Your order has been delivered. Would you like to thank your delivery partner with a tip?",
           type: "order_delivered",
           orderId,
         });
         await writeUserInbox(uid, {
           title: "Delivered",
-          body: "Your order has been delivered successfully.",
+          body:
+            tip > 0
+              ? "Your order has been delivered successfully."
+              : "Would you like to thank your delivery partner with a tip?",
           type: "delivery",
           targetId: orderId,
           deepLink: `/orders/${orderId}`,
@@ -524,6 +449,16 @@ async function handleStatusTransition(
           metadata: { orderId },
         });
       }
+      try {
+        await markTipEarnedOnDelivered(orderId, after);
+      } catch (e) {
+        console.warn("[onOrderUpdated] markTipEarned failed", orderId, e);
+      }
+      try {
+        await processReferralOnOrderDelivered(orderId, after);
+      } catch (e) {
+        console.error("processReferralOnOrderDelivered failed", orderId, e);
+      }
       break;
     }
 
@@ -531,13 +466,12 @@ async function handleStatusTransition(
       break;
   }
 
-  // Rider acceptance notification (status rider_assigned → heading_to_store handled above).
-  if (needsRiderAcceptance(nextStatus) && !needsRiderAcceptance(prevStatus)) {
+  if (needsRiderAcceptance(normalized) && !needsRiderAcceptance(resolveStatus({ status: prevStatus }))) {
     const riderId = str(after.deliveryBoyId);
     if (riderId) {
       await notifyDeliveryRider(riderId, {
-        title: "🛵 New Delivery Assigned",
-        message: `Accept order #${orderId.slice(-6)} to start pickup.`,
+        title: "New delivery assigned",
+        message: `Accept order #${orderId.slice(-6)} to start delivery.`,
         type: "delivery_assigned",
         metadata: { orderId },
       });

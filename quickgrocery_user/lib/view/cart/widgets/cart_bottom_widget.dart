@@ -1,8 +1,8 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/cart/services/cart_service.dart';
-import 'package:quickgrocery/view/cart/presentation/screens/checkout_screen.dart';
 import 'package:provider/provider.dart';
 
 class CartBottomBarWidget extends StatelessWidget {
@@ -53,12 +53,7 @@ class CartBottomBarWidget extends StatelessWidget {
                         ),
                       );
                     } else {
-                      Navigator.push(
-                        context,
-                          MaterialPageRoute(
-                            builder: (context) => const CheckoutScreen(),
-                          ),
-                      );
+                      Navigator.push(context, AppPageRoutes.checkout());
                     }
                   },
                   child: Row(

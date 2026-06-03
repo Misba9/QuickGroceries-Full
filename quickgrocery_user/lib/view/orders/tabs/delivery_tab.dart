@@ -1,6 +1,7 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
+import 'package:quickgrocery/core/order/order_line_display.dart';
 import 'package:quickgrocery/models/order_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
@@ -217,7 +218,7 @@ class DeliveredListWidget extends StatelessWidget {
         int totalQty = 0;
 
         for (var item in order.products) {
-          totalAmount += item.price * item.itemCount;
+          totalAmount += item.lineTotal;
           totalQty += item.itemCount;
         }
         totalAmount += order.deliveryCharge;
@@ -243,9 +244,9 @@ class DeliveredListWidget extends StatelessWidget {
                       backgroundImage: NetworkImage(p.image),
                     ),
                     title: Text(p.name),
-                    subtitle: Text("Qty: ${p.itemCount} • ₹${p.price}"),
+                    subtitle: Text(orderLinePaidQtySummary(p)),
                     trailing: Text(
-                      "₹${(p.price * p.itemCount).toStringAsFixed(2)}",
+                      "₹${p.lineTotal.toStringAsFixed(0)}",
                     ),
                   ),
                 ),

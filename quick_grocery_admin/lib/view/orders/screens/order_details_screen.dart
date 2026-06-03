@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:quick_grocery_admin/core/widgets/admin_text_selection.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   const OrderDetailsScreen({super.key, required this.order});
@@ -58,7 +59,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            AdminSelectableText(
                               'Order ID: ${widget.order.id}',
                               style: TextStyle(
                                 fontSize: 16,
@@ -149,10 +150,13 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         index,
                       ) {
                         final product = widget.order.products[index];
-                        final itemTotal = product.price * product.itemCount;
+                        final itemTotal = product.lineTotal;
+                        final unitPaid = product.price;
+                        final unitMrp = product.slashedPrice > unitPaid + 0.01
+                            ? product.slashedPrice
+                            : unitPaid;
                         final discount =
-                            (product.slashedPrice - product.price) *
-                            product.itemCount;
+                            (unitMrp - unitPaid) * product.itemCount;
                         return DataRow(
                           cells: [
                             DataCell(Text((index + 1).toString())),
@@ -193,7 +197,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                       AppSpacing.h5,
                                       Text('Qty : ${product.itemCount}'),
                                       Text(
-                                        'Unit price : ₹${product.price.toStringAsFixed(2)}',
+                                        unitMrp > unitPaid + 0.01
+                                            ? 'Unit: ₹${unitPaid.toStringAsFixed(0)}  MRP ₹${unitMrp.toStringAsFixed(0)}'
+                                            : 'Unit: ₹${unitPaid.toStringAsFixed(0)}',
                                       ),
                                     ],
                                   ),
@@ -248,14 +254,14 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
+                                      AdminSelectableText(
                                         provider.customer!.name,
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       Text('0 Orders'),
-                                      Text(
+                                      AdminSelectableText(
                                         provider.customer!.phoneNumber,
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
@@ -295,17 +301,19 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           ],
                         ),
                         AppSpacing.h10,
-                        Text(
+                        AdminSelectableText(
                           'Customer : ${widget.order.customerName}',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        Text('Contact : ${widget.order.phone}'),
+                        AdminSelectableText('Contact : ${widget.order.phone}'),
                         AppSpacing.h10,
                         Row(
                           children: [
                             Icon(Icons.place, color: Colors.grey),
                             AppSpacing.w10,
-                            Expanded(child: Text(widget.order.address)),
+                            Expanded(
+                              child: AdminSelectableText(widget.order.address),
+                            ),
                           ],
                         ),
                       ],
@@ -397,14 +405,14 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
+                                      AdminSelectableText(
                                         provider.vendor!.shopName,
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       Text('2 Orders Served'),
-                                      Text(
+                                      AdminSelectableText(
                                         provider.vendor!.phone,
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
@@ -417,7 +425,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                                           AppSpacing.w10,
                                           SizedBox(
                                             width: 200,
-                                            child: Text(
+                                            child: AdminSelectableText(
                                               provider.vendor!.shopAddress,
                                             ),
                                           ),

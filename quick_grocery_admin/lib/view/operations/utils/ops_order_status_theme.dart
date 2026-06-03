@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_admin/core/order_lifecycle.dart';
 import 'package:quick_grocery_admin/view/operations/utils/ops_firestore_helpers.dart';
 
 /// Dashboard status palette (ops queue).
@@ -20,24 +21,19 @@ abstract final class OpsOrderStatusTheme {
     if (OpsFirestoreHelpers.isDelivered(d)) {
       return OpsQueueStatus.delivered;
     }
-    final s = OpsFirestoreHelpers.orderStatusRaw(d);
-    if (s.contains('wait') || s.contains('pending') || s.isEmpty) {
-      return OpsQueueStatus.waiting;
+    final status = OrderLifecycle.resolveFromOrderData(d);
+    switch (status) {
+      case OrderLifecycle.orderPlaced:
+        return OpsQueueStatus.waiting;
+      case OrderLifecycle.deliveryAssigned:
+        return OpsQueueStatus.preparing;
+      case OrderLifecycle.outForDelivery:
+        return OpsQueueStatus.outForDelivery;
+      case OrderLifecycle.delivered:
+        return OpsQueueStatus.delivered;
+      default:
+        return OpsQueueStatus.other;
     }
-    if (s.contains('accept') || s.contains('confirm')) {
-      return OpsQueueStatus.confirmed;
-    }
-    if (s.contains('pack') || s.contains('prepar') || s.contains('ready')) {
-      return OpsQueueStatus.preparing;
-    }
-    if (s.contains('out') ||
-        s.contains('way') ||
-        s.contains('pick') ||
-        s.contains('rider') ||
-        s.contains('assign')) {
-      return OpsQueueStatus.outForDelivery;
-    }
-    return OpsQueueStatus.other;
   }
 
   static String label(OpsQueueStatus status) {
@@ -47,7 +43,7 @@ abstract final class OpsOrderStatusTheme {
       case OpsQueueStatus.confirmed:
         return 'Confirmed';
       case OpsQueueStatus.preparing:
-        return 'Preparing';
+        return 'Assigned';
       case OpsQueueStatus.outForDelivery:
         return 'Out for Delivery';
       case OpsQueueStatus.delivered:

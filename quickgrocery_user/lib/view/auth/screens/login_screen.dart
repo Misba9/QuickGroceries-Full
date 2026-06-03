@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
+import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
 import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
 import 'package:provider/provider.dart';
@@ -12,11 +13,11 @@ class LoginScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = Provider.of<AuthService>(context);
     return Scaffold(
-      body: SingleChildScrollView(
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(15.0),
-            child: Column(
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: KeyboardSafeBody(
+          padding: const EdgeInsets.all(15),
+          child: Column(
               children: [
                 AppSpacing.h20,
                 Image.asset('assets/images/logo.png'),
@@ -95,7 +96,6 @@ class LoginScreen extends StatelessWidget {
                 AppSpacing.h15,
               ],
             ),
-          ),
         ),
       ),
     );

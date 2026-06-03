@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:quickgrocery/realtime/providers/realtime_providers.dart';
+import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_feedback_provider.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 
@@ -34,12 +35,19 @@ class _CartInventoryListenerState extends ConsumerState<CartInventoryListener> {
     }
 
     ref.listen(cartFeedbackProvider, (prev, next) {
-      if (next != null && next.isNotEmpty && mounted) {
+      if (next == null || !mounted) return;
+      if (next.kind == CartFeedbackKind.error) {
+        showTopErrorToast(context, next.text);
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next)),
+          SnackBar(
+            content: Text(next.text),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
         );
-        ref.read(cartFeedbackProvider.notifier).state = null;
       }
+      ref.read(cartFeedbackProvider.notifier).state = null;
     });
 
     if (_sortedIds.isNotEmpty) {

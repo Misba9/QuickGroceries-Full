@@ -3,6 +3,7 @@ import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/constants/primary_button.dart';
 import 'package:quick_grocery_delivery/core/auth/partner_auth_api.dart';
 import 'package:quick_grocery_delivery/features/login/forgot_password/forgot_password_verify_screen.dart';
+import 'package:quick_grocery_delivery/widgets/keyboard_safe_body.dart';
 
 class ForgotPasswordEmailScreen extends StatefulWidget {
   const ForgotPasswordEmailScreen({super.key});
@@ -56,11 +57,13 @@ class _ForgotPasswordEmailScreenState extends State<ForgotPasswordEmailScreen> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(title: const Text('Forgot Password')),
-      body: Padding(
+      body: KeyboardSafeBody(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
               'Enter your registered email. We will send a 6-digit code (valid 5 minutes).',

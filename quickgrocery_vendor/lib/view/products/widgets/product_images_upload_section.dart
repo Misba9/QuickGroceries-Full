@@ -52,6 +52,14 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
 
   bool get _canAddMore => _slots.length < ProductImageLimits.maxImages;
 
+  String get _uploadStatusLabel {
+    if (!widget.isUploading) return '';
+    final p = widget.uploadProgress;
+    if (p == null) return 'Uploading images…';
+    final pct = (p * 100).clamp(0, 100).round();
+    return 'Uploading images… $pct%';
+  }
+
   Future<void> _addFromGallery() async {
     try {
       final remaining = ProductImageLimits.maxImages - _slots.length;
@@ -197,6 +205,7 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
   }
 
   void _showSourceSheet() {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -207,8 +216,8 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Choose from gallery'),
+              leading: Icon(Icons.photo_library_outlined, color: onSurface),
+              title: Text('Choose from gallery', style: TextStyle(color: onSurface)),
               subtitle: Text(
                 _canAddMore
                     ? 'Select up to ${ProductImageLimits.maxImages - _slots.length} more'
@@ -223,8 +232,8 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
                   : null,
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('Take a photo'),
+              leading: Icon(Icons.camera_alt_outlined, color: onSurface),
+              title: Text('Take a photo', style: TextStyle(color: onSurface)),
               enabled: _canAddMore,
               onTap: _canAddMore
                   ? () {
@@ -256,14 +265,13 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final onSurfaceVariant = theme.colorScheme.onSurfaceVariant;
     final hasImages = _slots.isNotEmpty;
+    final countLabel = '${_slots.length} of ${ProductImageLimits.maxImages} images';
 
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -271,38 +279,56 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
           children: [
             Row(
               children: [
-                const Icon(Icons.photo_library_outlined),
+                Icon(Icons.photo_library_outlined, color: onSurface),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Product images',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: onSurface,
+                    ),
                   ),
                 ),
-                Text(
-                  '${_slots.length}/${ProductImageLimits.maxImages}',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColor.primary,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    countLabel,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               'Min ${ProductImageLimits.minImages}, max ${ProductImageLimits.maxImages} · '
-              'JPG, PNG, WebP · min ${ProductImageLimits.minWidth}×${ProductImageLimits.minHeight}px · '
-              'recommended ${ProductImageLimits.recommendedWidth}×${ProductImageLimits.recommendedHeight}',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              'JPG, PNG, WebP · min ${ProductImageLimits.minWidth}×${ProductImageLimits.minHeight}px',
+              style: theme.textTheme.bodySmall?.copyWith(color: onSurfaceVariant),
             ),
             if (widget.isUploading) ...[
               AppSpacing.h10,
               LinearProgressIndicator(
                 value: widget.uploadProgress,
-                backgroundColor: Colors.grey.shade200,
+                minHeight: 6,
+                borderRadius: BorderRadius.circular(4),
+                backgroundColor: theme.dividerColor,
                 color: AppColor.primary,
               ),
-              AppSpacing.h5,
+              AppSpacing.h10,
               Text(
-                'Uploading images…',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                _uploadStatusLabel,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: onSurface,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -313,9 +339,14 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
                 duration: const Duration(milliseconds: 220),
                 height: 200,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: theme.brightness == Brightness.dark
+                      ? const Color(0xFF2A2A2A)
+                      : const Color(0xFFF0F0F2),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(
+                    color: theme.dividerColor,
+                    width: 1.25,
+                  ),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: hasImages
@@ -333,7 +364,7 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
                             top: 8,
                             right: 8,
                             child: Material(
-                              color: Colors.black45,
+                              color: Colors.black54,
                               shape: const CircleBorder(),
                               child: IconButton(
                                 icon: const Icon(Icons.fullscreen, color: Colors.white),
@@ -343,15 +374,23 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
                           ),
                         ],
                       )
-                    : const Center(
+                    : Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.add_photo_alternate_outlined,
-                                size: 48, color: Colors.grey),
-                            SizedBox(height: 8),
-                            Text('Add at least 1 product image',
-                                style: TextStyle(color: Colors.grey)),
+                            Icon(
+                              Icons.add_photo_alternate_outlined,
+                              size: 48,
+                              color: onSurfaceVariant,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Add at least 1 product image',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: onSurface,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -389,8 +428,9 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
             ],
             AppSpacing.h10,
             SizedBox(
-              height: 108,
+              height: 96,
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(
                     child: ReorderableListView.builder(
@@ -417,10 +457,14 @@ class _ProductImagesUploadSectionState extends State<ProductImagesUploadSection>
               ),
             ),
             AppSpacing.h10,
-            OutlinedButton.icon(
-              onPressed: _canAddMore && !widget.isUploading ? _showSourceSheet : null,
-              icon: const Icon(Icons.add_photo_alternate_outlined),
-              label: const Text('Add more images'),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton.icon(
+                onPressed: _canAddMore && !widget.isUploading ? _showSourceSheet : null,
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+                label: Text(hasImages ? 'Add more images' : 'Add image'),
+              ),
             ),
           ],
         ),
@@ -478,68 +522,68 @@ class _ThumbTile extends StatelessWidget {
       padding: const EdgeInsets.only(right: 10),
       child: SizedBox(
         width: 88,
+        height: 88,
         child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onTap,
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  height: 88,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: selected ? AppColor.primary : Colors.grey.shade300,
-                      width: selected ? 2 : 1,
-                    ),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      image,
-                      if (index == 0)
-                        const Positioned(
-                          left: 4,
-                          bottom: 4,
-                          child: _ChipLabel('Main', AppColor.primary),
-                        ),
-                      Positioned(
-                        top: 2,
-                        right: 2,
-                        child: GestureDetector(
-                          onTap: onRemove,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.close, size: 14, color: Colors.white),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 2,
-                        left: 2,
-                        child: ReorderableDragStartListener(
-                          index: index,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: Colors.black45,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Icon(Icons.drag_handle,
-                                size: 14, color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                border: Border.all(
+                  color: selected ? AppColor.primary : Theme.of(context).dividerColor,
+                  width: selected ? 2.5 : 1.25,
                 ),
               ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  image,
+                  if (index == 0)
+                    const Positioned(
+                      left: 4,
+                      bottom: 4,
+                      child: _ChipLabel('Main', AppColor.primary),
+                    ),
+                  Positioned(
+                    top: 2,
+                    right: 2,
+                    child: GestureDetector(
+                      onTap: onRemove,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close, size: 14, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 2,
+                    left: 2,
+                    child: ReorderableDragStartListener(
+                      index: index,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Icon(Icons.drag_handle,
+                            size: 14, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ),
+        ),
       ),
     );
   }
@@ -551,6 +595,7 @@ class _AddTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Padding(
       padding: const EdgeInsets.only(right: 10),
       child: InkWell(
@@ -558,17 +603,25 @@ class _AddTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: Container(
           width: 88,
+          height: 88,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300, width: 1.5),
-            color: Colors.grey.shade50,
+            border: Border.all(color: AppColor.primary, width: 2),
+            color: AppColor.primary.withValues(alpha: 0.15),
           ),
-          child: const Column(
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.add, size: 28, color: Colors.grey),
-              SizedBox(height: 4),
-              Text('Add', style: TextStyle(fontSize: 11, color: Colors.grey)),
+              Icon(Icons.add, size: 28, color: onSurface),
+              const SizedBox(height: 4),
+              Text(
+                'Add',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: onSurface,
+                ),
+              ),
             ],
           ),
         ),

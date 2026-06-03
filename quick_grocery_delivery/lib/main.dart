@@ -3,7 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:quick_grocery_delivery/core/delivery_push_initializer.dart';
 import 'package:quick_grocery_delivery/core/fcm_bootstrap.dart';
-import 'package:quick_grocery_delivery/constants/global_variables.dart';
+import 'package:quick_grocery_delivery/constants/delivery_branding.dart';
 // import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:quick_grocery_delivery/features/login/auth_gate.dart';
 import 'package:quick_grocery_delivery/maintenance/maintenance_gate.dart';
@@ -90,7 +90,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'Quick Groceries Delivery',
+        title: DeliveryBranding.appName,
         theme: ThemeData(
           textTheme: GoogleFonts.nunitoTextTheme(Theme.of(context).textTheme),
           colorScheme: ColorScheme.fromSeed(seedColor: GlobalVariables.primary),

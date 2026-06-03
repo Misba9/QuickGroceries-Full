@@ -28,6 +28,9 @@ class ProductBadgesRow extends StatelessWidget {
 
   static List<_BadgeData> _resolveBadges(ProductModel p) {
     final out = <_BadgeData>[];
+    if (p.isOutOfStock) {
+      out.add(_BadgeData('Out of Stock', Colors.orange.shade800, Icons.block));
+    }
     if (p.isFlashSaleLive) {
       out.add(_BadgeData('Flash Sale', Colors.red.shade600, Icons.bolt));
     }

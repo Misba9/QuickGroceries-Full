@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/order_row_actions.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/order_status_badge.dart';
+import 'package:quick_grocery_admin/core/widgets/admin_text_selection.dart';
 
 class OrdersMobileCard extends StatelessWidget {
   const OrdersMobileCard({
@@ -41,7 +42,7 @@ class OrdersMobileCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Text(
+                    child: AdminSelectableText(
                       '#${order.id.length > 8 ? order.id.substring(0, 8) : order.id}',
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
@@ -53,10 +54,15 @@ class OrdersMobileCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
+              AdminSelectableText(
                 order.customerName,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
+              if (order.phone.isNotEmpty)
+                AdminSelectableText(
+                  order.phone,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
               Text(
                 dateStr,
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),

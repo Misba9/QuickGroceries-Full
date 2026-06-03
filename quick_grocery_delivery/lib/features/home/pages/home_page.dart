@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:quick_grocery_delivery/features/orders/services/order_service.dart';
-import 'package:quick_grocery_delivery/constants/app_spacing.dart';
+import 'package:quick_grocery_delivery/constants/delivery_branding.dart';
 import 'package:quick_grocery_delivery/constants/app_style.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/features/payment/screens/scan_pay_screen.dart';
@@ -43,8 +43,8 @@ class _HomePageState extends State<HomePage> {
     final provider = Provider.of<OrderService>(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Quick Groceries Delivery',
+        title: Text(
+          DeliveryBranding.appShortName,
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: GlobalVariables.primary,

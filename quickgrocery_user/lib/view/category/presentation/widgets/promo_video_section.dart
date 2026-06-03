@@ -14,7 +14,7 @@ import 'package:quickgrocery/models/promo_model.dart';
 import 'package:quickgrocery/view/category/presentation/providers/categories_discovery_providers.dart';
 import 'package:quickgrocery/view/category/screens/category_screen.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
-import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 
 /// Promo video / GIF / Lottie / image rail for the Categories discovery
 /// page. Streams admin-controlled `promos/` documents and renders each
@@ -218,12 +218,7 @@ class AnimatedOfferBanner extends StatelessWidget {
             .cast<ProductModel?>()
             .firstWhere((p) => p != null, orElse: () => null);
         if (product != null && context.mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ProductViewScreen(product: product),
-            ),
-          );
+          Navigator.push(context, AppPageRoutes.product(product));
         }
         break;
 

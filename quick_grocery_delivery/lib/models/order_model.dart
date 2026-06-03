@@ -43,6 +43,8 @@ class OrderModel {
   final Map<String, dynamic>? deliverySlotRaw;
   final Map<String, dynamic>? deliveryInstructionsRaw;
   final Map<String, dynamic>? bill;
+  final double tipAmount;
+  final String tipStatus;
 
   OrderModel({
     required this.id,
@@ -87,6 +89,8 @@ class OrderModel {
     this.deliverySlotRaw,
     this.deliveryInstructionsRaw,
     this.bill,
+    this.tipAmount = 0,
+    this.tipStatus = '',
   });
 
   factory OrderModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -155,6 +159,8 @@ class OrderModel {
         data['deliveryInstructions'] ?? data['delivery_instructions'],
       ),
       bill: _asMap(data['bill']),
+      tipAmount: _tipFromData(data),
+      tipStatus: (data['tipStatus'] ?? '').toString(),
       acceptedAt: _parseDateTime(
         data['acceptedAt'] ?? data['riderAcceptedAt'] ?? data['confrimTime'],
       ),
@@ -182,6 +188,32 @@ class OrderModel {
     if (raw is Map) return Map<String, dynamic>.from(raw);
     return null;
   }
+
+  static double _tipFromData(Map<String, dynamic> data) {
+    final direct = data['tipAmount'];
+    if (direct is num && direct > 0) return direct.toDouble();
+    final bill = data['bill'];
+    if (bill is Map) {
+      final t = bill['deliveryPartnerTip'] ?? bill['tipAmount'];
+      if (t is num && t > 0) return t.toDouble();
+    }
+    return 0;
+  }
+
+  double get deliveryFeeEarning {
+    if (deliveryCharge > 0) return deliveryCharge.toDouble();
+    final fee = bill?['deliveryFee'];
+    if (fee is num) return fee.toDouble();
+    return 0;
+  }
+
+  double get tipEarning => tipAmount > 0
+      ? tipAmount
+      : (bill?['deliveryPartnerTip'] is num
+          ? (bill!['deliveryPartnerTip'] as num).toDouble()
+          : 0);
+
+  double get totalRiderEarning => deliveryFeeEarning + tipEarning;
 
   static double? _optionalDouble(dynamic raw) {
     if (raw == null) return null;
@@ -348,6 +380,8 @@ class ProductItem {
   int itemCount;
   String vendorId;
 
+  final double? _lineTotalStored;
+
   ProductItem({
     required this.name,
     required this.image,
@@ -358,7 +392,21 @@ class ProductItem {
     required this.slashedPrice,
     required this.itemCount,
     required this.vendorId,
-  });
+    double? lineTotalStored,
+  }) : _lineTotalStored = lineTotalStored;
+
+  double get unitPricePaid => price;
+
+  double get unitMrp => slashedPrice > price + 0.01 ? slashedPrice : price;
+
+  bool get hasPurchasedDiscount => unitMrp > unitPricePaid + 0.01;
+
+  double get lineTotal {
+    final t = _lineTotalStored;
+    if (t != null && t > 0) return t;
+    if (price > 0 && itemCount > 0) return price * itemCount;
+    return 0;
+  }
 
   factory ProductItem.fromMap(Map<String, dynamic> data) {
     final qty = (data['quantity'] as num?)?.toInt() ??
@@ -377,6 +425,7 @@ class ProductItem {
       slashedPrice: resolved.original,
       itemCount: effectiveQty,
       vendorId: (data['vendor_id'] ?? data['vendorId'] ?? '').toString(),
+      lineTotalStored: resolved.lineTotal,
     );
   }
 
@@ -392,23 +441,44 @@ class ProductItem {
       return 0;
     }
 
-    final sellingExplicit = d(data['sellingPrice']);
-    if (sellingExplicit > 0) {
-      final original = d(data['originalPrice']);
+    final lineTotalExplicit = d(data['lineTotal'] ?? data['totalPrice']);
+    final pricePaid = d(
+      data['pricePaid'] ??
+          data['sellingPrice'] ??
+          data['discountedPrice'] ??
+          data['unitPrice'],
+    );
+
+    if (pricePaid > 0) {
+      var mrp = d(data['mrp'] ?? data['originalPrice']);
+      if (mrp <= pricePaid) {
+        mrp = d(data['slashedPrice']);
+        if (mrp <= pricePaid) mrp = pricePaid;
+      }
       return _OrderLinePrices(
-        selling: sellingExplicit,
-        original: original > 0 ? original : sellingExplicit,
+        selling: pricePaid,
+        original: mrp,
+        lineTotal: lineTotalExplicit > 0
+            ? lineTotalExplicit
+            : pricePaid * qty,
       );
     }
 
-    var unitPrice = d(data['unitPrice'] ?? data['price']);
+    var unitPrice = d(data['price']);
     final slashed = d(data['slashedPrice']);
+    var lineTotal = lineTotalExplicit;
+    if (unitPrice <= 0 && lineTotal > 0) unitPrice = lineTotal / qty;
     if (slashed > 0 && slashed < unitPrice) {
-      return _OrderLinePrices(selling: slashed, original: unitPrice);
+      return _OrderLinePrices(
+        selling: slashed,
+        original: unitPrice,
+        lineTotal: lineTotal > 0 ? lineTotal : slashed * qty,
+      );
     }
     return _OrderLinePrices(
       selling: unitPrice,
       original: slashed > unitPrice ? slashed : unitPrice,
+      lineTotal: lineTotal > 0 ? lineTotal : unitPrice * qty,
     );
   }
 
@@ -428,8 +498,13 @@ class ProductItem {
 }
 
 class _OrderLinePrices {
-  const _OrderLinePrices({required this.selling, required this.original});
+  const _OrderLinePrices({
+    required this.selling,
+    required this.original,
+    required this.lineTotal,
+  });
 
   final double selling;
   final double original;
+  final double lineTotal;
 }

@@ -48,18 +48,13 @@ class VendorOrderUtils {
   /// UI filter chip id: All | waiting | confirmed | processing | shipped | delivered | cancelled
   static String statusBucket(OrderModel order) {
     final s = normalizedStatus(order);
-    if (s == OrderLifecycle.vendorRejected || s == OrderLifecycle.cancelled) {
+    if (s == OrderLifecycle.cancelledByVendor || s == OrderLifecycle.cancelled) {
       return 'cancelled';
     }
     if (s == OrderLifecycle.delivered) return 'delivered';
-    if (OrderLifecycle.isInTransit(s)) return 'shipped';
-    if (s == OrderLifecycle.packing ||
-        s == OrderLifecycle.readyForPickup ||
-        s == OrderLifecycle.riderAssigned) {
-      return 'processing';
-    }
-    if (OrderLifecycle.isVendorAccepted(s)) return 'confirmed';
-    if (s == OrderLifecycle.pending) return 'waiting';
+    if (s == OrderLifecycle.outForDelivery) return 'shipped';
+    if (s == OrderLifecycle.deliveryAssigned) return 'processing';
+    if (s == OrderLifecycle.orderPlaced) return 'waiting';
     return 'waiting';
   }
 

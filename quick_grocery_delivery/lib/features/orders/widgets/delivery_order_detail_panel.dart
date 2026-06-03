@@ -86,14 +86,14 @@ class DeliveryOrderTimeline extends StatelessWidget {
   Widget build(BuildContext context) {
     final steps = [
       _TimelineStep(
-        label: 'Order Accepted',
-        time: order.acceptedAt,
-        done: order.acceptedAt != null,
+        label: 'Order Placed',
+        time: DateTime.tryParse(order.createdDate),
+        done: true,
       ),
       _TimelineStep(
-        label: 'Picked Up',
-        time: order.pickedUpAt,
-        done: order.pickedUpAt != null,
+        label: 'Delivery Partner Assigned',
+        time: order.acceptedAt,
+        done: order.acceptedAt != null,
       ),
       _TimelineStep(
         label: 'Out For Delivery',

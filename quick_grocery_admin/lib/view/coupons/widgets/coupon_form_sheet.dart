@@ -37,6 +37,7 @@ class CouponFormSheet extends StatefulWidget {
 class _CouponFormSheetState extends State<CouponFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _code;
+  late final TextEditingController _title;
   late final TextEditingController _discount;
   late final TextEditingController _flat;
   late final TextEditingController _minOrder;
@@ -67,6 +68,7 @@ class _CouponFormSheetState extends State<CouponFormSheet> {
     super.initState();
     final e = widget.existing;
     _code = TextEditingController(text: e?.code ?? '');
+    _title = TextEditingController(text: e?.title ?? '');
     _discount = TextEditingController(text: '${e?.discountPercent ?? 0}');
     _flat = TextEditingController(text: '${e?.flatAmount ?? 0}');
     _minOrder = TextEditingController(text: '${e?.minimumOrderAmount ?? 0}');
@@ -104,6 +106,7 @@ class _CouponFormSheetState extends State<CouponFormSheet> {
   @override
   void dispose() {
     _code.dispose();
+    _title.dispose();
     _discount.dispose();
     _flat.dispose();
     _minOrder.dispose();
@@ -136,6 +139,7 @@ class _CouponFormSheetState extends State<CouponFormSheet> {
     return AdminCouponModel(
       id: widget.existing?.id ?? '',
       code: _code.text.trim().toUpperCase(),
+      title: _title.text.trim(),
       couponType: _type,
       discountPercent: int.tryParse(_discount.text) ?? 0,
       flatAmount: int.tryParse(_flat.text) ?? 0,
@@ -204,6 +208,23 @@ class _CouponFormSheetState extends State<CouponFormSheet> {
                   ),
                   validator: (v) =>
                       v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _title,
+                  decoration: const InputDecoration(
+                    labelText: 'Title (shown in app)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _description,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<CouponType>(
@@ -306,14 +327,6 @@ class _CouponFormSheetState extends State<CouponFormSheet> {
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                     labelText: 'Per user usage limit',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _description,
-                  decoration: const InputDecoration(
-                    labelText: 'Description (shown in app)',
                     border: OutlineInputBorder(),
                   ),
                 ),

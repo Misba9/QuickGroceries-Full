@@ -6,6 +6,8 @@ import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
 import '../../style/app_color.dart';
 import '../../utils/app_spacing.dart';
+import '../../widgets/keyboard_safe_body.dart';
+import '../../widgets/vendor_form_fields.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   final VendorModel vendor;
@@ -272,7 +274,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: AppColor.primary,
         foregroundColor: Colors.black,
@@ -285,9 +286,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        child: KeyboardSafeBody(
+          padding: const EdgeInsets.all(16),
+          child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -405,26 +408,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
               AppSpacing.h20,
 
-              // First Name
-              TextFormField(
+              VendorTextFormField(
                 controller: _firstNameController,
-                decoration: InputDecoration(
-                  labelText: 'First Name',
-                  prefixIcon: const Icon(Icons.person_outline),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColor.primary, width: 2),
-                  ),
-                ),
+                label: 'First Name *',
+                hint: 'Enter first name',
+                prefixIcon: Icons.person_outline,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Please enter your first name';
                   }
                   return null;
@@ -432,26 +422,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
               AppSpacing.h20,
 
-              // Last Name
-              TextFormField(
+              VendorTextFormField(
                 controller: _lastNameController,
-                decoration: InputDecoration(
-                  labelText: 'Last Name',
-                  prefixIcon: const Icon(Icons.person_outline),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColor.primary, width: 2),
-                  ),
-                ),
+                label: 'Last Name *',
+                hint: 'Enter last name',
+                prefixIcon: Icons.person_outline,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Please enter your last name';
                   }
                   return null;
@@ -459,27 +436,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
               AppSpacing.h20,
 
-              // Phone
-              TextFormField(
+              VendorTextFormField(
                 controller: _phoneController,
+                label: 'Phone *',
+                hint: 'Enter phone number',
+                prefixIcon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  labelText: 'Phone',
-                  prefixIcon: const Icon(Icons.phone_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColor.primary, width: 2),
-                  ),
-                ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Please enter your phone number';
                   }
                   if (value.length < 10) {
@@ -490,27 +454,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
               AppSpacing.h20,
 
-              // Email
-              TextFormField(
+              VendorTextFormField(
                 controller: _emailController,
+                label: 'Email *',
+                hint: 'Enter email address',
+                prefixIcon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: const Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColor.primary, width: 2),
-                  ),
-                ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Please enter your email';
                   }
                   if (!value.contains('@')) {
@@ -521,26 +472,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
               AppSpacing.h20,
 
-              // Shop Name
-              TextFormField(
+              VendorTextFormField(
                 controller: _shopNameController,
-                decoration: InputDecoration(
-                  labelText: 'Shop Name',
-                  prefixIcon: const Icon(Icons.store_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColor.primary, width: 2),
-                  ),
-                ),
+                label: 'Shop Name *',
+                hint: 'Enter shop name',
+                prefixIcon: Icons.store_outlined,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Please enter your shop name';
                   }
                   return null;
@@ -548,27 +486,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
               AppSpacing.h20,
 
-              // Shop Address
-              TextFormField(
+              VendorTextFormField(
                 controller: _shopAddressController,
+                label: 'Shop Address *',
+                hint: 'Enter shop address',
+                prefixIcon: Icons.location_on_outlined,
                 maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Shop Address',
-                  prefixIcon: const Icon(Icons.location_on_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: AppColor.primary, width: 2),
-                  ),
-                ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Please enter your shop address';
                   }
                   return null;
@@ -610,6 +535,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               AppSpacing.h20,
             ],
           ),
+        ),
         ),
       ),
     );

@@ -141,11 +141,7 @@ export const cancelOrderByRider = onCall(
     }
 
     const status = resolveStatus(data);
-    if (
-      status === OrderStatus.PICKED_UP ||
-      status === OrderStatus.OUT_FOR_DELIVERY ||
-      data.isDelivered === true
-    ) {
+    if (status === OrderStatus.OUT_FOR_DELIVERY || data.isDelivered === true) {
       throw new HttpsError(
         "failed-precondition",
         "Cannot cancel after pickup. Contact support."
@@ -158,8 +154,8 @@ export const cancelOrderByRider = onCall(
       riderName: "",
       riderPhone: "",
       autoAssigned: false,
-      status: OrderStatus.READY_FOR_PICKUP,
-      order_status: statusToLegacy(OrderStatus.READY_FOR_PICKUP),
+      status: OrderStatus.ORDER_PLACED,
+      order_status: statusToLegacy(OrderStatus.ORDER_PLACED),
       rider_rejected_by: riderId,
       rider_rejected_at: FieldValue.serverTimestamp(),
       lastRiderCancellation: {
@@ -188,6 +184,6 @@ export const cancelOrderByRider = onCall(
       .delete()
       .catch(() => undefined);
 
-    return { ok: true, orderId, status: OrderStatus.READY_FOR_PICKUP };
+    return { ok: true, orderId, status: OrderStatus.ORDER_PLACED };
   }
 );

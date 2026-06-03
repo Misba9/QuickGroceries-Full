@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
 import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
@@ -13,22 +14,24 @@ class SuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
+    final width = MediaQuery.sizeOf(context).width;
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(15.0),
+      body: SafeArea(
+        child: KeyboardSafeBody(
+          padding: const EdgeInsets.all(15),
+          fillMinHeight: true,
+          centerWhenFilling: true,
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Spacer(),
               SizedBox(
-                height: width / 2,
+                height: (width * 0.45).clamp(120.0, 280.0),
                 child: LottieBuilder.asset(
                   'assets/lottie/success.json',
                   repeat: false,
                 ),
               ),
+              const SizedBox(height: 16),
               const Text(
                 'Order successful',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -38,7 +41,7 @@ class SuccessScreen extends StatelessWidget {
                 'Your order is being prepared. Track live updates on the next screen.',
                 textAlign: TextAlign.center,
               ),
-              const Spacer(),
+              const SizedBox(height: 24),
               if (orderId != null && orderId!.isNotEmpty)
                 PrimaryButton(
                   label: 'Track order',

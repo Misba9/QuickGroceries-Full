@@ -16,9 +16,10 @@ class RealtimeNotificationRepository {
         );
   }
 
+  /// Unread count derived from the same feed stream so badge matches the list.
   Stream<int> watchUnreadCount(String uid) {
     if (uid.isEmpty) return Stream.value(0);
-    return _service.watchUnread(uid).map((s) => s.docs.length).handleError(
+    return watch(uid).map((items) => items.where((e) => !e.read).length).handleError(
           _throwHomeFailure('Failed to watch unread notifications.'),
         );
   }

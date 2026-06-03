@@ -18,7 +18,7 @@ import 'package:quickgrocery/view/home/presentation/widgets/home_banner_helpers.
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
-import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 
 /// Full-width promo strip for admin-uploaded MP4 banners (`banners/`).
 ///
@@ -304,12 +304,7 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
             .cast<ProductModel?>()
             .firstWhere((p) => p != null, orElse: () => null);
         if (product != null && context.mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => ProductViewScreen(product: product),
-            ),
-          );
+          Navigator.push(context, AppPageRoutes.product(product));
         }
         break;
       case 'url':

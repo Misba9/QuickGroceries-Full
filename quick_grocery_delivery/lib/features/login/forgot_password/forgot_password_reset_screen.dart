@@ -4,6 +4,7 @@ import 'package:quick_grocery_delivery/constants/primary_button.dart';
 import 'package:quick_grocery_delivery/core/auth/partner_auth_api.dart';
 import 'package:quick_grocery_delivery/core/auth/password_validation.dart';
 import 'package:quick_grocery_delivery/features/login/login_screen.dart';
+import 'package:quick_grocery_delivery/widgets/keyboard_safe_body.dart';
 
 class ForgotPasswordResetScreen extends StatefulWidget {
   const ForgotPasswordResetScreen({super.key, required this.email});
@@ -77,11 +78,13 @@ class _ForgotPasswordResetScreenState extends State<ForgotPasswordResetScreen> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(title: const Text('Reset Password')),
-      body: Padding(
+      body: KeyboardSafeBody(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: _passwordController,

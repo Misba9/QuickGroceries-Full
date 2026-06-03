@@ -3,6 +3,9 @@ import 'package:quickgrocery_vendor/controllers/auth_controller.dart';
 import 'package:quickgrocery_vendor/core/fcm_bootstrap.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
 import 'package:quickgrocery_vendor/utils/app_spacing.dart';
+import 'package:quickgrocery_vendor/widgets/keyboard_safe_body.dart';
+import 'package:quickgrocery_vendor/widgets/vendor_form_fields.dart';
+import 'package:quickgrocery_vendor/widgets/vendor_logo.dart';
 import '../main_navigation_screen.dart';
 import 'forgot_password/forgot_password_email_screen.dart';
 import 'force_password_change_screen.dart';
@@ -82,66 +85,32 @@ class _LoginScreenState extends State<LoginScreen> {
       builder: (context, _) {
         final isLoading = _authController.isLoading;
         return Scaffold(
-          backgroundColor: Colors.white,
+          resizeToAvoidBottomInset: true,
           body: SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                child: Form(
+            child: KeyboardSafeBody(
+              padding: const EdgeInsets.all(24),
+              fillMinHeight: true,
+              centerWhenFilling: true,
+              child: Form(
                   key: _formKey,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Image.asset(
-                        'assets/images/logo.png',
-                        height: 100,
-                        width: 100,
-                      ),
-                      AppSpacing.h20,
-                      Text(
-                        'Vendor Login',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey[800],
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                      AppSpacing.h10,
-                      Text(
-                        'Sign in to manage your store',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                        textAlign: TextAlign.center,
+                      VendorLogo(
+                        height: 130,
+                        subtitle: 'Sign in to manage your store',
                       ),
                       AppSpacing.h20,
                       AppSpacing.h20,
-                      TextFormField(
+                      VendorTextFormField(
                         controller: _emailController,
+                        label: 'Email',
+                        hint: 'Enter your email',
+                        prefixIcon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         enabled: !isLoading,
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          hintText: 'Enter your email',
-                          prefixIcon: const Icon(Icons.email_outlined),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: AppColor.primary,
-                              width: 2,
-                            ),
-                          ),
-                        ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Please enter your email';
@@ -154,44 +123,28 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                       ),
                       AppSpacing.h20,
-                      TextFormField(
+                      VendorTextFormField(
                         controller: _passwordController,
+                        label: 'Password',
+                        hint: 'Enter your password',
+                        prefixIcon: Icons.lock_outlined,
                         obscureText: _obscurePassword,
                         textInputAction: TextInputAction.done,
                         enabled: !isLoading,
                         onFieldSubmitted: (_) => _handleLogin(),
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          hintText: 'Enter your password',
-                          prefixIcon: const Icon(Icons.lock_outlined),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                            ),
-                            onPressed: isLoading
-                                ? null
-                                : () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: AppColor.primary,
-                              width: 2,
-                            ),
-                          ),
+                          onPressed: isLoading
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -282,7 +235,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
-              ),
             ),
           ),
         );

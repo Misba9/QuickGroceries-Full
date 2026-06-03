@@ -41,6 +41,8 @@ abstract final class AdminRoutes {
   static const addBanner = 'Add Banner';
   static const addCoupon = 'Add Coupon';
   static const comboOffers = 'Combo Offers';
+  static const referEarn = 'Refer & Earn';
+  static const deliveryTips = 'Delivery Tips';
   static const platformFee = 'Platform Fee & Charges';
   static const pushNotifications = 'Push Notifications';
   static const notificationTemplates = 'Notification Templates';
@@ -72,6 +74,8 @@ abstract final class AdminRoutes {
     addBanner,
     addCoupon,
     comboOffers,
+    referEarn,
+    deliveryTips,
     platformFee,
     pushNotifications,
     notificationTemplates,

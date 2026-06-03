@@ -1,50 +1,64 @@
-/// Canonical quick-commerce order lifecycle for the admin app.
+/// Simplified order lifecycle for the admin app.
 class OrderLifecycle {
   OrderLifecycle._();
 
-  static const pending = 'pending';
-  static const vendorAccepted = 'vendor_accepted';
-  static const vendorRejected = 'vendor_rejected';
-  static const accepted = 'accepted';
-  static const packing = 'packing';
-  static const readyForPickup = 'ready_for_pickup';
-  static const riderAssigned = 'rider_assigned';
-  static const riderAccepted = 'rider_accepted';
-  static const reachedStore = 'reached_store';
-  static const headingToStore = 'heading_to_store';
-  static const pickedUp = 'picked_up';
+  static const orderPlaced = 'order_placed';
+  static const deliveryAssigned = 'delivery_assigned';
   static const outForDelivery = 'out_for_delivery';
   static const delivered = 'delivered';
   static const cancelled = 'cancelled';
+  static const cancelledByCustomer = 'cancelled_by_customer';
+  static const cancelledByVendor = 'cancelled_by_vendor';
+  static const cancelledByRider = 'cancelled_by_rider';
+
+  static const pending = orderPlaced;
+  static const riderAssigned = deliveryAssigned;
+
+  static String normalizeStatus(String status) {
+    final s = status.trim().toLowerCase();
+    if (s.isEmpty) return orderPlaced;
+    switch (s) {
+      case orderPlaced:
+      case deliveryAssigned:
+      case outForDelivery:
+      case delivered:
+      case cancelled:
+      case cancelledByCustomer:
+      case cancelledByVendor:
+      case cancelledByRider:
+        return s;
+      case 'pending':
+      case 'vendor_accepted':
+      case 'accepted':
+      case 'packing':
+      case 'ready_for_pickup':
+        return orderPlaced;
+      case 'rider_assigned':
+      case 'rider_accepted':
+        return deliveryAssigned;
+      case 'picked_up':
+      case 'reached_store':
+      case 'heading_to_store':
+        return outForDelivery;
+      case 'vendor_rejected':
+        return cancelledByVendor;
+      default:
+        return orderPlaced;
+    }
+  }
 
   static String legacyLabel(String statusId) {
-    switch (statusId) {
-      case pending:
-        return 'Pending';
-      case vendorAccepted:
-        return 'Vendor Accepted';
-      case vendorRejected:
-        return 'Vendor Rejected';
-      case accepted:
-        return 'Order Confirm';
-      case packing:
-        return 'Preparing';
-      case readyForPickup:
-        return 'Ready for Pickup';
-      case riderAssigned:
-        return 'Rider Assigned';
-      case riderAccepted:
-        return 'Rider Accepted';
-      case reachedStore:
-        return 'Reached Store';
-      case headingToStore:
-        return 'Going to Shop';
-      case pickedUp:
-        return 'Order Picked';
+    switch (normalizeStatus(statusId)) {
+      case orderPlaced:
+        return 'Order Placed';
+      case deliveryAssigned:
+        return 'Delivery Partner Assigned';
       case outForDelivery:
-        return 'On the Way';
+        return 'Out For Delivery';
       case delivered:
         return 'Order Delivered';
+      case cancelledByVendor:
+        return 'Cancelled by Vendor';
       case cancelled:
         return 'cancelled';
       default:
@@ -52,64 +66,52 @@ class OrderLifecycle {
     }
   }
 
+  /// Resolve from a raw Firestore order map (ops dashboard).
+  static String resolveFromOrderData(Map<String, dynamic> data) =>
+      _resolve(data);
+
+  /// Resolve from [OrderModel] fields (orders UI).
   static String resolveFromOrder({
     required bool isCancelled,
     required bool isDelivered,
     String? modernStatus,
     String? legacyStatus,
   }) {
-    if (isCancelled) return cancelled;
-    if (isDelivered) return delivered;
-    if (modernStatus != null && modernStatus.trim().isNotEmpty) {
-      return modernStatus.trim();
-    }
-    return resolveStatus({'order_status': legacyStatus ?? ''});
+    return _resolve({
+      'isCancelled': isCancelled,
+      'isDelivered': isDelivered,
+      'status': modernStatus,
+      'order_status': legacyStatus,
+    });
   }
 
-  static String resolveStatus(Map<String, dynamic> data) {
+  static String _resolve(Map<String, dynamic> data) {
     if (data['isCancelled'] == true) {
       final modern = (data['status'] as String?)?.trim() ?? '';
-      if (modern == vendorRejected) return vendorRejected;
+      if (modern == cancelledByVendor || modern == 'vendor_rejected') {
+        return cancelledByVendor;
+      }
+      final by = (data['cancelledBy'] as String?)?.toLowerCase() ?? '';
+      if (by == 'vendor') return cancelledByVendor;
+      if (by == 'customer') return cancelledByCustomer;
+      if (by == 'rider' || by == 'driver') return cancelledByRider;
       return cancelled;
     }
     if (data['isDelivered'] == true) return delivered;
-
     final modern = (data['status'] as String?)?.trim();
-    if (modern != null && modern.isNotEmpty) return modern;
-
+    if (modern != null && modern.isNotEmpty) return normalizeStatus(modern);
     final s = (data['order_status'] as String?)?.toLowerCase() ?? '';
     if (s.contains('cancel')) return cancelled;
     if (s.contains('deliver')) return delivered;
-    if (s.contains('way')) return outForDelivery;
-    if (s.contains('picked')) return pickedUp;
-    if (s.contains('reached') && s.contains('store')) return reachedStore;
-    if (s.contains('going') || s.contains('shop')) return headingToStore;
-    if (s.contains('rider') && s.contains('accept')) return riderAccepted;
-    if (s.contains('rider') && s.contains('assign')) return riderAssigned;
-    if (s.contains('ready')) return readyForPickup;
-    if (s.contains('prepar') || s.contains('pack')) return packing;
-    if (s.contains('reject')) return vendorRejected;
-    if (s.contains('vendor') && s.contains('accept')) return vendorAccepted;
-    if (s.contains('confirm') || s.contains('accept')) return vendorAccepted;
-    if (s.contains('pending') || s.contains('waiting')) return pending;
-    return pending;
+    if (s.contains('way') || s.contains('out for') || s.contains('picked')) {
+      return outForDelivery;
+    }
+    if (s.contains('rider') || s.contains('assign') || s.contains('delivery partner')) {
+      return deliveryAssigned;
+    }
+    if (s.contains('pending') || s.contains('waiting') || s.contains('placed')) {
+      return orderPlaced;
+    }
+    return orderPlaced;
   }
-
-  static bool isVendorAccepted(String status) =>
-      status == vendorAccepted || status == accepted;
-
-  static bool isActive(String status) => !isTerminal(status);
-
-  static bool isTerminal(String status) =>
-      status == delivered ||
-      status == cancelled ||
-      status == vendorRejected;
-
-  static bool isPending(String status) => status == pending;
-
-  static bool isAssigned(String status) =>
-      status == riderAssigned ||
-      status == headingToStore ||
-      status == pickedUp ||
-      status == outForDelivery;
 }

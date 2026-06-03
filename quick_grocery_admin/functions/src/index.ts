@@ -41,6 +41,11 @@ export { dailySalesSummary } from "./operations/daily_summary";
 export { seedAdminTestNotification } from "./operations/ops_callables";
 export { placeOrderCallable } from "./operations/place_order_callable";
 export {
+  getDeliveryTipSettingsCallable,
+  updateOrderTipCallable,
+  adminDeliveryTipsCallable,
+} from "./delivery_tips/delivery_tips_callables";
+export {
   assignRiderCallable,
   autoAssignRiderCallable,
   autoAssignAllUnassignedCallable,
@@ -99,6 +104,19 @@ export {
   redeemCouponCallable,
   listActiveCouponsCallable,
 } from "./coupons/coupon_callables";
+
+/** Refer & Earn: referral codes, rewards, admin actions. */
+export {
+  applyReferralCodeCallable,
+  getReferEarnStatsCallable,
+  getReferralDashboard,
+  ensureReferralCodeCallable,
+  generateReferralCode,
+  getReferralHistory,
+  shareReferralInvite,
+  adminReferEarnActionCallable,
+} from "./refer_earn/refer_earn_callables";
+export { onCustomerCreatedReferralCode } from "./refer_earn/refer_earn_triggers";
 
 /** Product reviews: verified purchase, moderation, quality score. */
 export {

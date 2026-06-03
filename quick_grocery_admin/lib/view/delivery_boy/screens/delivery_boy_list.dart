@@ -1,4 +1,5 @@
 import 'package:quick_grocery_admin/core/realtime/admin_live_sync.dart';
+import 'package:quick_grocery_admin/core/widgets/admin_text_selection.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
@@ -221,10 +222,9 @@ class _DeliveryBoysScreenState extends State<DeliveryBoysScreen> {
                                           ),
                                           const SizedBox(width: 8),
                                           Expanded(
-                                            child: Text(
+                                            child: AdminSelectableText(
                                               p.deliveryBoys![index].firstName,
                                               maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                         ],
@@ -238,15 +238,13 @@ class _DeliveryBoysScreenState extends State<DeliveryBoysScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
+                                          AdminSelectableText(
                                             p.deliveryBoys![index].phone,
                                             maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                          Text(
+                                          AdminSelectableText(
                                             p.deliveryBoys![index].email,
                                             maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ],
                                       ),

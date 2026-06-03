@@ -6,6 +6,7 @@ import 'package:quick_grocery_admin/utils/app_spacing.dart';
 import 'package:quick_grocery_admin/view/home/screens/home_screen.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_edit_screen.dart';
 import 'package:quick_grocery_admin/view/products/services/product_service.dart';
+import 'package:quick_grocery_admin/view/products/widgets/product_list_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -400,8 +401,14 @@ class _ProductRowCard extends StatelessWidget {
           children: [
             if (product.isDeleted)
               _statusChip('Deleted', Colors.black87, Colors.grey.shade300)
+            else if (product.isOutOfStock)
+              _statusChip(
+                'Out of Stock',
+                Colors.orange.shade900,
+                Colors.orange.shade50,
+              )
             else if (product.isActive)
-              _statusChip('Active', Colors.green.shade800, Colors.green.shade50)
+              _statusChip('In Stock', Colors.green.shade800, Colors.green.shade50)
             else
               _statusChip('Inactive', Colors.red.shade800, Colors.red.shade50),
           ],
@@ -436,12 +443,10 @@ class _ProductRowCard extends StatelessWidget {
                 img,
                 AppSpacing.h10,
                 details,
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: IconButton(
-                    onPressed: onEdit,
-                    icon: Icon(Icons.edit, color: AppColor.primary),
-                  ),
+                ProductListActions(
+                  product: product,
+                  onEdit: onEdit,
+                  compact: true,
                 ),
               ],
             )
@@ -451,9 +456,9 @@ class _ProductRowCard extends StatelessWidget {
                 img,
                 AppSpacing.w20,
                 Expanded(child: details),
-                IconButton(
-                  onPressed: onEdit,
-                  icon: Icon(Icons.edit, color: AppColor.primary),
+                ProductListActions(
+                  product: product,
+                  onEdit: onEdit,
                 ),
               ],
             ),

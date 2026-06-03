@@ -65,7 +65,8 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: AppColor.primary,
           foregroundColor: Colors.black,
-          minimumSize: const Size.fromHeight(52),
+          // Avoid Size.fromHeight — its width is infinite and breaks buttons in Row.
+          minimumSize: const Size(0, 52),
           padding: const EdgeInsets.symmetric(horizontal: 18),
           shape: RoundedRectangleBorder(
             borderRadius: AppRadii.all(AppRadii.md),
@@ -80,7 +81,7 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColor.primary,
           foregroundColor: Colors.black,
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size(0, 52),
           shape: RoundedRectangleBorder(
             borderRadius: AppRadii.all(AppRadii.md),
           ),
@@ -93,7 +94,7 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size.fromHeight(48),
+          minimumSize: const Size(0, 48),
           side: BorderSide(color: AppSurface.border, width: 1.2),
           shape: RoundedRectangleBorder(
             borderRadius: AppRadii.all(AppRadii.md),

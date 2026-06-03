@@ -7,6 +7,7 @@ class PaymentService extends ChangeNotifier {
   String paymentStatus = "Pending";
   Razorpay _razorpay = Razorpay();
   void Function(String paymentId)? _onPaymentSuccessCallback;
+  void Function(String message)? _onPaymentErrorCallback;
 
   void onPaymentMethodChange(bool v) {
     isCashOnDelivery = v;
@@ -24,8 +25,10 @@ class PaymentService extends ChangeNotifier {
     String name,
     String description, {
     void Function(String paymentId)? onPaymentSuccess,
+    void Function(String message)? onPaymentError,
   }) {
     _onPaymentSuccessCallback = onPaymentSuccess;
+    _onPaymentErrorCallback = onPaymentError;
     var options = {
       'key': 'rzp_live_SLDUzSlRIhWOXG',
       'amount': (amount * 100).toInt(),
@@ -49,12 +52,17 @@ class PaymentService extends ChangeNotifier {
     notifyListeners();
     // Execute the callback if provided
     _onPaymentSuccessCallback?.call(response.paymentId ?? '');
-    _onPaymentSuccessCallback = null; // Clear callback after use
+    _onPaymentSuccessCallback = null;
+    _onPaymentErrorCallback = null;
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
     paymentStatus = "Payment Failed: ${response.message}";
     notifyListeners();
+    final msg = response.message ?? 'Payment failed';
+    _onPaymentErrorCallback?.call(msg);
+    _onPaymentErrorCallback = null;
+    _onPaymentSuccessCallback = null;
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {

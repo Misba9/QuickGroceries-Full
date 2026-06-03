@@ -4,6 +4,7 @@ import 'package:quick_grocery_admin/core/layout/admin_constraints.dart';
 import 'package:quick_grocery_admin/core/layout/admin_routes.dart';
 import 'package:quick_grocery_admin/core/layout/admin_safe_page.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_content_scope.dart';
+import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 
 /// Background for admin content panes.
 const Color kAdminContentBackground = Color(0xFFFFFAF0);
@@ -161,7 +162,8 @@ class AdminDashboardShell extends StatelessWidget {
     required this.body,
     this.scaffoldKey,
     this.drawer,
-    this.compact = false,
+    this.useDrawerLayout = false,
+    this.sidebarWidth = adminDesktopSidebarExpandedWidth,
   });
 
   final Widget sidebar;
@@ -169,7 +171,8 @@ class AdminDashboardShell extends StatelessWidget {
   final Widget body;
   final GlobalKey<ScaffoldState>? scaffoldKey;
   final Widget? drawer;
-  final bool compact;
+  final bool useDrawerLayout;
+  final double sidebarWidth;
 
   static const Color shellBackground = Color(0xFFF5F6FA);
 
@@ -183,11 +186,12 @@ class AdminDashboardShell extends StatelessWidget {
       ],
     );
 
-    if (compact) {
+    if (useDrawerLayout) {
       return Scaffold(
         key: scaffoldKey,
         backgroundColor: shellBackground,
         drawer: drawer,
+        drawerEnableOpenDragGesture: true,
         body: SafeArea(child: mainPane),
       );
     }
@@ -198,7 +202,12 @@ class AdminDashboardShell extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            sidebar,
+            AnimatedContainer(
+              duration: adminSidebarAnimationDuration,
+              curve: Curves.easeInOutCubic,
+              width: sidebarWidth,
+              child: ClipRect(child: sidebar),
+            ),
             VerticalDivider(width: 1, color: Colors.grey.shade200),
             Expanded(child: mainPane),
           ],
@@ -224,5 +233,6 @@ abstract final class AdminFlexRoutes {
     AdminRoutes.supportSettings,
     AdminRoutes.platformFee,
     AdminRoutes.maintenance,
+    AdminRoutes.referEarn,
   };
 }

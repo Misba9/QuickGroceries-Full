@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 
 /// Shown when Firebase fails to start after retries (e.g. no network).
 class StartupFailureScreen extends StatelessWidget {
@@ -20,12 +21,15 @@ class StartupFailureScreen extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: SafeArea(
-          child: Padding(
+          child: KeyboardSafeBody(
             padding: const EdgeInsets.all(24),
+            fillMinHeight: true,
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Spacer(),
+                Column(
+                  children: [
                 Icon(
                   Icons.cloud_off_outlined,
                   size: 64,
@@ -51,7 +55,8 @@ class StartupFailureScreen extends StatelessWidget {
                     height: 1.4,
                   ),
                 ),
-                const Spacer(),
+                  ],
+                ),
                 FilledButton.icon(
                   onPressed: () async {
                     await onRetry();

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/order/order_bill_totals.dart';
+import 'package:quickgrocery/core/order/order_line_pricing.dart';
 
 import '../../domain/order_models.dart';
+import 'order_product_line_tile.dart';
 
 /// Itemised order breakdown shown on the tracking screen.
 class OrderDetailsCard extends StatelessWidget {
@@ -22,6 +24,11 @@ class OrderDetailsCard extends StatelessWidget {
           deliveryCharge: order.legacy.deliveryCharge,
         );
 
+    validateOrderLinesAgainstSubtotal(
+      products: order.legacy.products,
+      subtotal: bill.subtotal,
+      tag: 'order-details',
+    );
     bill.validateAgainstItems(
       order.legacy.products.map((p) => p.lineTotal),
       tag: 'order-details',
@@ -48,45 +55,8 @@ class OrderDetailsCard extends StatelessWidget {
           const SizedBox(height: 12),
           ...order.legacy.products.map(
             (p) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppSurface.subtle,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${p.itemCount}×',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      p.name,
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '₹${p.lineTotal.toStringAsFixed(0)}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
+              padding: const EdgeInsets.only(bottom: 14),
+              child: OrderProductLineTile(product: p, compact: true),
             ),
           ),
           const Divider(height: 24),
@@ -112,6 +82,11 @@ class OrderDetailsCard extends StatelessWidget {
           if (bill.platformFee > 0)
             _BillLine(label: 'Platform fee', value: bill.platformFee),
           if (bill.tax > 0) _BillLine(label: 'Tax', value: bill.tax),
+          if (bill.deliveryPartnerTip > 0)
+            _BillLine(
+              label: 'Delivery Partner Tip',
+              value: bill.deliveryPartnerTip,
+            ),
           const SizedBox(height: 8),
           Row(
             children: [

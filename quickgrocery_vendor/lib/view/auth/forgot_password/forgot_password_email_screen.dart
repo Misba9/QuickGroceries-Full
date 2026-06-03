@@ -3,6 +3,7 @@ import 'package:quickgrocery_vendor/controllers/auth_controller.dart';
 import 'package:quickgrocery_vendor/core/auth/vendor_auth_errors.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
 import 'package:quickgrocery_vendor/utils/app_spacing.dart';
+import 'package:quickgrocery_vendor/widgets/keyboard_safe_body.dart';
 
 class ForgotPasswordEmailScreen extends StatefulWidget {
   const ForgotPasswordEmailScreen({super.key});
@@ -75,10 +76,10 @@ class _ForgotPasswordEmailScreenState extends State<ForgotPasswordEmailScreen> {
             foregroundColor: Colors.black87,
             title: const Text('Forgot Password'),
           ),
+          resizeToAvoidBottomInset: true,
           body: SafeArea(
-            child: SingleChildScrollView(
+            child: KeyboardSafeBody(
               padding: const EdgeInsets.all(24),
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: Form(
                 key: _formKey,
                 child: Column(

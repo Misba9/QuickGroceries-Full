@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_icons.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
+import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery/view/address/screens/add_address_screen.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/address/widgets/primary_button.dart';
@@ -29,10 +30,12 @@ class PaymentScreen extends StatelessWidget {
     final height = MediaQuery.of(context).size.height;
     return Scaffold(
       appBar: AppBar(),
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(15.0),
+        child: KeyboardSafeBody(
+          padding: const EdgeInsets.all(15),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               //   PrimaryAppBar(width: width, title: 'Payment Method'),
               Consumer<AddressService>(

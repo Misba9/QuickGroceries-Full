@@ -70,7 +70,7 @@ class OrderRepository {
       customerName: address.name,
       phone: address.mobile,
       isPaid: isPaid,
-      orderStatus: OrderStatus.pending.displayName,
+      orderStatus: OrderStatus.orderPlaced.displayName,
       deliveryBoyId: '',
       isDelivered: false,
       isCancelled: false,
@@ -87,7 +87,7 @@ class OrderRepository {
 
     final legacyMap = legacyOrder.toMap();
     final modernExtras = <String, dynamic>{
-      'status': OrderStatus.pending.id,
+      'status': OrderStatus.orderPlaced.id,
       'paymentMethod': paymentMethod.id,
       'paymentStatus': isPaid ? 'paid' : 'pending',
       if (paymentRef != null) 'paymentRef': paymentRef,
@@ -98,6 +98,11 @@ class OrderRepository {
         'deliverySlot': slot.toMap(),
       },
       'bill': bill.toMap(),
+      if (bill.deliveryPartnerTip > 0) ...{
+        'tipAmount': bill.deliveryPartnerTip.round(),
+        'tipStatus': 'pending',
+        'tipAddedAt': FieldValue.serverTimestamp(),
+      },
       if (coupon != null) 'coupon': coupon.toMap(),
       'address_snapshot': {
         'id': address.id,
@@ -206,16 +211,12 @@ class OrderRepository {
     if (data['isCancelled'] == true) return OrderStatus.cancelled.id;
     if (data['isDelivered'] == true) return OrderStatus.delivered.id;
     final s = (data['order_status'] as String?)?.toLowerCase() ?? '';
-    if (s.contains('way')) return OrderStatus.outForDelivery.id;
-    if (s.contains('picked')) return OrderStatus.pickedUp.id;
-    if (s.contains('going') || s.contains('shop')) return OrderStatus.headingToStore.id;
-    if (s.contains('rider') && s.contains('assign')) return OrderStatus.riderAssigned.id;
-    if (s.contains('ready')) return OrderStatus.readyForPickup.id;
-    if (s.contains('prepar') || s.contains('pack')) return OrderStatus.packing.id;
-    if (s.contains('reject')) return OrderStatus.vendorRejected.id;
-    if (s.contains('vendor') && s.contains('accept')) return OrderStatus.vendorAccepted.id;
-    if (s.contains('confirm') || s.contains('accept')) return OrderStatus.vendorAccepted.id;
-    return OrderStatus.pending.id;
+    if (s.contains('cancel')) return OrderStatus.cancelled.id;
+    if (s.contains('deliver')) return OrderStatus.delivered.id;
+    if (s.contains('way') || s.contains('out for') || s.contains('picked')) {
+      return OrderStatus.outForDelivery.id;
+    }
+    return OrderStatus.normalizeId(s);
   }
 }
 

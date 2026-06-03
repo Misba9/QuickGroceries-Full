@@ -276,7 +276,9 @@ class _AddBannerScreenState extends State<AddBannerScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _PageHeader(
+          const _PageTitle(),
+          const SizedBox(height: 20),
+          _ExistingBannersToolbar(
             searchController: _searchCtrl,
             filter: _filter,
             onFilterChanged: (f) => setState(() => _filter = f),
@@ -286,24 +288,41 @@ class _AddBannerScreenState extends State<AddBannerScreen> {
             },
             onSearchChanged: () => setState(() {}),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           if (banners.isNotEmpty) ...[
             BannerAnalyticsRow(banners: banners),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
           ],
+          BannerExistingSection(
+            banners: banners,
+            loading: provider.bannersLoading,
+            searchQuery: _searchCtrl.text,
+            filter: _filter,
+            onEdit: (b) => _loadBanner(b, provider),
+            onDuplicate: (b) => _loadBanner(b, provider, duplicate: true),
+            onDelete: (b) => _confirmDeleteList(b, provider),
+            onToggleActive: (b, active) =>
+                provider.toggleBannerActive(b.id, active),
+          ),
+          const SizedBox(height: 36),
+          const _SectionHeading(
+            title: 'Add or edit banner',
+            subtitle: 'Create a new banner or update the one loaded from the list',
+          ),
+          const SizedBox(height: 20),
           LayoutBuilder(
             builder: (context, constraints) {
               final w = constraints.maxWidth;
               final wide = w >= 900;
               if (wide) {
                 final formW = w * 0.58;
-                final listW = w - formW - 20;
+                final previewW = w - formW - 20;
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(width: formW, child: formCol),
                     const SizedBox(width: 20),
-                    SizedBox(width: listW, child: previewCol),
+                    SizedBox(width: previewW, child: previewCol),
                   ],
                 );
               }
@@ -318,26 +337,64 @@ class _AddBannerScreenState extends State<AddBannerScreen> {
               );
             },
           ),
-          const SizedBox(height: 32),
-          BannerExistingSection(
-            banners: banners,
-            loading: provider.bannersLoading,
-            searchQuery: _searchCtrl.text,
-            filter: _filter,
-            onEdit: (b) => _loadBanner(b, provider),
-            onDuplicate: (b) => _loadBanner(b, provider, duplicate: true),
-            onDelete: (b) => _confirmDeleteList(b, provider),
-            onToggleActive: (b, active) =>
-                provider.toggleBannerActive(b.id, active),
-          ),
         ],
       ),
     );
   }
 }
 
-class _PageHeader extends StatelessWidget {
-  const _PageHeader({
+class _PageTitle extends StatelessWidget {
+  const _PageTitle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Banner Management', style: AppTextStyles.heading),
+        const SizedBox(height: 4),
+        Text(
+          'Review existing banners, then add or edit creatives below',
+          style: TextStyle(color: Colors.grey.shade600),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({required this.title, this.subtitle});
+
+  final String title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            subtitle!,
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ExistingBannersToolbar extends StatelessWidget {
+  const _ExistingBannersToolbar({
     required this.searchController,
     required this.filter,
     required this.onFilterChanged,
@@ -356,18 +413,7 @@ class _PageHeader extends StatelessWidget {
     final w = MediaQuery.sizeOf(context).width;
     final stacked = adminIsMobileWidth(w);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('Banner Management', style: AppTextStyles.heading),
-        const SizedBox(height: 4),
-        Text(
-          'Create and manage promotional banners',
-          style: TextStyle(color: Colors.grey.shade600),
-        ),
-        const SizedBox(height: 16),
-        Wrap(
+    return Wrap(
           spacing: 10,
           runSpacing: 10,
           crossAxisAlignment: WrapCrossAlignment.center,
@@ -419,8 +465,6 @@ class _PageHeader extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ],
-    );
+        );
   }
 }

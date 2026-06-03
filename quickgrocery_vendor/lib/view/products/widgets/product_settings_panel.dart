@@ -7,6 +7,7 @@ import 'package:quickgrocery_vendor/models/product_settings.dart';
 import 'package:quickgrocery_vendor/services/product_service.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
 import 'package:quickgrocery_vendor/utils/app_spacing.dart';
+import 'package:quickgrocery_vendor/widgets/vendor_form_fields.dart';
 
 typedef SettingsChanged = void Function(ProductSettings settings);
 
@@ -600,17 +601,14 @@ class _FlashSaleDetails extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 8),
-          TextFormField(
+          VendorTextFormField(
             initialValue: settings.flashSaleStockLimit > 0
                 ? '${settings.flashSaleStockLimit}'
                 : '',
             enabled: !locked,
             keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'Sale stock limit (optional)',
-              isDense: true,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            ),
+            label: 'Sale stock limit (optional)',
+            isDense: true,
             onFieldSubmitted: (v) {
               final n = int.tryParse(v) ?? 0;
               onChanged(

@@ -71,21 +71,30 @@ class OrderProductParse {
     Map<String, dynamic> data,
     int qty,
   ) {
-    final sellingExplicit = _dbl(data['sellingPrice']);
-    final originalExplicit = _dbl(data['originalPrice']);
+    final pricePaid = _dbl(
+      data['pricePaid'] ??
+          data['sellingPrice'] ??
+          data['discountedPrice'] ??
+          data['unitPrice'],
+    );
     final lineTotalExplicit = _dbl(data['lineTotal'] ?? data['totalPrice']);
 
-    if (sellingExplicit > 0) {
+    if (pricePaid > 0) {
+      var mrp = _dbl(data['mrp'] ?? data['originalPrice']);
+      if (mrp <= pricePaid) {
+        mrp = _dbl(data['slashedPrice']);
+        if (mrp <= pricePaid) mrp = pricePaid;
+      }
       return (
-        selling: sellingExplicit,
-        original: originalExplicit > 0 ? originalExplicit : sellingExplicit,
+        selling: pricePaid,
+        original: mrp,
         lineTotal: lineTotalExplicit > 0
             ? lineTotalExplicit
-            : sellingExplicit * qty,
+            : pricePaid * qty,
       );
     }
 
-    var unitPrice = _dbl(data['unitPrice'] ?? data['price']);
+    var unitPrice = _dbl(data['price']);
     final slashed = _dbl(data['slashedPrice']);
     var lineTotal = lineTotalExplicit;
     if (unitPrice <= 0 && lineTotal > 0 && qty > 0) {

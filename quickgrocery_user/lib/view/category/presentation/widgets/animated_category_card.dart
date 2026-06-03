@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/category_model.dart';
+import 'package:quickgrocery/view/category/presentation/utils/category_grid_layout.dart';
 import 'package:quickgrocery/view/category/screens/category_screen.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
@@ -115,12 +116,13 @@ class _Tile extends StatelessWidget {
     final disc = topDiscountPercent ?? 0;
     final count = productCount;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.max,
       children: [
         Expanded(
-          child: AspectRatio(
-            aspectRatio: 1,
-            child: Transform.translate(
-              offset: const Offset(0, -2),
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: 1,
               child: Stack(
                 clipBehavior: Clip.none,
                 fit: StackFit.expand,
@@ -137,8 +139,9 @@ class _Tile extends StatelessWidget {
                         ],
                       ),
                       borderRadius: AppRadii.all(AppRadii.lg),
-                      border:
-                          Border.all(color: AppSurface.border.withValues(alpha: 0.8)),
+                      border: Border.all(
+                        color: AppSurface.border.withValues(alpha: 0.8),
+                      ),
                       boxShadow: AppShadow.card,
                     ),
                     padding: const EdgeInsets.all(10),
@@ -181,26 +184,27 @@ class _Tile extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 6),
-        SizedBox(
-          height: count != null ? 38 : 32,
+        const SizedBox(height: CategoryGridLayout.tileImageGap),
+        Flexible(
+          fit: FlexFit.loose,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
                 category.name,
-                maxLines: 2,
+                maxLines: CategoryGridLayout.nameMaxLines,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                softWrap: true,
                 style: GoogleFonts.poppins(
-                  fontSize: 11.5,
+                  fontSize: CategoryGridLayout.nameFontSize,
                   fontWeight: FontWeight.w600,
                   color: AppSurface.textPrimary,
-                  height: 1.15,
+                  height: CategoryGridLayout.nameLineHeight,
                 ),
               ),
               if (count != null && count > 0) ...[
-                const SizedBox(height: 2),
+                const SizedBox(height: CategoryGridLayout.countTopGap),
                 Text(
                   'items_in_category'
                       .tr(namedArgs: {'count': count.toString()}),
@@ -208,9 +212,10 @@ class _Tile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
-                    fontSize: 9.5,
+                    fontSize: CategoryGridLayout.countFontSize,
                     fontWeight: FontWeight.w600,
                     color: AppSurface.textMuted,
+                    height: CategoryGridLayout.countLineHeight,
                   ),
                 ),
               ],

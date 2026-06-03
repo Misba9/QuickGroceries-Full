@@ -1,26 +1,32 @@
 import 'package:quick_grocery_admin/model/order_model.dart';
 
-/// `Qty: 1 | 500 gm` — variant first, then weight+unit, then safe fallbacks.
+/// Paid unit × qty = line total, plus pack size when known.
 String productInvoiceQtyLine(ProductItem p) {
   final qty = p.itemCount;
-  final variant = p.variantName.trim();
+  final unitPaid = _money(p.price);
+  final line = _money(p.lineTotal);
+  final paid = '$qty × ₹$unitPaid = ₹$line';
 
+  final variant = p.variantName.trim();
   if (variant.isNotEmpty && RegExp(r'\d').hasMatch(variant)) {
-    return 'Qty: $qty | $variant';
+    return 'Qty: $paid | $variant';
   }
 
   final size = _packSizeText(p);
   if (size.isNotEmpty) {
-    return 'Qty: $qty | $size';
+    return 'Qty: $paid | $size';
   }
 
   final u = p.packUnit.isNotEmpty ? p.packUnit : p.unit.trim();
   if (u.isNotEmpty && _isCountOnlyUnit(u)) {
-    return 'Qty: $qty | ${_normalizeUnit(u)}';
+    return 'Qty: $paid | ${_normalizeUnit(u)}';
   }
 
-  return 'Qty: $qty';
+  return 'Qty: $paid';
 }
+
+String _money(double v) =>
+    v == v.roundToDouble() ? v.round().toString() : v.toStringAsFixed(2);
 
 String _packSizeText(ProductItem p) {
   if (p.weightAmount != null && p.packUnit.isNotEmpty) {

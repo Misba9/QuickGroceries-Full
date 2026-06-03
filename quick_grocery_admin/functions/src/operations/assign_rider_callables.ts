@@ -16,12 +16,7 @@ function orderNeedsRider(data: Record<string, unknown>): boolean {
   if (data.isCancelled === true || data.isDelivered === true) return false;
   if (str(data.deliveryBoyId)) return false;
   const status = resolveStatus(data);
-  return (
-    status === OrderStatus.READY_FOR_PICKUP ||
-    status === OrderStatus.VENDOR_ACCEPTED ||
-    status === OrderStatus.PACKING ||
-    status === OrderStatus.ACCEPTED
-  );
+  return status === OrderStatus.ORDER_PLACED;
 }
 
 /** Admin manually assigns a rider → status = rider_assigned. */

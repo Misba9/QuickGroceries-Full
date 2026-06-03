@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/combo_offer_model.dart';
 import 'package:quickgrocery/view/combo/presentation/providers/combo_providers.dart';
-import 'package:quickgrocery/view/combo/presentation/screens/combo_detail_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/combo/presentation/widgets/combo_offer_card.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 
@@ -18,6 +18,7 @@ class ComboOffersSection extends ConsumerWidget {
     final async = ref.watch(activeComboOffersProvider);
 
     return async.when(
+      skipLoadingOnReload: false,
       loading: () => const _ComboSkeleton(),
       error: (_, __) => const SizedBox.shrink(),
       data: (combos) {
@@ -64,12 +65,7 @@ class ComboOffersSection extends ConsumerWidget {
     bool addOnOpen = false,
   }) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ComboDetailScreen(
-          combo: combo,
-          addToCartOnLoad: addOnOpen,
-        ),
-      ),
+      AppPageRoutes.comboDetail(combo: combo, addToCartOnLoad: addOnOpen),
     );
   }
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/home/widgets/admin_top_bar_actions.dart';
-
 /// Fixed admin header — title + notification + logout on all main routes.
 class AdminGlobalTopBar extends StatelessWidget {
   const AdminGlobalTopBar({

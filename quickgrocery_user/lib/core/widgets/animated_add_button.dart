@@ -22,6 +22,7 @@ class AnimatedAddButton extends StatelessWidget {
     required this.onDecrement,
     this.size = QuantityStepperSize.medium,
     this.maxQuantity,
+    this.onMaxReached,
   });
 
   final int count;
@@ -30,6 +31,7 @@ class AnimatedAddButton extends StatelessWidget {
   final VoidCallback onDecrement;
   final QuantityStepperSize size;
   final int? maxQuantity;
+  final VoidCallback? onMaxReached;
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +63,7 @@ class AnimatedAddButton extends StatelessWidget {
                 onDecrement: onDecrement,
                 size: size,
                 maxQuantity: maxQuantity,
+                onMaxReached: onMaxReached,
               ),
       ),
     );

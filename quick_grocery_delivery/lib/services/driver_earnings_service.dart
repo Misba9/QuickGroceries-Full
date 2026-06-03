@@ -9,6 +9,11 @@ class EarningsSnapshot {
     required this.week,
     required this.month,
     required this.total,
+    required this.todayTips,
+    required this.weekTips,
+    required this.monthTips,
+    required this.lifetimeTips,
+    required this.avgTipPerOrder,
     required this.completed,
     required this.cancelled,
     required this.riderCancellations,
@@ -23,6 +28,11 @@ class EarningsSnapshot {
   final double week;
   final double month;
   final double total;
+  final double todayTips;
+  final double weekTips;
+  final double monthTips;
+  final double lifetimeTips;
+  final double avgTipPerOrder;
   final int completed;
   final int cancelled;
   final int riderCancellations;
@@ -37,6 +47,11 @@ class EarningsSnapshot {
     week: 0,
     month: 0,
     total: 0,
+    todayTips: 0,
+    weekTips: 0,
+    monthTips: 0,
+    lifetimeTips: 0,
+    avgTipPerOrder: 0,
     completed: 0,
     cancelled: 0,
     riderCancellations: 0,
@@ -70,7 +85,9 @@ class DriverEarningsService {
     final startOfMonth = DateTime(now.year, now.month, 1);
 
     double today = 0, week = 0, month = 0, total = 0;
+    double todayTips = 0, weekTips = 0, monthTips = 0, lifetimeTips = 0;
     int completed = 0;
+    int tippedOrders = 0;
     int cancelled = 0;
     int riderCancellations = 0;
     int pendingOffers = 0;
@@ -94,7 +111,7 @@ class DriverEarningsService {
       if (o.deliveryBoyId.isEmpty) continue;
 
       if (OrderLifecycle.isCancellationStatus(status) ||
-          (o.isCancelled && status != OrderLifecycle.vendorRejected)) {
+          (o.isCancelled && status != OrderLifecycle.cancelledByVendor)) {
         if (status == OrderLifecycle.cancelledByCustomer ||
             status == OrderLifecycle.cancelledByVendor ||
             status == OrderLifecycle.cancelled) {
@@ -120,11 +137,23 @@ class DriverEarningsService {
         completed++;
         final deliveredAt = _parseDate(o.orderDeliveredTime);
         final earning = _orderEarning(o);
+        final tip = o.tipEarning;
         total += earning;
+        lifetimeTips += tip;
+        if (tip > 0) tippedOrders++;
         if (deliveredAt != null) {
-          if (!deliveredAt.isBefore(startOfDay)) today += earning;
-          if (!deliveredAt.isBefore(last7Days)) week += earning;
-          if (!deliveredAt.isBefore(startOfMonth)) month += earning;
+          if (!deliveredAt.isBefore(startOfDay)) {
+            today += earning;
+            todayTips += tip;
+          }
+          if (!deliveredAt.isBefore(last7Days)) {
+            week += earning;
+            weekTips += tip;
+          }
+          if (!deliveredAt.isBefore(startOfMonth)) {
+            month += earning;
+            monthTips += tip;
+          }
         }
         if (o.isRated && o.rating > 0) {
           ratingSum += o.rating;
@@ -142,11 +171,19 @@ class DriverEarningsService {
 
     final acceptance = assigned > 0 ? (accepted / assigned) * 100 : 100.0;
 
+    final avgTip =
+        tippedOrders > 0 ? lifetimeTips / tippedOrders : 0.0;
+
     return EarningsSnapshot(
       today: today,
       week: week,
       month: month,
       total: total,
+      todayTips: todayTips,
+      weekTips: weekTips,
+      monthTips: monthTips,
+      lifetimeTips: lifetimeTips,
+      avgTipPerOrder: avgTip,
       completed: completed,
       cancelled: cancelled,
       riderCancellations: riderCancellations,
@@ -182,17 +219,7 @@ class DriverEarningsService {
         .toList();
   }
 
-  double _orderEarning(OrderModel o) {
-    if (o.deliveryCharge > 0) return o.deliveryCharge.toDouble();
-    final bill = o.bill;
-    if (bill != null && bill['deliveryFee'] != null) {
-      return (bill['deliveryFee'] as num).toDouble();
-    }
-    return o.products.fold<double>(
-      0,
-      (sum, p) => sum + ((p.price ?? 0) * (p.itemCount ?? 0)) * 0.05,
-    );
-  }
+  double _orderEarning(OrderModel o) => o.deliveryFeeEarning + o.tipEarning;
 
   DateTime? _parseDate(String raw) {
     if (raw.isEmpty) return null;

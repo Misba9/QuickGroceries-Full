@@ -21,6 +21,8 @@ class RiderLocationRepository {
 
     final boyDoc = _firestore.collection('delivery_boys').doc(deliveryBoyId);
     final liveDoc = boyDoc.collection('live').doc('current');
+    final driverLocDoc =
+        _firestore.collection('driver_locations').doc(deliveryBoyId);
     final orderLiveDoc = orderId != null && orderId.isNotEmpty
         ? _firestore.collection('orders').doc(orderId).collection('live').doc('rider')
         : null;
@@ -41,6 +43,7 @@ class RiderLocationRepository {
         profile: profile,
         riderId: deliveryBoyId,
         liveDoc: liveDoc,
+        driverLocDoc: driverLocDoc,
         orderLiveDoc: orderLiveDoc,
       );
     });
@@ -50,17 +53,20 @@ class RiderLocationRepository {
     required Map<String, dynamic> profile,
     required String riderId,
     required DocumentReference<Map<String, dynamic>> liveDoc,
+    required DocumentReference<Map<String, dynamic>> driverLocDoc,
     required DocumentReference<Map<String, dynamic>> orderLiveDoc,
   }) {
     late StreamSubscription<DocumentSnapshot<Map<String, dynamic>>> riderSub;
+    late StreamSubscription<DocumentSnapshot<Map<String, dynamic>>> driverSub;
     late StreamSubscription<DocumentSnapshot<Map<String, dynamic>>> orderSub;
     Map<String, dynamic>? riderLive;
+    Map<String, dynamic>? driverLive;
     Map<String, dynamic>? orderLive;
 
     late StreamController<RiderLocation?> controller;
 
     void emit() {
-      final coords = orderLive ?? riderLive;
+      final coords = orderLive ?? driverLive ?? riderLive;
       controller.add(_mergeRiderLocation(profile, coords, riderId));
     }
 
@@ -70,6 +76,10 @@ class RiderLocationRepository {
           riderLive = snap.data();
           emit();
         });
+        driverSub = driverLocDoc.snapshots().listen((snap) {
+          driverLive = snap.data();
+          emit();
+        });
         orderSub = orderLiveDoc.snapshots().listen((snap) {
           orderLive = snap.exists ? snap.data() : null;
           emit();
@@ -77,6 +87,7 @@ class RiderLocationRepository {
       },
       onCancel: () async {
         await riderSub.cancel();
+        await driverSub.cancel();
         await orderSub.cancel();
       },
     );

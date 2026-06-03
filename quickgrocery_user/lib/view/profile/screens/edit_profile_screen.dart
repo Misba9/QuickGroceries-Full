@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/user/user_profile_repository.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/profile/domain/profile_models.dart';
@@ -69,10 +69,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         updates['profile_image'] = url;
       }
 
-      await FirebaseFirestore.instance
-          .collection('customers')
-          .doc(uid)
-          .set(updates, SetOptions(merge: true));
+      await UserProfileRepository().saveProfile(
+        uid: uid,
+        fields: updates,
+      );
 
       final home = Provider.of<HomeProvider>(context, listen: false);
       home.customer = null;

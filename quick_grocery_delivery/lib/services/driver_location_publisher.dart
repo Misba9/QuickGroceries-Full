@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Writes:
 /// - `delivery_boys/{id}` — profile + latest coords
 /// - `delivery_boys/{id}/live/current` — fast live read path
+/// - `driver_locations/{id}` — live rider position for admin map
 /// - `orders/{activeOrderId}/live/rider` — order-scoped mirror for user/admin
 class DriverLocationPublisher {
   DriverLocationPublisher({FirebaseFirestore? db, this.interval = const Duration(seconds: 5)})
@@ -98,6 +99,15 @@ class DriverLocationPublisher {
       batch.set(
         riderRef.collection('live').doc('current'),
         payload,
+        SetOptions(merge: true),
+      );
+      batch.set(
+        _db.collection('driver_locations').doc(id),
+        {
+          ...payload,
+          'riderId': id,
+          'deliveryBoyId': id,
+        },
         SetOptions(merge: true),
       );
       if (orderId != null) {

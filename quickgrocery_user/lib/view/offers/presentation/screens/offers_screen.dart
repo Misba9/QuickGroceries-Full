@@ -8,6 +8,7 @@ import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/models/offer_banner_model.dart';
@@ -171,12 +172,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
                   'Search "snacks"',
                   'Search "groceries"',
                 ],
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SearchScreen(),
-                  ),
-                ),
+                onTap: () => Navigator.push(context, AppPageRoutes.search()),
               ),
               SliverToBoxAdapter(
                 child: OfferCategoryChips(

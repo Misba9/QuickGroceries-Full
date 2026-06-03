@@ -5,6 +5,7 @@ import 'package:quick_grocery_delivery/core/auth/delivery_session_prefs.dart';
 import 'package:quick_grocery_delivery/core/auth/partner_auth_api.dart';
 import 'package:quick_grocery_delivery/core/auth/password_validation.dart';
 import 'package:quick_grocery_delivery/features/home/screens/home_screen.dart';
+import 'package:quick_grocery_delivery/widgets/keyboard_safe_body.dart';
 
 class ForcePasswordChangeScreen extends StatefulWidget {
   const ForcePasswordChangeScreen({super.key, required this.partnerId});
@@ -77,11 +78,13 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(title: const Text('Change Password')),
-      body: Padding(
+      body: KeyboardSafeBody(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
               'Set a new password to continue. Min 8 characters, 1 uppercase, 1 number.',

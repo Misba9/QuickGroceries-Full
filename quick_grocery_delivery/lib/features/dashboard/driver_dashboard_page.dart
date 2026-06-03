@@ -167,6 +167,76 @@ class _DriverDashboardPageState extends State<DriverDashboardPage> {
                       ),
                       const SizedBox(height: 16),
                       const Text(
+                        'Tips Received',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DriverStatCard(
+                              label: "Today's Tips",
+                              value: '₹${_earnings.todayTips.toStringAsFixed(0)}',
+                              icon: Icons.favorite_rounded,
+                              accent: const Color(0xFFE6A800),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: DriverStatCard(
+                              label: 'Weekly Tips',
+                              value: '₹${_earnings.weekTips.toStringAsFixed(0)}',
+                              icon: Icons.favorite_border_rounded,
+                              accent: const Color(0xFFE6A800),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DriverStatCard(
+                              label: 'Monthly Tips',
+                              value: '₹${_earnings.monthTips.toStringAsFixed(0)}',
+                              icon: Icons.calendar_today_outlined,
+                              accent: const Color(0xFFE6A800),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: DriverStatCard(
+                              label: 'Lifetime Tips',
+                              value: '₹${_earnings.lifetimeTips.toStringAsFixed(0)}',
+                              icon: Icons.volunteer_activism_outlined,
+                              accent: const Color(0xFFE6A800),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DriverStatCard(
+                              label: 'Total Deliveries',
+                              value: '${_earnings.completed}',
+                              icon: Icons.local_shipping_outlined,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: DriverStatCard(
+                              label: 'Avg Tip / Order',
+                              value: '₹${_earnings.avgTipPerOrder.toStringAsFixed(0)}',
+                              icon: Icons.insights_outlined,
+                              accent: const Color(0xFFE6A800),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
                         'Deliveries',
                         style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                       ),

@@ -1,3 +1,5 @@
+import 'package:quickgrocery/core/order/order_line_pricing.dart';
+
 class OrderModel {
   String id;
   List<ProductItem> products;
@@ -132,6 +134,10 @@ class ProductItem {
   final String variantName;
   final num? weightAmount;
   final String packUnit;
+  final String unitPerItem;
+  final String packQuantity;
+  final String packWeight;
+  final String measurementType;
   final double? totalPrice;
 
   ProductItem({
@@ -148,8 +154,23 @@ class ProductItem {
     this.variantName = '',
     this.weightAmount,
     this.packUnit = '',
+    this.unitPerItem = '',
+    this.packQuantity = '',
+    this.packWeight = '',
+    this.measurementType = '',
     this.totalPrice,
   });
+
+  /// Per-unit amount actually charged (from order snapshot).
+  double get unitPricePaid => price;
+
+  /// Per-unit MRP / reference price when discounted.
+  double get unitMrp => slashedPrice > price + 0.01 ? slashedPrice : price;
+
+  bool get hasPurchasedDiscount => unitMrp > unitPricePaid + 0.01;
+
+  OrderLinePricing get linePricing =>
+      OrderLinePricing.fromProductItem(this);
 
   double get lineTotal {
     if (totalPrice != null && totalPrice! > 0) return totalPrice!;
@@ -162,8 +183,8 @@ class ProductItem {
         (data['itemCount'] as num?)?.toInt() ??
         0;
     final effectiveQty = qty > 0 ? qty : 1;
-    final resolved = _resolveOrderLinePrices(data, effectiveQty);
-    var unitPrice = resolved.selling;
+    final resolved = resolveOrderLinePricing(data, effectiveQty);
+    var unitPrice = resolved.pricePaid;
     var lineTotal = resolved.lineTotal;
     if (unitPrice <= 0 && lineTotal > 0) {
       unitPrice = lineTotal / effectiveQty;
@@ -184,12 +205,16 @@ class ProductItem {
       category: (data['category'] ?? '').toString(),
       unit: (data['unitType'] ?? '').toString(),
       price: unitPrice,
-      slashedPrice: resolved.original,
+      slashedPrice: resolved.mrp,
       itemCount: qty > 0 ? qty : 1,
       vendorId: (data['vendor_id'] ?? data['vendorId'] ?? '').toString(),
       variantName: variant,
       weightAmount: weight,
       packUnit: weight != null ? unitField : '',
+      unitPerItem: (data['unitPerItem'] ?? '').toString(),
+      packQuantity: (data['packQuantity'] ?? '').toString(),
+      packWeight: (data['packWeight'] ?? '').toString(),
+      measurementType: (data['measurementType'] ?? '').toString(),
       totalPrice: lineTotal,
     );
   }
@@ -200,58 +225,8 @@ class ProductItem {
     return null;
   }
 
-  static _OrderLinePrices _resolveOrderLinePrices(
-    Map<String, dynamic> data,
-    int qty,
-  ) {
-    double d(dynamic v) {
-      if (v is num) return v.toDouble();
-      if (v is String && v.trim().isNotEmpty) {
-        return double.tryParse(v.trim()) ?? 0;
-      }
-      return 0;
-    }
-
-    final sellingExplicit = d(data['sellingPrice']);
-    final originalExplicit = d(data['originalPrice']);
-    final lineTotalExplicit = d(data['lineTotal'] ?? data['totalPrice']);
-
-    if (sellingExplicit > 0) {
-      final original =
-          originalExplicit > 0 ? originalExplicit : sellingExplicit;
-      final lineTotal =
-          lineTotalExplicit > 0 ? lineTotalExplicit : sellingExplicit * qty;
-      return _OrderLinePrices(
-        selling: sellingExplicit,
-        original: original,
-        lineTotal: lineTotal,
-      );
-    }
-
-    var unitPrice = d(data['unitPrice'] ?? data['price']);
-    final slashed = d(data['slashedPrice']);
-    var lineTotal = lineTotalExplicit;
-    if (unitPrice <= 0 && lineTotal > 0 && qty > 0) {
-      unitPrice = lineTotal / qty;
-    }
-
-    // Legacy bug: stored MRP in `price` and selling price in `slashedPrice`.
-    if (slashed > 0 && slashed < unitPrice) {
-      return _OrderLinePrices(
-        selling: slashed,
-        original: unitPrice,
-        lineTotal: lineTotal > 0 ? lineTotal : slashed * qty,
-      );
-    }
-
-    return _OrderLinePrices(
-      selling: unitPrice,
-      original: slashed > unitPrice ? slashed : unitPrice,
-      lineTotal: lineTotal > 0 ? lineTotal : unitPrice * qty,
-    );
-  }
-
   Map<String, dynamic> toMap() {
+    final unitDiscount = hasPurchasedDiscount ? unitMrp - unitPricePaid : 0.0;
     return {
       if (productId.isNotEmpty) 'productId': productId,
       'name': name,
@@ -265,29 +240,19 @@ class ProductItem {
       if (packUnit.isNotEmpty) 'unit': packUnit,
       if (unit.isNotEmpty) 'unitType': unit,
       if (variantName.isNotEmpty) 'variantName': variantName,
-      'price': price,
-      'unitPrice': price,
-      'sellingPrice': price,
-      'originalPrice': slashedPrice,
+      'pricePaid': unitPricePaid,
+      'sellingPrice': unitPricePaid,
+      'discountedPrice': unitPricePaid,
+      'mrp': unitMrp,
+      'originalPrice': unitMrp,
+      'price': unitPricePaid,
+      'unitPrice': unitPricePaid,
       'totalPrice': lineTotal,
       'lineTotal': lineTotal,
-      'slashedPrice': slashedPrice,
-      if (slashedPrice > price)
-        'discountAmount': slashedPrice - price,
+      'slashedPrice': unitMrp,
+      if (unitDiscount > 0) 'discountAmount': unitDiscount,
       'vendor_id': vendorId,
       'vendorId': vendorId,
     };
   }
-}
-
-class _OrderLinePrices {
-  const _OrderLinePrices({
-    required this.selling,
-    required this.original,
-    required this.lineTotal,
-  });
-
-  final double selling;
-  final double original;
-  final double lineTotal;
 }

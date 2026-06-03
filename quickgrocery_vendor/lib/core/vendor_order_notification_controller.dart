@@ -99,7 +99,7 @@ class VendorOrderNotificationController extends ChangeNotifier {
     _notifiedStatusKeys.add(statusKey);
 
     if (o.isCancelled ||
-        cur == OrderLifecycle.vendorRejected ||
+        cur == OrderLifecycle.cancelledByVendor ||
         cur == OrderLifecycle.cancelled) {
       OrderAlertSound.playNewOrder();
       VendorAlertVibration.pulseNewOrder();
@@ -110,11 +110,11 @@ class VendorOrderNotificationController extends ChangeNotifier {
       );
       return;
     }
-    if (cur == OrderLifecycle.vendorAccepted) {
+    if (cur == OrderLifecycle.deliveryAssigned) {
       _emit(
-        type: VendorAlertType.accepted,
+        type: VendorAlertType.riderAssigned,
         order: o,
-        message: 'Order accepted — start preparing',
+        message: 'Delivery partner assigned',
       );
       return;
     }

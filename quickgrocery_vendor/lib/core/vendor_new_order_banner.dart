@@ -212,7 +212,7 @@ class NewOrderBannerPayload {
       canAssignDriver: order.deliveryBoyId.isEmpty &&
           !order.isDelivered &&
           !order.isCancelled &&
-          OrderLifecycle.isVendorAccepted(status),
+          status == OrderLifecycle.orderPlaced,
       needsVendorAction: OrderLifecycle.isPendingVendorAction(status),
     );
   }

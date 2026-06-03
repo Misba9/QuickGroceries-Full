@@ -31,14 +31,16 @@ class QuantityNotifier extends AutoDisposeFamilyNotifier<int, QuantityKey> {
   @override
   int build(QuantityKey arg) => 1;
 
-  void increment() {
+  /// Returns false when stock / max-order cap blocks the increment.
+  bool increment() {
     final next = state + 1;
     final cap = InventoryLimits.effectiveMaxQuantity(
       stock: arg.stock,
       maxOrder: arg.maxOrder,
     );
-    if (cap <= 0 || next > cap) return;
+    if (cap <= 0 || next > cap) return false;
     state = next;
+    return true;
   }
 
   void decrement() {

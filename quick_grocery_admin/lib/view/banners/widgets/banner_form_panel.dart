@@ -47,48 +47,8 @@ class BannerFormPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         BannerAdminCard(
-          title: 'Banner type',
-          subtitle: 'Choose image or video creative',
-          child: LayoutBuilder(
-            builder: (context, c) {
-              final half = (c.maxWidth - 12) / 2;
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: half,
-                    child: _TypeTile(
-                  selected: provider.bannerType == 'image',
-                  icon: Icons.image_outlined,
-                  label: 'Image',
-                  onTap: () {
-                    provider.setBannerType('image');
-                    onChanged();
-                  },
-                ),
-                  ),
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: half,
-                    child: _TypeTile(
-                      selected: provider.bannerType == 'video',
-                      icon: Icons.play_circle_outline,
-                      label: 'Video',
-                      onTap: () {
-                        provider.setBannerType('video');
-                        onChanged();
-                      },
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        BannerAdminCard(
-          title: 'Banner content',
-          subtitle: 'Title, copy, and media asset',
+          title: isEditing ? 'Edit banner' : 'Add new banner',
+          subtitle: 'Title, copy, and call-to-action',
           child: Column(
             children: [
               TextField(
@@ -110,28 +70,6 @@ class BannerFormPanel extends StatelessWidget {
                   label: 'CTA button text',
                   hint: 'Shop now',
                 ),
-              ),
-              const SizedBox(height: 16),
-              BannerUploadZone(
-                bannerType: provider.bannerType,
-                imageBytes: provider.imageBytes,
-                videoSelected:
-                    provider.videoBytes != null || provider.videoPath != null,
-                thumbnailReady: provider.thumbnailBytes != null,
-                onPick: () async {
-                  if (provider.bannerType == 'image') {
-                    await provider.pickImage();
-                  } else {
-                    await provider.pickVideo();
-                  }
-                  onChanged();
-                },
-                onPickThumbnail: provider.bannerType == 'video'
-                    ? () async {
-                        await provider.pickThumbnail();
-                        onChanged();
-                      }
-                    : null,
               ),
             ],
           ),
@@ -344,6 +282,73 @@ class BannerFormPanel extends StatelessWidget {
                       ),
                     )
                     .toList(),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        BannerAdminCard(
+          title: 'Banner type',
+          subtitle: 'Choose image or video, then upload your creative',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              LayoutBuilder(
+                builder: (context, c) {
+                  final half = (c.maxWidth - 12) / 2;
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: half,
+                        child: _TypeTile(
+                          selected: provider.bannerType == 'image',
+                          icon: Icons.image_outlined,
+                          label: 'Image',
+                          onTap: () {
+                            provider.setBannerType('image');
+                            onChanged();
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: half,
+                        child: _TypeTile(
+                          selected: provider.bannerType == 'video',
+                          icon: Icons.play_circle_outline,
+                          label: 'Video',
+                          onTap: () {
+                            provider.setBannerType('video');
+                            onChanged();
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              BannerUploadZone(
+                bannerType: provider.bannerType,
+                imageBytes: provider.imageBytes,
+                videoSelected:
+                    provider.videoBytes != null || provider.videoPath != null,
+                thumbnailReady: provider.thumbnailBytes != null,
+                onPick: () async {
+                  if (provider.bannerType == 'image') {
+                    await provider.pickImage();
+                  } else {
+                    await provider.pickVideo();
+                  }
+                  onChanged();
+                },
+                onPickThumbnail: provider.bannerType == 'video'
+                    ? () async {
+                        await provider.pickThumbnail();
+                        onChanged();
+                      }
+                    : null,
               ),
             ],
           ),

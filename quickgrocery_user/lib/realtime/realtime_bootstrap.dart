@@ -11,6 +11,7 @@ import 'package:quickgrocery/core/firestore/firestore_retry.dart';
 import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
+import 'package:quickgrocery/core/user/user_profile_repository.dart';
 
 /// Configures Firestore offline persistence + FCM foreground bridge so
 /// the realtime layer behaves correctly across reconnects, kill/restart,
@@ -141,6 +142,7 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
     _onAuthSub = FirebaseAuth.instance.authStateChanges().listen((user) async {
       _lastUid = user?.uid;
       if (user == null) return;
+      await UserProfileRepository().hydrateLocal(user.uid);
       // Persist initial token on sign-in so server can address us.
       try {
         final token = await FirebaseMessaging.instance.getToken();

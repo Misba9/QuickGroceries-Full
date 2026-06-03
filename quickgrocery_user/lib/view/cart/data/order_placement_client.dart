@@ -32,6 +32,7 @@ class OrderPlacementClient {
     required DeliveryInstructions instructions,
     required PaymentMethod paymentMethod,
     String? paymentRef,
+    double tipAmount = 0,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -66,6 +67,7 @@ class OrderPlacementClient {
       'deliveryInstructions': instructions.toMap(),
       'paymentMethod': paymentMethod.id,
       if (paymentRef != null) 'paymentRef': paymentRef,
+      if (tipAmount > 0) 'tipAmount': tipAmount.round(),
     });
     debugCallableData(functionName, payload);
 

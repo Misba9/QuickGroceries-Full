@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:quick_grocery_admin/view/orders/services/order_service.dart';
 import 'package:quick_grocery_admin/view/orders/services/orders_export_service.dart';
@@ -73,15 +71,18 @@ class _OrdersFiltersBarState extends State<OrdersFiltersBar> {
                   children: [search, const SizedBox(height: 10), actions],
                 );
               }
-              final searchWidth = c.maxWidth.isFinite
-                  ? math.max(200.0, c.maxWidth - 280)
-                  : 320.0;
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(width: searchWidth, child: search),
+                  Expanded(child: search),
                   const SizedBox(width: 12),
-                  actions,
+                  Flexible(
+                    fit: FlexFit.loose,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: actions,
+                    ),
+                  ),
                 ],
               );
             },

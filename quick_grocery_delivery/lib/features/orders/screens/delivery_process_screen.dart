@@ -41,7 +41,8 @@ class DeliveryProcessScreen extends StatelessWidget {
               final status = _statusId(live);
               final isOutForDelivery =
                   status == OrderLifecycle.outForDelivery;
-              final isPickedUp = status == OrderLifecycle.pickedUp;
+              final canStartDelivery =
+                  status == OrderLifecycle.deliveryAssigned;
               final isDelivered =
                   status == OrderLifecycle.delivered || live.isDelivered;
               final reporting = svc.customerNotReachableOrderId == live.id;
@@ -90,10 +91,10 @@ class DeliveryProcessScreen extends StatelessWidget {
                       ],
                     ),
                     AppSpacing.h20,
-                    if (isPickedUp)
+                    if (canStartDelivery)
                       _ActionButton(
                         icon: Icons.local_shipping_outlined,
-                        label: 'Start Delivery to Customer',
+                        label: 'Start Delivery',
                         color: GlobalVariables.primary,
                         filled: true,
                         loading: svc.deliveryActionOrderId == live.id,

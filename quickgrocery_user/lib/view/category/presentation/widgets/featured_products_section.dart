@@ -33,10 +33,6 @@ class FeaturedProductsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(provider);
-    final products = (async.value ?? const <ProductModel>[])
-        .where((p) => p.isAvailable)
-        .take(maxItems)
-        .toList();
 
     final header = SectionHeader(
       title: title,
@@ -46,44 +42,56 @@ class FeaturedProductsSection extends ConsumerWidget {
       onAction: onSeeAll,
     );
 
-    if (async.isLoading && products.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            header,
-            Builder(
-              builder: (context) => SkeletonRail(
-                count: 4,
-                height: Responsive.horizontalProductRailHeight(context),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    if (products.isEmpty) return const SizedBox.shrink();
+    return async.when(
+      skipLoadingOnReload: false,
+      loading: () => _buildSkeleton(context, header),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (list) {
+        final products = list
+            .where((p) => p.isAvailable)
+            .take(maxItems)
+            .toList();
+        if (products.isEmpty) return const SizedBox.shrink();
+        return _buildRail(context, header, products);
+      },
+    );
+  }
 
+  Widget _buildSkeleton(BuildContext context, Widget header) {
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           header,
-          Builder(
-            builder: (context) {
-              final h = Responsive.horizontalProductRailHeight(context);
-              return HorizontalProductRail(
-                height: h,
-                itemCount: products.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (_, i) => StaggeredFadeIn(
-                  index: i,
-                  child: HomeProductCard(product: products[i]),
-                ),
-              );
-            },
+          SkeletonRail(
+            count: 4,
+            height: Responsive.horizontalProductRailHeight(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRail(
+    BuildContext context,
+    Widget header,
+    List<ProductModel> products,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          header,
+          HorizontalProductRail(
+            height: Responsive.horizontalProductRailHeight(context),
+            itemCount: products.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) => StaggeredFadeIn(
+              index: i,
+              child: HomeProductCard(product: products[i]),
+            ),
           ),
         ],
       ),

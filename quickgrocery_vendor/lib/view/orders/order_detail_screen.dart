@@ -239,15 +239,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final vendorProducts = _currentOrder.products.where((p) => p.vendorId == widget.vendor.id).toList();
     final vendorRevenue = _orderService.getVendorRevenueFromOrder(_currentOrder, widget.vendor.id);
     final statusId = _resolvedStatus();
-    final canConfirm = OrderLifecycle.isPendingVendorAction(statusId);
     final canReject = OrderLifecycle.isPendingVendorAction(statusId);
-    final canMarkPreparing = OrderLifecycle.isVendorAccepted(statusId);
-    final canMarkReady = OrderLifecycle.canMarkReady(statusId) &&
-        statusId != OrderLifecycle.readyForPickup;
+    final canAssignRider = OrderLifecycle.canAssignRider(statusId) &&
+        _currentOrder.deliveryBoyId.isEmpty;
     final statusLabel = OrderLifecycle.legacyLabel(statusId);
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: AppColor.primary,
         foregroundColor: Colors.black,
@@ -323,89 +320,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         ),
                       ],
                     ),
-                    if (canConfirm || canReject) ...[
+                    if (canReject) ...[
                       AppSpacing.h20,
-                      Row(
-                        children: [
-                          if (canConfirm)
-                            Expanded(
-                              child: SizedBox(
-                                height: 50,
-                                child: ElevatedButton.icon(
-                                  onPressed: _isLoading ? null : _confirmOrder,
-                                  icon: _isLoading
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
-                                          ),
-                                        )
-                                      : const Icon(Icons.check_circle_outline),
-                                  label: Text(
-                                    _isLoading ? 'Accepting...' : 'Accept Order',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.green,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          if (canConfirm && canReject) AppSpacing.w10,
-                          if (canReject)
-                            Expanded(
-                              child: SizedBox(
-                                height: 50,
-                                child: OutlinedButton.icon(
-                                  onPressed: _isLoading ? null : _rejectOrder,
-                                  icon: const Icon(Icons.cancel_outlined),
-                                  label: const Text(
-                                    'Reject Order',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.red,
-                                    side: const BorderSide(color: Colors.red),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                    if (canMarkPreparing) ...[
-                      AppSpacing.h15,
                       SizedBox(
                         width: double.infinity,
                         height: 50,
-                        child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : _markPreparing,
-                          icon: const Icon(Icons.inventory_2_outlined),
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _rejectOrder,
+                          icon: const Icon(Icons.cancel_outlined),
                           label: const Text(
-                            'Start Preparing',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            'Cancel Order',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.indigo,
-                            foregroundColor: Colors.white,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -413,25 +345,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         ),
                       ),
                     ],
-                    if (canMarkReady) ...[
+                    if (canAssignRider) ...[
                       AppSpacing.h15,
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : _markReadyForPickup,
-                          icon: const Icon(Icons.check_box_outlined),
-                          label: const Text(
-                            'Mark Ready for Pickup',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
+                      Text(
+                        'Assign a delivery partner from the orders list, or open Assign Rider from the order card.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                          height: 1.35,
                         ),
                       ),
                     ],
@@ -858,30 +779,30 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
-                        AppSpacing.w15,
+        Icon(icon, size: 20, color: scheme.onSurfaceVariant),
+        AppSpacing.w15,
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
               AppSpacing.h5,
               Text(
                 value,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[800],
-                  fontWeight: FontWeight.w500,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ],
           ),
@@ -904,6 +825,7 @@ class _SummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -911,16 +833,16 @@ class _SummaryRow extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: isTotal ? 16 : 14,
-            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-            color: Colors.grey[800],
+            fontWeight: isTotal ? FontWeight.w700 : FontWeight.w500,
+            color: onSurface,
           ),
         ),
         Text(
           value,
           style: TextStyle(
             fontSize: isTotal ? 18 : 14,
-            fontWeight: FontWeight.bold,
-            color: isTotal ? AppColor.primary : Colors.grey[800],
+            fontWeight: FontWeight.w700,
+            color: isTotal ? AppColor.primary : onSurface,
           ),
         ),
       ],

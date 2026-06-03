@@ -337,13 +337,7 @@ class OrderService extends ChangeNotifier {
         modernStatus: o.modernStatus,
         legacyStatus: o.orderStatus,
       );
-      if (status == OrderLifecycle.pending ||
-          status == OrderLifecycle.vendorRejected) {
-        return false;
-      }
-      return status == OrderLifecycle.readyForPickup ||
-          OrderLifecycle.isVendorAccepted(status) ||
-          status == OrderLifecycle.packing;
+      return status == OrderLifecycle.orderPlaced;
     }).toList()
       ..sort((a, b) => b.createdDate.compareTo(a.createdDate));
   }
@@ -504,24 +498,21 @@ class OrderService extends ChangeNotifier {
       case OrderQuickFilter.pending:
         return list.where((o) {
           if (o.isCancelled || o.isDelivered) return false;
-          return statusOf(o) == OrderLifecycle.pending;
+          return statusOf(o) == OrderLifecycle.orderPlaced;
         }).toList();
       case OrderQuickFilter.assigned:
         return list.where((o) {
           if (o.isCancelled || o.isDelivered) return false;
           final s = statusOf(o);
-          return o.deliveryBoyId.isNotEmpty ||
-              s == OrderLifecycle.riderAssigned ||
-              OrderLifecycle.isAssigned(s);
+          return s == OrderLifecycle.deliveryAssigned ||
+              (o.deliveryBoyId.isNotEmpty &&
+                  s != OrderLifecycle.outForDelivery);
         }).toList();
       case OrderQuickFilter.waiting:
         return list.where((o) {
           if (o.isCancelled || o.isDelivered) return false;
           final s = statusOf(o);
-          return s == OrderLifecycle.vendorAccepted ||
-              s == OrderLifecycle.accepted ||
-              s == OrderLifecycle.packing ||
-              s == OrderLifecycle.readyForPickup;
+          return s == OrderLifecycle.orderPlaced && o.deliveryBoyId.isEmpty;
         }).toList();
       case OrderQuickFilter.delivered:
         return list.where((o) => o.isDelivered && !o.isCancelled).toList();

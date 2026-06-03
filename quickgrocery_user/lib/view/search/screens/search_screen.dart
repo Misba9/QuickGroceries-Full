@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/user/search_history_store.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
@@ -23,15 +24,29 @@ class _SearchScreenState extends State<SearchScreen> {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
   bool _isSpeechAvailable = false;
+  List<String> _searchHistory = [];
 
   @override
   void initState() {
     super.initState();
     Provider.of<SearchService>(context, listen: false).fetchProducts();
+    _loadSearchHistory();
     _initializeSpeech();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
+  }
+
+  Future<void> _loadSearchHistory() async {
+    final history = await SearchHistoryStore.read();
+    if (mounted) setState(() => _searchHistory = history);
+  }
+
+  void _runSearch(String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+    Provider.of<SearchService>(context, listen: false).searchProducts(trimmed);
+    SearchHistoryStore.add(trimmed).then((_) => _loadSearchHistory());
   }
 
   Future<void> _initializeSpeech() async {
@@ -107,10 +122,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 _isListening = false;
               });
               _searchController.text = result.recognizedWords;
-              Provider.of<SearchService>(
-                context,
-                listen: false,
-              ).searchProducts(result.recognizedWords);
+              _runSearch(result.recognizedWords);
             }
           }
         },
@@ -155,11 +167,43 @@ class _SearchScreenState extends State<SearchScreen> {
                     controller: _searchController,
                     hints: ['search'.tr()],
                     onChanged: provider.searchProducts,
+                    onSubmitted: _runSearch,
                     onMicTap: _startListening,
                     micActive: _isListening,
                     showMic: true,
                   ),
                 ),
+                if (_searchController.text.isEmpty && _searchHistory.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(gutter, 8, gutter, 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Recent searches',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _searchHistory
+                                .map(
+                                  (q) => ActionChip(
+                                    label: Text(q),
+                                    onPressed: () {
+                                      _searchController.text = q;
+                                      _runSearch(q);
+                                    },
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 if (provider.filteredProductsList == null)
                   const SliverFillRemaining(
                     hasScrollBody: false,

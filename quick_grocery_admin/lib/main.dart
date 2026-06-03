@@ -84,6 +84,11 @@ class MyApp extends StatelessWidget {
           textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.yellow),
           useMaterial3: true,
+          textSelectionTheme: TextSelectionThemeData(
+            cursorColor: Colors.amber.shade800,
+            selectionColor: Colors.amber.withValues(alpha: 0.35),
+            selectionHandleColor: Colors.amber.shade700,
+          ),
         ),
         home: StreamBuilder<User?>(
           stream: FirebaseAuth.instance.authStateChanges(),

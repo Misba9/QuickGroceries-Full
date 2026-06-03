@@ -11,14 +11,17 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:quickgrocery/core/firebase/firebase_auth_readiness.dart';
 import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
+import 'package:quickgrocery/core/user/user_profile_cache.dart';
+import 'package:quickgrocery/core/user/user_profile_repository.dart';
 import 'package:quickgrocery/view/auth/screens/customer_profile_add_screen.dart';
 import 'package:quickgrocery/view/auth/screens/otp_screen.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
+import 'package:quickgrocery/view/refer/services/refer_earn_service.dart';
 
 class AuthService extends ChangeNotifier {
   bool _isVisible = false;
   File? image;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final UserProfileRepository _profileRepo = UserProfileRepository();
 
   bool get isVisible => _isVisible;
   String _verificationId = '';
@@ -32,6 +35,10 @@ class AuthService extends ChangeNotifier {
 
   TextEditingController mobileController = TextEditingController();
   TextEditingController opController = TextEditingController();
+  TextEditingController referralCodeController = TextEditingController();
+
+  final ReferEarnService _referEarnService = ReferEarnService();
+  String? _pendingReferralCode;
 
   void setGender(String gender) async {
     selectedGender = gender;
@@ -53,32 +60,50 @@ class AuthService extends ChangeNotifier {
 
     if (initialLink != null) {
       final Uri deepLink = initialLink.link;
-      if (deepLink.queryParameters.containsKey('ref')) {
-        String referrerId = deepLink.queryParameters['ref']!;
-        saveReferral(referrerId);
-      }
+      _captureReferralFromUri(deepLink);
     }
 
     FirebaseDynamicLinks.instance.onLink
         .listen((PendingDynamicLinkData data) {
-          final Uri deepLink = data.link;
-          if (deepLink.queryParameters.containsKey('ref')) {
-            String referrerId = deepLink.queryParameters['ref']!;
-            saveReferral(referrerId);
-          }
+          _captureReferralFromUri(data.link);
         })
         .onError((error) {
           print("Dynamic Link Error: $error");
         });
   }
 
-  Future<void> saveReferral(String referrerId) async {
-    await FirebaseFirestore.instance
-        .collection('customers')
-        .doc(FirebaseAuth.instance.currentUser!.uid)
-        .set({'referred_by': referrerId}, SetOptions(merge: true));
+  void _captureReferralFromUri(Uri deepLink) {
+    final code = deepLink.queryParameters['code'] ??
+        deepLink.queryParameters['ref'] ??
+        '';
+    if (code.trim().isEmpty) return;
+    _pendingReferralCode = code.trim();
+    if (referralCodeController.text.trim().isEmpty) {
+      referralCodeController.text = code.trim();
+    }
+  }
 
-    print("Referral saved! New user referred by: $referrerId");
+  Future<String?> applyPendingReferralCode() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return null;
+
+    final code = referralCodeController.text.trim().isNotEmpty
+        ? referralCodeController.text.trim()
+        : (_pendingReferralCode ?? '');
+    if (code.isEmpty) return null;
+
+    try {
+      final result = await _referEarnService.applyReferralCode(code);
+      if (!result.ok) {
+        log('Referral apply: ${result.message}');
+        return result.message;
+      }
+    } catch (e, st) {
+      log('applyReferralCode failed', error: e, stackTrace: st);
+    } finally {
+      _pendingReferralCode = null;
+    }
+    return null;
   }
 
   Future<void> pickImage() async {
@@ -106,6 +131,63 @@ class AuthService extends ChangeNotifier {
       print('Error uploading image: $e');
       return '';
     }
+  }
+
+  /// Pre-fill onboarding fields from cache / Firestore (returning users).
+  Future<void> hydrateProfileFromCache() async {
+    final pref = await SharedPreferences.getInstance();
+    final pending = pref.getString('pending_referral_code');
+    if (pending != null &&
+        pending.isNotEmpty &&
+        referralCodeController.text.trim().isEmpty) {
+      referralCodeController.text = pending;
+      _pendingReferralCode = pending;
+    }
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      await _profileRepo.hydrateLocal(uid);
+    }
+    final cached = await UserProfileCache.readProfile();
+    if (cached['name']!.isNotEmpty) {
+      nameController.text = cached['name']!;
+    }
+    if (cached['email']!.isNotEmpty) {
+      emailController.text = cached['email']!;
+    }
+    if (cached['phone']!.isNotEmpty) {
+      mobileController.text = cached['phone']!;
+    } else {
+      final phone = FirebaseAuth.instance.currentUser?.phoneNumber;
+      if (phone != null && phone.length >= 10) {
+        mobileController.text = phone.replaceAll(RegExp(r'\D'), '').substring(
+              phone.replaceAll(RegExp(r'\D'), '').length - 10,
+            );
+      }
+    }
+    if (cached['gender']!.isNotEmpty) {
+      selectedGender = cached['gender'];
+    }
+    notifyListeners();
+  }
+
+  Future<void> _routeAfterSignIn(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || !context.mounted) return;
+
+    await _profileRepo.hydrateLocal(user.uid);
+    final complete = await _profileRepo.isProfileComplete(user.uid);
+
+    if (!context.mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) => complete
+            ? const LandingScreen()
+            : const CustomerDetailsAddScreen(),
+      ),
+      (Route<dynamic> route) => false,
+    );
   }
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -184,6 +266,7 @@ class AuthService extends ChangeNotifier {
           try {
             await _auth.signInWithCredential(credential);
             FirebaseAuthReadiness.log('auto sign-in succeeded');
+            if (context.mounted) await _routeAfterSignIn(context);
           } catch (e, st) {
             FirebaseAuthReadiness.log('auto sign-in failed: $e');
             log('Auto phone sign-in failed', error: e, stackTrace: st);
@@ -292,13 +375,7 @@ class AuthService extends ChangeNotifier {
       );
 
       if (userCredential.user != null && context.mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const CustomerDetailsAddScreen(),
-          ),
-          (Route<dynamic> route) => false,
-        );
+        await _routeAfterSignIn(context);
         isLoading = false;
         notifyListeners();
         return true;
@@ -354,123 +431,79 @@ class AuthService extends ChangeNotifier {
     );
   }
 
-  Future<bool> doesMobileNumberExist() async {
-    try {
-      QuerySnapshot querySnapshot = await _firestore
-          .collection('customers')
-          .where('phone', isEqualTo: mobileController.text)
-          .get();
-
-      return querySnapshot.docs.isNotEmpty;
-    } catch (e) {
-      print('Error checking mobile number existence: $e');
-      return false;
+  Future<void> registerUser(BuildContext context) async {
+    if (nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter name'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
-  }
+    if (selectedGender == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select gender'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-  void checkMobileNumber(BuildContext context) async {
-    if (mobileController.text.isNotEmpty) {
-      bool exists = await doesMobileNumberExist();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      var imageUrl = '';
+      if (image != null) {
+        imageUrl = await uploadImageToStorage(image!);
+      }
+
+      await _profileRepo.saveProfile(
+        uid: uid,
+        markComplete: true,
+        fields: {
+          'profile_image': imageUrl,
+          'name': nameController.text.trim(),
+          'email': emailController.text.trim(),
+          'phone': mobileController.text.trim(),
+          'gender': selectedGender,
+          'created_date': FieldValue.serverTimestamp(),
+        },
+      );
+
       final pref = await SharedPreferences.getInstance();
-      if (exists) {
-        pref.setBool('isUserExist', true);
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LandingScreen()),
-          (Route<dynamic> route) => false,
-        );
-        await handleReferralAfterInstall();
+      await pref.setString('user_gender', selectedGender!);
+      await pref.setBool('isUserExist', true);
 
-        isLoading = false;
-        notifyListeners();
-      } else {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const CustomerDetailsAddScreen(),
+      await handleReferralAfterInstall();
+      await _referEarnService.ensureReferralCode(
+        name: nameController.text.trim(),
+      );
+      final referralMsg = await applyPendingReferralCode();
+      await pref.remove('pending_referral_code');
+
+      if (!context.mounted) return;
+      if (referralMsg != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(referralMsg),
+            backgroundColor: Colors.orange,
           ),
         );
-        await handleReferralAfterInstall();
-
-        isLoading = false;
-        notifyListeners();
       }
-    }
-  }
-
-  Future<void> registerUser(BuildContext context) async {
-    if (nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please enter name"),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } else if (selectedGender == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please select gender"),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } else if (image == null) {
-      final pref = await SharedPreferences.getInstance();
-
-      isLoading = true;
-      notifyListeners();
-      await FirebaseFirestore.instance
-          .collection('customers')
-          .doc(FirebaseAuth.instance.currentUser!.uid)
-          .set({
-            'profile_image': '',
-            'name': nameController.text,
-            'email': emailController.text,
-            'phone': mobileController.text,
-            'uid': FirebaseAuth.instance.currentUser!.uid,
-            'created_date': DateTime.now().toString(),
-            "fcm_token": "",
-            "gender": selectedGender,
-          });
-      // Store gender in SharedPreferences
-      await pref.setString('user_gender', selectedGender!);
-      pref.setBool('isUserExist', true);
-      isLoading = false;
-      notifyListeners();
-      await handleReferralAfterInstall();
-
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const LandingScreen()),
-        (Route<dynamic> route) =>
-            false, // This condition removes all previous routes.
+        (Route<dynamic> route) => false,
       );
-    } else {
-      final pref = await SharedPreferences.getInstance();
-      String imageUrl = await uploadImageToStorage(image!);
-      await FirebaseFirestore.instance
-          .collection('customers')
-          .doc(FirebaseAuth.instance.currentUser!.uid)
-          .set({
-            'profile_image': imageUrl,
-            'name': nameController.text,
-            'email': emailController.text,
-            'phone': mobileController.text,
-            'uid': FirebaseAuth.instance.currentUser!.uid,
-            'created_date': DateTime.now().toString(),
-            "fcm_token": "",
-            "gender": selectedGender,
-          });
-      // Store gender in SharedPreferences
-      await pref.setString('user_gender', selectedGender!);
-      pref.setBool('isUserExist', true);
+    } finally {
       isLoading = false;
       notifyListeners();
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LandingScreen()),
-        (Route<dynamic> route) =>
-            false, // This condition removes all previous routes.
-      );
     }
   }
 }

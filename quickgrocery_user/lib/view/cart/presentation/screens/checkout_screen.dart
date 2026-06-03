@@ -11,8 +11,11 @@ import 'package:provider/provider.dart' as legacy_provider;
 
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/availability/availability_service.dart';
+import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/address_model.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/user/checkout_preferences_store.dart';
 import 'package:quickgrocery/view/address/screens/add_address_screen.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/domain/cart_models.dart';
@@ -31,7 +34,10 @@ import 'package:quickgrocery/view/checkout/widgets/address_card.dart';
 import 'package:quickgrocery/view/checkout/widgets/empty_address_widget.dart';
 import 'package:quickgrocery/core/device/device_id_service.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.dart';
-import 'package:quickgrocery/view/coupons/coupon_screen.dart';
+import 'package:quickgrocery/view/cart/presentation/widgets/checkout_coupon_section.dart';
+import 'package:quickgrocery/view/cart/presentation/widgets/checkout_tip_section.dart';
+import 'package:quickgrocery/view/delivery_tips/models/delivery_tip_settings.dart';
+import 'package:quickgrocery/view/delivery_tips/services/delivery_tip_service.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/payment/services/payment_service.dart';
 import 'package:quickgrocery/view/app_content/presentation/providers/app_content_extensions.dart';
@@ -45,8 +51,31 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   static const _calc = PricingCalculator();
+  final _tipService = deliveryTipServiceProvider;
+  DeliveryTipSettings _tipSettings = DeliveryTipSettings.defaults();
+  bool _tipSettingsLoaded = false;
 
-  BillBreakdown _bill(CartState cart, double zoneCharge) {
+  @override
+  void initState() {
+    super.initState();
+    _loadTipSettings();
+  }
+
+  Future<void> _loadTipSettings() async {
+    try {
+      final s = await _tipService.fetchSettings();
+      if (mounted) {
+        setState(() {
+          _tipSettings = s;
+          _tipSettingsLoaded = true;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _tipSettingsLoaded = true);
+    }
+  }
+
+  BillBreakdown _bill(CartState cart, double zoneCharge, {double tip = 0}) {
     final deliveryInt = zoneCharge > 0
         ? zoneCharge.round()
         : cart.pricing.standardDeliveryCharge;
@@ -55,13 +84,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       config: cart.pricing,
       coupon: cart.coupon,
       deliveryChargeOverride: deliveryInt,
-    );
+    ).withDeliveryTip(tip);
   }
 
   Future<void> _openAddAddress({AddressModel? edit}) async {
     final ok = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => AddAdressScreen(editing: edit)),
+      AppPageRoutes.addAddress(editing: edit),
     );
     if (ok == true && mounted) {
       await legacy_provider.Provider.of<AddressService>(
@@ -102,7 +131,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       checkoutNotifier.setPlacingOrder(true);
 
       final zoneCharge = availability.deliveryCharge;
-      final bill = _bill(cart, zoneCharge);
+      final tip = ref.read(checkoutControllerProvider).deliveryTipAmount;
+      final bill = _bill(cart, zoneCharge, tip: tip);
 
       debugPrint(
         'ORDER PAYMENT: method=${paymentMethod.id} total=${bill.total} '
@@ -140,16 +170,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             debugPrintStack(stackTrace: stack);
           }
         }
+        await CheckoutPreferencesStore.recordSuccessfulOrder(
+          orderId: orderId,
+          state: ref.read(checkoutControllerProvider),
+        );
         await cartNotifier.clear();
         checkoutNotifier.setPlacingOrder(false);
         if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => OrderTrackingScreen(
-              orderId: orderId,
-              fromCheckout: true,
-            ),
-          ),
+          AppPageRoutes.checkoutSuccess(orderId: orderId),
           (_) => false,
         );
       }
@@ -213,9 +242,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
 
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(checkoutError(e))));
+    showTopErrorToast(context, checkoutError(e));
   }
 
   Future<String> _createOrderWithFallback({
@@ -243,6 +270,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             instructions: instructions,
             paymentMethod: paymentMethod,
             paymentRef: paymentRef,
+            tipAmount: bill.deliveryPartnerTip,
           );
     } on FirebaseFunctionsException catch (e, stack) {
       debugPrint(
@@ -333,9 +361,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       checkoutControllerProvider.select((s) => s.errorMessage),
       (_, msg) {
         if (msg != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(msg)));
+          showTopErrorToast(context, msg);
           ref.read(checkoutControllerProvider.notifier).clearError();
         }
       },
@@ -356,7 +382,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final readable = addressService.address;
     final zoneAsync = ref.watch(zoneDeliveryProvider(pin));
     final zoneCharge = zoneAsync.value ?? 0;
-    final bill = _bill(cart, zoneCharge);
+    final bill = _bill(cart, zoneCharge, tip: checkout.deliveryTipAmount);
 
     final hasAddr = addresses.isNotEmpty && selectedAddr != null;
     final oos = cart.items.any((e) => e.isUnavailable);
@@ -421,21 +447,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           SliverPadding(
                             padding: const EdgeInsets.fromLTRB(14, 16, 14, 0),
                             sliver: SliverToBoxAdapter(
-                              child: FadeInUp(
-                                delay: const Duration(milliseconds: 60),
-                                child: _EtaCouponRow(
+                              child: FadeInDown(
+                                duration: const Duration(milliseconds: 320),
+                                child: _DeliveryEtaCard(
                                   slot: checkout.slot ?? slots.firstOrNull,
-                                  cart: cart,
-                                  onCouponTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => CouponScreen(
-                                          checkoutPhone: selectedAddr?.mobile,
-                                        ),
-                                      ),
-                                    ).then((_) => addressService.getAddress());
-                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                            sliver: SliverToBoxAdapter(
+                              child: FadeInUp(
+                                delay: const Duration(milliseconds: 80),
+                                child: CheckoutCouponSection(
+                                  checkoutPhone: selectedAddr?.mobile,
+                                  deliveryChargeOverride: zoneCharge > 0
+                                      ? zoneCharge.round()
+                                      : null,
                                 ),
                               ),
                             ),
@@ -489,6 +518,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                     pricing: cart.pricing,
                                   ),
                                   const SizedBox(height: 10),
+                                  if (_tipSettingsLoaded && _tipSettings.enabled) ...[
+                                    CheckoutTipSection(
+                                      settings: _tipSettings,
+                                      selectedAmount: checkout.deliveryTipAmount,
+                                      onChanged: checkoutNotifier.setDeliveryTip,
+                                    ),
+                                    const SizedBox(height: 12),
+                                  ],
                                   PremiumBillCard(
                                     bill: bill,
                                     pricing: cart.pricing,
@@ -682,7 +719,7 @@ class _DeliverToSection extends StatelessWidget {
           return FadeInUp(
             duration: Duration(milliseconds: 260 + i * 40),
             child: CheckoutAddressCard(
-              heroTag: 'addr-${a.id}',
+              heroTag: 'checkout-addr-$i-${a.id}',
               address: a,
               selected: i == selectedIndex,
               onSelect: () => onSelect(i),
@@ -695,99 +732,19 @@ class _DeliverToSection extends StatelessWidget {
   }
 }
 
-class _EtaCouponRow extends ConsumerWidget {
-  const _EtaCouponRow({
-    required this.slot,
-    required this.cart,
-    required this.onCouponTap,
-  });
+class _DeliveryEtaCard extends ConsumerWidget {
+  const _DeliveryEtaCard({required this.slot});
 
   final DeliverySlot? slot;
-  final CartState cart;
-  final VoidCallback onCouponTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final deliveryEta = ref.appContent.deliveryTimeText;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: _MiniCard(
-            icon: Icons.schedule_rounded,
-            iconColor: AppSurface.success,
-            title: 'delivery_eta_title'.tr(),
-            subtitle: slot != null
-                ? '$deliveryEta · ${slot!.label}'
-                : deliveryEta,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onCouponTap,
-              borderRadius: BorderRadius.circular(AppRadii.md),
-              child: Ink(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                  border: Border.all(color: AppSurface.border),
-                  boxShadow: AppShadow.dim,
-                ),
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.local_offer_rounded,
-                          size: 18,
-                          color: AppColor.primary,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'coupon_section_title'.tr(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12.5,
-                            ),
-                          ),
-                        ),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          color: AppSurface.textMuted,
-                          size: 20,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      cart.coupon != null
-                          ? cart.coupon!.isFirstOrderOffer
-                                ? 'First Order Offer · ${cart.coupon!.code}'
-                                : '${'coupon_applied_prefix'.tr()}: ${cart.coupon!.code}'
-                          : 'tap_to_apply_coupon'.tr(),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        fontSize: 11.5,
-                        color: AppSurface.textSecondary,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
+    return _MiniCard(
+      icon: Icons.schedule_rounded,
+      iconColor: AppSurface.success,
+      title: 'delivery_eta_title'.tr(),
+      subtitle: slot != null ? '$deliveryEta · ${slot!.label}' : deliveryEta,
     );
   }
 }

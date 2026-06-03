@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
 import 'package:quickgrocery/view/auth/widgets/pinput_sms_retriever.dart';
 
@@ -180,9 +181,11 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
     ]).animate(_shakeController);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: Padding(
+        child: KeyboardSafeBody(
           padding: const EdgeInsets.symmetric(horizontal: 22),
+          fillMinHeight: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -194,7 +197,7 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
                   icon: const Icon(Icons.arrow_back_rounded),
                 ),
               ),
-              const Spacer(flex: 1),
+              const SizedBox(height: 24),
               Text(
                 'please_type_verification_code'.tr(),
                 textAlign: TextAlign.center,
@@ -293,7 +296,7 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
                       )
                     : const SizedBox(height: 20, key: ValueKey('ok')),
               ),
-              const Spacer(flex: 2),
+              const SizedBox(height: 32),
               TextButton(
                 onPressed: (_canResend && !verifying) ? _onResend : null,
                 child: Text(
@@ -318,7 +321,7 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
                   ),
                 ],
               ),
-              SizedBox(height: MediaQuery.paddingOf(context).bottom + 12),
+              const SizedBox(height: 24),
             ],
           ),
         ),

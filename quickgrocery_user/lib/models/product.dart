@@ -418,8 +418,9 @@ bool _resolveIsDeleted(Map<String, dynamic> data) =>
 bool _resolveIsAvailable(Map<String, dynamic> data) {
   if (_resolveIsDeleted(data)) return false;
   if (!_resolveIsActive(data)) return false;
-  final stock = _asInt(data['stock'] ?? data['stock_quantity']);
+  if (data['isAvailable'] == false) return false;
   if (data['stockStatus']?.toString() == 'out_of_stock') return false;
+  final stock = _asInt(data['stock'] ?? data['stock_quantity']);
   return stock > 0;
 }
 

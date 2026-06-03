@@ -6,6 +6,7 @@ import 'package:provider/provider.dart' as legacy;
 import 'package:share_plus/share_plus.dart' show Share;
 
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/core/product/product_quantity_label.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
@@ -39,6 +40,24 @@ class ProductViewScreen extends ConsumerStatefulWidget {
 }
 
 class _ProductViewScreenState extends ConsumerState<ProductViewScreen> {
+  bool _suppressingFloatingCart = false;
+
+  void _syncFloatingCartSuppression(bool suppress) {
+    if (suppress == _suppressingFloatingCart) return;
+    if (suppress) {
+      FloatingCartSuppression.acquire();
+    } else {
+      FloatingCartSuppression.release();
+    }
+    _suppressingFloatingCart = suppress;
+  }
+
+  @override
+  void dispose() {
+    if (_suppressingFloatingCart) FloatingCartSuppression.release();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +80,7 @@ class _ProductViewScreenState extends ConsumerState<ProductViewScreen> {
     final product = async.valueOrNull ?? widget.product;
     final isFreshLoading =
         async.isLoading && async.valueOrNull == null && !async.hasError;
+    _syncFloatingCartSuppression(isFreshLoading);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),

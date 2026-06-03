@@ -3,6 +3,7 @@ import 'package:quickgrocery_vendor/core/auth/partner_auth_api.dart';
 import 'package:quickgrocery_vendor/core/auth/password_validation.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
 import 'package:quickgrocery_vendor/utils/app_spacing.dart';
+import 'package:quickgrocery_vendor/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery_vendor/view/auth/login_screen.dart';
 
 class ForgotPasswordResetScreen extends StatefulWidget {
@@ -71,8 +72,9 @@ class _ForgotPasswordResetScreenState extends State<ForgotPasswordResetScreen> {
         foregroundColor: Colors.black87,
         title: const Text('Reset Password'),
       ),
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: KeyboardSafeBody(
           padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,

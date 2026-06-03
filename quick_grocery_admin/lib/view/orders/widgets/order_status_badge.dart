@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_status_utils.dart';
-
 class OrderStatusBadge extends StatelessWidget {
   const OrderStatusBadge({super.key, required this.order, this.compact = false});
 

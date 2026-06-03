@@ -10,6 +10,7 @@ import 'package:quick_grocery_admin/view/customers/models/customer_sort.dart';
 import 'package:quick_grocery_admin/view/customers/screens/customer_profile_screen.dart';
 import 'package:quick_grocery_admin/view/customers/services/customer_admin_service.dart';
 import 'package:quick_grocery_admin/view/customers/widgets/customer_action_menu.dart';
+import 'package:quick_grocery_admin/core/widgets/admin_text_selection.dart';
 
 class CustomerManagementTable extends StatelessWidget {
   const CustomerManagementTable({super.key});
@@ -160,10 +161,9 @@ class _ScrollableCustomerTable extends StatelessWidget {
                     ),
                   ),
                 Expanded(
-                  child: Text(
+                  child: AdminSelectableText(
                     c.name.isEmpty ? '—' : c.name,
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -171,12 +171,15 @@ class _ScrollableCustomerTable extends StatelessWidget {
             ),
           ),
         ),
-        DataCell(Text(c.phoneNumber.isEmpty ? '—' : c.phoneNumber)),
         DataCell(
-          Text(
+          AdminSelectableText(
+            c.phoneNumber.isEmpty ? '—' : c.phoneNumber,
+          ),
+        ),
+        DataCell(
+          AdminSelectableText(
             c.email.isEmpty ? '—' : c.email,
             maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
         ),
         DataCell(Text('${e.stats.totalOrders}')),

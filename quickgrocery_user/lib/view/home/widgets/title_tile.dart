@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
-import 'package:quickgrocery/view/search/screens/search_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 
 class TitleTile extends StatelessWidget {
   const TitleTile({super.key, required this.title});
@@ -30,10 +30,7 @@ class TitleTile extends StatelessWidget {
         ),
         TextButton(
           onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => SearchScreen()),
-            );
+            Navigator.push(context, AppPageRoutes.search());
           },
           style: TextButton.styleFrom(
             visualDensity: VisualDensity.compact,

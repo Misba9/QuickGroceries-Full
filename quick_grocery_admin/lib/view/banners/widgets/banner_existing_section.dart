@@ -416,7 +416,7 @@ class _EmptyBanners extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Create your first promotional banner above',
+            'Create your first promotional banner below',
             style: TextStyle(color: Colors.grey.shade600),
           ),
         ],

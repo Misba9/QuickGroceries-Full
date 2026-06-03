@@ -280,8 +280,8 @@ class _Breakdown extends StatelessWidget {
         ),
       if (bill.couponDiscount > 0.25)
         _RowSpec(
-          label: couponLabel ?? 'Coupon discount',
-          value: '- ₹${bill.couponDiscount.toStringAsFixed(0)}',
+          label: couponLabel ?? 'Coupon Discount',
+          value: '-₹${bill.couponDiscount.toStringAsFixed(0)}',
           accent: AppSurface.success,
         ),
       _RowSpec(
@@ -317,6 +317,12 @@ class _Breakdown extends StatelessWidget {
         _RowSpec(
           label: 'Tax (${pricing.taxPercent.toStringAsFixed(1)}%)',
           value: '₹${bill.tax.toStringAsFixed(0)}',
+        ),
+      if (bill.deliveryPartnerTip > 0.05)
+        _RowSpec(
+          label: 'Delivery Partner Tip',
+          value: '₹${bill.deliveryPartnerTip.toStringAsFixed(0)}',
+          accent: const Color(0xFFE6A800),
         ),
     ];
 

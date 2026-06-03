@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
 
 import '../../domain/order_models.dart';
 import '../providers/orders_providers.dart';
 import '../providers/reorder_controller.dart';
 import '../widgets/delivered_celebration.dart';
+import 'package:quickgrocery/view/delivery_tips/models/delivery_tip_settings.dart';
+import 'package:quickgrocery/view/delivery_tips/services/delivery_tip_service.dart';
+import 'package:quickgrocery/view/delivery_tips/widgets/delivery_tip_tracking_card.dart';
+import 'package:quickgrocery/view/delivery_tips/widgets/post_delivery_tip_sheet.dart';
 import '../widgets/live_tracking_map.dart';
 import '../widgets/order_actions_bar.dart';
 import '../widgets/order_details_card.dart';
@@ -36,6 +40,16 @@ class OrderTrackingScreen extends ConsumerStatefulWidget {
 
 class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   String? _busyAction;
+  DeliveryTipSettings _tipSettings = DeliveryTipSettings.defaults();
+  bool _postDeliverySheetShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    deliveryTipServiceProvider.fetchSettings().then((s) {
+      if (mounted) setState(() => _tipSettings = s);
+    });
+  }
 
   Future<void> _runReorder(LiveOrder order) async {
     setState(() => _busyAction = 'reorder');
@@ -59,10 +73,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         : 'Added ${result.added.length} · ${result.unavailable.length} unavailable';
     messenger.showSnackBar(SnackBar(content: Text(summary)));
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CartScreen()),
-    );
+    Navigator.push(context, AppPageRoutes.cart());
   }
 
   Future<void> _runInvoice(LiveOrder order) async {
@@ -150,10 +161,45 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         ),
         body: orderAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
+          error: (e, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.cloud_off_outlined, size: 48, color: Colors.grey.shade500),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Could not load order details',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Check your connection and try again.',
+                    style: GoogleFonts.poppins(color: Colors.grey.shade600),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () => ref.invalidate(orderByIdStreamProvider(widget.orderId)),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
           data: (order) {
             if (order == null) {
-              return const Center(child: Text('Order not found'));
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Order not found',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              );
             }
 
             final timeline = buildTimeline(order);
@@ -163,6 +209,21 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       : const AsyncValue<RiderLocation?>.data(null);
             final rider = riderAsync.value;
             final isDelivered = order.isDelivered;
+
+            if (isDelivered &&
+                widget.fromCheckout &&
+                !_postDeliverySheetShown &&
+                _tipSettings.enabled) {
+              _postDeliverySheetShown = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                showPostDeliveryTipSheet(
+                  context: context,
+                  order: order,
+                  settings: _tipSettings,
+                );
+              });
+            }
 
             return Column(
               children: [
@@ -205,6 +266,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         onChat: _openSupport,
                       ),
                       const SizedBox(height: 14),
+                      if (!isDelivered && order.canIncreaseTip)
+                        DeliveryTipTrackingCard(
+                          order: order,
+                          settings: _tipSettings,
+                        ),
+                      if (!isDelivered && order.canIncreaseTip)
+                        const SizedBox(height: 14),
                       if (!order.structuredInstructions.isEmpty)
                         Container(
                           width: double.infinity,

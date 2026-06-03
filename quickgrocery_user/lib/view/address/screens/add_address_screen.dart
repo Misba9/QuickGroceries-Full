@@ -12,7 +12,7 @@ import 'package:quickgrocery/models/address_model.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/checkout/widgets/checkout_bottom_bar.dart';
 import 'package:quickgrocery/view/checkout/widgets/premium_text_field.dart';
-import 'package:quickgrocery/view/home/screens/location_selector.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 
 /// Premium "Save address" form — keyboard-safe, modern inputs, address-type
 /// pill selector, sticky save CTA, optional map / current-location helpers.
@@ -231,10 +231,7 @@ class _LocationHelpers extends StatelessWidget {
               icon: Icons.map_outlined,
               label: 'pick_on_map'.tr(),
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => LocationPicker()),
-                );
+                Navigator.push(context, AppPageRoutes.location());
               },
             ),
           ),

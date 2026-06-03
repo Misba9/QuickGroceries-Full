@@ -14,6 +14,7 @@ class OrderBillTotals {
     this.handlingCharge = 0,
     this.platformFee = 0,
     this.tax = 0,
+    this.deliveryPartnerTip = 0,
     required this.grandTotal,
   });
 
@@ -25,6 +26,7 @@ class OrderBillTotals {
   final double handlingCharge;
   final double platformFee;
   final double tax;
+  final double deliveryPartnerTip;
   final double grandTotal;
 
   /// Amount subtracted in [computeGrandTotal] (coupon / promo only).
@@ -37,7 +39,8 @@ class OrderBillTotals {
             surgeFee +
             handlingCharge +
             platformFee +
-            tax,
+            tax +
+            deliveryPartnerTip,
       );
 
   static OrderBillTotals fromBillBreakdown(BillBreakdown bill) =>
@@ -50,6 +53,7 @@ class OrderBillTotals {
         handlingCharge: bill.handlingCharge,
         platformFee: bill.platformFee,
         tax: bill.tax,
+        deliveryPartnerTip: bill.deliveryPartnerTip,
         grandTotal: bill.total,
       );
 
@@ -70,6 +74,7 @@ class OrderBillTotals {
     final handling = n(m['handlingCharge']);
     final platform = n(m['platformFee']);
     final taxAmt = n(m['tax']);
+    final tipAmt = n(m['deliveryPartnerTip'] ?? m['tipAmount']);
 
     if (grand <= 0 && subtotal > 0) {
       grand = OrderBillTotals(
@@ -80,6 +85,7 @@ class OrderBillTotals {
         handlingCharge: handling,
         platformFee: platform,
         tax: taxAmt,
+        deliveryPartnerTip: tipAmt,
         grandTotal: 0,
       ).computeGrandTotal();
     }
@@ -93,6 +99,7 @@ class OrderBillTotals {
       handlingCharge: handling,
       platformFee: platform,
       tax: taxAmt,
+      deliveryPartnerTip: tipAmt,
       grandTotal: grand,
     );
   }
@@ -127,6 +134,7 @@ class OrderBillTotals {
         'handlingCharge': handlingCharge,
         'platformFee': platformFee,
         'tax': tax,
+        if (deliveryPartnerTip > 0) 'deliveryPartnerTip': deliveryPartnerTip,
         'total': grandTotal,
         'grandTotal': grandTotal,
       };

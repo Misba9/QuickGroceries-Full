@@ -6,6 +6,7 @@ import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_eta_utils.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/order_row_actions.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/order_status_badge.dart';
+import 'package:quick_grocery_admin/core/widgets/admin_text_selection.dart';
 
 /// Urgent dispatch queue — unassigned orders with assign / auto-assign actions.
 class PendingDispatchQueue extends StatelessWidget {
@@ -219,20 +220,18 @@ class _LiveOrderQueueCardState extends State<LiveOrderQueueCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
+                        AdminSelectableText(
                           order.customerName,
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
+                        AdminSelectableText(
                           '#${_shortId(order.id)}',
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey.shade600,

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,19 +6,21 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy;
 
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/constants/app_icons.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/realtime/models/notification_item.dart';
 import 'package:quickgrocery/realtime/providers/realtime_providers.dart';
+import 'package:quickgrocery/realtime/utils/notification_navigation.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
-import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
 import 'package:quickgrocery/view/app_content/models/app_content_config.dart';
 import 'package:quickgrocery/view/app_content/presentation/providers/app_content_providers.dart';
 import 'package:quickgrocery/constants/home_branding.dart';
 import 'package:quickgrocery/view/app_content/presentation/widgets/animated_app_heading.dart';
-import 'package:quickgrocery/view/home/screens/location_selector.dart';
+import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 
 /// Pinned Blinkit/Zepto-style delivery strip + quick actions.
 class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
@@ -90,12 +93,7 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
                           behavior: HitTestBehavior.opaque,
                           onTap: () {
                             HapticFeedback.selectionClick();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => LocationPicker(),
-                              ),
-                            );
+                            Navigator.push(context, AppPageRoutes.location());
                           },
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -151,8 +149,11 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
                                     const SizedBox(height: 3),
                                     legacy.Consumer<AddressService>(
                                       builder: (_, address, __) {
+                                        final label = address.hasSavedAddresses
+                                            ? 'Deliver to: ${address.address}'
+                                            : address.address;
                                         return Text(
-                                          address.address,
+                                          label,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: GoogleFonts.poppins(
@@ -181,12 +182,7 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
                         icon: Icons.shopping_bag_outlined,
                         onTap: () {
                           HapticFeedback.lightImpact();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const CartScreen(),
-                            ),
-                          );
+                          Navigator.push(context, AppPageRoutes.cart());
                         },
                       ),
                     ],
@@ -202,12 +198,13 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   void _openNotifications(BuildContext context) {
     HapticFeedback.selectionClick();
+    FloatingCartSuppression.acquire();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => const _NotificationsSheet(),
-    );
+    ).whenComplete(FloatingCartSuppression.release);
   }
 
   @override
@@ -323,12 +320,38 @@ class _HeaderIconButton extends StatelessWidget {
   }
 }
 
-class _NotificationsSheet extends ConsumerWidget {
+class _NotificationsSheet extends ConsumerStatefulWidget {
   const _NotificationsSheet();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_NotificationsSheet> createState() =>
+      _NotificationsSheetState();
+}
+
+class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
+  bool _markingAll = false;
+
+  Future<void> _markAllRead() async {
+    final uid = ref.read(currentUidProvider);
+    if (uid == null || uid.isEmpty || _markingAll) return;
+    setState(() => _markingAll = true);
+    HapticFeedback.lightImpact();
+    try {
+      await ref.read(realtimeNotificationRepositoryProvider).markAllAsRead(uid);
+    } finally {
+      if (mounted) setState(() => _markingAll = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(notificationsStreamProvider);
+    final unreadAsync = ref.watch(unreadNotificationsCountProvider);
+    final unread = unreadAsync.when(
+      data: (n) => n,
+      loading: () => 0,
+      error: (_, __) => 0,
+    );
 
     return DraggableScrollableSheet(
       initialChildSize: 0.55,
@@ -352,17 +375,44 @@ class _NotificationsSheet extends ConsumerWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+                padding: const EdgeInsets.fromLTRB(18, 16, 8, 8),
                 child: Row(
                   children: [
-                    Text(
-                      'Notifications',
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
+                    Expanded(
+                      child: Text(
+                        'Notifications',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
-                    const Spacer(),
+                    if (unread > 0)
+                      TextButton(
+                        onPressed: _markingAll ? null : _markAllRead,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: _markingAll
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColor.primary,
+                                ),
+                              )
+                            : Text(
+                                'mark_all_read'.tr(),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColor.primary,
+                                ),
+                              ),
+                      ),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close_rounded),
@@ -405,7 +455,10 @@ class _NotificationsSheet extends ConsumerWidget {
                             ),
                           );
                         }
-                        return _NotificationTile(item: items[i - 1]);
+                        return _NotificationTile(
+                          item: items[i - 1],
+                          sheetContext: context,
+                        );
                       },
                     );
                   },
@@ -479,46 +532,97 @@ class _DeliveryLiveNotificationsCard extends StatelessWidget {
   }
 }
 
-class _NotificationTile extends StatelessWidget {
-  const _NotificationTile({required this.item});
+class _NotificationTile extends ConsumerWidget {
+  const _NotificationTile({
+    required this.item,
+    required this.sheetContext,
+  });
 
   final NotificationItem item;
+  final BuildContext sheetContext;
+
+  Future<void> _onTap(WidgetRef ref) async {
+    final uid = ref.read(currentUidProvider);
+    if (uid != null && uid.isNotEmpty && !item.read) {
+      await ref
+          .read(realtimeNotificationRepositoryProvider)
+          .markAsRead(uid, item.id);
+    }
+
+    if (!sheetContext.mounted) return;
+    Navigator.pop(sheetContext);
+
+    final root = rootNavigatorKey.currentContext;
+    if (root == null || !root.mounted) return;
+    await handlePushNavigation(notificationPushData(item));
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = !item.read;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: AppSurface.subtle.withValues(alpha: 0.35),
+        color: unread
+            ? AppColor.primary.withValues(alpha: 0.1)
+            : AppSurface.subtle.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                item.title.isEmpty ? 'Update' : item.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13.5,
-                ),
-              ),
-              if (item.body.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  item.body,
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: AppSurface.textSecondary,
-                    height: 1.35,
+        child: InkWell(
+          onTap: () => _onTap(ref),
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (unread) ...[
+                  Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(top: 6, right: 10),
+                    decoration: const BoxDecoration(
+                      color: AppSurface.danger,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title.isEmpty ? 'Update' : item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontWeight:
+                              unread ? FontWeight.w800 : FontWeight.w700,
+                          fontSize: 13.5,
+                        ),
+                      ),
+                      if (item.body.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          item.body,
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: AppSurface.textSecondary,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppSurface.textMuted.withValues(alpha: 0.7),
+                ),
               ],
-            ],
+            ),
           ),
         ),
       ),

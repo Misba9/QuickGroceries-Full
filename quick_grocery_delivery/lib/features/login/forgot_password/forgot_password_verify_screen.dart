@@ -6,6 +6,7 @@ import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/constants/primary_button.dart';
 import 'package:quick_grocery_delivery/core/auth/partner_auth_api.dart';
 import 'package:quick_grocery_delivery/features/login/forgot_password/forgot_password_reset_screen.dart';
+import 'package:quick_grocery_delivery/widgets/keyboard_safe_body.dart';
 
 class ForgotPasswordVerifyScreen extends StatefulWidget {
   const ForgotPasswordVerifyScreen({super.key, required this.email});
@@ -110,16 +111,20 @@ class _ForgotPasswordVerifyScreenState extends State<ForgotPasswordVerifyScreen>
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(title: const Text('Verify OTP')),
-      body: Padding(
+      body: KeyboardSafeBody(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text('Code sent to ${widget.email}'),
             const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
               children: List.generate(6, (i) {
                 return SizedBox(
                   width: 44,

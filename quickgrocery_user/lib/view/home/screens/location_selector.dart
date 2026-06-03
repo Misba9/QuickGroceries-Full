@@ -11,6 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
@@ -72,7 +73,20 @@ class _LocationPickerState extends State<LocationPicker> {
     addr.onLatlongChanged(start);
     await _reverseGeocode(start, immediate: true);
     if (!mounted) return;
-    await _locateMe(silent: true);
+
+    // Use saved address — skip GPS permission prompt when already set.
+    if (addr.hasSavedAddresses && addr.latLng != null) return;
+
+    if (await AppPermissionCoordinator.isLocationGranted()) {
+      await _locateMe(silent: true);
+      return;
+    }
+
+    // Only attempt silent locate if permission not permanently denied.
+    final status = await Permission.locationWhenInUse.status;
+    if (!status.isPermanentlyDenied) {
+      await _locateMe(silent: true);
+    }
   }
 
   @override
@@ -133,7 +147,8 @@ class _LocationPickerState extends State<LocationPicker> {
     }
 
     var ph = await Permission.locationWhenInUse.status;
-    if (ph.isDenied) {
+    if (!ph.isGranted) {
+      if (silent) return;
       ph = await Permission.locationWhenInUse.request();
     }
     if (ph.isPermanentlyDenied) {
@@ -150,8 +165,10 @@ class _LocationPickerState extends State<LocationPicker> {
     }
 
     LocationPermission gp = await Geolocator.checkPermission();
-    if (gp == LocationPermission.denied) {
+    if (gp == LocationPermission.denied && !silent) {
       gp = await Geolocator.requestPermission();
+    } else if (gp == LocationPermission.denied && silent) {
+      return;
     }
     if (gp == LocationPermission.deniedForever) {
       if (!silent && mounted) {

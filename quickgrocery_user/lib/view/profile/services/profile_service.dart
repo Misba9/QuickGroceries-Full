@@ -6,10 +6,10 @@ import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ProfileService extends ChangeNotifier {
-  Future<String> createReferralLink(String userId) async {
+  Future<String> createReferralLink(String referralCode) async {
     final dynamicLinkParams = DynamicLinkParameters(
       uriPrefix: "https://siswar.page.link",
-      link: Uri.parse("https://siswar.com/referral?code=$userId"),
+      link: Uri.parse("https://siswar.com/referral?code=$referralCode"),
       androidParameters: const AndroidParameters(
         packageName: "com.siswar.app",
         minimumVersion: 1,
@@ -21,9 +21,12 @@ class ProfileService extends ChangeNotifier {
     return dynamicLink.shortUrl.toString();
   }
 
-  void shareReferralLink(String userId) async {
-    String link = await createReferralLink(userId);
-    Share.share('Hey! Sign up using my referral link: $link');
+  void shareReferralLink(String referralCode) async {
+    String link = await createReferralLink(referralCode);
+    Share.share(
+      'Get groceries delivered fast. Use my referral code $referralCode '
+      'or link: $link',
+    );
   }
 
   Future<double> getReferralProgress() async {

@@ -9,9 +9,8 @@ class OpsOrderTimelineStrip extends StatelessWidget {
 
   static const _steps = <(OpsTimelineStep, String)>[
     (OpsTimelineStep.placed, 'Placed'),
-    (OpsTimelineStep.accepted, 'Accepted'),
-    (OpsTimelineStep.preparing, 'Preparing'),
-    (OpsTimelineStep.pickedUp, 'Picked Up'),
+    (OpsTimelineStep.assigned, 'Assigned'),
+    (OpsTimelineStep.outForDelivery, 'Out'),
     (OpsTimelineStep.delivered, 'Delivered'),
   ];
 

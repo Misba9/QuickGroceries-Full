@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:quickgrocery/core/inventory/inventory_limit_messages.dart';
 import 'package:quickgrocery/core/inventory/inventory_limits.dart';
 import 'package:quickgrocery/models/product.dart';
 import '../domain/cart_models.dart';
@@ -82,7 +83,9 @@ class OrderInventoryValidator {
         maxOrder: product.maxOrder,
       );
       if (line.itemCount > max) {
-        error ??= '${product.name} has only $max available';
+        final label = product.name.isEmpty ? line.name : product.name;
+        error ??=
+            '$label: ${InventoryLimitMessages.incrementBlocked(stock: product.stock, maxOrder: product.maxOrder, currentCount: max)}';
       }
 
       if (product.minOrderQuantity > 0 &&

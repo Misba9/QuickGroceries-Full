@@ -21,27 +21,13 @@ class EtaCalculator {
     if (order.isDelivered) return Duration.zero;
 
     switch (order.status) {
-      case OrderStatus.pending:
-        return const Duration(minutes: 18);
-      case OrderStatus.vendorAccepted:
-      case OrderStatus.accepted:
+      case OrderStatus.orderPlaced:
+        return const Duration(minutes: 25);
+      case OrderStatus.deliveryAssigned:
         return const Duration(minutes: 15);
-      case OrderStatus.packing:
-        return const Duration(minutes: 12);
-      case OrderStatus.readyForPickup:
-        return const Duration(minutes: 10);
-      case OrderStatus.riderAssigned:
-        return const Duration(minutes: 10);
-      case OrderStatus.riderAccepted:
-      case OrderStatus.reachedStore:
-      case OrderStatus.headingToStore:
-        return const Duration(minutes: 9);
-      case OrderStatus.pickedUp:
       case OrderStatus.outForDelivery:
         if (rider?.position == null) {
-          return Duration(
-            minutes: order.status == OrderStatus.pickedUp ? 7 : 8,
-          );
+          return const Duration(minutes: 12);
         }
         final km = _haversineKm(rider!.position!, order.dropLatLng);
         final hours = km / cityKmh;

@@ -67,7 +67,7 @@ dev_dependencies:
   icons_launcher: ^3.0.0
 
 icons_launcher:
-  image_path: "assets/images/logo1.jpeg"
+  image_path: "assets/images/logo.png"
   platforms:
     android:
       enable: true
