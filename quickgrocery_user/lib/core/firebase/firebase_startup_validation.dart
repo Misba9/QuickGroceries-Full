@@ -2,7 +2,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'package:quickgrocery/core/firebase/app_check_providers.dart';
 import 'package:quickgrocery/core/firebase/firebase_options.dart';
+import 'package:quickgrocery/core/firebase/firebase_phone_auth_logger.dart';
 import 'package:quickgrocery/core/firebase/google_services_parser.dart';
 
 /// Logs and validates Firebase identity at startup.
@@ -17,7 +19,7 @@ class FirebaseStartupValidation {
 
   static Future<void> logAndValidate() async {
     if (Firebase.apps.isEmpty) {
-      debugPrint('[FirebaseStartup] Firebase not initialized yet');
+      FirebasePhoneAuthLogger.warn('Firebase not initialized yet');
       return;
     }
 
@@ -27,59 +29,61 @@ class FirebaseStartupValidation {
     final gs = await GoogleServicesConfig.loadFromAssets();
     final gsClient = gs?.clientForPackage(expectedPackageName);
 
-    debugPrint(
-      '[FirebaseStartup] '
-      'firebaseAppName=${app.name} '
-      'packageName=${packageInfo.packageName} '
-      'appId=${options.appId} '
-      'projectId=${options.projectId} '
-      'messagingSenderId=${options.messagingSenderId}',
+    FirebasePhoneAuthLogger.logRuntimeContext(
+      packageName: packageInfo.packageName,
+      projectId: options.projectId,
+      appId: options.appId,
+      appCheckProvider: appCheckAndroidProviderLabel,
     );
 
     if (gs != null) {
-      debugPrint(
-        '[FirebaseStartup] google-services.json '
-        'projectNumber=${gs.projectNumber} '
+      final oauthCount = gsClient?.oauthClientCount ?? 0;
+      FirebasePhoneAuthLogger.info(
+        'google-services.json projectNumber=${gs.projectNumber} '
         'gsAppId=${gsClient?.mobileSdkAppId ?? "(none)"} '
-        'oauthClientCount=${gsClient?.oauthClientCount ?? 0}',
+        'oauthClientCount=$oauthCount',
       );
+      if (!kIsWeb && oauthCount == 0) {
+        FirebasePhoneAuthLogger.warn(
+          'Bundled google-services.json oauthClientCount=0 for '
+          '$expectedPackageName (informational — does not block OTP)',
+        );
+      }
     }
 
     if (packageInfo.packageName != expectedPackageName) {
-      debugPrint(
-        '[FirebaseStartup] WARN package mismatch: '
-        'expected $expectedPackageName got ${packageInfo.packageName}',
+      FirebasePhoneAuthLogger.error(
+        'Package mismatch: expected $expectedPackageName got '
+        '${packageInfo.packageName}',
       );
     }
 
     if (options.appId != expectedAndroidAppId &&
         !options.appId.contains(':ios:')) {
-      debugPrint(
-        '[FirebaseStartup] ERROR appId mismatch: '
-        'expected $expectedAndroidAppId got ${options.appId}',
+      FirebasePhoneAuthLogger.error(
+        'appId mismatch: expected $expectedAndroidAppId got ${options.appId}',
       );
     }
 
     if (options.projectId != expectedProjectId) {
-      debugPrint(
-        '[FirebaseStartup] ERROR projectId mismatch: '
-        'expected $expectedProjectId got ${options.projectId}',
+      FirebasePhoneAuthLogger.error(
+        'projectId mismatch: expected $expectedProjectId got ${options.projectId}',
       );
     }
 
     if (options.messagingSenderId != expectedMessagingSenderId) {
-      debugPrint(
-        '[FirebaseStartup] WARN messagingSenderId mismatch: '
-        'expected $expectedMessagingSenderId got ${options.messagingSenderId}',
+      FirebasePhoneAuthLogger.warn(
+        'messagingSenderId mismatch: expected $expectedMessagingSenderId '
+        'got ${options.messagingSenderId}',
       );
     }
 
     final dartOptions = DefaultFirebaseOptions.currentPlatform;
     if (options.appId == dartOptions.appId) {
-      debugPrint('[FirebaseStartup] OK runtime matches DefaultFirebaseOptions');
+      FirebasePhoneAuthLogger.info('OK runtime matches DefaultFirebaseOptions');
     } else {
-      debugPrint(
-        '[FirebaseStartup] ERROR runtime appId != DefaultFirebaseOptions: '
+      FirebasePhoneAuthLogger.error(
+        'runtime appId != DefaultFirebaseOptions: '
         '${options.appId} vs ${dartOptions.appId}',
       );
     }

@@ -5,6 +5,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'package:flutter/foundation.dart';
+
+import 'package:quickgrocery/core/firebase/app_check_providers.dart';
 import 'package:quickgrocery/core/firebase/firebase_options.dart';
 import 'package:quickgrocery/core/firebase/google_services_parser.dart';
 
@@ -130,6 +133,29 @@ class FirebaseConfigAudit {
       '7F:87:2A:51:EE:54:18:48:A0:5D:07:D6:8D:28:62:24:AB:7A:6C:3E';
   static const debugSha256 =
       '6F:CD:6C:DF:D7:96:79:B8:51:AB:91:FD:AF:24:71:B6:9E:EE:C2:3F:28:85:1E:93:22:6C:56:63:70:84:F1:C6';
+
+  /// Commands to print SHA fingerprints for Firebase Console registration.
+  static String shaFingerprintCommands() {
+    return 'Generate SHA fingerprints:\n'
+        '\n'
+        'Debug keystore (local APK / flutter run):\n'
+        '  keytool -list -v -keystore ~/.android/debug.keystore \\\n'
+        '    -alias androiddebugkey -storepass android -keypass android\n'
+        '\n'
+        'Release keystore (if using key.properties):\n'
+        '  keytool -list -v -keystore /path/to/your-release.keystore -alias YOUR_ALIAS\n'
+        '\n'
+        'Gradle signing report (all variants):\n'
+        '  cd quickgrocery_user/android && ./gradlew :app:signingReport\n'
+        '\n'
+        'Play Store builds — use Play Console → Release → Setup → App signing:\n'
+        '  Copy "App signing key certificate" SHA-1 and SHA-256\n'
+        '  (NOT the upload key unless you opted out of Play App Signing)\n'
+        '\n'
+        'Register in Firebase Console → quikgroceries → Project settings →\n'
+        '  Android app "customer new" (com.quickgrocery.io) → Add fingerprint\n'
+        'Then re-download google-services.json — oauth_client must be non-empty.';
+  }
 
   /// Why [oauth_client] can be empty even when SHA is shown in Firebase Console.
   static String oauthClientEmptyExplanation({
@@ -331,18 +357,20 @@ class FirebaseConfigAudit {
         }
 
         if (primary.oauthClientCount == 0) {
+          // Informational only — empty oauth_client in bundled JSON does not
+          // block OTP; Firebase Phone Auth verifies SHA at runtime via
+          // Play Integrity / reCAPTCHA. Severity warning (not critical).
           issues.add(
             FirebaseConfigIssue(
               id: 'missing-sha-oauth-client',
-              title: 'oauth_client empty (Google OAuth client not created)',
+              title: 'oauth_client empty in bundled google-services.json',
               detail: oauthClientEmptyExplanation(
                 firebaseAppId: primary.mobileSdkAppId,
                 packageName: primary.packageName,
               ),
               fixSteps: [
-                'Re-add SHA-1 $debugSha1 on Firebase app db7a0d4…',
-                'Re-download google-services.json when oauth_client is populated',
-                'Open Firebase diagnostics screen in app (debug login)',
+                'If OTP fails with missing-client-identifier, confirm SHA in Firebase Console.',
+                'Re-download google-services.json when oauth_client populates.',
               ],
               severity: 'warning',
             ),
@@ -413,13 +441,13 @@ class FirebaseConfigAudit {
       );
     }
 
-    if (kDebugMode) {
+    if (usePlayIntegrityAppCheck) {
       passed.add(
-        'App Check uses debug provider — register debug token in Firebase Console → App Check',
+        'App Check uses Play Integrity — enable Play Integrity API in Google Cloud',
       );
     } else {
       passed.add(
-        'App Check uses Play Integrity — enable Play Integrity API in Google Cloud',
+        'App Check uses debug provider — register debug token in Firebase Console → App Check',
       );
     }
   }
@@ -519,10 +547,19 @@ class FirebaseConfigAudit {
       'invalid-app-credential',
       'invalid-cert-hash',
       'captcha-check-failed',
+      'internal-error',
     };
 
     if (!configCodes.contains(e.code)) {
       return formatted;
+    }
+
+    if (e.code == 'internal-error') {
+      return '$formatted\n\n'
+          'This often means Play Integrity / reCAPTCHA could not verify the app. '
+          'Register SHA-1 and SHA-256 in Firebase Console and re-download '
+          'google-services.json.\n\n'
+          '${shaFingerprintCommands()}';
     }
 
     final report = await runAudit();

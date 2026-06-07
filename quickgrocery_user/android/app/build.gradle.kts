@@ -86,4 +86,8 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Firebase Phone Auth: Play Integrity / reCAPTCHA verification.
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
+    // App Check Play Integrity provider (release builds).
+    implementation("com.google.firebase:firebase-appcheck-playintegrity:18.0.0")
 }

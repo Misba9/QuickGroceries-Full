@@ -25,3 +25,10 @@
 -dontwarn com.google.firebase.**
 -keep class com.google.firebase.messaging.** { *; }
 -keep class com.google.firebase.iid.** { *; }
+
+# Firebase Phone Auth / reCAPTCHA / SafetyNet / Play Integrity
+-keep class com.google.firebase.auth.** { *; }
+-keep class com.google.android.gms.internal.firebase-auth-api.** { *; }
+-keep class com.google.android.gms.safetynet.** { *; }
+-keepattributes SourceFile,LineNumberTable
+-keep public class * extends java.lang.Exception

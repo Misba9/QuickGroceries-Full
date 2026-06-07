@@ -128,7 +128,6 @@ class HomeProductCard extends ConsumerWidget {
                       ),
                       onDecrement: () {
                         ref.read(cartProvider.notifier).decrement(product.id);
-                        cartService.removeProductCount(product.id);
                       },
                     );
 

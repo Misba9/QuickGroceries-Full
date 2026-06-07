@@ -1,4 +1,7 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
+import 'package:quickgrocery/core/firebase/app_check_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -104,6 +107,27 @@ class _FirebaseDiagnosticScreenState extends State<FirebaseDiagnosticScreen> {
         );
       }
     }
+    buffer.writeln();
+
+    buffer.writeln('=== App Check ===');
+    buffer.writeln(
+      'Provider: ${usePlayIntegrityAppCheck ? 'AndroidProvider.playIntegrity' : 'AndroidProvider.debug'} '
+      '(kDebugMode=$kDebugMode kProfileMode=$kProfileMode kReleaseMode=$kReleaseMode)',
+    );
+    try {
+      final token = await FirebaseAppCheck.instance.getToken(true);
+      buffer.writeln(
+        'Token: ${token == null || token.isEmpty ? '(empty)' : '${token.substring(0, 12)}… (${token.length} chars)'}',
+      );
+    } catch (e) {
+      buffer.writeln('Token error: $e');
+    }
+    buffer.writeln();
+
+    buffer.writeln('=== SHA registration ===');
+    buffer.writeln(FirebaseConfigAudit.shaFingerprintCommands());
+    buffer.writeln('Expected debug SHA-1: ${FirebaseConfigAudit.debugSha1}');
+    buffer.writeln('Expected debug SHA-256: ${FirebaseConfigAudit.debugSha256}');
     buffer.writeln();
 
     final audit = await FirebaseConfigAudit.runAudit();

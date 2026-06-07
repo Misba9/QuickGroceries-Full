@@ -2,11 +2,16 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'package:quickgrocery/core/firebase/app_check_providers.dart';
 import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
+import 'package:quickgrocery/core/firebase/firebase_phone_auth_logger.dart';
 
 /// Pre-flight checks before Firebase Phone Auth (especially iOS).
 class FirebaseAuthReadiness {
   /// Returns a user-facing error message, or `null` when ready.
+  ///
+  /// Does NOT block on empty [oauth_client] in bundled google-services.json —
+  /// that field is often stale even when SHA is registered in Firebase Console.
   static Future<String?> ensurePhoneAuthReady() async {
     if (Firebase.apps.isEmpty) {
       return 'Firebase is still starting. Please wait a moment and try again.';
@@ -16,24 +21,41 @@ class FirebaseAuthReadiness {
 
     final options = Firebase.app().options;
     final packageInfo = await PackageInfo.fromPlatform();
+    final appCheckProvider = appCheckAndroidProviderLabel;
 
-    log(
-      'config package=${packageInfo.packageName} '
-      'projectId=${options.projectId} appId=${options.appId}',
+    FirebasePhoneAuthLogger.logRuntimeContext(
+      phase: 'ensurePhoneAuthReady',
+      firebaseAppName: Firebase.app().name,
+      packageName: packageInfo.packageName,
+      projectId: options.projectId,
+      appId: options.appId,
+      appCheckProvider: appCheckProvider,
     );
 
     final report = await FirebaseConfigAudit.runAudit();
-    log(report.toDebugString());
-    if (!report.isReadyForPhoneAuth) {
-      return report.toUserFacingSummary();
-    }
+    FirebasePhoneAuthLogger.info(report.toDebugString());
+
     if (report.issues.any((i) => i.id == 'missing-sha-oauth-client')) {
-      log(
-        'WARN: oauth_client empty — Phone Auth may fail until SHA creates '
-        'OAuth client in Firebase.',
+      FirebasePhoneAuthLogger.warn(
+        'oauthClientCount=0 in bundled google-services.json — '
+        'informational only, not blocking verifyPhoneNumber()',
       );
     }
 
+    if (!report.isReadyForPhoneAuth) {
+      FirebasePhoneAuthLogger.warn(
+        'ensurePhoneAuthReady audit issues (non-blocking): '
+        '${report.toUserFacingSummary()}',
+      );
+    } else {
+      FirebasePhoneAuthLogger.info(
+        'ensurePhoneAuthReady audit PASS',
+      );
+    }
+
+    FirebasePhoneAuthLogger.info(
+      'ensurePhoneAuthReady PASS — proceeding to verifyPhoneNumber()',
+    );
     return null;
   }
 
@@ -62,9 +84,5 @@ class FirebaseAuthReadiness {
     return null;
   }
 
-  static void log(String message) {
-    if (kDebugMode) {
-      debugPrint('[PhoneAuth] $message');
-    }
-  }
+  static void log(String message) => FirebasePhoneAuthLogger.info(message);
 }

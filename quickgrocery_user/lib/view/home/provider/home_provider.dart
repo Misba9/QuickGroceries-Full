@@ -433,7 +433,7 @@ void _showForceUpdateDialog(BuildContext context) {
             // Redirect to Play Store
             launchUrl(
               Uri.parse(
-                "https://play.google.com/store/apps/details?id=com.siswar.app",
+                "https://play.google.com/store/apps/details?id=com.quickgrocery.io",
               ),
             );
           },

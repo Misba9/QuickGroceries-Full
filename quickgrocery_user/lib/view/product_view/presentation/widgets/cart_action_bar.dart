@@ -2,14 +2,13 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart' as legacy;
 
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
 import 'package:quickgrocery/core/inventory/inventory_limit_messages.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
-import 'package:quickgrocery/view/category/services/category_service.dart';
+import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/quantity_provider.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/fly_to_cart_animation.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/quantity_selector.dart';
@@ -22,8 +21,8 @@ import 'package:quickgrocery/view/product_view/presentation/widgets/quantity_sel
 ///    overlay animation, then morphs into the next state.
 ///  - Once added, shows a "Go to cart" button instead.
 ///
-/// Cart state is owned by the legacy [CategoryService] so the existing
-/// cart screen / checkout flow keeps working without any change.
+/// Cart state is owned by Riverpod [cartProvider] and bridged to legacy
+/// services in [CartBootstrap] so existing checkout flow keeps working.
 class CartActionBar extends ConsumerStatefulWidget {
   const CartActionBar({super.key, required this.product});
   final ProductModel product;
@@ -36,8 +35,6 @@ class _CartActionBarState extends ConsumerState<CartActionBar> {
   final GlobalKey _imageKey = GlobalKey();
 
   Future<void> _addToCart() async {
-    final cart = legacy.Provider.of<CategoryService>(context, listen: false);
-
     final qty = ref.read(
       quantityFor(
         productId: widget.product.id,
@@ -50,14 +47,27 @@ class _CartActionBarState extends ConsumerState<CartActionBar> {
         ? ref.read(productWeightProvider(widget.product.id))
         : widget.product.selectedWeightInGrams;
 
-    // Build a fresh copy so the legacy CategoryService doesn't mutate the
-    // realtime model held in Riverpod.
+    // Build a fresh copy so cart mutations never touch the realtime model.
     final copy = widget.product.copyWith(
       itemCount: qty,
       selectedWeightInGrams: weight,
     );
 
-    cart.addProductDirectly(copy);
+    final added = ref.read(cartProvider.notifier).addProductDirectly(copy);
+    if (!added) {
+      if (!mounted) return;
+      showTopErrorToast(
+        context,
+        widget.product.isOutOfStock
+            ? InventoryLimitMessages.outOfStock
+            : InventoryLimitMessages.incrementBlocked(
+                stock: widget.product.stock,
+                maxOrder: widget.product.maxOrder,
+                currentCount: qty,
+              ),
+      );
+      return;
+    }
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -93,9 +103,9 @@ class _CartActionBarState extends ConsumerState<CartActionBar> {
 
   @override
   Widget build(BuildContext context) {
-    final cart = legacy.Provider.of<CategoryService>(context);
-    final inCart = cart.selectedProduct.any(
-      (p) => p.id == widget.product.id,
+    final cart = ref.watch(cartProvider);
+    final inCart = cart.items.any(
+      (p) => p.productId == widget.product.id,
     );
     final unavailable =
         !widget.product.isAvailable || widget.product.stock == 0;

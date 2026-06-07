@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as legacy;
+import 'dart:developer' as developer;
 
 import 'package:quickgrocery/core/navigation/app_route_observer.dart';
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
@@ -20,6 +21,13 @@ class GlobalCartOverlay extends ConsumerStatefulWidget {
 }
 
 class _GlobalCartOverlayState extends ConsumerState<GlobalCartOverlay> {
+  static const bool _cartDiagLogs = true;
+
+  void _trace(String message) {
+    if (!_cartDiagLogs) return;
+    developer.log(message, name: 'GlobalCartOverlay');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -40,16 +48,18 @@ class _GlobalCartOverlayState extends ConsumerState<GlobalCartOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(cartProvider);
+    final cart = ref.watch(cartProvider);
     // Rebuild when the bottom-tab selection changes (e.g. profile).
     try {
       legacy.Provider.of<HomeProvider>(context, listen: true);
     } catch (_) {}
 
-    final cart = ref.read(cartProvider);
     final show = !cart.isEmpty && GlobalCartVisibility.shouldShow(context);
     final bottom = GlobalCartVisibility.bottomOffset(context);
     final inset = GlobalFloatingCartWidget.horizontalInset;
+    _trace(
+      'rebuild: show=$show items=${cart.items.length} units=${cart.totalUnits} total=${cart.bill.total.toStringAsFixed(2)}',
+    );
 
     return Stack(
       clipBehavior: Clip.none,

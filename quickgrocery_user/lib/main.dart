@@ -3,8 +3,9 @@ import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:quickgrocery/core/firebase/firebase_app_check_bootstrap.dart';
+import 'package:quickgrocery/core/firebase/firebase_phone_auth_bootstrap.dart';
 import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -59,47 +60,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (!kIsWeb) {
     await FcmPushInitializer.ensureInitialized();
     await FcmPushInitializer.showForeground(message);
-  }
-}
-
-/// App Check must be active when enforcement is on in Firebase Console.
-/// Use [AndroidProvider.debug] in debug builds/emulators; register the debug
-/// token in Firebase Console → App Check → Manage debug tokens.
-///
-/// Wrapped in try/catch so a misconfigured Firebase project (e.g. App Check
-/// API not enabled) cannot block app startup or crash the splash. The
-/// 403 you may see in logs is benign in debug — Firebase falls back to a
-/// placeholder token automatically. Enable the API at:
-/// https://console.developers.google.com/apis/api/firebaseappcheck.googleapis.com/overview
-Future<void> configureFirebaseAppCheck() async {
-  if (kIsWeb) return;
-
-  try {
-    await FirebaseAppCheck.instance.activate(
-      androidProvider:
-          kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-      appleProvider: kDebugMode
-          ? AppleProvider.debug
-          : AppleProvider.appAttestWithDeviceCheckFallback,
-    );
-    if (kDebugMode) {
-      try {
-        final token = await FirebaseAppCheck.instance.getToken(true);
-        debugPrint(
-          '[AppCheck] debug token (register in Firebase Console → App Check → '
-          'Manage debug tokens if Auth is enforced):\n$token',
-        );
-      } catch (tokenError) {
-        debugPrint('[AppCheck] could not fetch debug token: $tokenError');
-      }
-    }
-  } catch (e, st) {
-    if (kDebugMode) {
-      debugPrint(
-        '[AppCheck] activation failed (continuing without enforcement): $e',
-      );
-      debugPrintStack(stackTrace: st);
-    }
   }
 }
 
@@ -193,6 +153,7 @@ Future<void> _bootstrap() async {
     // listener inherits the right cache settings.
     RealtimeBootstrap.configureFirestore();
     await configureFirebaseAppCheck();
+    await configureFirebasePhoneAuth();
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     // Initialize EasyLocalization

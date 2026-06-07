@@ -11,7 +11,7 @@ class ProfileService extends ChangeNotifier {
       uriPrefix: "https://siswar.page.link",
       link: Uri.parse("https://siswar.com/referral?code=$referralCode"),
       androidParameters: const AndroidParameters(
-        packageName: "com.siswar.app",
+        packageName: "com.quickgrocery.io",
         minimumVersion: 1,
       ),
     );

@@ -6,11 +6,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:quickgrocery/core/firebase/firebase_auth_readiness.dart';
 import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
+import 'package:quickgrocery/core/firebase/firebase_phone_auth_logger.dart';
 import 'package:quickgrocery/core/user/user_profile_cache.dart';
 import 'package:quickgrocery/core/user/user_profile_repository.dart';
 import 'package:quickgrocery/view/auth/screens/customer_profile_add_screen.dart';
@@ -218,11 +221,19 @@ class AuthService extends ChangeNotifier {
 
     final readinessError = await FirebaseAuthReadiness.ensurePhoneAuthReady();
     if (readinessError != null) {
+      FirebasePhoneAuthLogger.error(
+        'verifyPhoneNumber blocked by ensurePhoneAuthReady: $readinessError',
+      );
       _setPhoneAuthError(readinessError);
       return;
     }
 
     if (!context.mounted) return;
+
+    await FirebasePhoneAuthLogger.logVerifyPhoneSnapshot(
+      phase: 'BEFORE verifyPhoneNumber',
+      phoneNumber: phoneNumber,
+    );
 
     await _startPhoneVerification(
       context: context,
@@ -255,6 +266,9 @@ class AuthService extends ChangeNotifier {
     });
 
     try {
+      FirebasePhoneAuthLogger.info(
+        'CALLING FirebaseAuth.verifyPhoneNumber phone=$phoneNumber',
+      );
       await _auth.verifyPhoneNumber(
         phoneNumber: phoneNumber,
         forceResendingToken: forceResendingToken,
@@ -278,12 +292,18 @@ class AuthService extends ChangeNotifier {
         verificationFailed: (FirebaseAuthException e) async {
           watchdog?.cancel();
           isLoading = false;
-          FirebaseAuthReadiness.log(
-            'verificationFailed: ${FirebaseConfigAudit.formatAuthException(e)}',
+          FirebasePhoneAuthLogger.logAuthException(
+            'verificationFailed',
+            e,
+            stackTrace: StackTrace.current,
+          );
+          await FirebasePhoneAuthLogger.logVerifyPhoneSnapshot(
+            phase: 'verificationFailed',
+            phoneNumber: phoneNumber,
           );
           final message = await _phoneAuthErrorMessage(e);
           _setPhoneAuthError(message);
-          log('verificationFailed: ${e.code} ${e.message}', error: e);
+          log('verificationFailed: ${e.code} ${e.message}', error: e, stackTrace: StackTrace.current);
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -297,8 +317,9 @@ class AuthService extends ChangeNotifier {
           opController.clear();
           isLoading = false;
           clearPhoneAuthError();
-          FirebaseAuthReadiness.log(
-            'codeSent verificationId=${verificationId.substring(0, 8)}…',
+          FirebasePhoneAuthLogger.info(
+            'codeSent verificationId=${verificationId.substring(0, 8)}… '
+            'phone=$phoneNumber resendToken=${resendToken != null}',
           );
           notifyListeners();
 
@@ -318,9 +339,30 @@ class AuthService extends ChangeNotifier {
           notifyListeners();
         },
       );
+      FirebasePhoneAuthLogger.info(
+        'FirebaseAuth.verifyPhoneNumber SDK call returned (await completed); '
+        'waiting for verificationFailed/codeSent callbacks',
+      );
+      await FirebasePhoneAuthLogger.logVerifyPhoneSnapshot(
+        phase: 'AFTER verifyPhoneNumber await',
+        phoneNumber: phoneNumber,
+      );
     } catch (e, st) {
       watchdog.cancel();
       isLoading = false;
+      if (e is FirebaseAuthException) {
+        FirebasePhoneAuthLogger.logAuthException(
+          'verifyPhoneNumber catch',
+          e,
+          stackTrace: st,
+        );
+      } else {
+        FirebasePhoneAuthLogger.error(
+          'verifyPhoneNumber catch non-FirebaseAuthException: $e',
+          error: e,
+          stackTrace: st,
+        );
+      }
       final message = e is FirebaseAuthException
           ? await _phoneAuthErrorMessage(e)
           : 'Phone verification failed: $e';
@@ -352,6 +394,7 @@ class AuthService extends ChangeNotifier {
       case 'invalid-app-credential':
       case 'invalid-cert-hash':
       case 'captcha-check-failed':
+      case 'internal-error':
         return FirebaseConfigAudit.messageForAuthException(e);
       default:
         return FirebaseConfigAudit.formatAuthException(e);

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -75,9 +76,17 @@ class CartNotifier extends Notifier<CartState> {
 
   static const _calc = PricingCalculator();
 
+  static const bool _cartDiagLogs = true;
+
+  void _trace(String message) {
+    if (!_cartDiagLogs) return;
+    developer.log(message, name: 'CartNotifier');
+  }
+
   @override
   CartState build() {
     ref.onDispose(_handleDispose);
+    _trace('created');
 
     // Defer all state-writing setup until *after* [build] returns. This
     // is the canonical fix for "Bad state: Tried to read the state of an
@@ -89,6 +98,7 @@ class CartNotifier extends Notifier<CartState> {
   }
 
   void _handleDispose() {
+    _trace('disposed');
     _disposed = true;
     _cartSub?.cancel();
     _authSub?.cancel();
@@ -108,6 +118,7 @@ class CartNotifier extends Notifier<CartState> {
   /// times — only the first attach actually subscribes.
   void attachLegacy(CategoryService legacy) {
     if (_disposed || _legacy == legacy) return;
+    _trace('attachLegacy invoked');
     _legacy?.removeListener(_onLegacyChanged);
     _legacy = legacy;
     _legacy!.addListener(_onLegacyChanged);
@@ -308,6 +319,55 @@ class CartNotifier extends Notifier<CartState> {
     if (isNewLine) {
       _feedbackSuccess('Item added to cart');
     }
+    _trace(
+      'addProduct: id=${product.id} qty=${items.where((e) => e.productId == product.id).firstOrNull?.itemCount ?? 0} totalUnits=${state.totalUnits}',
+    );
+    return true;
+  }
+
+  /// Adds a product preserving a caller-specified quantity for new lines.
+  /// Existing lines are incremented by that requested quantity.
+  bool addProductDirectly(ProductModel product) {
+    if (_disposed) return false;
+    if (product.isOutOfStock) {
+      return false;
+    }
+    final cap = product.effectiveMaxQuantity;
+    if (cap <= 0) {
+      return false;
+    }
+    final requested = product.itemCount < 1 ? 1 : product.itemCount;
+    final qty = InventoryLimits.clampQuantity(
+      requested: requested,
+      stock: product.stock,
+      maxOrder: product.maxOrder,
+      minOrder: product.minOrderQuantity,
+    );
+    if (qty <= 0) {
+      return false;
+    }
+
+    final items = [...state.items];
+    final idx = items.indexWhere(
+      (c) => c.productId == product.id && !c.isComboLine,
+    );
+    if (idx == -1) {
+      items.add(CartItem.fromProduct(product, itemCount: qty));
+    } else {
+      final cur = items[idx];
+      final next = (cur.itemCount + qty).clamp(1, cap);
+      if (next == cur.itemCount) return false;
+      items[idx] = cur.copyWith(
+        itemCount: next,
+        stock: product.stock,
+        maxOrder: product.maxOrder,
+        isAvailable: product.isAvailable,
+      );
+    }
+    _writeLocal(items);
+    _trace(
+      'addProductDirectly: id=${product.id} requested=$requested totalUnits=${state.totalUnits}',
+    );
     return true;
   }
 
@@ -360,6 +420,7 @@ class CartNotifier extends Notifier<CartState> {
     }
     items[idx] = cur.copyWith(itemCount: cur.itemCount + 1);
     _writeLocal(items);
+    _trace('increment: id=$productId qty=${items[idx].itemCount} totalUnits=${state.totalUnits}');
     return true;
   }
 
@@ -379,6 +440,7 @@ class CartNotifier extends Notifier<CartState> {
       items[idx] = cur.copyWith(itemCount: cur.itemCount - 1);
     }
     _writeLocal(items);
+    _trace('decrement: id=$productId totalUnits=${state.totalUnits}');
   }
 
   void remove(String productId) {
@@ -391,6 +453,7 @@ class CartNotifier extends Notifier<CartState> {
     final items =
         state.items.where((c) => c.productId != productId).toList();
     _writeLocal(items);
+    _trace('remove: id=$productId totalUnits=${state.totalUnits}');
   }
 
   void _adjustComboGroup(String groupKey, int delta) {
@@ -466,6 +529,7 @@ class CartNotifier extends Notifier<CartState> {
     state = state.copyWith(items: const [], clearCoupon: true);
     _recomputeBill();
     _replaceLegacyItems(const []);
+    _trace('clear: totalUnits=${state.totalUnits}');
 
     final uid = _uid;
     if (uid == null) return;
@@ -553,6 +617,9 @@ class CartNotifier extends Notifier<CartState> {
     _replaceLegacyItems(items);
     _recomputeBill();
     _scheduleSync();
+    _trace(
+      'writeLocal: lines=${state.items.length} units=${state.totalUnits} total=${state.bill.total.toStringAsFixed(2)}',
+    );
   }
 
   void _recomputeBill() {

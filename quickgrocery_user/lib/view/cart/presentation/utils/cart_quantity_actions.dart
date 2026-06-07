@@ -26,9 +26,6 @@ bool tryIncrementProductInCart(
   }
 
   legacyCart ??= legacy.Provider.of<CategoryService>(context, listen: false);
-  if (legacyCart.addProductCount(product.id, catalogProduct: product)) {
-    return true;
-  }
 
   final legacyLine =
       legacyCart.selectedProduct.where((p) => p.id == product.id).firstOrNull;

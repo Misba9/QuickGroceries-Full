@@ -37,3 +37,5 @@ Demo (if configured):
 
 - Email: `vendor@test.com`
 - Password: `vendor@123`
+- Password: `test1234`
+
