@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +8,7 @@ import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/realtime/models/notification_item.dart';
 import 'package:quickgrocery/realtime/providers/realtime_providers.dart';
 import 'package:quickgrocery/realtime/utils/notification_navigation.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class NotificationCenterScreen extends ConsumerStatefulWidget {
   const NotificationCenterScreen({super.key});
@@ -39,8 +39,8 @@ class _NotificationCenterScreenState
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       return Scaffold(
-        appBar: AppBar(title: Text('notification_center'.tr())),
-        body: const Center(child: Text('Sign in to see notifications')),
+        appBar: AppBar(title: Text(context.l10n.notification_center)),
+        body: Center(child: Text(context.l10n.signInForNotifications)),
       );
     }
 
@@ -53,7 +53,7 @@ class _NotificationCenterScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('notification_center'.tr()),
+        title: Text(context.l10n.notification_center),
         actions: [
           if (unread > 0)
             TextButton(
@@ -67,13 +67,13 @@ class _NotificationCenterScreenState
                         color: AppColor.primary,
                       ),
                     )
-                  : Text('mark_all_read'.tr()),
+                  : Text(context.l10n.mark_all_read),
             ),
         ],
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(child: Text('something_went_wrong'.tr())),
+        error: (_, __) => Center(child: Text(context.l10n.something_went_wrong)),
         data: (items) {
           if (items.isEmpty) {
             return Center(

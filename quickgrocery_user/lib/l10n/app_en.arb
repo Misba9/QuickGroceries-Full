@@ -1,0 +1,587 @@
+{
+  "@@locale": "en",
+  "add": "ADD",
+  "addDeliveryTip": "Add delivery tip",
+  "addExtraTip": "Add extra tip",
+  "add_address": "Add Address",
+  "add_first_address": "Add your first address",
+  "addressRequired": "Address is required",
+  "addresses_title": "Saved addresses",
+  "app_settings": "App Settings",
+  "app_version": "App Version",
+  "apply": "Apply",
+  "apply_coupon": "APPLY COUPON",
+  "areaRequired": "Area or road name is required",
+  "best_sellers": "Best Sellers",
+  "best_sellers_subtitle": "Most loved products this week",
+  "big_deals_on_beauty_products": "Big deals on beauty products",
+  "billDetails": "Bill details",
+  "biometric_login": "Biometric Login",
+  "buy_groceries_easily": "Buy Groceries Easily\\nWith Us",
+  "callDeliveryPartner": "Call delivery partner",
+  "call_first": "Call 90242-83577 first.",
+  "call_our_support": "Call Our Support Team",
+  "call_support": "Call Support",
+  "cancel": "Cancel",
+  "cancelOrderTitle": "Cancel order?",
+  "cancelled": "Cancelled",
+  "cancelled_orders": "Cancelled Orders",
+  "cartClearedLocally": "Cart cleared locally",
+  "cartEmptyMessage": "Your cart is empty",
+  "cartSyncFailed": "Cart sync failed",
+  "cartUnavailable": "Cart unavailable",
+  "cart_is_empty": "Cart Is Empty",
+  "cashOnDeliveryLabel": "Cash on Delivery",
+  "cash_on_delivery": "Cash on Delivery",
+  "categories": "Categories",
+  "categories_pill": "categories",
+  "category_promo_video_title": "Spotlight offers",
+  "change_location": "Change Location",
+  "checking_service_availability": "Checking service availability...",
+  "checkout": "Checkout",
+  "chooseDeliverySlot": "Choose a delivery slot",
+  "clear_cache": "Clear Cache",
+  "combo_added_to_cart": "Combo added to cart",
+  "complete_profile": "Complete your profile",
+  "confirm_location": "Confirm location",
+  "continueAction": "Continue",
+  "continue_label": "Continue",
+  "copyCode": "Copy Code",
+  "could_not_load_coupons": "Could not load coupons",
+  "couponAppliedSuccess": "Coupon applied successfully",
+  "coupon_applied_checkout": "{code} applied — use at checkout",
+  "coupon_applied_prefix": "Applied",
+  "coupon_copied": "Coupon code {code} copied",
+  "coupon_discount": "Coupon Discount",
+  "coupon_section_title": "Offers & coupons",
+  "coupons": "Coupons",
+  "couponsAndOffers": "Coupons & Offers",
+  "coupons_available": "{count} available",
+  "curated_picks_subtitle": "Curated picks for you",
+  "customTip": "Custom tip",
+  "customerPhotos": "Customer photos",
+  "dark_mode": "Dark Mode",
+  "delete": "Delete",
+  "deleteReviewTitle": "Delete review?",
+  "delete_account": "Delete Account",
+  "delete_address_body": "This address will be deleted from your saved list.",
+  "delete_address_title": "Remove address?",
+  "delivered": "Delivered",
+  "delivered_orders": "Delivered Orders",
+  "deliveryFeeLabel": "Delivery fee",
+  "deliveryUnavailable": "Delivery unavailable for your location",
+  "delivery_charge": "Delivery charge",
+  "delivery_eta_title": "Estimated delivery",
+  "delivery_in_20_minutes": "Delivery in 20 minutes",
+  "delivery_notifications": "Delivery Notifications",
+  "description": "Description",
+  "details": "Details",
+  "dont_receive_otp": "Don't receive the OTP?",
+  "editAddress": "Edit address",
+  "edit_profile": "Edit Profile",
+  "emailInvalid": "Please enter a valid email address.",
+  "emailRequired": "Please enter an email address.",
+  "email_support": "Email Support",
+  "empty_checkout_address_subtitle": "Add a delivery address to see slots, payment options, and your bill summary.",
+  "empty_checkout_address_title": "Where should we deliver?",
+  "enableLocationTitle": "Enable Location",
+  "enterValidMobile": "Enter valid mobile number",
+  "epic_price_drop_items": "Epic price drop items",
+  "errorGoBackOrRestart": "Go back or restart the app.",
+  "errorPartCouldNotBeShown": "This part of the app couldn't be shown.",
+  "explore_cta": "Explore",
+  "explore_products": "Explore Products",
+  "failedToLoadCart": "Failed to load your cart",
+  "faq": "FAQ",
+  "featured_for_you": "Featured For You",
+  "featured_this_week": "Featured this week",
+  "female": "Female",
+  "flash_deals_title": "Flash deals",
+  "free": "Free",
+  "freeUpper": "FREE",
+  "free_delivery_above_99": "Free Delivery on Orders Above 99rs",
+  "fresh_groceries_delivered": "Fresh groceries delivered fast\\nWith the best deals in town",
+  "friend_gets": "Friend Gets",
+  "full_name": "Full name",
+  "gender": "Gender",
+  "general": "General",
+  "goBack": "Go Back",
+  "good_afternoon": "Good afternoon",
+  "good_evening": "Good evening",
+  "good_morning": "Good morning",
+  "grand_total": "Grand Total",
+  "guest": "Guest",
+  "home": "HOME",
+  "house_no_building": "House No. Building Name",
+  "inbox": "Inbox",
+  "incorrect_otp": "Incorrect OTP",
+  "invalid_otp": "Invalid OTP",
+  "invite_friends": "Invite Friends",
+  "itemLabel": "{count, plural, =1{1 Item} other{{count} Items}}",
+  "itemOutOfStock": "This item is out of stock",
+  "itemTotalLabel": "Item total",
+  "item_added_to_cart": "Item added to cart",
+  "item_details": "Item Details",
+  "item_total": "Item Total",
+  "items": "ITEMS",
+  "items_in_category": "{count} items",
+  "joinedStatus": "Joined",
+  "keepOrder": "Keep order",
+  "language": "Language",
+  "leaveReviewTitle": "Leave a Review",
+  "legal": "Legal",
+  "live_order_tracking": "Live Order Tracking",
+  "location_permission_body": "Allow location access so we can move the map to where you are. You can still search manually.",
+  "location_permission_needed": "Location permission needed",
+  "location_services_off": "Location is turned off",
+  "location_services_off_body": "Enable GPS to center the map on your device, or search for your address above.",
+  "logout": "Logout",
+  "logoutConfirm": "Are you sure you want to logout?",
+  "logoutTitle": "Logout",
+  "maintenance_coming_soon": "Coming soon",
+  "maintenance_coming_soon_hint": "New products launching soon",
+  "maintenance_contact_support": "Contact support",
+  "maintenance_coupons": "Save with these codes",
+  "maintenance_hours": "Hours",
+  "maintenance_minutes": "Minutes",
+  "maintenance_offers_hint": "Exclusive offers when we reopen",
+  "maintenance_offline": "No internet — we'll refresh when you're back online",
+  "maintenance_referral": "Refer & earn",
+  "maintenance_referral_hint": "Invite friends and earn rewards",
+  "maintenance_reopens_in": "Reopens in",
+  "maintenance_retry": "Try again",
+  "maintenance_seconds": "Seconds",
+  "maintenance_while_you_wait": "While you wait",
+  "male": "Male",
+  "manage_arrow": "Manage →",
+  "mark_all_read": "Mark all read",
+  "maxOrderLimitReached": "Maximum order limit reached",
+  "missed_calls": "Missed calls will not be returned.",
+  "mobile_number": "Mobile number",
+  "move_map_hint": "Move the map to place the pin — address updates automatically",
+  "mrp": "MRP",
+  "mrpTotal": "MRP Total",
+  "my_address": "My Address",
+  "my_bag": "My Bag",
+  "my_orders": "My Orders",
+  "name": "Name",
+  "nameRequired": "Name is required",
+  "nav_categories": "Categories",
+  "nav_home": "Home",
+  "nav_orders": "Orders",
+  "nav_profile": "Profile",
+  "noOrdersFound": "No Orders Found!",
+  "no_coupons_available": "No coupons available",
+  "no_filtered_products": "No filteredProductsList Found",
+  "no_products_found": "No Products Found",
+  "no_saved_coupons": "No saved coupons available",
+  "non_urgent_email": "For non-urgent issues, use email.",
+  "notification_center": "Notification center",
+  "notifications": "Notifications",
+  "off": "OFF",
+  "offers_discounts": "Offers & Discounts",
+  "offers_for_you": "Offers for you",
+  "office": "OFFICE",
+  "onlinePaymentLabel": "Online Payment",
+  "online_payment": "Online payment",
+  "onlyNItemsAvailable": "Only {count} items available",
+  "onlyOneItemAvailable": "Only 1 item available",
+  "open_app_settings": "Open app settings",
+  "open_location_settings": "Open location settings",
+  "orderCancelledByYou": "Order Cancelled by you!",
+  "order_updates": "Order Updates",
+  "orders": "Orders",
+  "other_label": "Other",
+  "outOfStock": "OUT OF STOCK",
+  "passwordMinLength": "At least 8 characters required",
+  "passwordRequired": "Password is required",
+  "pcs": "pcs",
+  "pendingStatus": "Pending",
+  "pending_orders": "Pending Orders",
+  "phoneRequired": "Phone number is required",
+  "phone_number": "Phone Number",
+  "pick_address_short": "Set delivery address",
+  "pick_on_map": "Pick on map",
+  "picked_for_you": "Picked for you",
+  "place_order": "Place Order",
+  "platform_fee": "Platform Fee",
+  "pleaseEnterName": "Please enter name",
+  "pleaseSelectGender": "Please select gender",
+  "please_add_address": "Please ADD address",
+  "please_enter_valid_phone": "Please enter valid phone number",
+  "please_type_verification_code": "Please type the verification code sent",
+  "please_wait": "Please Wait..",
+  "popular_near_you": "Popular near you",
+  "popular_near_you_sub": "What others are stocking up on",
+  "processing": "Processing",
+  "productDiscount": "Product Discount",
+  "product_added_favorite": "product added to favorite",
+  "product_alerts": "Product Alerts",
+  "product_removed_favorite": "product removed from favorite",
+  "profile": "Profile",
+  "promo_more_soon": "Offer link coming soon — check the home page for deals.",
+  "promotional_messages": "Promotional Messages",
+  "push_notifications": "Push notifications",
+  "qtyLabel": "Qty:",
+  "quickGrocery": "QUICK GROCERY",
+  "quick_address": "Address",
+  "quick_orders": "Orders",
+  "quick_wishlist": "Wishlist",
+  "rateDelivery": "Rate Delivery",
+  "ratingsAndReviews": "Ratings & Reviews",
+  "recommended_products": "Recommended for you",
+  "referralCodeCopied": "Referral code copied",
+  "referral_copied": "Referral code copied",
+  "remove": "Remove",
+  "resend": "Resend",
+  "resend_otp_in": "Resend OTP in {seconds}s",
+  "retryBanners": "Retry banners",
+  "retry_location": "Try again",
+  "returned_orders": "Returned Orders",
+  "reviews": "Reviews",
+  "rewardGranted": "Reward Granted",
+  "road_name_area": "Road Name,Area,Colony",
+  "save_address": "Save Address",
+  "save_address_button": "Save address",
+  "saved_addresses": "Saved Addresses",
+  "saved_coupons": "Saved Coupons",
+  "search": "Search",
+  "search_delivery_location_hint": "Search area, street, landmark…",
+  "search_hint_bread": "Search \"bread\"",
+  "search_hint_fruits": "Search \"fruits\"",
+  "search_hint_milk": "Search \"milk\"",
+  "search_hint_snacks": "Search \"snacks\"",
+  "search_products": "Search products...",
+  "see_all": "See All",
+  "select_delivery_location": "Select delivery location",
+  "select_language": "Select Language",
+  "service_not_available": "Service Not Available",
+  "service_not_available_message": "We're sorry, but we don't currently deliver to your location. Please select a different delivery address or check back later as we expand our service areas.",
+  "shareInvite": "Share Invite",
+  "share_referral": "Share Referral",
+  "shop_by_category": "Shop By Category",
+  "shop_now_cta": "Shop now",
+  "signInToFavorite": "Sign in required to favorite items.",
+  "someItemsOutOfStock": "Some items are out of stock",
+  "something_went_wrong": "Something went wrong",
+  "sorry_minimum_order": "Sorry!. We are taking Delivery Orders above ₹{amount}",
+  "statusLabel": "Status:",
+  "storeClosed": "Store is closed",
+  "store_offline_message": "Our store is currently offline. Please check back soon—we'll be back to serve you shortly!",
+  "submit": "Submit",
+  "support": "Support",
+  "support_available": "Support is available daily from 9:00 AM to 6:30 PM.",
+  "support_call_conditions": "Support Call Conditions",
+  "support_mail": "Support Mail",
+  "support_number": "Support {number}",
+  "tap_to_apply_coupon": "Tap to apply a coupon",
+  "taxLabel": "Tax",
+  "thankYou": "Thank you!",
+  "thisItemOutOfStock": "This item is out of stock",
+  "to": "to",
+  "toPay": "To pay",
+  "today_snacks_deals": "Today's snacks deals",
+  "total": "Total",
+  "totalItemsLabel": "Total Items:",
+  "totalUpper": "TOTAL",
+  "track_order": "Track Order",
+  "trending_categories": "Trending categories",
+  "trending_now": "Trending Now",
+  "trending_subtitle": "What's selling fast today",
+  "updateNow": "Update Now",
+  "updateRequiredBody": "A new version of the app is available. Please update to continue.",
+  "updateRequiredTitle": "Update Required",
+  "updating_address": "Updating address…",
+  "upiLabel": "UPI",
+  "use_current_location": "Use current location",
+  "view_all_arrow": "View All →",
+  "view_cart": "View cart",
+  "wallet": "Wallet",
+  "we_are_closed": "We are closed!",
+  "whatsapp_support": "WhatsApp Support",
+  "wishlist": "Wishlist",
+  "wishlistEmpty": "No items in wishlist",
+  "writeReview": "Write review",
+  "you_earn": "You Earn",
+  "you_might_also_like": "You might also like",
+  "your_mobile_number": "your mobile number",
+  "retry": "Retry",
+  "tryAgain": "Try again",
+  "deleteReviewBody": "This cannot be undone.",
+  "failedToLoadReviews": "Failed to load reviews",
+  "noReviewsMatchFilter": "No reviews match this filter",
+  "helpfulCount": "Helpful ({count})",
+  "speechRecognitionError": "Speech recognition error: {error}",
+  "microphonePermissionRequired": "Microphone permission is required for voice search",
+  "speechRecognitionUnavailable": "Speech recognition is not available on this device",
+  "signInForNotifications": "Sign in to see notifications",
+  "profileUpdated": "Profile updated",
+  "couldNotSaveProfile": "Could not save profile: {error}",
+  "orderSupportTitle": "Order support",
+  "itemsNotAvailableNow": "None of these items are available right now",
+  "couldNotGenerateInvoice": "Could not generate invoice: {error}",
+  "deliveryPartnerNotAssigned": "Delivery partner not assigned yet",
+  "couldNotLoadOrder": "Could not load order details",
+  "orderNotFound": "Order not found",
+  "liveStatus": "Live status",
+  "rateDeliveryPartner": "Rate delivery partner",
+  "rateVendor": "Rate vendor",
+  "noOrdersFoundPeriod": "No orders found.",
+  "noCancelledOrdersFound": "No Cancelled Orders Found!",
+  "cancelOrderButton": "Cancel order",
+  "unexpectedError": "Unexpected error: {error}",
+  "reviewDeleted": "Review deleted",
+  "editReview": "Edit review",
+  "writeAReview": "Write a review",
+  "reviewsEditWindow": "Reviews can only be edited within 24 hours",
+  "pleaseWriteReviewMinChars": "Please write at least 10 characters",
+  "reviewSubmittedPending": "Review submitted! It will appear after approval.",
+  "addPhotosCount": "Add photos ({count}/6)",
+  "productQuality": "Product Quality",
+  "freshness": "Freshness",
+  "packaging": "Packaging",
+  "deliveryExperience": "Delivery Experience",
+  "valueForMoney": "Value for Money",
+  "yourReview": "Your review",
+  "verifiedPurchase": "Verified Purchase",
+  "sellerReply": "Seller reply",
+  "similarProducts": "Similar products",
+  "couldNotLoadSimilarProducts": "Couldn't load similar products",
+  "recentlyViewed": "Recently viewed",
+  "removedFromFavorites": "Removed from favorites",
+  "inviteMessageCopied": "Invite message copied",
+  "appDownloadLinkNotConfigured": "App download link not configured by Admin",
+  "nav_offers": "Offers",
+  "referAndEarn": "Refer & Earn",
+  "myReferralCode": "My Referral Code",
+  "referralRewards": "Referral rewards",
+  "referralStats": "Your referral stats",
+  "invitedFriends": "Invited Friends",
+  "ordered": "Ordered",
+  "earned": "Earned",
+  "referralComingSoon": "Referral Program Coming Soon",
+  "referralUnavailable": "Referral system unavailable",
+  "noConnection": "No connection",
+  "reorder": "Reorder",
+  "invoice": "Invoice",
+  "needHelp": "Need help",
+  "yourRider": "Your rider",
+  "riderSearching": "Searching for delivery partner…",
+  "orderDelivered": "Order delivered!",
+  "shareExperienceOptional": "Share your experience (optional)",
+  "clearCartTitle": "Clear cart?",
+  "clearCartBody": "All items will be removed from your bag.",
+  "clearAll": "Clear all",
+  "itemsInBag": "Items in bag",
+  "freeDeliveryUnlocked": "FREE delivery unlocked",
+  "removedUnavailableItems": "Removed {count} unavailable items",
+  "removeUnavailableToCheckout": "Some items are unavailable. Remove them to continue checkout.",
+  "someItemsUnavailableInBag": "Some items in your bag are unavailable — remove them to checkout",
+  "enterCouponCodeTitle": "Enter Coupon Code",
+  "viewAll": "View all",
+  "couponAppliedCheck": "Coupon Applied ✅",
+  "youSaved": "You saved ₹{amount}",
+  "bestCouponAvailable": "Best Coupon Available",
+  "noEligibleCoupons": "No eligible coupons for this cart",
+  "thankDeliveryPartner": "Thank Your Delivery Partner",
+  "addTipDescription": "Add a tip to appreciate your delivery partner",
+  "updatingTip": "Updating tip…",
+  "tipThankYou": "Thank you! ₹{amount} tip added successfully.",
+  "maxTip": "Maximum tip is ₹{amount}",
+  "paymentNotCompleted": "Payment was not completed.",
+  "couldNotUpdateTip": "Could not update tip. Please try again.",
+  "howWasDelivery": "How was your delivery?",
+  "orderSuccessful": "Order successful",
+  "goHome": "Go Home",
+  "visitAgain": "Visit again",
+  "noOrdersHereYet": "No orders here yet",
+  "couldNotLoadOrders": "Could not load orders",
+  "paid": "Paid",
+  "notPaid": "Not Paid",
+  "deliveryChargeLabel": "Delivery: ₹{amount}",
+  "fastDelivery": "Fast delivery",
+  "secure": "Secure",
+  "payments": "payments",
+  "noExchangeOrReturn": "No exchange or return",
+  "readMore": "Read more",
+  "readLess": "Read less",
+  "couldNotLoadReviewsShort": "Couldn't load reviews.",
+  "startShopping": "Start shopping",
+  "startExploringGroceries": "Start exploring fresh groceries!",
+  "latest": "Latest",
+  "highest": "Highest",
+  "lowest": "Lowest",
+  "withPhotos": "With photos",
+  "addTipAmount": "Add ₹{amount}",
+  "failedToRemoveProduct": "Failed to remove product",
+  "typeMessageHint": "Type your message…",
+  "needHelpWithOrder": "Need help with this order?",
+  "addedItemsToCart": "Added {count} items to your cart",
+  "trackOrderTitle": "Track order",
+  "done": "Done",
+  "firstOrderOffer": "First Order Offer",
+  "moreOffers": "More offers",
+  "firstOrder": "1st ORDER",
+  "minOrder": "Min order ₹{amount}",
+  "eligibleTapToApply": "Eligible · Tap to apply",
+  "availableCoupons": "Available Coupons",
+  "noCouponsAvailableNow": "No coupons available right now",
+  "cancelOrderAction": "Cancel Order",
+  "clearCartAction": "Clear",
+  "noCouponsRightNow": "No coupons right now",
+  "enterCouponCodeHint": "Enter coupon code",
+  "@coupon_applied_checkout": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "@helpfulCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@speechRecognitionError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@couldNotSaveProfile": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@couldNotGenerateInvoice": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@unexpectedError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@addPhotosCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@removedUnavailableItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@youSaved": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@tipThankYou": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@maxTip": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@deliveryChargeLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@addTipAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@addedItemsToCart": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@minOrder": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@coupon_copied": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "@coupons_available": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@items_in_category": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@onlyNItemsAvailable": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@resend_otp_in": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "@sorry_minimum_order": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@support_number": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  }
+}

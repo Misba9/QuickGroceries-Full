@@ -1,0 +1,92 @@
+# Quick Groceries - Robots.txt
+# SEO Optimization for Search Engine Crawling
+
+# ================================
+# Default Rules for All Crawlers
+# ================================
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /services
+Allow: /how-it-works
+Allow: /features
+Allow: /download
+Allow: /blog/
+Allow: /help
+Allow: /quick-grocery-delivery-bhongir
+Allow: /delivery-partner
+Allow: /testimonials
+
+# Disallow private/admin areas
+Disallow: /admin/
+Disallow: /private/
+Disallow: /node_modules/
+Disallow: /*.json$
+Disallow: /dist/
+Disallow: /build/
+
+# Allow specific files
+Allow: *.css
+Allow: *.js
+Allow: *.jpg
+Allow: *.png
+Allow: *.gif
+Allow: *.webp
+Allow: *.svg
+Allow: *.ico
+
+# Crawl delay for resource management
+Crawl-delay: 5
+Request-rate: 30/60
+
+# ================================
+# Google Bot Specific Rules
+# ================================
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+Crawl-delay: 1
+
+# ================================
+# Bing Bot Specific Rules
+# ================================
+User-agent: Bingbot
+Allow: /
+Disallow: /admin/
+Crawl-delay: 2
+
+# ================================
+# SEO Bots (Allow Higher Priority)
+# ================================
+User-agent: Slurp
+User-agent: DuckDuckGo-Bot
+User-agent: Baiduspider
+User-agent: YandexBot
+Allow: /
+
+# ================================
+# Disallow Bad Bots
+# ================================
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+# ================================
+# Sitemap Configuration
+# ================================
+Sitemap: https://quickgroceries.in/sitemap.xml
+Sitemap: https://quickgroceries.in/sitemap-blog.xml
+Sitemap: https://quickgroceries.in/sitemap-locations.xml
+
+# ================================
+# Host Configuration
+# ================================
+Host: https://quickgroceries.in

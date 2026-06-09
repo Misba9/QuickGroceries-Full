@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,6 +9,7 @@ import 'package:quickgrocery/core/navigation/app_route_observer.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/view/cart/domain/cart_models.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// App-wide floating cart bar — single source of truth for the view-cart pill.
 class GlobalFloatingCartWidget extends ConsumerWidget {
@@ -47,7 +47,7 @@ class _PillBody extends StatelessWidget {
     final total = cart.bill.total > 0 ? cart.bill.total : cart.bill.subtotal;
     final preview = cart.items.take(3).toList();
     final primaryName = cart.items.isNotEmpty ? cart.items.first.name : '';
-    final itemLabel = '$totalCount ${totalCount == 1 ? 'Item' : 'Items'}';
+    final itemLabel = context.l10n.itemLabel(totalCount);
 
     return Material(
       color: Colors.transparent,
@@ -128,7 +128,7 @@ class _PillBody extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'view_cart'.tr(),
+                        context.l10n.view_cart,
                         style: GoogleFonts.poppins(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w800,

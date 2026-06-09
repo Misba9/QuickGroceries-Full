@@ -1,5 +1,4 @@
 import 'package:animate_do/animate_do.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_icons.dart';
@@ -14,6 +13,7 @@ import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/payment/services/payment_service.dart';
 import 'package:provider/provider.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class PaymentScreen extends StatelessWidget {
   const PaymentScreen({super.key});
@@ -61,7 +61,7 @@ class PaymentScreen extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.add),
-                              Text('add_address'.tr()),
+                              Text(context.l10n.add_address),
                             ],
                           ),
                         ),
@@ -83,7 +83,7 @@ class PaymentScreen extends StatelessWidget {
                       width: width,
                       groupValue: false,
                       isTrue: provider.isCashOnDelivery,
-                      title: 'online_payment'.tr(),
+                      title: context.l10n.online_payment,
                       icon: AppIcons.mastercard,
                     ),
                   ),
@@ -97,7 +97,7 @@ class PaymentScreen extends StatelessWidget {
                       groupValue: true,
                       isTrue: provider.isCashOnDelivery,
                       width: width,
-                      title: 'cash_on_delivery'.tr(),
+                      title: context.l10n.cash_on_delivery,
                       icon: AppIcons.money,
                     ),
                   ),
@@ -115,13 +115,13 @@ class PaymentScreen extends StatelessWidget {
             PrimaryButton(
               height: height,
               width: width,
-              title: 'continue'.tr(),
+              title: context.l10n.continueAction,
               isLoading: cartService.isLoading,
               onTap: () async {
                 if (addressService.addresses == null ||
                     addressService.addresses!.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('please_add_address'.tr())),
+                    SnackBar(content: Text(context.l10n.please_add_address)),
                   );
                 } else {
                   // Get delivery charge from zone

@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Live H:M:S countdown — updates every second without page refresh.
 class MaintenanceCountdown extends StatefulWidget {
@@ -57,7 +57,7 @@ class _MaintenanceCountdownState extends State<MaintenanceCountdown> {
     return Column(
       children: [
         Text(
-          'maintenance_reopens_in'.tr(),
+          context.l10n.maintenance_reopens_in,
           style: GoogleFonts.poppins(
             color: color.withValues(alpha: 0.85),
             fontSize: 13,
@@ -67,11 +67,11 @@ class _MaintenanceCountdownState extends State<MaintenanceCountdown> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _Unit(value: h, label: 'maintenance_hours'.tr(), color: color),
+            _Unit(value: h, label: context.l10n.maintenance_hours, color: color),
             _sep(color),
-            _Unit(value: m, label: 'maintenance_minutes'.tr(), color: color),
+            _Unit(value: m, label: context.l10n.maintenance_minutes, color: color),
             _sep(color),
-            _Unit(value: s, label: 'maintenance_seconds'.tr(), color: color),
+            _Unit(value: s, label: context.l10n.maintenance_seconds, color: color),
           ],
         ),
       ],

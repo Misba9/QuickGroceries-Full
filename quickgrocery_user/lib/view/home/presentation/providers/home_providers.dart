@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:quickgrocery/core/startup/app_bootstrap_controller.dart';
 import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/models/product.dart';
@@ -44,13 +45,17 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
 
 // ── Stream providers consumed by the homepage ─────────────────────────────
 final categoriesStreamProvider =
-    StreamProvider.autoDispose<List<CategoryModel>>((ref) {
-      return ref.watch(categoryRepositoryProvider).watchActiveCategories();
+    StreamProvider.autoDispose<List<CategoryModel>>((ref) async* {
+      final seed = ref.watch(homeBootstrapSnapshotProvider).categories;
+      if (seed.isNotEmpty) yield seed;
+      yield* ref.watch(categoryRepositoryProvider).watchActiveCategories();
     });
 
 final bannersStreamProvider =
-    StreamProvider.autoDispose<List<BannerModel>>((ref) {
-      return ref.watch(bannerRepositoryProvider).watchActiveBanners();
+    StreamProvider.autoDispose<List<BannerModel>>((ref) async* {
+      final seed = ref.watch(homeBootstrapSnapshotProvider).banners;
+      if (seed.isNotEmpty) yield seed;
+      yield* ref.watch(bannerRepositoryProvider).watchActiveBanners();
     });
 
 final trendingProductsStreamProvider =
@@ -59,8 +64,10 @@ final trendingProductsStreamProvider =
     });
 
 final featuredProductsStreamProvider =
-    StreamProvider.autoDispose<List<ProductModel>>((ref) {
-      return ref.watch(productRepositoryProvider).watchFeatured(limit: 12);
+    StreamProvider.autoDispose<List<ProductModel>>((ref) async* {
+      final seed = ref.watch(homeBootstrapSnapshotProvider).featured;
+      if (seed.isNotEmpty) yield seed;
+      yield* ref.watch(productRepositoryProvider).watchFeatured(limit: 12);
     });
 
 final flashSaleProductsStreamProvider =

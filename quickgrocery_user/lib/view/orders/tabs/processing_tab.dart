@@ -9,6 +9,7 @@ import 'package:quickgrocery/view/orders/services/order_service.dart';
 import 'package:quickgrocery/view/tracking/screens/tracking_screen.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class ProcessingTab extends StatelessWidget {
   const ProcessingTab({super.key});
@@ -30,7 +31,7 @@ class ProcessingTab extends StatelessWidget {
                           children: [
                             LottieBuilder.asset('assets/lottie/no_orders.json'),
                             AppSpacing.h10,
-                            const Text('No Orders Found!'),
+                            Text(context.l10n.noOrdersFound),
                           ],
                         ),
                       ),
@@ -309,7 +310,7 @@ class OrderListWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     if (orders.isEmpty) {
-      return const Center(child: Text('No orders found.'));
+      return Center(child: Text(context.l10n.noOrdersFoundPeriod));
     }
 
     return ListView.builder(
@@ -369,15 +370,15 @@ class OrderListWidget extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("Total Items: $totalQty"),
-                    Text("Delivery: ₹${order.deliveryCharge}"),
+                    Text(context.l10n.totalItemsLabel + ' $totalQty'),
+                    Text(context.l10n.deliveryChargeLabel(order.deliveryCharge.toStringAsFixed(0))),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("Status: ${order.orderStatus}"),
+                    Text('${context.l10n.statusLabel} ${order.orderStatus}'),
                     Text(
                       "Total: ₹${totalAmount.toStringAsFixed(2)}",
                       style: const TextStyle(fontWeight: FontWeight.bold),

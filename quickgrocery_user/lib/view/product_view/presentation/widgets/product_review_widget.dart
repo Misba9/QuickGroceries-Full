@@ -1,11 +1,12 @@
+import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/models/rating_model.dart';
 import 'package:quickgrocery/view/product_view/domain/rating_repository.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class ReviewSummaryCard extends StatelessWidget {
   const ReviewSummaryCard({
@@ -57,7 +58,7 @@ class ReviewSummaryCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '${summary.total} ${'reviews'.tr()}',
+                '${summary.total} ${context.l10n.reviews}',
                 style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 6),

@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/address_model.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Premium selectable address row — used on checkout.
 class CheckoutAddressCard extends StatelessWidget {
@@ -189,22 +189,22 @@ class SavedAddressCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
                 title: Text(
-                  'delete_address_title'.tr(),
+                  context.l10n.delete_address_title,
                   style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
                 ),
                 content: Text(
-                  'delete_address_body'.tr(),
+                  context.l10n.delete_address_body,
                   style: GoogleFonts.poppins(fontSize: 13, height: 1.4),
                 ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(ctx, false),
-                    child: Text('cancel'.tr()),
+                    child: Text(context.l10n.cancel),
                   ),
                   TextButton(
                     onPressed: () => Navigator.pop(ctx, true),
                     child: Text(
-                      'delete'.tr(),
+                      context.l10n.delete,
                       style: const TextStyle(color: AppSurface.danger),
                     ),
                   ),
@@ -232,7 +232,7 @@ class SavedAddressCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             Text(
-              'delete'.tr(),
+              context.l10n.delete,
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontWeight: FontWeight.w800,

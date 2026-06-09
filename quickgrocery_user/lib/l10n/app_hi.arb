@@ -1,0 +1,587 @@
+{
+  "@@locale": "hi",
+  "add": "जोड़ें",
+  "addDeliveryTip": "Add delivery tip",
+  "addExtraTip": "Add extra tip",
+  "add_address": "पता जोड़ें",
+  "add_first_address": "अपना पहला पता जोड़ें",
+  "addressRequired": "Address is required",
+  "addresses_title": "सेव किए गए पते",
+  "app_settings": "ऐप सेटिंग्स",
+  "app_version": "ऐप संस्करण",
+  "apply": "लागू करें",
+  "apply_coupon": "कूपन लागू करें",
+  "areaRequired": "Area or road name is required",
+  "best_sellers": "बेस्ट सेलर",
+  "best_sellers_subtitle": "इस हफ्ते सबसे पसंदीदा",
+  "big_deals_on_beauty_products": "सौंदर्य उत्पादों पर बड़े सौदे",
+  "billDetails": "Bill details",
+  "biometric_login": "बायोमेट्रिक लॉगिन",
+  "buy_groceries_easily": "हमारे साथ आसानी से\\nकिराने का सामान खरीदें",
+  "callDeliveryPartner": "Call delivery partner",
+  "call_first": "पहले 90242-83577 पर कॉल करें।",
+  "call_our_support": "हमारी सहायता टीम को कॉल करें",
+  "call_support": "कॉल सपोर्ट",
+  "cancel": "रद्द करें",
+  "cancelOrderTitle": "Cancel order?",
+  "cancelled": "रद्द",
+  "cancelled_orders": "रद्द ऑर्डर",
+  "cartClearedLocally": "Cart cleared locally",
+  "cartEmptyMessage": "Your cart is empty",
+  "cartSyncFailed": "Cart sync failed",
+  "cartUnavailable": "Cart unavailable",
+  "cart_is_empty": "कार्ट खाली है",
+  "combo_added_to_cart": "कॉम्बो कार्ट में जोड़ा गया",
+  "cashOnDeliveryLabel": "Cash on Delivery",
+  "cash_on_delivery": "डिलीवरी पर नकद",
+  "categories": "श्रेणियां",
+  "categories_pill": "श्रेणियां",
+  "category_promo_video_title": "स्पॉटलाइट ऑफ़र",
+  "change_location": "स्थान बदलें",
+  "checking_service_availability": "सेवा उपलब्धता जांच रहे हैं...",
+  "checkout": "चेकआउट",
+  "chooseDeliverySlot": "Choose a delivery slot",
+  "clear_cache": "कैश साफ़ करें",
+  "complete_profile": "अपनी प्रोफ़ाइल पूरी करें",
+  "confirm_location": "स्थान की पुष्टि करें",
+  "continueAction": "जारी रखें",
+  "continue_label": "जारी रखें",
+  "copyCode": "Copy Code",
+  "could_not_load_coupons": "कूपन लोड नहीं हो सके",
+  "couponAppliedSuccess": "Coupon applied successfully",
+  "coupon_applied_checkout": "{code} लागू — चेकआउट पर उपयोग करें",
+  "coupon_applied_prefix": "लागू",
+  "coupon_copied": "कूपन कोड {code} कॉपी किया गया",
+  "coupon_discount": "कूपन छूट",
+  "coupon_section_title": "ऑफ़र और कूपन",
+  "coupons": "कूपन",
+  "couponsAndOffers": "Coupons & Offers",
+  "coupons_available": "{count} उपलब्ध",
+  "curated_picks_subtitle": "आपके लिए चुने गए",
+  "customTip": "Custom tip",
+  "customerPhotos": "Customer photos",
+  "dark_mode": "डार्क मोड",
+  "delete": "हटाएँ",
+  "deleteReviewTitle": "Delete review?",
+  "delete_account": "खाता हटाएं",
+  "delete_address_body": "यह पता आपकी सूची से हटा दिया जाएगा।",
+  "delete_address_title": "पता हटाएँ?",
+  "delivered": "डिलीवर",
+  "delivered_orders": "डिलीवर ऑर्डर",
+  "deliveryFeeLabel": "Delivery fee",
+  "deliveryUnavailable": "Delivery unavailable for your location",
+  "delivery_charge": "डिलीवरी शुल्क",
+  "delivery_eta_title": "अनुमानित डिलीवरी",
+  "delivery_in_20_minutes": "20 मिनट में डिलीवरी",
+  "delivery_notifications": "डिलीवरी सूचनाएं",
+  "description": "विवरण",
+  "details": "विवरण",
+  "dont_receive_otp": "OTP प्राप्त नहीं हुआ?",
+  "editAddress": "Edit address",
+  "edit_profile": "प्रोफ़ाइल संपादित करें",
+  "emailInvalid": "Please enter a valid email address.",
+  "emailRequired": "Please enter an email address.",
+  "email_support": "ईमेल सपोर्ट",
+  "empty_checkout_address_subtitle": "स्लॉट, भुगतान और बिल देखने के लिए पता जोड़ें।",
+  "empty_checkout_address_title": "डिलीवरी कहाँ करें?",
+  "enableLocationTitle": "Enable Location",
+  "enterValidMobile": "Enter valid mobile number",
+  "epic_price_drop_items": "महाकाव्य मूल्य गिरावट वस्तुएं",
+  "errorGoBackOrRestart": "Go back or restart the app.",
+  "errorPartCouldNotBeShown": "This part of the app couldn't be shown.",
+  "explore_cta": "देखें",
+  "explore_products": "उत्पादों का अन्वेषण करें",
+  "failedToLoadCart": "Failed to load your cart",
+  "faq": "अक्सर पूछे जाने वाले प्रश्न",
+  "featured_for_you": "आपके लिए विशेष",
+  "featured_this_week": "इस सप्ताह की विशेष",
+  "female": "महिला",
+  "flash_deals_title": "फ्लैश डील",
+  "free": "मुफ्त",
+  "freeUpper": "FREE",
+  "free_delivery_above_99": "99 रुपये से अधिक के ऑर्डर पर मुफ्त डिलीवरी",
+  "fresh_groceries_delivered": "ताज़ी किराना तेज़ी से पहुंचाई\\nशहर में सर्वोत्तम सौदों के साथ",
+  "friend_gets": "दोस्त को मिले",
+  "full_name": "पूरा नाम",
+  "gender": "लिंग",
+  "general": "सामान्य",
+  "goBack": "Go Back",
+  "good_afternoon": "नमस्ते",
+  "good_evening": "शुभ संध्या",
+  "good_morning": "सुप्रभात",
+  "grand_total": "कुल योग",
+  "guest": "अतिथि",
+  "home": "घर",
+  "house_no_building": "मकान नंबर. भवन का नाम",
+  "inbox": "इनबॉक्स",
+  "incorrect_otp": "गलत OTP",
+  "invalid_otp": "अमान्य OTP",
+  "invite_friends": "दोस्तों को आमंत्रित करें",
+  "itemLabel": "{count, plural, =1{1 Item} other{{count} Items}}",
+  "itemOutOfStock": "This item is out of stock",
+  "itemTotalLabel": "Item total",
+  "item_details": "आइटम विवरण",
+  "item_added_to_cart": "कार्ट में आइटम जोड़ा गया",
+  "item_total": "आइटम कुल",
+  "items": "वस्तुएं",
+  "items_in_category": "{count} आइटम",
+  "joinedStatus": "Joined",
+  "keepOrder": "Keep order",
+  "language": "भाषा",
+  "leaveReviewTitle": "Leave a Review",
+  "legal": "कानूनी",
+  "live_order_tracking": "लाइव ऑर्डर ट्रैकिंग",
+  "location_permission_body": "अपनी स्थिति पर मानचित्र लाने के लिए लोकेशन की अनुमति दें। आप मैन्युअल रूप से भी खोज सकते हैं।",
+  "location_permission_needed": "लोकेशन अनुमति चाहिए",
+  "location_services_off": "लोकेशन बंद है",
+  "location_services_off_body": "मानचित्र को आप पर केंद्रित करने के लिए GPS चालू करें, या ऊपर खोजें।",
+  "logout": "लॉगआउट",
+  "logoutConfirm": "Are you sure you want to logout?",
+  "logoutTitle": "Logout",
+  "maintenance_coming_soon": "जल्द आ रहा है",
+  "maintenance_coming_soon_hint": "नए उत्पाद जल्द",
+  "maintenance_contact_support": "सहायता से संपर्क करें",
+  "maintenance_coupons": "कूपन कोड",
+  "maintenance_hours": "घंटे",
+  "maintenance_minutes": "मिनट",
+  "maintenance_offers_hint": "खुलने पर खास ऑफ़र",
+  "maintenance_offline": "इंटरनेट नहीं — ऑनलाइन होते ही रिफ्रेश होगा",
+  "maintenance_referral": "रेफर करें और कमाएं",
+  "maintenance_referral_hint": "दोस्तों को आमंत्रित करें",
+  "maintenance_reopens_in": "फिर खुलेगा",
+  "maintenance_retry": "पुनः प्रयास करें",
+  "maintenance_seconds": "सेकंड",
+  "maintenance_while_you_wait": "इंतज़ार के दौरान",
+  "male": "पुरुष",
+  "manage_arrow": "प्रबंधित करें →",
+  "mark_all_read": "सभी पढ़े हुए चिह्नित करें",
+  "maxOrderLimitReached": "Maximum order limit reached",
+  "missed_calls": "छूटी हुई कॉल वापस नहीं की जाएंगी।",
+  "mobile_number": "मोबाइल नंबर",
+  "move_map_hint": "पिन रखने के लिए मानचित्र घुमाएँ — पता स्वचालित अपडेट होता है",
+  "mrp": "एमआरपी",
+  "mrpTotal": "MRP Total",
+  "my_address": "मेरा पता",
+  "my_bag": "मेरा बैग",
+  "my_orders": "मेरे ऑर्डर",
+  "name": "नाम",
+  "nameRequired": "Name is required",
+  "nav_categories": "श्रेणियाँ",
+  "nav_home": "होम",
+  "nav_orders": "ऑर्डर",
+  "nav_profile": "प्रोफ़ाइल",
+  "noOrdersFound": "No Orders Found!",
+  "no_coupons_available": "कोई कूपन उपलब्ध नहीं",
+  "no_filtered_products": "कोई फ़िल्टर किए गए उत्पाद नहीं मिले",
+  "no_products_found": "कोई उत्पाद नहीं मिला",
+  "no_saved_coupons": "कोई सहेजे गए कूपन उपलब्ध नहीं",
+  "non_urgent_email": "गैर-जरूरी मुद्दों के लिए, ईमेल का उपयोग करें।",
+  "notification_center": "सूचना केंद्र",
+  "notifications": "सूचनाएं",
+  "off": "छूट",
+  "offers_discounts": "ऑफ़र और छूट",
+  "offers_for_you": "आपके लिए ऑफ़र",
+  "office": "कार्यालय",
+  "onlinePaymentLabel": "Online Payment",
+  "online_payment": "ऑनलाइन भुगतान",
+  "onlyNItemsAvailable": "Only {count} items available",
+  "onlyOneItemAvailable": "Only 1 item available",
+  "open_app_settings": "ऐप सेटिंग्स खोलें",
+  "open_location_settings": "लोकेशन सेटिंग्स खोलें",
+  "orderCancelledByYou": "Order Cancelled by you!",
+  "order_updates": "ऑर्डर अपडेट",
+  "orders": "ऑर्डर",
+  "other_label": "अन्य",
+  "outOfStock": "OUT OF STOCK",
+  "passwordMinLength": "At least 8 characters required",
+  "passwordRequired": "Password is required",
+  "pcs": "pcs",
+  "pendingStatus": "Pending",
+  "pending_orders": "लंबित ऑर्डर",
+  "phoneRequired": "Phone number is required",
+  "phone_number": "फोन नंबर",
+  "pick_address_short": "डिलीवरी पता चुनें",
+  "pick_on_map": "मानचित्र पर चुनें",
+  "picked_for_you": "आपके लिए चुना हुआ",
+  "place_order": "ऑर्डर करें",
+  "platform_fee": "प्लेटफॉर्म शुल्क",
+  "pleaseEnterName": "Please enter name",
+  "pleaseSelectGender": "Please select gender",
+  "please_add_address": "कृपया पता जोड़ें",
+  "please_enter_valid_phone": "कृपया वैध फोन नंबर दर्ज करें",
+  "please_type_verification_code": "कृपया भेजे गए सत्यापन कोड को टाइप करें",
+  "please_wait": "कृपया प्रतीक्षा करें..",
+  "popular_near_you": "आपके आसपास लोकप्रिय",
+  "popular_near_you_sub": "दूसरे क्या खरीद रहे हैं",
+  "processing": "प्रसंस्करण",
+  "productDiscount": "Product Discount",
+  "product_added_favorite": "उत्पाद पसंदीदा में जोड़ा गया",
+  "product_alerts": "उत्पाद अलर्ट",
+  "product_removed_favorite": "उत्पाद पसंदीदा से हटा दिया गया",
+  "profile": "प्रोफ़ाइल",
+  "promo_more_soon": "लिंक जल्द आएगा — होम पर ऑफ़र देखें।",
+  "promotional_messages": "प्रचार संदेश",
+  "push_notifications": "पुश सूचनाएं",
+  "qtyLabel": "Qty:",
+  "quickGrocery": "QUICK GROCERY",
+  "quick_address": "पता",
+  "quick_orders": "ऑर्डर",
+  "quick_wishlist": "विशलिस्ट",
+  "rateDelivery": "Rate Delivery",
+  "ratingsAndReviews": "Ratings & Reviews",
+  "recommended_products": "आपके लिए सुझाई गई खरीदें",
+  "referralCodeCopied": "Referral code copied",
+  "referral_copied": "रेफरल कोड कॉपी किया गया",
+  "remove": "Remove",
+  "resend": "पुनः भेजें",
+  "resend_otp_in": "{seconds}s में OTP दोबारा भेजें",
+  "retryBanners": "Retry banners",
+  "retry_location": "फिर कोशिश करें",
+  "returned_orders": "वापस ऑर्डर",
+  "reviews": "समीक्षाएं",
+  "rewardGranted": "Reward Granted",
+  "road_name_area": "सड़क का नाम, क्षेत्र, कॉलोनी",
+  "save_address": "पता सहेजें",
+  "save_address_button": "पता सेव करें",
+  "saved_addresses": "सहेजे गए पते",
+  "saved_coupons": "सहेजे गए कूपन",
+  "search": "खोजें",
+  "search_delivery_location_hint": "क्षेत्र, सड़क, लैंडमार्क खोजें…",
+  "search_hint_bread": "खोजें \"ब्रेड\"",
+  "search_hint_fruits": "खोजें \"फल\"",
+  "search_hint_milk": "खोजें \"दूध\"",
+  "search_hint_snacks": "खोजें \"स्नैक्स\"",
+  "search_products": "उत्पाद खोजें...",
+  "see_all": "सभी देखें",
+  "select_delivery_location": "डिलीवरी स्थान चुनें",
+  "select_language": "भाषा चुनें",
+  "service_not_available": "सेवा उपलब्ध नहीं",
+  "service_not_available_message": "हमें खेद है, लेकिन हम वर्तमान में आपके स्थान पर डिलीवरी नहीं करते हैं। कृपया एक अलग डिलीवरी पता चुनें या बाद में जांचें क्योंकि हम अपने सेवा क्षेत्रों का विस्तार करते हैं।",
+  "shareInvite": "Share Invite",
+  "share_referral": "रेफरल साझा करें",
+  "shop_by_category": "श्रेणी के अनुसार खरीदारी",
+  "shop_now_cta": "अभी खरीदें",
+  "signInToFavorite": "Sign in required to favorite items.",
+  "someItemsOutOfStock": "Some items are out of stock",
+  "something_went_wrong": "कुछ गलत हो गया",
+  "sorry_minimum_order": "क्षमा करें! हम ₹{amount} से अधिक के डिलीवरी ऑर्डर ले रहे हैं",
+  "statusLabel": "Status:",
+  "storeClosed": "Store is closed",
+  "store_offline_message": "हमारी दुकान वर्तमान में ऑफलाइन है। कृपया जल्द ही वापस जांचें—हम जल्द ही आपकी सेवा के लिए वापस आएंगे!",
+  "submit": "Submit",
+  "support": "सहायता",
+  "support_available": "सहायता प्रतिदिन सुबह 9:00 बजे से शाम 6:30 बजे तक उपलब्ध है।",
+  "support_call_conditions": "सहायता कॉल शर्तें",
+  "support_mail": "सहायता मेल",
+  "support_number": "सहायता {number}",
+  "tap_to_apply_coupon": "कूपन लागू करने के लिए टैप करें",
+  "taxLabel": "Tax",
+  "thankYou": "Thank you!",
+  "thisItemOutOfStock": "This item is out of stock",
+  "to": "को",
+  "toPay": "To pay",
+  "today_snacks_deals": "आज के स्नैक्स डील",
+  "total": "कुल",
+  "totalItemsLabel": "Total Items:",
+  "totalUpper": "TOTAL",
+  "track_order": "ऑर्डर ट्रैक करें",
+  "trending_categories": "ट्रेंडिंग श्रेणियां",
+  "trending_now": "अभी ट्रेंडिंग",
+  "trending_subtitle": "आज तेज़ी से बिक रहा है",
+  "updateNow": "Update Now",
+  "updateRequiredBody": "A new version of the app is available. Please update to continue.",
+  "updateRequiredTitle": "Update Required",
+  "updating_address": "पता अपडेट हो रहा है…",
+  "upiLabel": "UPI",
+  "use_current_location": "वर्तमान स्थान",
+  "view_all_arrow": "सभी देखें →",
+  "view_cart": "कार्ट देखें",
+  "wallet": "वॉलेट",
+  "we_are_closed": "हम बंद हैं!",
+  "whatsapp_support": "WhatsApp सहायता",
+  "wishlist": "विशलिस्ट",
+  "wishlistEmpty": "No items in wishlist",
+  "writeReview": "Write review",
+  "you_earn": "आप कमाएं",
+  "you_might_also_like": "आपको यह भी पसंद आ सकता है",
+  "your_mobile_number": "आपका मोबाइल नंबर",
+  "retry": "Retry",
+  "tryAgain": "Try again",
+  "deleteReviewBody": "This cannot be undone.",
+  "failedToLoadReviews": "Failed to load reviews",
+  "noReviewsMatchFilter": "No reviews match this filter",
+  "helpfulCount": "Helpful ({count})",
+  "speechRecognitionError": "Speech recognition error: {error}",
+  "microphonePermissionRequired": "Microphone permission is required for voice search",
+  "speechRecognitionUnavailable": "Speech recognition is not available on this device",
+  "signInForNotifications": "Sign in to see notifications",
+  "profileUpdated": "Profile updated",
+  "couldNotSaveProfile": "Could not save profile: {error}",
+  "orderSupportTitle": "Order support",
+  "itemsNotAvailableNow": "None of these items are available right now",
+  "couldNotGenerateInvoice": "Could not generate invoice: {error}",
+  "deliveryPartnerNotAssigned": "Delivery partner not assigned yet",
+  "couldNotLoadOrder": "Could not load order details",
+  "orderNotFound": "Order not found",
+  "liveStatus": "Live status",
+  "rateDeliveryPartner": "Rate delivery partner",
+  "rateVendor": "Rate vendor",
+  "noOrdersFoundPeriod": "No orders found.",
+  "noCancelledOrdersFound": "No Cancelled Orders Found!",
+  "cancelOrderButton": "Cancel order",
+  "unexpectedError": "Unexpected error: {error}",
+  "reviewDeleted": "Review deleted",
+  "editReview": "Edit review",
+  "writeAReview": "Write a review",
+  "reviewsEditWindow": "Reviews can only be edited within 24 hours",
+  "pleaseWriteReviewMinChars": "Please write at least 10 characters",
+  "reviewSubmittedPending": "Review submitted! It will appear after approval.",
+  "addPhotosCount": "Add photos ({count}/6)",
+  "productQuality": "Product Quality",
+  "freshness": "Freshness",
+  "packaging": "Packaging",
+  "deliveryExperience": "Delivery Experience",
+  "valueForMoney": "Value for Money",
+  "yourReview": "Your review",
+  "verifiedPurchase": "Verified Purchase",
+  "sellerReply": "Seller reply",
+  "similarProducts": "Similar products",
+  "couldNotLoadSimilarProducts": "Couldn't load similar products",
+  "recentlyViewed": "Recently viewed",
+  "removedFromFavorites": "Removed from favorites",
+  "inviteMessageCopied": "Invite message copied",
+  "appDownloadLinkNotConfigured": "App download link not configured by Admin",
+  "nav_offers": "Offers",
+  "referAndEarn": "Refer & Earn",
+  "myReferralCode": "My Referral Code",
+  "referralRewards": "Referral rewards",
+  "referralStats": "Your referral stats",
+  "invitedFriends": "Invited Friends",
+  "ordered": "Ordered",
+  "earned": "Earned",
+  "referralComingSoon": "Referral Program Coming Soon",
+  "referralUnavailable": "Referral system unavailable",
+  "noConnection": "No connection",
+  "reorder": "Reorder",
+  "invoice": "Invoice",
+  "needHelp": "Need help",
+  "yourRider": "Your rider",
+  "riderSearching": "Searching for delivery partner…",
+  "orderDelivered": "Order delivered!",
+  "shareExperienceOptional": "Share your experience (optional)",
+  "clearCartTitle": "Clear cart?",
+  "clearCartBody": "All items will be removed from your bag.",
+  "clearAll": "Clear all",
+  "itemsInBag": "Items in bag",
+  "freeDeliveryUnlocked": "FREE delivery unlocked",
+  "removedUnavailableItems": "Removed {count} unavailable items",
+  "removeUnavailableToCheckout": "Some items are unavailable. Remove them to continue checkout.",
+  "someItemsUnavailableInBag": "Some items in your bag are unavailable — remove them to checkout",
+  "enterCouponCodeTitle": "Enter Coupon Code",
+  "viewAll": "View all",
+  "couponAppliedCheck": "Coupon Applied ✅",
+  "youSaved": "You saved ₹{amount}",
+  "bestCouponAvailable": "Best Coupon Available",
+  "noEligibleCoupons": "No eligible coupons for this cart",
+  "thankDeliveryPartner": "Thank Your Delivery Partner",
+  "addTipDescription": "Add a tip to appreciate your delivery partner",
+  "updatingTip": "Updating tip…",
+  "tipThankYou": "Thank you! ₹{amount} tip added successfully.",
+  "maxTip": "Maximum tip is ₹{amount}",
+  "paymentNotCompleted": "Payment was not completed.",
+  "couldNotUpdateTip": "Could not update tip. Please try again.",
+  "howWasDelivery": "How was your delivery?",
+  "orderSuccessful": "Order successful",
+  "goHome": "Go Home",
+  "visitAgain": "Visit again",
+  "noOrdersHereYet": "No orders here yet",
+  "couldNotLoadOrders": "Could not load orders",
+  "paid": "Paid",
+  "notPaid": "Not Paid",
+  "deliveryChargeLabel": "Delivery: ₹{amount}",
+  "fastDelivery": "Fast delivery",
+  "secure": "Secure",
+  "payments": "payments",
+  "noExchangeOrReturn": "No exchange or return",
+  "readMore": "Read more",
+  "readLess": "Read less",
+  "couldNotLoadReviewsShort": "Couldn't load reviews.",
+  "startShopping": "Start shopping",
+  "startExploringGroceries": "Start exploring fresh groceries!",
+  "latest": "Latest",
+  "highest": "Highest",
+  "lowest": "Lowest",
+  "withPhotos": "With photos",
+  "addTipAmount": "Add ₹{amount}",
+  "failedToRemoveProduct": "Failed to remove product",
+  "typeMessageHint": "Type your message…",
+  "needHelpWithOrder": "Need help with this order?",
+  "addedItemsToCart": "Added {count} items to your cart",
+  "trackOrderTitle": "Track order",
+  "done": "Done",
+  "firstOrderOffer": "First Order Offer",
+  "moreOffers": "More offers",
+  "firstOrder": "1st ORDER",
+  "minOrder": "Min order ₹{amount}",
+  "eligibleTapToApply": "Eligible · Tap to apply",
+  "availableCoupons": "Available Coupons",
+  "noCouponsAvailableNow": "No coupons available right now",
+  "cancelOrderAction": "Cancel Order",
+  "clearCartAction": "Clear",
+  "noCouponsRightNow": "No coupons right now",
+  "enterCouponCodeHint": "Enter coupon code",
+  "@coupon_applied_checkout": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "@helpfulCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@speechRecognitionError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@couldNotSaveProfile": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@couldNotGenerateInvoice": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@unexpectedError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@addPhotosCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@removedUnavailableItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@youSaved": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@tipThankYou": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@maxTip": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@deliveryChargeLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@addTipAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@addedItemsToCart": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@minOrder": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@coupon_copied": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "@coupons_available": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@items_in_category": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@onlyNItemsAvailable": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@resend_otp_in": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "@sorry_minimum_order": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@support_number": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/maintenance/domain/maintenance_config.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Coupons, offers, referral during downtime.
 class MaintenanceEngagementSection extends StatelessWidget {
@@ -28,7 +28,7 @@ class MaintenanceEngagementSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'maintenance_while_you_wait'.tr(),
+          context.l10n.maintenance_while_you_wait,
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w700,
             fontSize: 16,
@@ -40,28 +40,28 @@ class MaintenanceEngagementSection extends StatelessWidget {
           _Card(
             icon: Icons.local_offer_rounded,
             title: engagement.offerHeadline,
-            subtitle: 'maintenance_offers_hint'.tr(),
+            subtitle: context.l10n.maintenance_offers_hint,
             textColor: textColor,
           ),
         if (engagement.showCoupons && engagement.couponCodes.isNotEmpty)
           _Card(
             icon: Icons.confirmation_number_rounded,
-            title: 'maintenance_coupons'.tr(),
+            title: context.l10n.maintenance_coupons,
             subtitle: engagement.couponCodes.join(' · '),
             textColor: textColor,
           ),
         if (engagement.showReferral)
           _Card(
             icon: Icons.card_giftcard_rounded,
-            title: 'maintenance_referral'.tr(),
-            subtitle: 'maintenance_referral_hint'.tr(),
+            title: context.l10n.maintenance_referral,
+            subtitle: context.l10n.maintenance_referral_hint,
             textColor: textColor,
           ),
         if (engagement.showComingSoon)
           _Card(
             icon: Icons.shopping_bag_outlined,
-            title: 'maintenance_coming_soon'.tr(),
-            subtitle: 'maintenance_coming_soon_hint'.tr(),
+            title: context.l10n.maintenance_coming_soon,
+            subtitle: context.l10n.maintenance_coming_soon_hint,
             textColor: textColor,
           ),
       ],

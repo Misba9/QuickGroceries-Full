@@ -1,66 +1,57 @@
+import 'package:quickgrocery/l10n/app_localizations.dart';
+
 class AppValidations {
-  static String? validateEmail(String? email) {
+  static String? validateEmail(String? email, AppLocalizations l10n) {
     if (email == null || email.isEmpty) {
-      return 'Please enter an email address.';
+      return l10n.emailRequired;
     }
-    RegExp emailRegex = RegExp(
-        r'^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$');
+    final emailRegex = RegExp(
+      r'^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$',
+    );
     if (!emailRegex.hasMatch(email)) {
-      return 'Please enter a valid email address.';
+      return l10n.emailInvalid;
     }
     return null;
   }
 
-  static String? validatePassword(String? email) {
-    if (email == null) {
-      return 'Password is required';
+  static String? validatePassword(String? password, AppLocalizations l10n) {
+    if (password == null) {
+      return l10n.passwordRequired;
     }
-    if (email.length < 8) {
-      return 'Atleast 8 characters required';
+    if (password.length < 8) {
+      return l10n.passwordMinLength;
     }
     return null;
   }
 
-  static String? validateName(String? value) {
+  static String? validateName(String? value, AppLocalizations l10n) {
+    if (value == null || value.isEmpty) {
+      return l10n.nameRequired;
+    }
+    return null;
+  }
+
+  static String? validateMobile(String? value, AppLocalizations l10n) {
     if (value == null) {
-      return 'name is required';
-    }
-    if (value.isEmpty) {
-      return 'name is required';
-    }
-
-    return null;
-  }
-
-  static String? validateMobile(String? value) {
-    if (value == null) {
-      return 'phone number is required';
+      return l10n.phoneRequired;
     }
     if (value.length < 10) {
-      return 'Enter valid mobile number';
-    }
-
-    return null;
-  }
-
-  static String? validateHouse(String? value) {
-    if (value == null) {
-      return 'Address is required';
-    }
-    if (value.isEmpty) {
-      return 'Address is required';
+      return l10n.enterValidMobile;
     }
     return null;
   }
 
-  static String? validateArea(String? value) {
-    if (value == null) {
-      return 'Area or road name is required';
+  static String? validateHouse(String? value, AppLocalizations l10n) {
+    if (value == null || value.isEmpty) {
+      return l10n.addressRequired;
     }
-    if (value.isEmpty) {
-      return 'Area or road name is required';
-    }
+    return null;
+  }
 
+  static String? validateArea(String? value, AppLocalizations l10n) {
+    if (value == null || value.isEmpty) {
+      return l10n.areaRequired;
+    }
     return null;
   }
 }

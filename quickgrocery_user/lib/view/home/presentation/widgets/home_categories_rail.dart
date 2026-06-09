@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +16,7 @@ import 'package:quickgrocery/view/home/presentation/widgets/home_status_views.da
 import 'package:quickgrocery/view/app_content/presentation/providers/app_content_extensions.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Horizontal category chips — Blinkit-style rail.
 class HomeCategoriesRail extends ConsumerWidget {
@@ -40,7 +40,7 @@ class HomeCategoriesRail extends ConsumerWidget {
         SectionHeader(
           title: appContent.shopCategoryHeading,
           isLoading: contentLoading,
-          actionLabel: 'see_all'.tr(),
+          actionLabel: context.l10n.see_all,
           onAction: () => legacy.Provider.of<HomeProvider>(
             context,
             listen: false,

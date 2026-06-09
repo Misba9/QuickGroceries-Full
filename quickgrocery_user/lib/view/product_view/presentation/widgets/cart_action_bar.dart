@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,6 +11,7 @@ import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart
 import 'package:quickgrocery/view/product_view/presentation/providers/quantity_provider.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/fly_to_cart_animation.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/quantity_selector.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Bottom action bar for the product details screen.
 ///
@@ -59,8 +59,9 @@ class _CartActionBarState extends ConsumerState<CartActionBar> {
       showTopErrorToast(
         context,
         widget.product.isOutOfStock
-            ? InventoryLimitMessages.outOfStock
+            ? InventoryLimitMessages.outOfStock(context.l10n)
             : InventoryLimitMessages.incrementBlocked(
+                l10n: context.l10n,
                 stock: widget.product.stock,
                 maxOrder: widget.product.maxOrder,
                 currentCount: qty,
@@ -72,7 +73,7 @@ class _CartActionBarState extends ConsumerState<CartActionBar> {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('item_added_to_cart'.tr()),
+          content: Text(context.l10n.item_added_to_cart),
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
@@ -178,6 +179,7 @@ class _CartActionBarState extends ConsumerState<CartActionBar> {
                   showTopErrorToast(
                     context,
                     InventoryLimitMessages.incrementBlocked(
+                      l10n: context.l10n,
                       stock: widget.product.stock,
                       maxOrder: widget.product.maxOrder,
                       currentCount: qty,

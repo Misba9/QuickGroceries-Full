@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,6 +11,7 @@ import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/recently_viewed_provider.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// "Picked for you" rail. Personalizes via:
 ///   1. Recently viewed product ids (Step 2).
@@ -76,7 +76,7 @@ class RecommendationsSection extends ConsumerWidget {
     add(featuredList);
     add(trendingList);
 
-    final title = sectionTitle ?? 'picked_for_you'.tr();
+    final title = sectionTitle ?? context.l10n.picked_for_you;
 
     if (out.isEmpty && (featured.isLoading || trending.isLoading)) {
       return Padding(

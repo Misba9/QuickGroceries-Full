@@ -1,9 +1,9 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/cart/services/cart_service.dart';
 import 'package:provider/provider.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class CartBottomBarWidget extends StatelessWidget {
   const CartBottomBarWidget({super.key, required this.amount});
@@ -59,7 +59,7 @@ class CartBottomBarWidget extends StatelessWidget {
                   child: Row(
                     children: [
                       Text(
-                        'place_order'.tr(),
+                        context.l10n.place_order,
                         style: TextStyle(color: Colors.white),
                       ),
                       Icon(Icons.arrow_forward, color: Colors.white),

@@ -1,7 +1,7 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class NotActiveScreen extends StatefulWidget {
   const NotActiveScreen({super.key});
@@ -22,7 +22,7 @@ class _NotActiveScreenState extends State<NotActiveScreen> {
           children: [
             Center(
               child: Text(
-                'we_are_closed'.tr(),
+                context.l10n.we_are_closed,
                 style: TextStyle(
                   fontSize: 18,
                   color: AppColor.primary,
@@ -31,7 +31,7 @@ class _NotActiveScreenState extends State<NotActiveScreen> {
               ),
             ),
             AppSpacing.h10,
-            Text('store_offline_message'.tr(), textAlign: TextAlign.center),
+            Text(context.l10n.store_offline_message, textAlign: TextAlign.center),
           ],
         ),
       ),

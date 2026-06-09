@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:developer';
 import 'dart:ui';
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geocoding/geocoding.dart';
@@ -16,6 +15,7 @@ import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class _SearchHit {
   const _SearchHit({
@@ -324,7 +324,7 @@ class _LocationPickerState extends State<LocationPicker> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'select_delivery_location'.tr(),
+                    context.l10n.select_delivery_location,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
@@ -485,7 +485,7 @@ class _LocationPickerState extends State<LocationPicker> {
                                   },
                                   decoration: InputDecoration(
                                     hintText:
-                                        'search_delivery_location_hint'.tr(),
+                                        context.l10n.search_delivery_location_hint,
                                     prefixIcon: const Icon(Icons.search_rounded),
                                     border: InputBorder.none,
                                     contentPadding: const EdgeInsets.symmetric(
@@ -587,9 +587,8 @@ class _LocationPickerState extends State<LocationPicker> {
                                       Text(
                                         _gate ==
                                                 _LocationGate.servicesDisabled
-                                            ? 'location_services_off'.tr()
-                                            : 'location_permission_needed'
-                                                .tr(),
+                                            ? context.l10n.location_services_off
+                                            : context.l10n.location_permission_needed,
                                         textAlign: TextAlign.center,
                                         style: Theme.of(context)
                                             .textTheme
@@ -602,8 +601,8 @@ class _LocationPickerState extends State<LocationPicker> {
                                       Text(
                                         _gate ==
                                                 _LocationGate.servicesDisabled
-                                            ? 'location_services_off_body'.tr()
-                                            : 'location_permission_body'.tr(),
+                                            ? context.l10n.location_services_off_body
+                                            : context.l10n.location_permission_body,
                                         textAlign: TextAlign.center,
                                         style: Theme.of(context)
                                             .textTheme
@@ -628,7 +627,7 @@ class _LocationPickerState extends State<LocationPicker> {
                                             size: 20,
                                           ),
                                           label: Text(
-                                            'open_location_settings'.tr(),
+                                            context.l10n.open_location_settings,
                                           ),
                                         )
                                       else if (_gate ==
@@ -648,7 +647,7 @@ class _LocationPickerState extends State<LocationPicker> {
                                             Icons.app_settings_alt_outlined,
                                             size: 20,
                                           ),
-                                          label: Text('open_app_settings'.tr()),
+                                          label: Text(context.l10n.open_app_settings),
                                         )
                                       else
                                         FilledButton.icon(
@@ -662,7 +661,7 @@ class _LocationPickerState extends State<LocationPicker> {
                                             Icons.refresh_rounded,
                                             size: 20,
                                           ),
-                                          label: Text('retry_location'.tr()),
+                                          label: Text(context.l10n.retry_location),
                                         ),
                                       const SizedBox(height: 10),
                                       TextButton(
@@ -671,7 +670,7 @@ class _LocationPickerState extends State<LocationPicker> {
                                             () => _gate = _LocationGate.none,
                                           );
                                         },
-                                        child: Text('cancel'.tr()),
+                                        child: Text(context.l10n.cancel),
                                       ),
                                     ],
                                   ),
@@ -727,7 +726,7 @@ class _LocationPickerState extends State<LocationPicker> {
                                         const SizedBox(width: 10),
                                         Expanded(
                                           child: Text(
-                                            'updating_address'.tr(),
+                                            context.l10n.updating_address,
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodyMedium,
@@ -737,7 +736,7 @@ class _LocationPickerState extends State<LocationPicker> {
                                     )
                                   : Text(
                                       addr.address.isEmpty
-                                          ? 'move_map_hint'.tr()
+                                          ? context.l10n.move_map_hint
                                           : addr.address,
                                       key: ValueKey(addr.address),
                                       style: Theme.of(context)
@@ -768,7 +767,7 @@ class _LocationPickerState extends State<LocationPicker> {
                                 );
                               },
                         child: Text(
-                          'confirm_location'.tr(),
+                          context.l10n.confirm_location,
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 16,

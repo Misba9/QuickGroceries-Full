@@ -1,8 +1,8 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class NoServiceableAreaScreen extends StatelessWidget {
   const NoServiceableAreaScreen({super.key});
@@ -21,7 +21,7 @@ class NoServiceableAreaScreen extends StatelessWidget {
               Icon(Icons.location_off, size: 100, color: Colors.grey[400]),
               const SizedBox(height: 24),
               Text(
-                'service_not_available'.tr(),
+                context.l10n.service_not_available,
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -31,7 +31,7 @@ class NoServiceableAreaScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'service_not_available_message'.tr(),
+                context.l10n.service_not_available_message,
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: Colors.grey[600]),
               ),
@@ -48,7 +48,7 @@ class NoServiceableAreaScreen extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  'change_location'.tr(),
+                  context.l10n.change_location,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,

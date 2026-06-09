@@ -75,7 +75,6 @@ dependencies:
   flutter_map: ^8.2.2
   razorpay_flutter: ^1.4.0
   connectivity_plus: ^6.0.5
-  easy_localization: ^3.0.5
   video_player: ^2.9.1
   firebase_app_check: ^0.3.2+10
   pdf: ^3.11.1
@@ -110,6 +109,7 @@ icons_launcher:
 
 # The following section is specific to Flutter packages.
 flutter:
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
@@ -121,7 +121,6 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/lottie/
-    - assets/translations/
     - android/app/google-services.json
 
   # An image asset can refer to one or more resolution-specific "variants", see

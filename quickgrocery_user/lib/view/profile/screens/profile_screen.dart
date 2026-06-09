@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -12,6 +11,7 @@ import 'package:quickgrocery/view/profile/presentation/providers/profile_provide
 import 'package:quickgrocery/view/profile/presentation/widgets/profile_section_safe.dart';
 import 'package:quickgrocery/view/profile/presentation/widgets/profile_sections.dart';
 import 'package:quickgrocery/view/refer/screens/refer_screen.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Premium Blinkit/Zepto-style account dashboard.
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -87,7 +87,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           data: (profile) {
             final resolved = _resolveProfile(profile);
             if (resolved == null) {
-              return Center(child: Text('profile'.tr()));
+              return Center(child: Text(context.l10n.profile));
             }
 
             return RefreshIndicator(

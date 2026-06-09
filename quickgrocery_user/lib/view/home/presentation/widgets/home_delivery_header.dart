@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,6 +20,7 @@ import 'package:quickgrocery/constants/home_branding.dart';
 import 'package:quickgrocery/view/app_content/presentation/widgets/animated_app_heading.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Pinned Blinkit/Zepto-style delivery strip + quick actions.
 class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
@@ -405,7 +405,7 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
                                 ),
                               )
                             : Text(
-                                'mark_all_read'.tr(),
+                                context.l10n.mark_all_read,
                                 style: GoogleFonts.poppins(
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w700,

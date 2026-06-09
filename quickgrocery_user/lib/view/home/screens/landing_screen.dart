@@ -1,49 +1,54 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart' as legacy;
+import 'package:quickgrocery/core/localization/locale_provider.dart';
+import 'package:quickgrocery/core/navigation/home_tab_observer.dart';
 import 'package:quickgrocery/core/widgets/premium_five_tab_nav.dart';
 import 'package:quickgrocery/maintenance/presentation/widgets/maintenance_gate.dart';
-import 'package:quickgrocery/services/language_service.dart';
 import 'package:quickgrocery/view/delivery/presentation/delivery_pricing_update_listener.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/offers/presentation/widgets/promotion_popup_bootstrap.dart';
 
-class LandingScreen extends StatefulWidget {
+class LandingScreen extends ConsumerStatefulWidget {
   const LandingScreen({super.key});
 
   @override
-  State<LandingScreen> createState() => _LandingScreenState();
+  ConsumerState<LandingScreen> createState() => _LandingScreenState();
 }
 
-class _LandingScreenState extends State<LandingScreen> {
+class _LandingScreenState extends ConsumerState<LandingScreen> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    HomeTabObserver.selectedIndexListenable.value =
+        legacy.Provider.of<HomeProvider>(context, listen: false).selectedIndex;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Consumer<LanguageService>(
-      builder: (context, languageService, _) {
-        final localeKey = languageService.currentLocale.toLanguageTag();
+    final localeKey = ref.watch(localeProvider).toLanguageTag();
 
-        return MaintenanceGate(
-          child: Consumer<HomeProvider>(
-            builder: (context, provider, _) {
-              return Scaffold(
-                body: DeliveryPricingUpdateListener(
-                  child: PromotionPopupBootstrap(
-                    child: IndexedStack(
-                      key: ValueKey(localeKey),
-                      index: provider.selectedIndex,
-                      children: provider.pages,
-                    ),
-                  ),
+    return MaintenanceGate(
+      child: legacy.Consumer<HomeProvider>(
+        builder: (context, provider, _) {
+          return Scaffold(
+            body: DeliveryPricingUpdateListener(
+              child: PromotionPopupBootstrap(
+                child: IndexedStack(
+                  key: ValueKey<String>('tabs-$localeKey'),
+                  index: provider.selectedIndex,
+                  children: provider.pages,
                 ),
-                bottomNavigationBar: PremiumFiveTabNav(
-                  key: ValueKey('nav-$localeKey'),
-                  currentIndex: provider.selectedIndex,
-                  onTap: provider.onSelectedChange,
-                ),
-              );
-            },
-          ),
-        );
-      },
+              ),
+            ),
+            bottomNavigationBar: PremiumFiveTabNav(
+              key: ValueKey<String>('nav-$localeKey'),
+              currentIndex: provider.selectedIndex,
+              onTap: provider.onSelectedChange,
+            ),
+          );
+        },
+      ),
     );
   }
 }

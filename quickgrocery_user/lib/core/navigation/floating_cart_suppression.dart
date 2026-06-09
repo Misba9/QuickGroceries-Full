@@ -22,7 +22,6 @@ class FloatingCartSuppression {
 
   /// Clears a stuck suppression counter (e.g. after a popped route failed to release).
   static void reset() {
-    if (_depth == 0) return;
     _depth = 0;
     depthListenable.value = 0;
   }

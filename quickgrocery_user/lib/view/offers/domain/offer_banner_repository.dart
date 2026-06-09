@@ -118,6 +118,25 @@ class OfferBannerRepository {
     });
   }
 
+  Future<List<OfferBannerModel>> fetchHomeExploreOffers({
+    required List<BannerModel> adminBanners,
+  }) async {
+    try {
+      final offerSnap = await _service.fetchOfferBanners();
+      final fromOffers = _mapOffers(offerSnap)
+          .where((o) =>
+              o.showOnHomepage && o.showInHomeExplore && o.hasPromoMedia)
+          .toList();
+      final fromAdmin = _fromAdminBanners(adminBanners)
+          .where((o) =>
+              o.showOnHomepage && o.showInHomeExplore && o.hasPromoMedia)
+          .toList();
+      return _mergeAdminThenOffers(fromAdmin, fromOffers);
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<void> trackView(OfferBannerModel offer) =>
       _service.incrementMetric(offer, click: false);
 

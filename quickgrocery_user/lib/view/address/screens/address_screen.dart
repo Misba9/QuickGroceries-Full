@@ -1,5 +1,4 @@
 import 'package:animate_do/animate_do.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,6 +13,7 @@ import 'package:quickgrocery/view/checkout/widgets/address_card.dart';
 import 'package:quickgrocery/view/checkout/widgets/checkout_bottom_bar.dart';
 import 'package:quickgrocery/view/checkout/widgets/empty_address_widget.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Premium address book — saved addresses with select / edit / swipe-delete.
 class AddressScreen extends StatefulWidget {
@@ -102,7 +102,7 @@ class _AddressScreenState extends State<AddressScreen> {
         builder: (context, p, _) {
           final hasAddr = (p.addresses?.isNotEmpty ?? false);
           return CheckoutBottomBar(
-            label: 'continue_label'.tr(),
+            label: context.l10n.continue_label,
             enabled: hasAddr,
             isLoading: false,
             onPressed: () {
@@ -139,7 +139,7 @@ class _Header extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              'addresses_title'.tr(),
+              context.l10n.addresses_title,
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -189,7 +189,7 @@ class _AddNewTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    'add_address'.tr(),
+                    context.l10n.add_address,
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w800,
                       fontSize: 14,

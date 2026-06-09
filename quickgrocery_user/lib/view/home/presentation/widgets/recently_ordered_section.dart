@@ -203,8 +203,8 @@ class _ReorderButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cart = legacy.Provider.of<CategoryService>(context);
-    final canAdd = canonical != null;
-    final product = canonical!;
+    final product = canonical;
+    final canAdd = product != null;
     final inCart = canAdd &&
         (ref.watch(cartProvider).items.any((e) => e.productId == product.id) ||
             cart.selectedProduct.any((p) => p.id == product.id));

@@ -1,5 +1,4 @@
 import 'package:animate_do/animate_do.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +40,7 @@ import 'package:quickgrocery/view/delivery_tips/services/delivery_tip_service.da
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/payment/services/payment_service.dart';
 import 'package:quickgrocery/view/app_content/presentation/providers/app_content_extensions.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -390,7 +390,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         hasAddr && bill.meetsMinimumOrder && !oos && checkout.slot != null;
 
     String? barHint() {
-      if (!hasAddr) return 'please_add_address'.tr();
+      if (!hasAddr) return context.l10n.please_add_address;
       if (oos) return 'Some items are out of stock';
       if (!bill.meetsMinimumOrder) {
         final delta = (bill.minimumOrderValue - bill.subtotal).clamp(
@@ -648,7 +648,7 @@ class _CheckoutHeader extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              'checkout'.tr(),
+              context.l10n.checkout,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
@@ -705,7 +705,7 @@ class _DeliverToSection extends StatelessWidget {
               onPressed: onAdd,
               icon: const Icon(Icons.add_rounded, size: 18),
               label: Text(
-                'add_address'.tr(),
+                context.l10n.add_address,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
@@ -743,7 +743,7 @@ class _DeliveryEtaCard extends ConsumerWidget {
     return _MiniCard(
       icon: Icons.schedule_rounded,
       iconColor: AppSurface.success,
-      title: 'delivery_eta_title'.tr(),
+      title: context.l10n.delivery_eta_title,
       subtitle: slot != null ? '$deliveryEta · ${slot!.label}' : deliveryEta,
     );
   }

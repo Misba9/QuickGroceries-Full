@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 
@@ -8,19 +9,23 @@ import 'package:quickgrocery/core/design/app_tokens.dart';
 class HomeSectionErrorCard extends StatelessWidget {
   const HomeSectionErrorCard({
     super.key,
-    this.title = 'Unable to load data',
-    this.subtitle = 'Check your connection and try again.',
+    this.title,
+    this.subtitle,
     required this.onRetry,
     this.minHeight = 120,
   });
 
-  final String title;
-  final String subtitle;
+  final String? title;
+  final String? subtitle;
   final VoidCallback onRetry;
   final double minHeight;
 
   @override
   Widget build(BuildContext context) {
+    final resolvedTitle = title ?? context.l10n.something_went_wrong;
+    final resolvedSubtitle =
+        subtitle ?? context.l10n.maintenance_offline;
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: AppMotion.medium,
@@ -45,7 +50,7 @@ class HomeSectionErrorCard extends StatelessWidget {
             Icon(Icons.cloud_sync_rounded, size: 30, color: Colors.grey.shade600),
             const SizedBox(height: 8),
             Text(
-              title,
+              resolvedTitle,
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 13.5,
@@ -55,7 +60,7 @@ class HomeSectionErrorCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              subtitle,
+              resolvedSubtitle,
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 12,
@@ -67,7 +72,7 @@ class HomeSectionErrorCard extends StatelessWidget {
             FilledButton.tonalIcon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Retry'),
+              label: Text(context.l10n.retry),
               style: FilledButton.styleFrom(
                 foregroundColor: AppColor.primary,
                 backgroundColor: Colors.white,

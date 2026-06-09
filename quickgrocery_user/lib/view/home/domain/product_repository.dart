@@ -52,6 +52,16 @@ class ProductRepository {
         .handleError(_throwHomeFailure('Failed to load featured products.'));
   }
 
+  Future<List<ProductModel>> fetchFeatured({int limit = 12}) async {
+    try {
+      final snap = await _service.fetchFeatured(limit: limit);
+      return _mapSnapshot(snap, onlyAvailable: true, label: 'featured');
+    } catch (e) {
+      logHomeProducts('fetchFeatured error: $e');
+      return const [];
+    }
+  }
+
   Stream<List<ProductModel>> watchFlashSale({int limit = 16}) {
     return _service
         .watchFlashSale(limit: limit)

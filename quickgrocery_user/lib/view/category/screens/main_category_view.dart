@@ -1,5 +1,4 @@
 import 'package:animate_do/animate_do.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,6 +29,7 @@ import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart'
 import 'package:quickgrocery/view/home/presentation/widgets/home_banner_video_rail.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/recommendations_section.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Categories discovery screen — premium animated grocery experience.
 ///
@@ -112,10 +112,10 @@ class _MainCategoryViewScreenState
                       topContent: const _Greeting(),
                       searchBar: AppSearchBar(
                         hints: [
-                          'search_hint_milk'.tr(),
-                          'search_hint_bread'.tr(),
-                          'search_hint_snacks'.tr(),
-                          'search_hint_fruits'.tr(),
+                          context.l10n.search_hint_milk,
+                          context.l10n.search_hint_bread,
+                          context.l10n.search_hint_snacks,
+                          context.l10n.search_hint_fruits,
                         ],
                         onTap: () =>
                             Navigator.push(context, AppPageRoutes.search()),
@@ -135,7 +135,7 @@ class _MainCategoryViewScreenState
                       child: Padding(
                         padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 6),
                         child: HomeBannerVideoRail(
-                          title: 'category_promo_video_title'.tr(),
+                          title: context.l10n.category_promo_video_title,
                           snapPaging: true,
                         ),
                       ),
@@ -165,8 +165,8 @@ class _MainCategoryViewScreenState
                       child: Padding(
                         padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 0),
                         child: FeaturedProductsSection(
-                          title: 'popular_near_you'.tr(),
-                          subtitle: 'popular_near_you_sub'.tr(),
+                          title: context.l10n.popular_near_you,
+                          subtitle: context.l10n.popular_near_you_sub,
                           icon: Icons.near_me_rounded,
                           provider: trendingProductsStreamProvider,
                           maxItems: 14,
@@ -178,7 +178,7 @@ class _MainCategoryViewScreenState
                         padding: EdgeInsets.fromLTRB(gutter, 2, gutter, 0),
                         child: RecommendationsSection(
                           maxItems: 14,
-                          sectionTitle: 'recommended_products'.tr(),
+                          sectionTitle: context.l10n.recommended_products,
                         ),
                       ),
                     ),
@@ -253,7 +253,7 @@ class _Greeting extends ConsumerWidget {
                     child: Text(
                       addressService.address.isEmpty ||
                               addressService.address == 'Loading...'
-                          ? 'pick_address_short'.tr()
+                          ? context.l10n.pick_address_short
                           : addressService.address,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -281,7 +281,7 @@ class _Greeting extends ConsumerWidget {
               ),
             ),
             child: Text(
-              '$categoryCount ${'categories_pill'.tr()}',
+              '$categoryCount ${context.l10n.categories_pill}',
               style: GoogleFonts.poppins(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w700,

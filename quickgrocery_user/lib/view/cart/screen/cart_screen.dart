@@ -1,5 +1,4 @@
 import 'package:animate_do/animate_do.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -27,6 +26,7 @@ import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/coupons/coupon_screen.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 /// **CartScreen** — premium Zepto / Blinkit / Instamart-style bag.
 ///
 /// **Layout architecture (the user explicitly asked for this):**
@@ -359,6 +359,7 @@ class _CartBody extends StatelessWidget {
                         showTopErrorToast(
                           context,
                           InventoryLimitMessages.incrementBlocked(
+                            l10n: context.l10n,
                             stock: item.stock,
                             maxOrder: item.maxOrder,
                             currentCount: item.itemCount,
@@ -546,7 +547,7 @@ class _YouMightAlsoLikeRail extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'you_might_also_like'.tr(),
+                      context.l10n.you_might_also_like,
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,

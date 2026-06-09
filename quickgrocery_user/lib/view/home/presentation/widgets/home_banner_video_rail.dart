@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +18,7 @@ import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart'
 import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Full-width promo strip for admin-uploaded MP4 banners (`banners/`).
 ///
@@ -321,8 +321,8 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
   String _ctaLabel() {
     final b = widget.banner;
     if (b.ctaLabel.trim().isNotEmpty) return b.ctaLabel.trim();
-    if (b.hasRedirect) return 'shop_now_cta'.tr();
-    return 'explore_cta'.tr();
+    if (b.hasRedirect) return context.l10n.shop_now_cta;
+    return context.l10n.explore_cta;
   }
 
   @override
@@ -435,7 +435,7 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
                                 behavior: SnackBarBehavior.floating,
                                 margin: const EdgeInsets.all(14),
                                 content: Text(
-                                  'promo_more_soon'.tr(),
+                                  context.l10n.promo_more_soon,
                                   style: GoogleFonts.poppins(),
                                 ),
                               ),

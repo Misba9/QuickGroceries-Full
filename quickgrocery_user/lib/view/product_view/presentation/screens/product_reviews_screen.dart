@@ -8,6 +8,7 @@ import 'package:quickgrocery/models/rating_model.dart';
 import 'package:quickgrocery/view/product_view/data/review_api_client.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
 import 'package:quickgrocery/view/product_view/presentation/screens/write_review_screen.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_review_widget.dart';
 
 enum ReviewSort { latest, highest, lowest, withPhotos }
@@ -40,11 +41,11 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete review?'),
-        content: const Text('This cannot be undone.'),
+        title: Text(ctx.l10n.deleteReviewTitle),
+        content: Text(ctx.l10n.deleteReviewBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.l10n.cancel)),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(ctx.l10n.delete)),
         ],
       ),
     );
@@ -53,7 +54,7 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
       await _api.deleteReview(r.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Review deleted')),
+          SnackBar(content: Text(context.l10n.reviewDeleted)),
         );
       }
     } catch (e) {
@@ -89,10 +90,10 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
     final summary = ref.watch(ratingSummaryProvider(widget.product.id));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ratings & Reviews')),
+      appBar: AppBar(title: Text(context.l10n.ratingsAndReviews)),
       body: ratingsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const Center(child: Text('Failed to load reviews')),
+        error: (_, __) => Center(child: Text(context.l10n.failedToLoadReviews)),
         data: (ratings) {
           final sorted = _sorted(ratings);
           final withPhotos = ratings
@@ -112,7 +113,7 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
               ),
               if (withPhotos.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                Text('Customer photos', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
+                Text(context.l10n.customerPhotos, style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 SizedBox(
                   height: 88,
@@ -138,10 +139,10 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
                 child: Row(
                   children: ReviewSort.values.map((s) {
                     final label = switch (s) {
-                      ReviewSort.latest => 'Latest',
-                      ReviewSort.highest => 'Highest',
-                      ReviewSort.lowest => 'Lowest',
-                      ReviewSort.withPhotos => 'With photos',
+                      ReviewSort.latest => context.l10n.latest,
+                      ReviewSort.highest => context.l10n.highest,
+                      ReviewSort.lowest => context.l10n.lowest,
+                      ReviewSort.withPhotos => context.l10n.withPhotos,
                     };
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
@@ -157,9 +158,9 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
               ),
               const SizedBox(height: 12),
               if (sorted.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(child: Text('No reviews match this filter')),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(child: Text(context.l10n.noReviewsMatchFilter)),
                 )
               else
                 ...sorted.map(

@@ -16,6 +16,12 @@ class OfferBannerService {
     return _firestore.collection(collection).snapshots();
   }
 
+  Future<QuerySnapshot<Map<String, dynamic>>> fetchOfferBanners() {
+    return _firestore
+        .collection(collection)
+        .get(const GetOptions(source: Source.serverAndCache));
+  }
+
   Stream<DocumentSnapshot<Map<String, dynamic>>> watchPromotionSettings() {
     return _firestore.doc(settingsDocPath).snapshots();
   }

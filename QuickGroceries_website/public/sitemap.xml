@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml"
+  xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+
+  <!-- ========================================
+       PRIORITY PAGES - MAIN ENTRY POINTS
+       ======================================== -->
+
+  <!-- Homepage - Highest Priority -->
+  <url>
+    <loc>https://quickgroceries.in/</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Primary Service Pages -->
+  <url>
+    <loc>https://quickgroceries.in/services</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://quickgroceries.in/how-it-works</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://quickgroceries.in/features</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Download Page - High Engagement -->
+  <url>
+    <loc>https://quickgroceries.in/download</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+
+  <!-- Local SEO Pages -->
+  <url>
+    <loc>https://quickgroceries.in/quick-grocery-delivery-bhongir</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Business Partnership Pages -->
+  <url>
+    <loc>https://quickgroceries.in/PartnerWithUs</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://quickgroceries.in/delivery-partner</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- ========================================
+       INFORMATIONAL PAGES
+       ======================================== -->
+
+  <url>
+    <loc>https://quickgroceries.in/about</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://quickgroceries.in/testimonials</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://quickgroceries.in/safety</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://quickgroceries.in/help</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- ========================================
+       BLOG & CONTENT PAGES
+       ======================================== -->
+
+  <url>
+    <loc>https://quickgroceries.in/blog</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Blog Post: Future of Quick Commerce -->
+  <url>
+    <loc>https://quickgroceries.in/blog/future-of-quick-commerce-india</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Blog Post: Business Model -->
+  <url>
+    <loc>https://quickgroceries.in/blog/grocery-delivery-business-model</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Blog Post: Dark Stores -->
+  <url>
+    <loc>https://quickgroceries.in/blog/how-dark-stores-work</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Blog Post: Partner Earnings -->
+  <url>
+    <loc>https://quickgroceries.in/blog/delivery-partner-earnings</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Blog Post: Startup Guide -->
+  <url>
+    <loc>https://quickgroceries.in/blog/quick-commerce-startup</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Blog Post: Healthy Shopping -->
+  <url>
+    <loc>https://quickgroceries.in/blog/healthy-grocery-shopping</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- ========================================
+       LOCATION-BASED PAGES (LOCAL SEO)
+       ======================================== -->
+
+  <url>
+    <loc>https://quickgroceries.in/locations/bhongir-grocery-delivery</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://quickgroceries.in/locations/telangana-grocery-delivery</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- ========================================
+       PRODUCT CATEGORY PAGES
+       ======================================== -->
+
+  <url>
+    <loc>https://quickgroceries.in/products/fresh-vegetables</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://quickgroceries.in/products/fresh-fruits</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://quickgroceries.in/products/dairy-bakery</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://quickgroceries.in/products/daily-essentials</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- ========================================
+       LEGAL & POLICY PAGES
+       ======================================== -->
+
+  <url>
+    <loc>https://quickgroceries.in/privacy</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <url>
+    <loc>https://quickgroceries.in/terms</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- ========================================
+       SERVICE AREA PAGES & CITY LANDING PAGES
+       ======================================== -->
+
+  <url>
+    <loc>https://quickgroceries.in/fresh-vegetables-fruits-bhongir</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://quickgroceries.in/dairy-bakery-products-bhongir</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://quickgroceries.in/daily-essentials-bhongir</loc>
+    <lastmod>2026-02-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+</urlset>

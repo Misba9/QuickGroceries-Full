@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quickgrocery/l10n/app_localizations.dart';
+import 'package:quickgrocery/core/localization/app_locales.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:quickgrocery/core/inventory/inventory_limit_messages.dart';
@@ -13,19 +15,24 @@ class OrderInventoryValidator {
   final FirebaseFirestore _firestore;
 
   /// Returns a user-facing error message, or null when every line is valid.
-  Future<String?> validateLines(List<CartItem> items) async {
-    final result = await validateCheckout(items);
+  Future<String?> validateLines(
+    List<CartItem> items, {
+    AppLocalizations? l10n,
+  }) async {
+    final result = await validateCheckout(items, l10n: l10n);
     return result.errorMessage;
   }
 
   Future<CheckoutValidationResult> validateCheckout(
-    List<CartItem> items,
-  ) async {
+    List<CartItem> items, {
+    AppLocalizations? l10n,
+  }) async {
+    final strings = l10n ?? lookupAppLocalizations(AppLocales.fallback);
     if (items.isEmpty) {
-      return const CheckoutValidationResult(
-        products: [],
-        vendors: [],
-        errorMessage: 'Your cart is empty',
+      return CheckoutValidationResult(
+        products: const [],
+        vendors: const [],
+        errorMessage: strings.cartEmptyMessage,
       );
     }
 
@@ -85,7 +92,7 @@ class OrderInventoryValidator {
       if (line.itemCount > max) {
         final label = product.name.isEmpty ? line.name : product.name;
         error ??=
-            '$label: ${InventoryLimitMessages.incrementBlocked(stock: product.stock, maxOrder: product.maxOrder, currentCount: max)}';
+            '$label: ${InventoryLimitMessages.incrementBlocked(l10n: strings, stock: product.stock, maxOrder: product.maxOrder, currentCount: max)}';
       }
 
       if (product.minOrderQuantity > 0 &&

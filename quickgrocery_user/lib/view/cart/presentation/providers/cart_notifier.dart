@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quickgrocery/core/inventory/inventory_limits.dart';
+import 'package:quickgrocery/core/startup/app_startup_log.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/realtime/models/inventory_snapshot.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_feedback_provider.dart';
@@ -74,6 +75,18 @@ class CartNotifier extends Notifier<CartState> {
   bool _disposed = false;
   String? _uid;
 
+  /// Monotonic counter bumped on every local cart mutation. Compared with
+  /// [_syncedRevision] so stale Firestore snapshots cannot overwrite in-flight
+  /// adds before the debounced flush completes (common on real devices).
+  int _localRevision = 0;
+  int _syncedRevision = 0;
+
+  bool get _hasUnsyncedLocalChanges => _localRevision > _syncedRevision;
+
+  void _markLocalMutation() {
+    _localRevision++;
+  }
+
   static const _calc = PricingCalculator();
 
   static const bool _cartDiagLogs = true;
@@ -81,6 +94,10 @@ class CartNotifier extends Notifier<CartState> {
   void _trace(String message) {
     if (!_cartDiagLogs) return;
     developer.log(message, name: 'CartNotifier');
+  }
+
+  void _markCartReady() {
+    _trace('listener attached uid=$_uid items=${state.items.length}');
   }
 
   @override
@@ -109,6 +126,7 @@ class CartNotifier extends Notifier<CartState> {
 
   void _initSubscriptions() {
     if (_disposed) return;
+    AppStartupLog.log('CartNotifier subscriptions starting');
     _bootPricing();
     _bootAuth();
   }
@@ -136,6 +154,7 @@ class CartNotifier extends Notifier<CartState> {
           .map(CartItem.fromProduct)
           .toList(growable: false);
       state = state.copyWith(items: next, clearError: true);
+      _markLocalMutation();
       _recomputeBill();
       _scheduleSync();
     }
@@ -172,6 +191,15 @@ class CartNotifier extends Notifier<CartState> {
 
   void _onUserChanged(User? user) {
     if (_disposed) return;
+
+    // Firebase Auth can emit a transient null while restoring a persisted
+    // session on cold start (physical Android release). Never wipe local cart
+    // state in that window.
+    if (user == null && FirebaseAuth.instance.currentUser != null) {
+      _trace('ignore transient auth null (currentUser still set)');
+      return;
+    }
+
     final uid = user?.uid;
     if (_uid == uid) return;
     _uid = uid;
@@ -180,6 +208,8 @@ class CartNotifier extends Notifier<CartState> {
     if (uid == null) {
       // Signed-out → clear everything but don't error.
       state = CartState.empty;
+      _localRevision = 0;
+      _syncedRevision = 0;
       _replaceLegacyItems(const []);
       return;
     }
@@ -198,11 +228,20 @@ class CartNotifier extends Notifier<CartState> {
         );
       },
     );
+    _markCartReady();
+    AppStartupLog.log('CartNotifier user bound', 'uid=$uid');
   }
 
   void _onRemoteSnapshot(CartSnapshotData? snap) {
     if (_disposed) return;
     final ourClientId = ref.read(cartClientIdProvider);
+
+    if (_hasUnsyncedLocalChanges) {
+      _trace(
+        'ignore remote snapshot: unsynced local rev=$_localRevision synced=$_syncedRevision',
+      );
+      return;
+    }
 
     if (snap == null) {
       if (state.items.isNotEmpty) _replaceLegacyItems(const []);
@@ -230,6 +269,10 @@ class CartNotifier extends Notifier<CartState> {
     );
     _replaceLegacyItems(snap.items);
     _recomputeBill();
+    _syncedRevision = _localRevision;
+    _trace(
+      'remote applied: lines=${snap.items.length} clientId=${snap.clientId}',
+    );
   }
 
   // ── Legacy bridge ────────────────────────────────────────────────────
@@ -262,6 +305,7 @@ class CartNotifier extends Notifier<CartState> {
       return;
     }
     state = state.copyWith(items: next, clearError: true);
+    _markLocalMutation();
     _recomputeBill();
     _scheduleSync();
   }
@@ -319,6 +363,7 @@ class CartNotifier extends Notifier<CartState> {
     if (isNewLine) {
       _feedbackSuccess('Item added to cart');
     }
+    AppStartupLog.log('CartNotifier addProduct', 'units=${state.totalUnits}');
     _trace(
       'addProduct: id=${product.id} qty=${items.where((e) => e.productId == product.id).firstOrNull?.itemCount ?? 0} totalUnits=${state.totalUnits}',
     );
@@ -491,6 +536,7 @@ class CartNotifier extends Notifier<CartState> {
   void applyCoupon(AppliedCoupon coupon) {
     if (_disposed) return;
     state = state.copyWith(coupon: coupon, clearError: true);
+    _markLocalMutation();
     _recomputeBill();
     _scheduleSync();
   }
@@ -520,12 +566,14 @@ class CartNotifier extends Notifier<CartState> {
   void removeCoupon() {
     if (_disposed) return;
     state = state.copyWith(clearCoupon: true);
+    _markLocalMutation();
     _recomputeBill();
     _scheduleSync();
   }
 
   Future<void> clear() async {
     if (_disposed) return;
+    _markLocalMutation();
     state = state.copyWith(items: const [], clearCoupon: true);
     _recomputeBill();
     _replaceLegacyItems(const []);
@@ -536,6 +584,7 @@ class CartNotifier extends Notifier<CartState> {
 
     try {
       await ref.read(cartRepositoryProvider).clear(uid);
+      if (!_disposed) _syncedRevision = _localRevision;
     } catch (e) {
       if (_disposed) return;
       if (kDebugMode) debugPrint('Cart clear failed: $e');
@@ -613,12 +662,13 @@ class CartNotifier extends Notifier<CartState> {
   }
 
   void _writeLocal(List<CartItem> items) {
+    _markLocalMutation();
     state = state.copyWith(items: items, clearError: true);
     _replaceLegacyItems(items);
     _recomputeBill();
     _scheduleSync();
     _trace(
-      'writeLocal: lines=${state.items.length} units=${state.totalUnits} total=${state.bill.total.toStringAsFixed(2)}',
+      'writeLocal: rev=$_localRevision lines=${state.items.length} units=${state.totalUnits} total=${state.bill.total.toStringAsFixed(2)}',
     );
   }
 
@@ -648,6 +698,10 @@ class CartNotifier extends Notifier<CartState> {
     if (state.items.isEmpty) {
       try {
         await ref.read(cartRepositoryProvider).clear(uid);
+        if (!_disposed) {
+          _syncedRevision = _localRevision;
+          _trace('flush clear ok: synced rev=$_syncedRevision');
+        }
       } catch (e) {
         if (kDebugMode) debugPrint('Cart clear (flush) failed: $e');
       }
@@ -664,7 +718,9 @@ class CartNotifier extends Notifier<CartState> {
             clientId: ref.read(cartClientIdProvider),
           );
       if (_disposed) return;
+      _syncedRevision = _localRevision;
       state = state.copyWith(isSyncing: false, clearError: true);
+      _trace('flush ok: synced rev=$_syncedRevision units=${state.totalUnits}');
     } catch (e) {
       if (_disposed) return;
       if (kDebugMode) debugPrint('Cart sync failed: $e');

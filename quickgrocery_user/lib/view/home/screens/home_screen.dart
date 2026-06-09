@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as legacy;
@@ -40,6 +39,7 @@ import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
 import 'package:quickgrocery/view/home/screens/no_serviceable_area_screen.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Home screen — Step 5 premium iteration.
 ///
@@ -87,23 +87,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _bootstrapLegacyServices() {
-    final homeProvider = legacy.Provider.of<HomeProvider>(
-      context,
-      listen: false,
-    );
     final addressService = legacy.Provider.of<AddressService>(
       context,
       listen: false,
     );
-    final categoryService = legacy.Provider.of<CategoryService>(
-      context,
-      listen: false,
-    );
-
-    homeProvider.getCustomer();
-    homeProvider.updateAdminFcmToken();
-    homeProvider.getStatus();
-    categoryService.fetchProducts();
 
     addressService.addListener(_onAddressChanged);
     Future.microtask(() async {
@@ -422,7 +409,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
                   child: _LegacyRail(
-                    title: 'epic_price_drop_items'.tr(),
+                    title: context.l10n.epic_price_drop_items,
                     specialCat: 'Epic price drop items',
                   ),
                 ),
@@ -431,7 +418,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
                   child: _LegacyRail(
-                    title: 'big_deals_on_beauty_products'.tr(),
+                    title: context.l10n.big_deals_on_beauty_products,
                     specialCat: 'Big deals on beauty products',
                   ),
                 ),
@@ -652,7 +639,7 @@ class _ServiceabilityLoading extends StatelessWidget {
             children: [
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
-              Text('checking_service_availability'.tr()),
+              Text(context.l10n.checking_service_availability),
             ],
           ),
         ),

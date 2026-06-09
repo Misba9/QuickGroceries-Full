@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class CouponScreen extends StatefulWidget {
   const CouponScreen({super.key});
@@ -32,7 +32,7 @@ class _CouponScreenState extends State<CouponScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title: Text('coupons'.tr()),
+        title: Text(context.l10n.coupons),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -65,7 +65,7 @@ class _CouponScreenState extends State<CouponScreen> {
                   var coupons = snapshot.data!.docs;
 
                   if (coupons.isEmpty) {
-                    return Center(child: Text('no_coupons_available'.tr()));
+                    return Center(child: Text(context.l10n.no_coupons_available));
                   }
 
                   return ListView.builder(

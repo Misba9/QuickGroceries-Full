@@ -17,6 +17,7 @@ import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_image_carousel.dart'
     show productHeroTag;
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 
 /// Modern, Zepto/Blinkit-style product card used by every home rail and
@@ -124,7 +125,7 @@ class HomeProductCard extends ConsumerWidget {
                       ),
                       onMaxReached: () => showTopErrorToast(
                         context,
-                        maxQuantityMessageFor(product),
+                        maxQuantityMessageFor(context, product),
                       ),
                       onDecrement: () {
                         ref.read(cartProvider.notifier).decrement(product.id);
@@ -459,7 +460,7 @@ class _CartControl extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
-          'OUT OF STOCK',
+          context.l10n.outOfStock,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(

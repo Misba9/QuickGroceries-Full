@@ -7,6 +7,7 @@ import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
 import 'package:quickgrocery/view/cart/data/coupon_service.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 
@@ -48,8 +49,8 @@ class _CouponScreenState extends ConsumerState<CouponScreen> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Coupon applied successfully'),
+      SnackBar(
+        content: Text(context.l10n.couponAppliedSuccess),
         backgroundColor: Colors.green,
       ),
     );
@@ -66,7 +67,7 @@ class _CouponScreenState extends ConsumerState<CouponScreen> {
         : cart.items.fold(0.0, (a, i) => a + i.lineTotal);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Coupons & Offers')),
+      appBar: AppBar(title: Text(context.l10n.couponsAndOffers)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(15),
@@ -99,7 +100,7 @@ class _CouponScreenState extends ConsumerState<CouponScreen> {
                       ),
                       TextButton(
                         onPressed: notifier.removeCoupon,
-                        child: const Text('Remove'),
+                        child: Text(context.l10n.remove),
                       ),
                     ],
                   ),
@@ -134,7 +135,7 @@ class _CouponScreenState extends ConsumerState<CouponScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Apply'),
+                        : Text(context.l10n.apply),
                   ),
                 ],
               ),
@@ -143,7 +144,7 @@ class _CouponScreenState extends ConsumerState<CouponScreen> {
                 child: couponsAsync.when(
                   data: (list) {
                     if (list.isEmpty) {
-                      return const Center(child: Text('No coupons right now'));
+                      return Center(child: Text(context.l10n.noCouponsRightNow));
                     }
 
                     final sorted = [...list]
@@ -208,7 +209,7 @@ class _CouponScreenState extends ConsumerState<CouponScreen> {
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
                   error: (_, __) =>
-                      const Center(child: Text('Failed to load coupons')),
+                      Center(child: Text(context.l10n.could_not_load_coupons)),
                 ),
               ),
               PrimaryButton(

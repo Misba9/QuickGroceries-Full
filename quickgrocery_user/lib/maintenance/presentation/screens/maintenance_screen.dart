@@ -1,6 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,6 +10,7 @@ import 'package:quickgrocery/maintenance/presentation/providers/maintenance_prov
 import 'package:quickgrocery/maintenance/presentation/widgets/maintenance_countdown.dart';
 import 'package:quickgrocery/maintenance/presentation/widgets/maintenance_engagement_section.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Premium maintenance UI — Blinkit/Zomato-inspired gradient + Lottie.
 class MaintenanceScreen extends ConsumerWidget {
@@ -26,7 +26,7 @@ class MaintenanceScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(maintenanceRefreshProvider);
-    final locale = context.locale.toString();
+    final locale = Localizations.localeOf(context).toString();
     final config = status.config;
     final isDark = config.theme == 'dark';
     final reopen = status.effectiveReopen ?? config.reopenTime;
@@ -132,7 +132,7 @@ class MaintenanceScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   if (config.showRetryButton)
                     _ActionButton(
-                      label: 'maintenance_retry'.tr(),
+                      label: context.l10n.maintenance_retry,
                       icon: Icons.refresh_rounded,
                       onPressed: () {
                         ref.invalidate(maintenanceConfigStreamProvider);
@@ -144,7 +144,7 @@ class MaintenanceScreen extends ConsumerWidget {
                   if (config.showSupportButton) ...[
                     const SizedBox(height: 12),
                     _ActionButton(
-                      label: 'maintenance_contact_support'.tr(),
+                      label: context.l10n.maintenance_contact_support,
                       icon: Icons.support_agent_rounded,
                       onPressed: () => _contactSupport(config.supportPhone, config.supportEmail),
                       filled: false,
@@ -304,7 +304,7 @@ class _ConnectivityBanner extends ConsumerWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'maintenance_offline'.tr(),
+              context.l10n.maintenance_offline,
               style: GoogleFonts.poppins(fontSize: 13, color: fg),
             ),
           ),

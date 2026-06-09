@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:quickgrocery/core/startup/app_bootstrap_controller.dart';
 import 'package:quickgrocery/models/offer_banner_model.dart';
 import 'package:quickgrocery/view/offers/presentation/providers/offer_providers.dart';
 import 'package:quickgrocery/view/offers/presentation/widgets/promotion_startup_sheet.dart';
 
 const String _kPromotionPopupLastShownMs = 'promotion_popup_last_shown_ms';
 
-/// Shows the promotional bottom sheet once eligible data loads (after splash /
-/// permissions), respecting admin frequency rules.
+/// Shows the promotional bottom sheet once bootstrap + offer data are ready.
 class PromotionPopupBootstrap extends ConsumerStatefulWidget {
   const PromotionPopupBootstrap({super.key, required this.child});
 
@@ -26,41 +26,43 @@ class _PromotionPopupBootstrapState extends ConsumerState<PromotionPopupBootstra
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleAttempts());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleAttempt());
   }
 
-  Future<void> _scheduleAttempts() async {
-    if (_attempted) return;
-    for (var i = 0; i < 12; i++) {
-      if (!mounted) return;
-      final done = await _tryShowPopup();
-      if (done) {
-        _attempted = true;
-        return;
-      }
-      await Future<void>.delayed(Duration(milliseconds: 280 + i * 40));
-    }
-    _attempted = true;
+  void _scheduleAttempt() {
+    if (_attempted || !mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _tryShowPopup());
   }
 
-  /// Returns true when we should stop retrying (shown, disabled, throttled, or empty).
-  Future<bool> _tryShowPopup() async {
+  Future<void> _tryShowPopup() async {
+    if (_attempted || !mounted) return;
+    if (!ref.read(appBootstrapCompleteProvider)) return;
+
     final settings = ref.read(promotionPopupSettingsProvider).valueOrNull;
-    if (settings == null) return false;
+    if (settings == null) return;
 
-    if (!settings.enabled) return true;
+    if (!settings.enabled) {
+      _attempted = true;
+      return;
+    }
 
     final prefs = await SharedPreferences.getInstance();
     final lastMs = prefs.getInt(_kPromotionPopupLastShownMs) ?? 0;
     if (lastMs > 0) {
       final last = DateTime.fromMillisecondsSinceEpoch(lastMs);
       final gap = Duration(hours: settings.frequencyHours);
-      if (DateTime.now().difference(last) < gap) return true;
+      if (DateTime.now().difference(last) < gap) {
+        _attempted = true;
+        return;
+      }
     }
 
     final offers = ref.read(popupEligibleOffersProvider).valueOrNull;
-    if (offers == null) return false;
-    if (offers.isEmpty) return true;
+    if (offers == null) return;
+    if (offers.isEmpty) {
+      _attempted = true;
+      return;
+    }
 
     OfferBannerModel? pick;
     final pinned = settings.pinnedOfferId.trim();
@@ -79,7 +81,8 @@ class _PromotionPopupBootstrapState extends ConsumerState<PromotionPopupBootstra
       DateTime.now().millisecondsSinceEpoch,
     );
 
-    if (!mounted) return true;
+    if (!mounted) return;
+    _attempted = true;
 
     await showPromotionStartupSheet(
       context: context,
@@ -88,9 +91,20 @@ class _PromotionPopupBootstrapState extends ConsumerState<PromotionPopupBootstra
       autoCloseSeconds:
           pick.popupAutoCloseSeconds ?? settings.autoCloseSeconds,
     );
-    return true;
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    ref.listen<bool>(appBootstrapCompleteProvider, (prev, next) {
+      if (next) _scheduleAttempt();
+    });
+    ref.listen(promotionPopupSettingsProvider, (prev, next) {
+      if (next.hasValue) _scheduleAttempt();
+    });
+    ref.listen(popupEligibleOffersProvider, (prev, next) {
+      if (next.hasValue) _scheduleAttempt();
+    });
+
+    return widget.child;
+  }
 }

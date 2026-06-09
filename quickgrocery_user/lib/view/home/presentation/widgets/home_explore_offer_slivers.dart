@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,6 +11,7 @@ import 'package:quickgrocery/view/home/presentation/widgets/home_status_views.da
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/offers/presentation/widgets/offer_promo_video_card.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Builds explore header + injected offer videos after every **two** product
 /// rows, driven by [offer_banners] (`showOnHomepage` + `showInHomeExplore`).
@@ -31,7 +31,7 @@ List<Widget> buildHomeExploreOfferSlivers({
       SliverToBoxAdapter(
         child: Padding(
           padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 0),
-          child: SectionHeader(title: 'explore_products'.tr()),
+          child: SectionHeader(title: context.l10n.explore_products),
         ),
       ),
       SliverToBoxAdapter(
@@ -45,7 +45,7 @@ List<Widget> buildHomeExploreOfferSlivers({
       SliverToBoxAdapter(
         child: Padding(
           padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 0),
-          child: SectionHeader(title: 'explore_products'.tr()),
+          child: SectionHeader(title: context.l10n.explore_products),
         ),
       ),
       SliverToBoxAdapter(
@@ -66,7 +66,7 @@ List<Widget> buildHomeExploreOfferSlivers({
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 0),
-              child: SectionHeader(title: 'explore_products'.tr()),
+              child: SectionHeader(title: context.l10n.explore_products),
             ),
           ),
           SliverToBoxAdapter(
@@ -87,7 +87,7 @@ List<Widget> buildHomeExploreOfferSlivers({
         SliverToBoxAdapter(
           child: Padding(
             padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 0),
-            child: SectionHeader(title: 'explore_products'.tr()),
+            child: SectionHeader(title: context.l10n.explore_products),
           ),
         ),
       ];

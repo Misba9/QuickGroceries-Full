@@ -28,4 +28,12 @@ class HomeBannerService {
     if (limit != null && limit > 0) query = query.limit(limit);
     return query.snapshots();
   }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> fetchActiveBanners({
+    int? limit,
+  }) {
+    Query<Map<String, dynamic>> query = _ref;
+    if (limit != null && limit > 0) query = query.limit(limit);
+    return query.get(const GetOptions(source: Source.serverAndCache));
+  }
 }

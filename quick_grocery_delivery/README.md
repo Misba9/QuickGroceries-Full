@@ -12,6 +12,8 @@ cd quickgrocery_delivery/
 flutter clean
 flutter pub get
 flutter run
+
+flutter run --release -d RZCTA0V0LBF
 ```
 
 ## Build APK (Android)
@@ -20,6 +22,7 @@ flutter run
 flutter clean
 flutter pub get
 flutter build apk --release
+
 ```
 Output: `build/app/outputs/flutter-apk/app-release.apk`
 

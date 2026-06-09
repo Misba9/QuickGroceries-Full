@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+    <!-- Location-Based Sitemap for Local SEO -->
+    <!-- Targeting Bhongir, Telangana and surrounding areas -->
+
+    <!-- Main City Landing Page -->
+    <url>
+        <loc>https://quickgroceries.in/locations/bhongir-grocery-delivery</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.9</priority>
+    </url>
+
+    <!-- State-Level Page -->
+    <url>
+        <loc>https://quickgroceries.in/locations/telangana-grocery-delivery</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <!-- Bhongir - Products & Categories -->
+    <url>
+        <loc>https://quickgroceries.in/bhongir/vegetables-delivery</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <url>
+        <loc>https://quickgroceries.in/bhongir/fruits-delivery</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <url>
+        <loc>https://quickgroceries.in/bhongir/dairy-products</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <url>
+        <loc>https://quickgroceries.in/bhongir/bakery-items</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <url>
+        <loc>https://quickgroceries.in/bhongir/daily-essentials</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <!-- Bhongir - Neighborhood Pages for Hyper-Local Targeting -->
+    <url>
+        <loc>https://quickgroceries.in/bhongir/old-bhongir-grocery-delivery</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://quickgroceries.in/bhongir/new-bhongir-grocery-delivery</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://quickgroceries.in/bhongir/bhongir-market-area-delivery</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://quickgroceries.in/bhongir/bhongir-railway-station-area</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.6</priority>
+    </url>
+
+    <!-- Competitive Keywords - Bhongir -->
+    <url>
+        <loc>https://quickgroceries.in/bhongir/best-grocery-stores-bhongir</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://quickgroceries.in/bhongir/grocery-shops-near-me</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://quickgroceries.in/bhongir/online-supermarket-bhongir</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <!-- Service Area - Quick Commerce targeting -->
+    <url>
+        <loc>https://quickgroceries.in/bhongir/quick-grocery-pickup</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://quickgroceries.in/bhongir/midnight-grocery-delivery</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.6</priority>
+    </url>
+
+    <!-- Seasonal/Special Pages -->
+    <url>
+        <loc>https://quickgroceries.in/bhongir/organic-groceries-delivery</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.7</priority>
+    </url>
+
+    <url>
+        <loc>https://quickgroceries.in/bhongir/bulk-grocery-order-bhongir</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.6</priority>
+    </url>
+
+    <!-- Telangana - Expansion pages -->
+    <url>
+        <loc>https://quickgroceries.in/telangana/fast-grocery-delivery</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+
+    <url>
+        <loc>https://quickgroceries.in/telangana/quick-commerce-services</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+
+</urlset>

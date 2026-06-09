@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/user/search_history_store.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
@@ -10,6 +9,7 @@ import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -65,7 +65,7 @@ class _SearchScreenState extends State<SearchScreen> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Speech recognition error: ${error.errorMsg}'),
+              content: Text(context.l10n.speechRecognitionError(error.errorMsg)),
               backgroundColor: Colors.red,
             ),
           );
@@ -84,8 +84,8 @@ class _SearchScreenState extends State<SearchScreen> {
     if (status != PermissionStatus.granted) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Microphone permission is required for voice search'),
+          SnackBar(
+            content: Text(context.l10n.microphonePermissionRequired),
             backgroundColor: Colors.red,
           ),
         );
@@ -96,8 +96,8 @@ class _SearchScreenState extends State<SearchScreen> {
     if (!_isSpeechAvailable) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Speech recognition is not available on this device'),
+          SnackBar(
+            content: Text(context.l10n.speechRecognitionUnavailable),
             backgroundColor: Colors.red,
           ),
         );
@@ -149,7 +149,7 @@ class _SearchScreenState extends State<SearchScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title: Text('search'.tr()),
+        title: Text(context.l10n.search),
       ),
       body: SafeArea(
         bottom: false,
@@ -165,7 +165,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     autofocus: true,
                     focusNode: _focusNode,
                     controller: _searchController,
-                    hints: ['search'.tr()],
+                    hints: [context.l10n.search],
                     onChanged: provider.searchProducts,
                     onSubmitted: _runSearch,
                     onMicTap: _startListening,
@@ -217,7 +217,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           LottieBuilder.asset('assets/lottie/no_data.json'),
-                          Text('no_filtered_products'.tr()),
+                          Text(context.l10n.no_filtered_products),
                         ],
                       ),
                     ),

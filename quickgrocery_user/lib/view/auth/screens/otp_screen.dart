@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pinput/pinput.dart';
@@ -9,6 +8,7 @@ import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
 import 'package:quickgrocery/view/auth/widgets/pinput_sms_retriever.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class OtpAuthScreen extends StatefulWidget {
   static String route = 'otpScreen';
@@ -199,7 +199,7 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
               ),
               const SizedBox(height: 24),
               Text(
-                'please_type_verification_code'.tr(),
+                context.l10n.please_type_verification_code,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleMedium?.copyWith(
                   height: 1.35,
@@ -210,7 +210,7 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('to'.tr(), style: theme.textTheme.bodyLarge),
+                  Text(context.l10n.to, style: theme.textTheme.bodyLarge),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
@@ -286,7 +286,7 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
                 duration: const Duration(milliseconds: 200),
                 child: _invalidOtp
                     ? Text(
-                        'invalid_otp'.tr(),
+                        context.l10n.invalid_otp,
                         key: const ValueKey('err'),
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodyMedium?.copyWith(
@@ -301,10 +301,8 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
                 onPressed: (_canResend && !verifying) ? _onResend : null,
                 child: Text(
                   _canResend
-                      ? 'resend'.tr()
-                      : 'resend_otp_in'.tr(
-                          namedArgs: {'seconds': '$_resendCountdown'},
-                        ),
+                      ? context.l10n.resend
+                      : context.l10n.resend_otp_in(_resendCountdown),
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: _canResend ? primary : theme.colorScheme.onSurfaceVariant,
@@ -316,7 +314,7 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'dont_receive_otp'.tr(),
+                    context.l10n.dont_receive_otp,
                     style: theme.textTheme.bodySmall,
                   ),
                 ],

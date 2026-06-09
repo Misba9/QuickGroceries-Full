@@ -1,10 +1,10 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/wishlist/services/wishlist_service.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class WishlistScreen extends StatefulWidget {
   const WishlistScreen({super.key});
@@ -32,7 +32,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title: Text('wishlist'.tr()),
+        title: Text(context.l10n.wishlist),
       ),
       body: wishlistProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -45,7 +45,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                   LottieBuilder.asset('assets/lottie/no_data.json'),
                   AppSpacing.h20,
                   Text(
-                    'No items in wishlist'.tr(),
+                    context.l10n.wishlistEmpty,
                     style: const TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                 ],

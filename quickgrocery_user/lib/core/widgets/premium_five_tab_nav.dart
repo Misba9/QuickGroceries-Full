@@ -1,10 +1,10 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/widgets/global_floating_cart_widget.dart';
 
 import '../design/app_tokens.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Bottom navigation: Home, Categories, **Offers FAB**, Orders, Profile.
 class PremiumFiveTabNav extends StatelessWidget {
@@ -65,7 +65,7 @@ class PremiumFiveTabNav extends StatelessWidget {
                     children: [
                       Expanded(
                         child: _SideTab(
-                          label: 'nav_home'.tr(),
+                          label: context.l10n.nav_home,
                           icon: Icons.home_outlined,
                           activeIcon: Icons.home_rounded,
                           selected: currentIndex == 0,
@@ -75,7 +75,7 @@ class PremiumFiveTabNav extends StatelessWidget {
                       ),
                       Expanded(
                         child: _SideTab(
-                          label: 'nav_categories'.tr(),
+                          label: context.l10n.nav_categories,
                           icon: Icons.grid_view_outlined,
                           activeIcon: Icons.grid_view_rounded,
                           selected: currentIndex == 1,
@@ -86,7 +86,7 @@ class PremiumFiveTabNav extends StatelessWidget {
                       const SizedBox(width: 76),
                       Expanded(
                         child: _SideTab(
-                          label: 'nav_orders'.tr(),
+                          label: context.l10n.nav_orders,
                           icon: Icons.receipt_long_outlined,
                           activeIcon: Icons.receipt_long_rounded,
                           selected: currentIndex == 3,
@@ -96,7 +96,7 @@ class PremiumFiveTabNav extends StatelessWidget {
                       ),
                       Expanded(
                         child: _SideTab(
-                          label: 'nav_profile'.tr(),
+                          label: context.l10n.nav_profile,
                           icon: Icons.person_outline_rounded,
                           activeIcon: Icons.person_rounded,
                           selected: currentIndex == 4,

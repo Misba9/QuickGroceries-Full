@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply font-sans antialiased;
+  }
+  
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}
+
+@layer components {
+  .gradient-primary {
+    @apply bg-gradient-to-br from-primary-600 to-primary-700;
+  }
+  
+  .gradient-accent {
+    @apply bg-gradient-to-r from-accent-500 to-accent-600;
+  }
+  
+  /* New gradient for fresh/organic look */
+  .gradient-fresh {
+    @apply bg-gradient-to-r from-primary-500 to-primary-600;
+  }
+  
+  /* Enhanced text gradient for better visual impact */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-600 to-primary-700;
+  }
+  
+  /* New text gradient for headings */
+  .text-gradient-hero {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-500 via-accent-600 to-primary-700;
+  }
+  
+  /* Enhanced shadow for better depth */
+  .shadow-glow {
+    box-shadow: 0 0 30px rgba(15, 107, 75, 0.35);
+  }
+  
+  /* New glow effect for interactive elements */
+  .shadow-glow-hover {
+    box-shadow: 0 0 20px rgba(15, 107, 75, 0.5);
+  }
+  
+  .container-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+}
+
+@layer utilities {
+  .animate-on-scroll {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  
+  .animate-on-scroll.visible {
+    animation: slideUp 0.6s ease-out forwards;
+  }
+  
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+}

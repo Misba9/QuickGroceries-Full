@@ -2,32 +2,34 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:easy_localization/easy_localization.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:quickgrocery/core/firebase/firebase_app_check_bootstrap.dart';
-import 'package:quickgrocery/core/firebase/firebase_phone_auth_bootstrap.dart';
 import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/firebase/firebase_app_check_bootstrap.dart';
 import 'package:quickgrocery/core/firebase/firebase_bootstrap.dart';
+import 'package:quickgrocery/core/firebase/firebase_phone_auth_bootstrap.dart';
 import 'package:quickgrocery/core/firestore/firestore_retry.dart';
+import 'package:quickgrocery/core/startup/app_bootstrap_shell.dart';
+import 'package:quickgrocery/core/startup/shared_preferences_provider.dart';
 import 'package:quickgrocery/core/widgets/startup_failure_screen.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/l10n/app_localizations.dart';
 // Riverpod and `package:provider` both export `ChangeNotifierProvider`
 // and `Consumer`. Restrict Riverpod to `ProviderScope` here so the legacy
 // Provider symbols remain unambiguous everywhere else in the app.
 import 'package:flutter_riverpod/flutter_riverpod.dart'
-    show ProviderScope, Consumer;
+    show ProviderScope, Consumer, ConsumerWidget, WidgetRef;
 import 'package:quickgrocery/core/design/app_theme.dart';
+import 'package:quickgrocery/core/localization/locale_provider.dart';
 import 'package:quickgrocery/core/localization/app_locales.dart';
+import 'package:quickgrocery/core/startup/app_startup_log.dart';
 import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 import 'package:quickgrocery/core/navigation/app_route_observer.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/realtime/realtime_bootstrap.dart';
-import 'package:quickgrocery/services/language_service.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
-import 'package:quickgrocery/view/auth/auth_gate.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/services/cart_service.dart';
@@ -43,9 +45,7 @@ import 'package:quickgrocery/view/wishlist/services/wishlist_service.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/cart_bootstrap.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/global_cart_overlay.dart';
 import 'package:provider/provider.dart' hide Consumer;
-import 'package:provider/provider.dart' as legacy_provider show Consumer;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'view/home/screens/landing_screen.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -145,25 +145,33 @@ void _configureProductionErrorPresentation() {
 
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppStartupLog.markAppStart();
 
   try {
     await initializeFirebaseWithRetry();
-    // Realtime layer needs offline persistence configured BEFORE any
-    // Firestore handle is acquired; configure first so the very first
-    // listener inherits the right cache settings.
+    AppStartupLog.milestone('Firebase initialized');
     RealtimeBootstrap.configureFirestore();
     await configureFirebaseAppCheck();
     await configureFirebasePhoneAuth();
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    // Initialize EasyLocalization
-    await EasyLocalization.ensureInitialized();
-    await FcmBootstrap.configure();
-
     _configureProductionErrorPresentation();
 
+    await FcmBootstrap.configure();
+
+    final prefs = await SharedPreferences.getInstance();
+    AppStartupLog.milestone('Preferences loaded');
+
     handleReferralAfterInstall();
-    runApp(const ProviderScope(child: MyApp()));
+    AppStartupLog.log('runApp');
+    runApp(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+        ],
+        child: const MyApp(),
+      ),
+    );
   } catch (e, st) {
     FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
     runApp(
@@ -201,103 +209,60 @@ Future<void> main() async {
   );
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locale = ref.watch(localeProvider);
 
-class _MyAppState extends State<MyApp> {
-  @override
-  Widget build(BuildContext context) {
-    final pref = SharedPreferences.getInstance();
-    return FutureBuilder<SharedPreferences>(
-      future: pref,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const MaterialApp(
-            home: Scaffold(body: Center(child: CircularProgressIndicator())),
-          );
-        }
-
-        final savedLanguageCode =
-            snapshot.data!.getString('selected_language_code') ?? 'en';
-        final savedCountryCode =
-            snapshot.data!.getString('selected_country_code') ?? 'US';
-
-        final startLocale = AppLocales.fromPreference(
-          savedLanguageCode,
-          savedCountryCode,
-        );
-
-        return MultiProvider(
-          providers: [
-            ChangeNotifierProvider(create: (context) => AuthService()),
-            ChangeNotifierProvider(create: (context) => HomeProvider()),
-            ChangeNotifierProvider(create: (context) => CategoryService()),
-            ChangeNotifierProvider(create: (context) => ProductViewService()),
-            ChangeNotifierProvider(create: (context) => CartService()),
-            ChangeNotifierProvider(create: (context) => AddressService()),
-            ChangeNotifierProvider(create: (context) => OrderService()),
-            ChangeNotifierProvider(create: (context) => PaymentService()),
-            ChangeNotifierProvider(create: (context) => TrackingService()),
-            ChangeNotifierProvider(create: (context) => SearchService()),
-            ChangeNotifierProvider(create: (context) => ProfileService()),
-            ChangeNotifierProvider(create: (context) => LanguageService()),
-            ChangeNotifierProvider(create: (context) => DeliveryZoneService()),
-            ChangeNotifierProvider(create: (context) => WishlistService()),
-          ],
-          child: EasyLocalization(
-            supportedLocales: AppLocales.supported,
-            path: 'assets/translations',
-            fallbackLocale: AppLocales.fallback,
-            startLocale: startLocale,
-            useOnlyLangCode: false,
-            child: legacy_provider.Consumer<LanguageService>(
-              builder: (context, languageService, _) {
-                final locale = context.locale;
-                return Builder(
-                  builder: (context) => MaterialApp(
-                    navigatorKey: rootNavigatorKey,
-                    localizationsDelegates: context.localizationDelegates,
-                    supportedLocales: context.supportedLocales,
-                    locale: locale,
-                    debugShowCheckedModeBanner: false,
-                    title: 'QuickGrocery',
-                    theme: AppTheme.light(),
-                    builder: (context, child) {
-                      return Directionality(
-                        textDirection: AppLocales.isRtl(locale)
-                            ? ui.TextDirection.rtl
-                            : ui.TextDirection.ltr,
-                        child: GlobalCartOverlay(
-                          child: child ?? const SizedBox.shrink(),
-                        ),
-                      );
-                    },
-                    navigatorObservers: [appRouteObserver],
-                    home: Consumer(
-                      builder: (context, ref, _) {
-                        return RealtimeBootstrap(
-                          child: CartBootstrap(
-                            child: StreamBuilder(
-                              stream: FirebaseAuth.instance.authStateChanges(),
-                              builder: (context, userSnp) {
-                                return const AuthGate();
-                              },
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                );
-              },
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => AuthService()),
+        ChangeNotifierProvider(create: (context) => HomeProvider()),
+        ChangeNotifierProvider(create: (context) => CategoryService()),
+        ChangeNotifierProvider(create: (context) => ProductViewService()),
+        ChangeNotifierProvider(create: (context) => CartService()),
+        ChangeNotifierProvider(create: (context) => AddressService()),
+        ChangeNotifierProvider(create: (context) => OrderService()),
+        ChangeNotifierProvider(create: (context) => PaymentService()),
+        ChangeNotifierProvider(create: (context) => TrackingService()),
+        ChangeNotifierProvider(create: (context) => SearchService()),
+        ChangeNotifierProvider(create: (context) => ProfileService()),
+        ChangeNotifierProvider(create: (context) => DeliveryZoneService()),
+        ChangeNotifierProvider(create: (context) => WishlistService()),
+      ],
+      child: MaterialApp(
+        navigatorKey: rootNavigatorKey,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: locale,
+        localeListResolutionCallback: (locales, supported) {
+          if (locales == null || locales.isEmpty) {
+            return AppLocales.fallback;
+          }
+          return AppLocales.resolve(locales.first);
+        },
+        debugShowCheckedModeBanner: false,
+        title: 'QuickGrocery',
+        theme: AppTheme.light(),
+        builder: (context, child) {
+          return Directionality(
+            textDirection: AppLocales.isRtl(locale)
+                ? ui.TextDirection.rtl
+                : ui.TextDirection.ltr,
+            child: GlobalCartOverlay(
+              child: child ?? const SizedBox.shrink(),
             ),
+          );
+        },
+        navigatorObservers: [appRouteObserver],
+        home: const RealtimeBootstrap(
+          child: CartBootstrap(
+            child: AppBootstrapShell(),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

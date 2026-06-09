@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/startup/app_bootstrap_shell.dart';
 import 'package:quickgrocery/core/user/user_profile_repository.dart';
-import 'package:quickgrocery/view/home/screens/landing_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
@@ -31,10 +31,7 @@ class _CustomerDetailsAddScreenState extends State<CustomerDetailsAddScreen> {
         final complete =
             await UserProfileRepository().isProfileComplete(uid);
         if (complete && mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const LandingScreen()),
-          );
+          AppBootstrapShell.markOnboardingComplete(context);
           return;
         }
       }

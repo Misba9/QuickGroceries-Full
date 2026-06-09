@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as legacy_provider;
+import 'package:quickgrocery/core/startup/app_startup_log.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/delivery_location/services/delivery_zone_service.dart';
 
+import '../providers/cart_bootstrap_state.dart';
 import '../providers/cart_notifier.dart';
 import 'cart_inventory_listener.dart';
 
@@ -15,16 +18,6 @@ import 'cart_inventory_listener.dart';
 ///   • `DeliveryZoneService` — read by [zoneDeliveryProvider].
 ///
 /// Place once **below** `MultiProvider` (e.g., wrapping `MaterialApp.home`).
-///
-/// Implementation notes:
-///   - The attach is performed in [didChangeDependencies] (legal access to
-///     inherited providers) but the actual `ref.read(...)` calls are
-///     wrapped in [WidgetsBinding.addPostFrameCallback] so the cart
-///     notifier's [build] has already returned before any of its public
-///     methods are invoked. This is what avoids the
-///     "Tried to read the state of an uninitialized provider" error in
-///     edge cases where the bootstrap mounts before the very first frame.
-///   - `[_attached]` makes the wiring idempotent across rebuilds.
 class CartBootstrap extends ConsumerStatefulWidget {
   const CartBootstrap({super.key, required this.child});
 
@@ -35,42 +28,52 @@ class CartBootstrap extends ConsumerStatefulWidget {
 }
 
 class _CartBootstrapState extends ConsumerState<CartBootstrap> {
-  bool _attached = false;
+  bool _attachScheduled = false;
+  int _attachAttempts = 0;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_attached) return;
-    _attached = true;
+    _scheduleAttach();
+  }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      try {
-        // Bridge legacy CategoryService.
-        final legacy =
-            legacy_provider.Provider.of<CategoryService>(context, listen: false);
-        // Materialize the cart notifier (runs build → schedules its own
-        // post-frame initialization).
-        ref.read(cartProvider);
-        ref.read(cartProvider.notifier).attachLegacy(legacy);
+  void _scheduleAttach() {
+    if (_attachScheduled) return;
+    _attachScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) => _tryAttach());
+  }
 
-        // Bridge legacy DeliveryZoneService → Riverpod.
-        final zoneService = legacy_provider.Provider.of<DeliveryZoneService>(
-          context,
-          listen: false,
-        );
-        ref.read(deliveryZoneServiceProvider.notifier).state = zoneService;
-        // Zone lookups were returning 0 until the legacy service existed.
-        ref.invalidate(zoneDeliveryProvider);
-      } catch (e, st) {
-        if (kDebugMode) {
-          debugPrint('CartBootstrap attach failed: $e\n$st');
-        }
-        // Not fatal — the cart still works in-memory; the bridge will
-        // try again on next dependency change.
-        _attached = false;
+  Future<void> _tryAttach() async {
+    if (!mounted) return;
+    if (ref.read(cartBootstrapReadyProvider)) return;
+    _attachAttempts++;
+    try {
+      final legacy =
+          legacy_provider.Provider.of<CategoryService>(context, listen: false);
+      ref.read(cartProvider);
+      ref.read(cartProvider.notifier).attachLegacy(legacy);
+
+      final zoneService = legacy_provider.Provider.of<DeliveryZoneService>(
+        context,
+        listen: false,
+      );
+      ref.read(deliveryZoneServiceProvider.notifier).state = zoneService;
+      ref.invalidate(zoneDeliveryProvider);
+
+      ref.read(cartBootstrapReadyProvider.notifier).state = true;
+      AppStartupLog.log(
+        'cart bootstrap ready',
+        'attempt=$_attachAttempts uid=${ref.read(cartProvider).items.length} lines',
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('CartBootstrap attach failed (attempt $_attachAttempts): $e\n$st');
       }
-    });
+      _attachScheduled = false;
+      if (_attachAttempts < 5 && mounted) {
+        SchedulerBinding.instance.addPostFrameCallback((_) => _tryAttach());
+      }
+    }
   }
 
   @override

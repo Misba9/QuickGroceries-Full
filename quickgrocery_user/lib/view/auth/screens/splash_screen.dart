@@ -1,9 +1,9 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
 import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery/view/auth/screens/login_screen.dart';
 import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -43,7 +43,7 @@ class SplashScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'buy_groceries_easily'.tr(),
+                      context.l10n.buy_groceries_easily,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 18,
@@ -52,7 +52,7 @@ class SplashScreen extends StatelessWidget {
                     ),
                     AppSpacing.h20,
                     PrimaryButton(
-                      label: 'continue'.tr(),
+                      label: context.l10n.continueAction,
                       onTap: () {
                         Navigator.push(
                           context,

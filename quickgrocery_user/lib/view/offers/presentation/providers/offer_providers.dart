@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:quickgrocery/core/startup/app_bootstrap_controller.dart';
 import 'package:quickgrocery/models/offer_banner_model.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
 import 'package:quickgrocery/view/offers/data/offer_banner_service.dart';
@@ -17,8 +18,10 @@ final offerBannerRepositoryProvider = Provider<OfferBannerRepository>((ref) {
 });
 
 final homeExploreOfferBannersProvider =
-    StreamProvider.autoDispose<List<OfferBannerModel>>((ref) {
-      return ref.watch(offerBannerRepositoryProvider).watchHomeExploreOffers();
+    StreamProvider.autoDispose<List<OfferBannerModel>>((ref) async* {
+      final seed = ref.watch(homeBootstrapSnapshotProvider).offers;
+      if (seed.isNotEmpty) yield seed;
+      yield* ref.watch(offerBannerRepositoryProvider).watchHomeExploreOffers();
     });
 
 final offersPageBannersProvider =

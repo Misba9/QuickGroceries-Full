@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +13,7 @@ import 'package:quickgrocery/view/cart/presentation/providers/best_coupon_provid
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.dart';
 import 'package:quickgrocery/view/coupons/coupon_screen.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Inline checkout coupon hub — manual code, list, best offer, applied state.
 class CheckoutCouponSection extends ConsumerStatefulWidget {
@@ -118,7 +118,7 @@ class _CheckoutCouponSectionState extends ConsumerState<CheckoutCouponSection> {
                 Icon(Icons.local_offer_rounded, color: AppColor.primary, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'coupon_section_title'.tr(),
+                  context.l10n.coupon_section_title,
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w800,
                     fontSize: 15,

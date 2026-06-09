@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,6 +10,7 @@ import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/view/category/presentation/utils/category_grid_layout.dart';
 import 'package:quickgrocery/view/category/screens/category_screen.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Premium animated category card used by the Categories discovery
 /// screen. Two presentations:
@@ -206,8 +206,7 @@ class _Tile extends StatelessWidget {
               if (count != null && count > 0) ...[
                 const SizedBox(height: CategoryGridLayout.countTopGap),
                 Text(
-                  'items_in_category'
-                      .tr(namedArgs: {'count': count.toString()}),
+                  context.l10n.items_in_category(count),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
@@ -316,7 +315,7 @@ class _TrendingHero extends StatelessWidget {
                               color: Colors.limeAccent.shade200, size: 12),
                           const SizedBox(width: 2),
                           Text(
-                            '$disc% ${'off'.tr()}',
+                            '$disc% ${context.l10n.off}',
                             style: GoogleFonts.poppins(
                               fontSize: 9,
                               fontWeight: FontWeight.w800,
@@ -400,9 +399,7 @@ class _TrendingHero extends StatelessWidget {
                       if (count != null && count > 0) ...[
                         const SizedBox(height: 4),
                         Text(
-                          'items_in_category'.tr(
-                            namedArgs: {'count': count.toString()},
-                          ),
+                          context.l10n.items_in_category(count),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.poppins(

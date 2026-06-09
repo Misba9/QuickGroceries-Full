@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as legacy;
+import 'dart:developer' as developer;
 
 import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
 import 'package:quickgrocery/core/inventory/inventory_limit_messages.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
+
+const bool _cartDiagLogs = true;
+
+void _trace(String message) {
+  if (!_cartDiagLogs) return;
+  developer.log(message, name: 'CartActions');
+}
 
 /// Tries Riverpod cart first, then legacy [CategoryService], and shows a top
 /// error toast when increment is blocked by stock / max-order rules.
@@ -34,6 +43,7 @@ bool tryIncrementProductInCart(
   showTopErrorToast(
     context,
     InventoryLimitMessages.incrementBlocked(
+      l10n: context.l10n,
       stock: line?.stock ?? legacyLine?.stock ?? product.stock,
       maxOrder: line?.maxOrder ?? legacyLine?.maxOrder ?? product.maxOrder,
       currentCount: current,
@@ -49,16 +59,22 @@ bool tryAddProductToCart(
   required ProductModel product,
   VoidCallback? onAdded,
 }) {
+  _trace('add pressed: productId=${product.id} name=${product.name}');
   if (ref.read(cartProvider.notifier).addProduct(product)) {
+    final units = ref.read(cartProvider).totalUnits;
+    _trace('add ok: totalUnits=$units popupCallback=${onAdded != null}');
     onAdded?.call();
     return true;
   }
 
+  _trace('add blocked: productId=${product.id}');
+
   showTopErrorToast(
     context,
     product.isOutOfStock
-        ? InventoryLimitMessages.outOfStock
+        ? InventoryLimitMessages.outOfStock(context.l10n)
         : InventoryLimitMessages.incrementBlocked(
+            l10n: context.l10n,
             stock: product.stock,
             maxOrder: product.maxOrder,
             currentCount: product.effectiveMaxQuantity,
@@ -67,8 +83,9 @@ bool tryAddProductToCart(
   return false;
 }
 
-String maxQuantityMessageFor(ProductModel product) =>
+String maxQuantityMessageFor(BuildContext context, ProductModel product) =>
     InventoryLimitMessages.atMaxHint(
+      l10n: context.l10n,
       stock: product.stock,
       maxOrder: product.maxOrder,
     );

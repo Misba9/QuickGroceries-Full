@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// **PremiumEmptyCart** — illustrative empty state with a clear CTA to
 /// browse categories. Used by [CartScreen] when [CartState.isEmpty] is
@@ -40,7 +40,7 @@ class PremiumEmptyCart extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'cart_is_empty'.tr(),
+              context.l10n.cart_is_empty,
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,

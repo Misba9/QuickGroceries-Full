@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/models/product.dart';
 
 class WishlistService extends ChangeNotifier {
@@ -55,13 +56,13 @@ class WishlistService extends ChangeNotifier {
       notifyListeners();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("product removed from favorite")),
+        SnackBar(content: Text(context.l10n.product_removed_favorite)),
       );
     } catch (e) {
       debugPrint("Error removing from wishlist: $e");
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Failed to remove product")));
+      ).showSnackBar(SnackBar(content: Text(context.l10n.failedToRemoveProduct)));
     }
   }
 

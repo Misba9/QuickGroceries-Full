@@ -68,6 +68,16 @@ class BannerRepository {
     return items;
   }
 
+  Future<List<BannerModel>> fetchActiveBanners({int? limit}) async {
+    try {
+      final snap = await _service.fetchActiveBanners(limit: limit);
+      return _mapSnapshot(snap);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Banners] fetch error: $e');
+      return const [];
+    }
+  }
+
   String? _codeOf(Object error) {
     if (error is FirebaseException) return error.code;
     return null;

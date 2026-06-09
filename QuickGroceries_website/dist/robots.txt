@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Allow: /quick-grocery-delivery-bhongir
+
+# Sitemap
+Sitemap: https://quickgroceries.in/sitemap.xml
+
+# Host
+Host: https://quickgroceries.in
+
+# Crawl-delay
+Crawl-delay: 5
+
+# Specific directories
+Disallow: /admin/
+Disallow: /private/
+Disallow: /node_modules/

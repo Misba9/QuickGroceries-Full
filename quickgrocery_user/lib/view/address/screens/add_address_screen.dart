@@ -1,5 +1,4 @@
 import 'package:animate_do/animate_do.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,6 +12,7 @@ import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/checkout/widgets/checkout_bottom_bar.dart';
 import 'package:quickgrocery/view/checkout/widgets/premium_text_field.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Premium "Save address" form — keyboard-safe, modern inputs, address-type
 /// pill selector, sticky save CTA, optional map / current-location helpers.
@@ -56,7 +56,7 @@ class _AddAdressScreenState extends State<AddAdressScreen> {
         child: Column(
           children: [
             _Header(
-              title: isEdit ? 'Edit address' : 'save_address'.tr(),
+              title: isEdit ? context.l10n.editAddress : context.l10n.save_address,
               onBack: () => Navigator.maybePop(context),
             ),
             Expanded(
@@ -79,9 +79,9 @@ class _AddAdressScreenState extends State<AddAdressScreen> {
                       ),
                       const SizedBox(height: 18),
                       PremiumTextField(
-                        label: 'full_name'.tr(),
+                        label: context.l10n.full_name,
                         controller: provider.nameController,
-                        validator: AppValidations.validateName,
+                        validator: (v) => AppValidations.validateName(v, context.l10n),
                         textInputAction: TextInputAction.next,
                         prefixIcon: Icon(
                           Icons.person_outline_rounded,
@@ -90,9 +90,9 @@ class _AddAdressScreenState extends State<AddAdressScreen> {
                       ),
                       const SizedBox(height: 14),
                       PremiumTextField(
-                        label: 'mobile_number'.tr(),
+                        label: context.l10n.mobile_number,
                         controller: provider.mobileController,
-                        validator: AppValidations.validateMobile,
+                        validator: (v) => AppValidations.validateMobile(v, context.l10n),
                         keyboardType: TextInputType.phone,
                         textInputAction: TextInputAction.next,
                         inputFormatters: [
@@ -106,9 +106,9 @@ class _AddAdressScreenState extends State<AddAdressScreen> {
                       ),
                       const SizedBox(height: 14),
                       PremiumTextField(
-                        label: 'house_no_building'.tr(),
+                        label: context.l10n.house_no_building,
                         controller: provider.addressController,
-                        validator: AppValidations.validateHouse,
+                        validator: (v) => AppValidations.validateHouse(v, context.l10n),
                         textInputAction: TextInputAction.next,
                         prefixIcon: Icon(
                           Icons.home_outlined,
@@ -117,9 +117,9 @@ class _AddAdressScreenState extends State<AddAdressScreen> {
                       ),
                       const SizedBox(height: 14),
                       PremiumTextField(
-                        label: 'road_name_area'.tr(),
+                        label: context.l10n.road_name_area,
                         controller: provider.areaController,
-                        validator: AppValidations.validateArea,
+                        validator: (v) => AppValidations.validateArea(v, context.l10n),
                         textInputAction: TextInputAction.done,
                         prefixIcon: Icon(
                           Icons.add_road_outlined,
@@ -146,7 +146,7 @@ class _AddAdressScreenState extends State<AddAdressScreen> {
               ),
             ),
             CheckoutBottomBar(
-              label: 'save_address_button'.tr(),
+              label: context.l10n.save_address_button,
               enabled: !provider.isLoading,
               isLoading: provider.isLoading,
               onPressed: () {
@@ -218,7 +218,7 @@ class _LocationHelpers extends StatelessWidget {
           Expanded(
             child: _PillButton(
               icon: Icons.my_location_rounded,
-              label: 'use_current_location'.tr(),
+              label: context.l10n.use_current_location,
               onTap: () async {
                 final p = Provider.of<AddressService>(context, listen: false);
                 await p.getCurrentLocation(context, force: true);
@@ -229,7 +229,7 @@ class _LocationHelpers extends StatelessWidget {
           Expanded(
             child: _PillButton(
               icon: Icons.map_outlined,
-              label: 'pick_on_map'.tr(),
+              label: context.l10n.pick_on_map,
               onTap: () {
                 Navigator.push(context, AppPageRoutes.location());
               },
@@ -348,7 +348,7 @@ class _TypeSelector extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          _labelFor(opt.value),
+                          _labelFor(context, opt.value),
                           style: GoogleFonts.poppins(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w800,
@@ -368,14 +368,14 @@ class _TypeSelector extends StatelessWidget {
     );
   }
 
-  String _labelFor(String value) {
+  String _labelFor(BuildContext context, String value) {
     switch (value) {
       case 'HOME':
-        return 'home'.tr();
+        return context.l10n.home;
       case 'OFFICE':
-        return 'office'.tr();
+        return context.l10n.office;
       default:
-        return 'other_label'.tr();
+        return context.l10n.other_label;
     }
   }
 }

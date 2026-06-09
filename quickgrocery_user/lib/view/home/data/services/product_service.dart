@@ -47,6 +47,20 @@ class HomeProductService {
         .snapshots();
   }
 
+  Future<QuerySnapshot<Map<String, dynamic>>> fetchFeatured({int limit = 12}) {
+    return _ref
+        .where('isFeatured', isEqualTo: true)
+        .limit(limit)
+        .get(const GetOptions(source: Source.serverAndCache));
+  }
+
+  Future<QuerySnapshot<Map<String, dynamic>>> fetchTrending({int limit = 12}) {
+    return _ref
+        .where('isTrending', isEqualTo: true)
+        .limit(limit)
+        .get(const GetOptions(source: Source.serverAndCache));
+  }
+
   // ── Flash sale (vendor-flagged) ─────────────────────────────────────────
   Stream<QuerySnapshot<Map<String, dynamic>>> watchFlashSale({int limit = 24}) {
     return _ref.where('is_flash_sale', isEqualTo: true).limit(limit).snapshots();

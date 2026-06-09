@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/offer_banner_model.dart';
+import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
 import 'package:quickgrocery/view/offers/presentation/utils/offer_navigation.dart';
@@ -59,10 +60,17 @@ class _PromotionStartupDialogBodyState extends State<_PromotionStartupDialogBody
   @override
   void initState() {
     super.initState();
+    FloatingCartSuppression.acquire();
     final secs = widget.autoCloseSeconds.clamp(3, 120);
     Future<void>.delayed(Duration(seconds: secs), () {
       if (mounted) Navigator.of(context).maybePop();
     });
+  }
+
+  @override
+  void dispose() {
+    FloatingCartSuppression.release();
+    super.dispose();
   }
 
   @override

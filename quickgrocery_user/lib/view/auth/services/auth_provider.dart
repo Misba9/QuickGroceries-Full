@@ -10,6 +10,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:quickgrocery/core/firebase/firebase_auth_readiness.dart';
 import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
@@ -18,7 +19,7 @@ import 'package:quickgrocery/core/user/user_profile_cache.dart';
 import 'package:quickgrocery/core/user/user_profile_repository.dart';
 import 'package:quickgrocery/view/auth/screens/customer_profile_add_screen.dart';
 import 'package:quickgrocery/view/auth/screens/otp_screen.dart';
-import 'package:quickgrocery/view/home/screens/landing_screen.dart';
+import 'package:quickgrocery/core/startup/app_bootstrap_shell.dart';
 import 'package:quickgrocery/view/refer/services/refer_earn_service.dart';
 
 class AuthService extends ChangeNotifier {
@@ -179,18 +180,7 @@ class AuthService extends ChangeNotifier {
     if (user == null || !context.mounted) return;
 
     await _profileRepo.hydrateLocal(user.uid);
-    final complete = await _profileRepo.isProfileComplete(user.uid);
-
-    if (!context.mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => complete
-            ? const LandingScreen()
-            : const CustomerDetailsAddScreen(),
-      ),
-      (Route<dynamic> route) => false,
-    );
+    // [AppBootstrapShell] listens to auth and runs the full bootstrap sequence.
   }
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -446,7 +436,7 @@ class AuthService extends ChangeNotifier {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Unexpected error: $e"),
+            content: Text(context.l10n.unexpectedError(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -477,8 +467,8 @@ class AuthService extends ChangeNotifier {
   Future<void> registerUser(BuildContext context) async {
     if (nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter name'),
+        SnackBar(
+          content: Text(context.l10n.pleaseEnterName),
           backgroundColor: Colors.red,
         ),
       );
@@ -486,8 +476,8 @@ class AuthService extends ChangeNotifier {
     }
     if (selectedGender == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select gender'),
+        SnackBar(
+          content: Text(context.l10n.pleaseSelectGender),
           backgroundColor: Colors.red,
         ),
       );
@@ -539,11 +529,7 @@ class AuthService extends ChangeNotifier {
           ),
         );
       }
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LandingScreen()),
-        (Route<dynamic> route) => false,
-      );
+      AppBootstrapShell.markOnboardingComplete(context);
     } finally {
       isLoading = false;
       notifyListeners();

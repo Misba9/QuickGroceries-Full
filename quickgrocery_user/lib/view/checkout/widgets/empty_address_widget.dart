@@ -1,10 +1,10 @@
 import 'package:animate_do/animate_do.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Premium empty-address state for checkout (parent supplies [Expanded]).
 class EmptyAddressWidget extends StatelessWidget {
@@ -54,7 +54,7 @@ class EmptyAddressWidget extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'empty_checkout_address_title'.tr(),
+                    context.l10n.empty_checkout_address_title,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 19,
@@ -65,7 +65,7 @@ class EmptyAddressWidget extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'empty_checkout_address_subtitle'.tr(),
+                    context.l10n.empty_checkout_address_subtitle,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 13.5,
@@ -103,7 +103,7 @@ class EmptyAddressWidget extends StatelessWidget {
                               ),
                               const SizedBox(width: 10),
                               Text(
-                                'add_address'.tr(),
+                                context.l10n.add_address,
                                 style: GoogleFonts.poppins(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w800,

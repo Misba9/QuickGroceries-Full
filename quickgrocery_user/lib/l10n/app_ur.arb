@@ -1,0 +1,587 @@
+{
+  "@@locale": "ur",
+  "add": "شامل",
+  "addDeliveryTip": "Add delivery tip",
+  "addExtraTip": "Add extra tip",
+  "add_address": "پتہ شامل کریں",
+  "add_first_address": "پہلا پتہ شامل کریں",
+  "addressRequired": "Address is required",
+  "addresses_title": "محفوظ پتے",
+  "app_settings": "ایپ سیٹنگز",
+  "app_version": "ایپ ورژن",
+  "apply": "لگائیں",
+  "apply_coupon": "کوپن لگائیں",
+  "areaRequired": "Area or road name is required",
+  "best_sellers": "بہترین فروخت",
+  "best_sellers_subtitle": "اس ہفتے سب سے پسندیدہ",
+  "big_deals_on_beauty_products": "خوبصورتی مصنوعات پر بڑی ڈیل",
+  "billDetails": "Bill details",
+  "biometric_login": "بائیو میٹرک لاگ ان",
+  "buy_groceries_easily": "ہمارے ساتھ آسانی سے\\nگrocery خریدیں",
+  "callDeliveryPartner": "Call delivery partner",
+  "call_first": "پہلے 90242-83577 پر کال کریں۔",
+  "call_our_support": "ہماری سپورٹ ٹیم کو کال کریں",
+  "call_support": "کال سپورٹ",
+  "cancel": "منسوخ",
+  "cancelOrderTitle": "Cancel order?",
+  "cancelled": "منسوخ",
+  "cancelled_orders": "منسوخ آرڈر",
+  "cartClearedLocally": "Cart cleared locally",
+  "cartEmptyMessage": "Your cart is empty",
+  "cartSyncFailed": "Cart sync failed",
+  "cartUnavailable": "Cart unavailable",
+  "cart_is_empty": "کارٹ خالی ہے",
+  "combo_added_to_cart": "کومبو کارٹ میں شامل ہو گیا",
+  "cashOnDeliveryLabel": "Cash on Delivery",
+  "cash_on_delivery": "ڈیلیوری پر نقد",
+  "categories": "زمرے",
+  "categories_pill": "زمرے",
+  "category_promo_video_title": "اسپاٹ لائٹ آفرز",
+  "change_location": "مقام تبدیل کریں",
+  "checking_service_availability": "سروس دستیابی چیک ہو رہی ہے...",
+  "checkout": "چیک آؤٹ",
+  "chooseDeliverySlot": "Choose a delivery slot",
+  "clear_cache": "کیش صاف کریں",
+  "complete_profile": "پروفائل مکمل کریں",
+  "confirm_location": "مقام کی تصدیق",
+  "continueAction": "جاری رکھیں",
+  "continue_label": "جاری رکھیں",
+  "copyCode": "Copy Code",
+  "could_not_load_coupons": "کوپن لوڈ نہیں ہو سکے",
+  "couponAppliedSuccess": "Coupon applied successfully",
+  "coupon_applied_checkout": "{code} لگایا — چیک آؤٹ پر",
+  "coupon_applied_prefix": "لاگو",
+  "coupon_copied": "کوپن کوڈ {code} کاپی",
+  "coupon_discount": "کوپن رعایت",
+  "coupon_section_title": "آفرز اور کوپن",
+  "coupons": "کوپن",
+  "couponsAndOffers": "Coupons & Offers",
+  "coupons_available": "{count} دستیاب",
+  "curated_picks_subtitle": "آپ کے لیے منتخب",
+  "customTip": "Custom tip",
+  "customerPhotos": "Customer photos",
+  "dark_mode": "ڈارک موڈ",
+  "delete": "حذف",
+  "deleteReviewTitle": "Delete review?",
+  "delete_account": "اکاؤنٹ حذف",
+  "delete_address_body": "یہ پتہ آپ کی محفوظ فہرست سے حذف ہو جائے گا۔",
+  "delete_address_title": "پتہ ہٹائیں؟",
+  "delivered": "ڈیلیور",
+  "delivered_orders": "ڈیلیور آرڈر",
+  "deliveryFeeLabel": "Delivery fee",
+  "deliveryUnavailable": "Delivery unavailable for your location",
+  "delivery_charge": "ڈیلیوری چارج",
+  "delivery_eta_title": "تخمینی ڈیلیوری",
+  "delivery_in_20_minutes": "20 منٹ میں ڈیلیوری",
+  "delivery_notifications": "ڈیلیوری اطلاعات",
+  "description": "تفصیل",
+  "details": "تفصیل",
+  "dont_receive_otp": "OTP موصول نہیں ہوا؟",
+  "editAddress": "Edit address",
+  "edit_profile": "پروفائل میں ترمیم",
+  "emailInvalid": "Please enter a valid email address.",
+  "emailRequired": "Please enter an email address.",
+  "email_support": "ای میل سپورٹ",
+  "empty_checkout_address_subtitle": "ڈیلیوری پتہ شامل کریں تاکہ بل اور ادائیگی دیکھ سکیں۔",
+  "empty_checkout_address_title": "کہاں ڈیلیور کریں؟",
+  "enableLocationTitle": "Enable Location",
+  "enterValidMobile": "Enter valid mobile number",
+  "epic_price_drop_items": "زبردست قیمت میں کمی",
+  "errorGoBackOrRestart": "Go back or restart the app.",
+  "errorPartCouldNotBeShown": "This part of the app couldn't be shown.",
+  "explore_cta": "دریافت",
+  "explore_products": "مصنوعات دریافت کریں",
+  "failedToLoadCart": "Failed to load your cart",
+  "faq": "عمومی سوالات",
+  "featured_for_you": "آپ کے لیے خاص",
+  "featured_this_week": "اس ہفتے کی خاص",
+  "female": "عورت",
+  "flash_deals_title": "فلیش ڈیل",
+  "free": "مفت",
+  "freeUpper": "FREE",
+  "free_delivery_above_99": "₹99 سے اوپر مفت ڈیلیوری",
+  "fresh_groceries_delivered": "تازہ گrocery تیز ڈیلیوری\\nبہترین ڈیل کے ساتھ",
+  "friend_gets": "دوست کو ملے",
+  "full_name": "پورا نام",
+  "gender": "جنس",
+  "general": "عام",
+  "goBack": "Go Back",
+  "good_afternoon": "دوپہر بخیر",
+  "good_evening": "شام بخیر",
+  "good_morning": "صبح بخیر",
+  "grand_total": "کل رقم",
+  "guest": "مہمان",
+  "home": "گھر",
+  "house_no_building": "مکان نمبر / عمارت",
+  "inbox": "ان باکس",
+  "incorrect_otp": "غلط OTP",
+  "invalid_otp": "غلط OTP",
+  "invite_friends": "دوستوں کو مدعو کریں",
+  "itemLabel": "{count, plural, =1{1 Item} other{{count} Items}}",
+  "itemOutOfStock": "This item is out of stock",
+  "itemTotalLabel": "Item total",
+  "item_details": "آئٹم کی تفصیل",
+  "item_added_to_cart": "آئٹم کارٹ میں شامل ہو گئی",
+  "item_total": "اشیاء کا کل",
+  "items": "اشیاء",
+  "items_in_category": "{count} اشیاء",
+  "joinedStatus": "Joined",
+  "keepOrder": "Keep order",
+  "language": "زبان",
+  "leaveReviewTitle": "Leave a Review",
+  "legal": "قانونی",
+  "live_order_tracking": "لائیو آرڈر ٹریکنگ",
+  "location_permission_body": "لوکیشن کی اجازت دیں تاکہ ہم آپ کے مقام پر نقشہ لے جائیں۔",
+  "location_permission_needed": "لوکیشن کی اجازت درکار",
+  "location_services_off": "لوکیشن بند ہے",
+  "location_services_off_body": "GPS آن کریں یا اوپر سے پتہ تلاش کریں۔",
+  "logout": "لاگ آؤٹ",
+  "logoutConfirm": "Are you sure you want to logout?",
+  "logoutTitle": "Logout",
+  "maintenance_coming_soon": "جلد آ رہا ہے",
+  "maintenance_coming_soon_hint": "نئی مصنوعات جلد",
+  "maintenance_contact_support": "سپورٹ سے رابطہ",
+  "maintenance_coupons": "ان کوڈز سے بچت",
+  "maintenance_hours": "گھنٹے",
+  "maintenance_minutes": "منٹ",
+  "maintenance_offers_hint": "دوبارہ کھلنے پر خصوصی آفرز",
+  "maintenance_offline": "انternet نہیں — آن لائن ہونے پر ریفریش",
+  "maintenance_referral": "ریفر کریں اور کمائیں",
+  "maintenance_referral_hint": "دوستوں کو مدعو کریں اور انعام پائیں",
+  "maintenance_reopens_in": "دوبارہ کھلنے میں",
+  "maintenance_retry": "دوبارہ کوشش",
+  "maintenance_seconds": "سیکنڈ",
+  "maintenance_while_you_wait": "انتظار کے دوران",
+  "male": "مرد",
+  "manage_arrow": "منظم کریں →",
+  "mark_all_read": "سب پڑھا ہوا نشان لگائیں",
+  "maxOrderLimitReached": "Maximum order limit reached",
+  "missed_calls": "مس کالز واپس نہیں کی جائیں گی۔",
+  "mobile_number": "موبائل نمبر",
+  "move_map_hint": "پن رکھنے کے لیے نقشہ حرکت دیں — پتہ خود بخود اپ ڈیٹ ہوگا",
+  "mrp": "MRP",
+  "mrpTotal": "MRP Total",
+  "my_address": "میرا پتہ",
+  "my_bag": "میرا بیگ",
+  "my_orders": "میرے آرڈر",
+  "name": "نام",
+  "nameRequired": "Name is required",
+  "nav_categories": "زمرے",
+  "nav_home": "ہوم",
+  "nav_orders": "آرڈرز",
+  "nav_profile": "پروفائل",
+  "noOrdersFound": "No Orders Found!",
+  "no_coupons_available": "کوئی کوپن دستیاب نہیں",
+  "no_filtered_products": "کوئی مصنوعات نہیں ملیں",
+  "no_products_found": "کوئی مصنوعات نہیں ملیں",
+  "no_saved_coupons": "کوئی محفوظ کوپن نہیں",
+  "non_urgent_email": "غیر فوری مسائل کے لیے ای میل استعمال کریں۔",
+  "notification_center": "اطلاعات مرکز",
+  "notifications": "اطلاعات",
+  "off": "رعایت",
+  "offers_discounts": "آفرز اور رعایت",
+  "offers_for_you": "آپ کے لیے آفرز",
+  "office": "دفتر",
+  "onlinePaymentLabel": "Online Payment",
+  "online_payment": "آن لائن ادائیگی",
+  "onlyNItemsAvailable": "Only {count} items available",
+  "onlyOneItemAvailable": "Only 1 item available",
+  "open_app_settings": "ایپ سیٹنگز کھولیں",
+  "open_location_settings": "لوکیشن سیٹنگز کھولیں",
+  "orderCancelledByYou": "Order Cancelled by you!",
+  "order_updates": "آرڈر اپ ڈیٹ",
+  "orders": "آرڈرز",
+  "other_label": "دیگر",
+  "outOfStock": "OUT OF STOCK",
+  "passwordMinLength": "At least 8 characters required",
+  "passwordRequired": "Password is required",
+  "pcs": "pcs",
+  "pendingStatus": "Pending",
+  "pending_orders": "زیر التواء آرڈر",
+  "phoneRequired": "Phone number is required",
+  "phone_number": "فون نمبر",
+  "pick_address_short": "ڈیلیوری پتہ سیٹ کریں",
+  "pick_on_map": "نقشے پر منتخب کریں",
+  "picked_for_you": "آپ کے لیے منتخب",
+  "place_order": "آرڈر کریں",
+  "platform_fee": "پلیٹ فارم فیس",
+  "pleaseEnterName": "Please enter name",
+  "pleaseSelectGender": "Please select gender",
+  "please_add_address": "براہ کرم پتہ شامل کریں",
+  "please_enter_valid_phone": "براہ کرم درست فون نمبر درج کریں",
+  "please_type_verification_code": "براہ کرم بھیجا گیا تصدیقی کوڈ درج کریں",
+  "please_wait": "براہ کرم انتظار کریں..",
+  "popular_near_you": "آپ کے قریب مقبول",
+  "popular_near_you_sub": "دوسرے کیا خرید رہے ہیں",
+  "processing": "پروسیسنگ",
+  "productDiscount": "Product Discount",
+  "product_added_favorite": "مصنوعات پسندیدہ میں شامل",
+  "product_alerts": "مصنوعات الرٹ",
+  "product_removed_favorite": "مصنوعات پسندیدہ سے ہٹائی",
+  "profile": "پروفائل",
+  "promo_more_soon": "آفر لنک جلد — ہوم پیج دیکھیں۔",
+  "promotional_messages": "تشہیری پیغامات",
+  "push_notifications": "پش نوٹیفیکیشن",
+  "qtyLabel": "Qty:",
+  "quickGrocery": "QUICK GROCERY",
+  "quick_address": "پتہ",
+  "quick_orders": "آرڈرز",
+  "quick_wishlist": "پسندیدہ",
+  "rateDelivery": "Rate Delivery",
+  "ratingsAndReviews": "Ratings & Reviews",
+  "recommended_products": "آپ کے لیے تجویز",
+  "referralCodeCopied": "Referral code copied",
+  "referral_copied": "ریفرل کوڈ کاپی",
+  "remove": "Remove",
+  "resend": "دوبارہ بھیجیں",
+  "resend_otp_in": "{seconds}s میں OTP دوبارہ بھیجیں",
+  "retryBanners": "Retry banners",
+  "retry_location": "دوبارہ کوشش",
+  "returned_orders": "واپس آرڈر",
+  "reviews": "جائزے",
+  "rewardGranted": "Reward Granted",
+  "road_name_area": "سڑک، علاقہ، کالونی",
+  "save_address": "پتہ محفوظ کریں",
+  "save_address_button": "پتہ محفوظ کریں",
+  "saved_addresses": "محفوظ پتے",
+  "saved_coupons": "محفوظ کوپن",
+  "search": "تلاش",
+  "search_delivery_location_hint": "علاقہ، سڑک، لینڈ مارک تلاش کریں…",
+  "search_hint_bread": "\"روٹی\" تلاش کریں",
+  "search_hint_fruits": "\"پھل\" تلاش کریں",
+  "search_hint_milk": "\"دودھ\" تلاش کریں",
+  "search_hint_snacks": "\"سnacks\" تلاش کریں",
+  "search_products": "مصنوعات تلاش کریں...",
+  "see_all": "سب دیکھیں",
+  "select_delivery_location": "ڈیلیوری مقام منتخب کریں",
+  "select_language": "زبان منتخب کریں",
+  "service_not_available": "سروس دستیاب نہیں",
+  "service_not_available_message": "معذرت، ہم فی الحال آپ کے علاقے میں ڈیلیوری نہیں کرتے۔",
+  "shareInvite": "Share Invite",
+  "share_referral": "ریفرل شیئر",
+  "shop_by_category": "زمرے کے لحاظ سے خریداری",
+  "shop_now_cta": "ابھی خریدیں",
+  "signInToFavorite": "Sign in required to favorite items.",
+  "someItemsOutOfStock": "Some items are out of stock",
+  "something_went_wrong": "کچھ غلط ہو گیا",
+  "sorry_minimum_order": "معذرت! ہم ₹{amount} سے اوپر کے آرڈر لیتے ہیں",
+  "statusLabel": "Status:",
+  "storeClosed": "Store is closed",
+  "store_offline_message": "ہماری دکان فی الحال بند ہے۔ جلد واپس آئیں!",
+  "submit": "Submit",
+  "support": "مدد",
+  "support_available": "سپورٹ روزانہ 9:00 AM سے 6:30 PM تک دستیاب ہے۔",
+  "support_call_conditions": "سپورٹ کال کی شرائط",
+  "support_mail": "سپورٹ ای میل",
+  "support_number": "سپورٹ {number}",
+  "tap_to_apply_coupon": "کوپن لگانے کے لیے ٹیپ کریں",
+  "taxLabel": "Tax",
+  "thankYou": "Thank you!",
+  "thisItemOutOfStock": "This item is out of stock",
+  "to": "کو",
+  "toPay": "To pay",
+  "today_snacks_deals": "آج کے سنیکس ڈیل",
+  "total": "کل",
+  "totalItemsLabel": "Total Items:",
+  "totalUpper": "TOTAL",
+  "track_order": "آرڈر ٹریک کریں",
+  "trending_categories": "مقبول زمرے",
+  "trending_now": "ابھی مقبول",
+  "trending_subtitle": "آج کیا تیزی سے بik رہا ہے",
+  "updateNow": "Update Now",
+  "updateRequiredBody": "A new version of the app is available. Please update to continue.",
+  "updateRequiredTitle": "Update Required",
+  "updating_address": "پتہ اپ ڈیٹ ہو رہا ہے…",
+  "upiLabel": "UPI",
+  "use_current_location": "موجودہ مقام استعمال کریں",
+  "view_all_arrow": "سب دیکھیں →",
+  "view_cart": "کارٹ دیکھیں",
+  "wallet": "والٹ",
+  "we_are_closed": "ہم بند ہیں!",
+  "whatsapp_support": "واٹس ایپ سپورٹ",
+  "wishlist": "پسندیدہ",
+  "wishlistEmpty": "No items in wishlist",
+  "writeReview": "Write review",
+  "you_earn": "آپ کمائیں",
+  "you_might_also_like": "آپ کو یہ بھی پسند آ سکتا ہے",
+  "your_mobile_number": "آپ کا موبائل نمبر",
+  "retry": "Retry",
+  "tryAgain": "Try again",
+  "deleteReviewBody": "This cannot be undone.",
+  "failedToLoadReviews": "Failed to load reviews",
+  "noReviewsMatchFilter": "No reviews match this filter",
+  "helpfulCount": "Helpful ({count})",
+  "speechRecognitionError": "Speech recognition error: {error}",
+  "microphonePermissionRequired": "Microphone permission is required for voice search",
+  "speechRecognitionUnavailable": "Speech recognition is not available on this device",
+  "signInForNotifications": "Sign in to see notifications",
+  "profileUpdated": "Profile updated",
+  "couldNotSaveProfile": "Could not save profile: {error}",
+  "orderSupportTitle": "Order support",
+  "itemsNotAvailableNow": "None of these items are available right now",
+  "couldNotGenerateInvoice": "Could not generate invoice: {error}",
+  "deliveryPartnerNotAssigned": "Delivery partner not assigned yet",
+  "couldNotLoadOrder": "Could not load order details",
+  "orderNotFound": "Order not found",
+  "liveStatus": "Live status",
+  "rateDeliveryPartner": "Rate delivery partner",
+  "rateVendor": "Rate vendor",
+  "noOrdersFoundPeriod": "No orders found.",
+  "noCancelledOrdersFound": "No Cancelled Orders Found!",
+  "cancelOrderButton": "Cancel order",
+  "unexpectedError": "Unexpected error: {error}",
+  "reviewDeleted": "Review deleted",
+  "editReview": "Edit review",
+  "writeAReview": "Write a review",
+  "reviewsEditWindow": "Reviews can only be edited within 24 hours",
+  "pleaseWriteReviewMinChars": "Please write at least 10 characters",
+  "reviewSubmittedPending": "Review submitted! It will appear after approval.",
+  "addPhotosCount": "Add photos ({count}/6)",
+  "productQuality": "Product Quality",
+  "freshness": "Freshness",
+  "packaging": "Packaging",
+  "deliveryExperience": "Delivery Experience",
+  "valueForMoney": "Value for Money",
+  "yourReview": "Your review",
+  "verifiedPurchase": "Verified Purchase",
+  "sellerReply": "Seller reply",
+  "similarProducts": "Similar products",
+  "couldNotLoadSimilarProducts": "Couldn't load similar products",
+  "recentlyViewed": "Recently viewed",
+  "removedFromFavorites": "Removed from favorites",
+  "inviteMessageCopied": "Invite message copied",
+  "appDownloadLinkNotConfigured": "App download link not configured by Admin",
+  "nav_offers": "Offers",
+  "referAndEarn": "Refer & Earn",
+  "myReferralCode": "My Referral Code",
+  "referralRewards": "Referral rewards",
+  "referralStats": "Your referral stats",
+  "invitedFriends": "Invited Friends",
+  "ordered": "Ordered",
+  "earned": "Earned",
+  "referralComingSoon": "Referral Program Coming Soon",
+  "referralUnavailable": "Referral system unavailable",
+  "noConnection": "No connection",
+  "reorder": "Reorder",
+  "invoice": "Invoice",
+  "needHelp": "Need help",
+  "yourRider": "Your rider",
+  "riderSearching": "Searching for delivery partner…",
+  "orderDelivered": "Order delivered!",
+  "shareExperienceOptional": "Share your experience (optional)",
+  "clearCartTitle": "Clear cart?",
+  "clearCartBody": "All items will be removed from your bag.",
+  "clearAll": "Clear all",
+  "itemsInBag": "Items in bag",
+  "freeDeliveryUnlocked": "FREE delivery unlocked",
+  "removedUnavailableItems": "Removed {count} unavailable items",
+  "removeUnavailableToCheckout": "Some items are unavailable. Remove them to continue checkout.",
+  "someItemsUnavailableInBag": "Some items in your bag are unavailable — remove them to checkout",
+  "enterCouponCodeTitle": "Enter Coupon Code",
+  "viewAll": "View all",
+  "couponAppliedCheck": "Coupon Applied ✅",
+  "youSaved": "You saved ₹{amount}",
+  "bestCouponAvailable": "Best Coupon Available",
+  "noEligibleCoupons": "No eligible coupons for this cart",
+  "thankDeliveryPartner": "Thank Your Delivery Partner",
+  "addTipDescription": "Add a tip to appreciate your delivery partner",
+  "updatingTip": "Updating tip…",
+  "tipThankYou": "Thank you! ₹{amount} tip added successfully.",
+  "maxTip": "Maximum tip is ₹{amount}",
+  "paymentNotCompleted": "Payment was not completed.",
+  "couldNotUpdateTip": "Could not update tip. Please try again.",
+  "howWasDelivery": "How was your delivery?",
+  "orderSuccessful": "Order successful",
+  "goHome": "Go Home",
+  "visitAgain": "Visit again",
+  "noOrdersHereYet": "No orders here yet",
+  "couldNotLoadOrders": "Could not load orders",
+  "paid": "Paid",
+  "notPaid": "Not Paid",
+  "deliveryChargeLabel": "Delivery: ₹{amount}",
+  "fastDelivery": "Fast delivery",
+  "secure": "Secure",
+  "payments": "payments",
+  "noExchangeOrReturn": "No exchange or return",
+  "readMore": "Read more",
+  "readLess": "Read less",
+  "couldNotLoadReviewsShort": "Couldn't load reviews.",
+  "startShopping": "Start shopping",
+  "startExploringGroceries": "Start exploring fresh groceries!",
+  "latest": "Latest",
+  "highest": "Highest",
+  "lowest": "Lowest",
+  "withPhotos": "With photos",
+  "addTipAmount": "Add ₹{amount}",
+  "failedToRemoveProduct": "Failed to remove product",
+  "typeMessageHint": "Type your message…",
+  "needHelpWithOrder": "Need help with this order?",
+  "addedItemsToCart": "Added {count} items to your cart",
+  "trackOrderTitle": "Track order",
+  "done": "Done",
+  "firstOrderOffer": "First Order Offer",
+  "moreOffers": "More offers",
+  "firstOrder": "1st ORDER",
+  "minOrder": "Min order ₹{amount}",
+  "eligibleTapToApply": "Eligible · Tap to apply",
+  "availableCoupons": "Available Coupons",
+  "noCouponsAvailableNow": "No coupons available right now",
+  "cancelOrderAction": "Cancel Order",
+  "clearCartAction": "Clear",
+  "noCouponsRightNow": "No coupons right now",
+  "enterCouponCodeHint": "Enter coupon code",
+  "@coupon_applied_checkout": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "@helpfulCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@speechRecognitionError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@couldNotSaveProfile": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@couldNotGenerateInvoice": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@unexpectedError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@addPhotosCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@removedUnavailableItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@youSaved": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@tipThankYou": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@maxTip": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@deliveryChargeLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@addTipAmount": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@addedItemsToCart": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@minOrder": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@coupon_copied": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "@coupons_available": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@items_in_category": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@onlyNItemsAvailable": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@resend_otp_in": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "@sorry_minimum_order": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@support_number": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  }
+}

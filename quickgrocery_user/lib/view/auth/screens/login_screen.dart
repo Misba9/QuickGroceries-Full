@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
@@ -7,6 +6,7 @@ import 'package:quickgrocery/view/auth/screens/firebase_diagnostic_screen.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
 import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
 import 'package:provider/provider.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -38,7 +38,7 @@ class LoginScreen extends StatelessWidget {
                 // Align(
                 //   alignment: Alignment.topLeft,
                 //   child: Text(
-                //     'fresh_groceries_delivered'.tr(),
+                //     context.l10n.fresh_groceries_delivered,
                 //     style: TextStyle(fontSize: 20),
                 //   ),
                 // ),
@@ -62,7 +62,7 @@ class LoginScreen extends StatelessWidget {
                           controller: provider.mobileController,
                           decoration: InputDecoration(
                             border: InputBorder.none,
-                            hintText: 'phone_number'.tr(),
+                            hintText: context.l10n.phone_number,
                           ),
                         ),
                       ),
@@ -90,7 +90,7 @@ class LoginScreen extends StatelessWidget {
                 AppSpacing.h20,
                 PrimaryButton(
                   isLoading: provider.isLoading,
-                  label: 'continue'.tr(),
+                  label: context.l10n.continueAction,
                   onTap: provider.isLoading
                       ? null
                       : () {
@@ -98,7 +98,7 @@ class LoginScreen extends StatelessWidget {
                           if (provider.mobileController.text.length < 10) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text("please_enter_valid_phone".tr()),
+                                content: Text(context.l10n.please_enter_valid_phone),
                                 backgroundColor: Colors.red,
                               ),
                             );

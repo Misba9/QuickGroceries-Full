@@ -1,9 +1,9 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class TitleTile extends StatelessWidget {
   const TitleTile({super.key, required this.title});
@@ -37,7 +37,7 @@ class TitleTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8),
           ),
           child: Text(
-            'see_all'.tr(),
+            context.l10n.see_all,
             style: GoogleFonts.poppins(
               color: AppColor.primary,
               fontWeight: FontWeight.w600,

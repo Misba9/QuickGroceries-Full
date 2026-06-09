@@ -80,6 +80,10 @@ class HomeShimmer {
     );
   }
 
+  static Widget deliveryHeader() => _box(height: 118, radius: 20);
+
+  static Widget searchBar() => _box(height: 48, radius: 24);
+
   static Widget categoriesRail({int count = 8}) {
     return SizedBox(
       height: 128,
@@ -156,13 +160,13 @@ class HomeShimmer {
     );
   }
 
-  static Widget horizontalProducts({double height = 248}) {
+  static Widget horizontalProducts({double height = 248, int count = 4}) {
     return SizedBox(
       height: height,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: kHorizontalProductRailPhysics,
-        itemCount: 4,
+        itemCount: count,
         padding: EdgeInsets.zero,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (_, __) => SizedBox(

@@ -1,5 +1,4 @@
 import 'package:animate_do/animate_do.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
@@ -9,6 +8,7 @@ import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
 import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
 import 'package:quickgrocery/view/orders/presentation/widgets/order_card_modern.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Modern orders screen — three live-streamed tabs.
 ///
@@ -52,7 +52,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreeen>
                 child: Row(
                   children: [
                     Text(
-                      'orders'.tr(),
+                      context.l10n.orders,
                       style: const TextStyle(
                         color: Colors.black,
                         fontSize: 22,
@@ -71,9 +71,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreeen>
                 unselectedLabelColor: Colors.grey.shade500,
                 labelStyle: const TextStyle(fontWeight: FontWeight.w800),
                 tabs: [
-                  Tab(text: 'processing'.tr()),
-                  Tab(text: 'delivered'.tr()),
-                  Tab(text: 'cancelled'.tr()),
+                  Tab(text: context.l10n.processing),
+                  Tab(text: context.l10n.delivered),
+                  Tab(text: context.l10n.cancelled),
                 ],
               ),
               Expanded(

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+    xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+
+    <!-- Blog Posts Sitemap -->
+    <!-- Last Updated: 2026-02-20 -->
+
+    <!-- Blog Post 1: Future of Quick Commerce -->
+    <url>
+        <loc>https://quickgroceries.in/blog/future-of-quick-commerce-india</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <news:news>
+            <news:publication>
+                <news:name>Quick Groceries Blog</news:name>
+                <news:language>en</news:language>
+            </news:publication>
+            <news:publication_date>2026-02-20</news:publication_date>
+            <news:title>The Future of Quick Commerce in India: Trends &amp; Insights</news:title>
+            <news:keywords>quick commerce, india retail, grocery delivery trends</news:keywords>
+        </news:news>
+    </url>
+
+    <!-- Blog Post 2: Business Model -->
+    <url>
+        <loc>https://quickgroceries.in/blog/grocery-delivery-business-model</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <news:news>
+            <news:publication>
+                <news:name>Quick Groceries Blog</news:name>
+                <news:language>en</news:language>
+            </news:publication>
+            <news:publication_date>2026-02-19</news:publication_date>
+            <news:title>Understanding the Grocery Delivery Business Model</news:title>
+            <news:keywords>business model, delivery service, quick commerce</news:keywords>
+        </news:news>
+    </url>
+
+    <!-- Blog Post 3: Dark Stores -->
+    <url>
+        <loc>https://quickgroceries.in/blog/how-dark-stores-work</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+        <news:news>
+            <news:publication>
+                <news:name>Quick Groceries Blog</news:name>
+                <news:language>en</news:language>
+            </news:publication>
+            <news:publication_date>2026-02-18</news:publication_date>
+            <news:title>How Dark Stores Work in Quick Commerce</news:title>
+            <news:keywords>dark stores, fulfillment, quick delivery</news:keywords>
+        </news:news>
+    </url>
+
+    <!-- Blog Post 4: Partner Earnings -->
+    <url>
+        <loc>https://quickgroceries.in/blog/delivery-partner-earnings</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <news:news>
+            <news:publication>
+                <news:name>Quick Groceries Blog</news:name>
+                <news:language>en</news:language>
+            </news:publication>
+            <news:publication_date>2026-02-17</news:publication_date>
+            <news:title>Delivery Partner Earnings: How Much Can You Make?</news:title>
+            <news:keywords>delivery partner, gig work, earnings</news:keywords>
+        </news:news>
+    </url>
+
+    <!-- Blog Post 5: Quick Commerce Startup -->
+    <url>
+        <loc>https://quickgroceries.in/blog/quick-commerce-startup</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+        <news:news>
+            <news:publication>
+                <news:name>Quick Groceries Blog</news:name>
+                <news:language>en</news:language>
+            </news:publication>
+            <news:publication_date>2026-02-16</news:publication_date>
+            <news:title>How to Start a Quick Commerce Grocery Delivery Startup</news:title>
+            <news:keywords>startup, entrepreneurship, quick commerce</news:keywords>
+        </news:news>
+    </url>
+
+    <!-- Blog Post 6: Healthy Shopping -->
+    <url>
+        <loc>https://quickgroceries.in/blog/healthy-grocery-shopping</loc>
+        <lastmod>2026-02-20</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+        <news:news>
+            <news:publication>
+                <news:name>Quick Groceries Blog</news:name>
+                <news:language>en</news:language>
+            </news:publication>
+            <news:publication_date>2026-02-15</news:publication_date>
+            <news:title>Tips for Healthy Grocery Shopping Online</news:title>
+            <news:keywords>healthy eating, nutrition, shopping tips</news:keywords>
+        </news:news>
+    </url>
+
+</urlset>

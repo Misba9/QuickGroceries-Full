@@ -11,7 +11,9 @@ import 'package:quickgrocery/view/category/screens/main_category_view.dart'
     show MainCategoryViewScreen;
 import 'package:latlong2/latlong.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/navigation/home_tab_observer.dart';
 import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/models/customer_model.dart';
@@ -44,6 +46,7 @@ class HomeProvider extends ChangeNotifier {
 
   void onSelectedChange(int i) {
     _selectedIndex = i;
+    HomeTabObserver.selectedIndexListenable.value = i;
     notifyListeners();
   }
 
@@ -106,12 +109,12 @@ class HomeProvider extends ChangeNotifier {
     }
   }
 
-  List<Widget> pages = const [
-    HomeScreen(),
-    MainCategoryViewScreen(),
-    OffersScreen(),
-    OrdersScreeen(),
-    ProfileScreen(),
+  List<Widget> get pages => [
+    const HomeScreen(),
+    const MainCategoryViewScreen(),
+    const OffersScreen(),
+    const OrdersScreeen(),
+    const ProfileScreen(),
   ];
 
   Future<void> fetchProducts() async {
@@ -422,13 +425,11 @@ void _showForceUpdateDialog(BuildContext context) {
     barrierDismissible: false,
     context: context,
     builder: (_) => AlertDialog(
-      title: Text("Update Required", style: TextStyle(color: AppColor.primary)),
-      content: Text(
-        "A new version of the app is available. Please update to continue.",
-      ),
+      title: Text(context.l10n.updateRequiredTitle, style: TextStyle(color: AppColor.primary)),
+      content: Text(context.l10n.updateRequiredBody),
       actions: [
         TextButton(
-          child: Text("Update Now", style: TextStyle(color: AppColor.primary)),
+          child: Text(context.l10n.updateNow, style: TextStyle(color: AppColor.primary)),
           onPressed: () {
             // Redirect to Play Store
             launchUrl(

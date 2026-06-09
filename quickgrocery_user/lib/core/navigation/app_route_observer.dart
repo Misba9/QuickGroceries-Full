@@ -3,6 +3,7 @@ import 'package:flutter/scheduler.dart';
 
 import 'package:quickgrocery/core/navigation/app_route_names.dart';
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
+import 'package:quickgrocery/core/push/push_navigation.dart';
 
 /// Tracks the topmost named route for global UI (floating cart visibility).
 final AppRouteObserver appRouteObserver = AppRouteObserver();
@@ -54,6 +55,12 @@ class AppRouteObserver extends NavigatorObserver {
     });
   }
 
+  /// Ensures [topRouteName] matches the navigator on cold start (before any
+  /// push/pop events fire on physical devices).
+  void syncWithRootNavigator() {
+    _syncTopFromNavigator(rootNavigatorKey.currentState);
+  }
+
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPush(route, previousRoute);
@@ -63,13 +70,24 @@ class AppRouteObserver extends NavigatorObserver {
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPop(route, previousRoute);
-    _scheduleNavigatorSync(route.navigator);
+    // Sync immediately so the floating cart does not stay hidden (or visible
+    // on the wrong screen) until the next frame — release builds on physical
+    // devices are sensitive to this one-frame lag.
+    if (previousRoute != null) {
+      _syncTop(previousRoute);
+    } else {
+      _scheduleNavigatorSync(route.navigator);
+    }
   }
 
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didRemove(route, previousRoute);
-    _scheduleNavigatorSync(route.navigator);
+    if (previousRoute != null) {
+      _syncTop(previousRoute);
+    } else {
+      _scheduleNavigatorSync(route.navigator);
+    }
   }
 
   @override

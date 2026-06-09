@@ -1,4 +1,3 @@
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -24,6 +23,7 @@ import 'package:quickgrocery/view/product_view/presentation/widgets/product_revi
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_variant_widget.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/recently_viewed_section.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/similar_products_section.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Modern, fully-dynamic product details screen.
 ///
@@ -61,6 +61,13 @@ class _ProductViewScreenState extends ConsumerState<ProductViewScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final async = ref.read(productByIdStreamProvider(widget.product.id));
+      _syncFloatingCartSuppression(
+        async.isLoading && async.valueOrNull == null && !async.hasError,
+      );
+    });
     // Persist this product into recently-viewed history.
     Future.microtask(() {
       ref.read(recentlyViewedIdsProvider.notifier).track(widget.product.id);
@@ -76,11 +83,18 @@ class _ProductViewScreenState extends ConsumerState<ProductViewScreen> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(productByIdStreamProvider(widget.product.id));
+    ref.listen<AsyncValue<ProductModel?>>(
+      productByIdStreamProvider(widget.product.id),
+      (prev, next) {
+        final suppress =
+            next.isLoading && next.valueOrNull == null && !next.hasError;
+        _syncFloatingCartSuppression(suppress);
+      },
+    );
     // Use the realtime product when available, otherwise the bootstrap one.
     final product = async.valueOrNull ?? widget.product;
     final isFreshLoading =
         async.isLoading && async.valueOrNull == null && !async.hasError;
-    _syncFloatingCartSuppression(isFreshLoading);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
@@ -429,7 +443,7 @@ class _ProductHeader extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '${summary.total} ${'reviews'.tr()}',
+                  '${summary.total} ${context.l10n.reviews}',
                   style: GoogleFonts.poppins(
                     fontSize: 11.5,
                     color: Colors.grey.shade600,
@@ -651,7 +665,7 @@ class _DescriptionSectionState extends State<_DescriptionSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'description'.tr(),
+            context.l10n.description,
             style: GoogleFonts.poppins(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -757,7 +771,7 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
             children: [
               Expanded(
                 child: Text(
-                  'reviews'.tr(),
+                  context.l10n.reviews,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,

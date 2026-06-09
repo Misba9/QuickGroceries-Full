@@ -1,5 +1,4 @@
 import 'package:animate_do/animate_do.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
-import 'package:quickgrocery/services/language_service.dart';
+import 'package:quickgrocery/core/localization/locale_provider.dart';
+import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/user/user_profile_cache.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
@@ -76,7 +76,7 @@ class ProfileHeaderSection extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             Text(
-              c.name.isNotEmpty ? c.name : 'guest'.tr(),
+              c.name.isNotEmpty ? c.name : context.l10n.guest,
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w800,
                 fontSize: 22,
@@ -101,7 +101,7 @@ class ProfileHeaderSection extends StatelessWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'complete_profile'.tr(),
+                  context.l10n.complete_profile,
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
@@ -155,7 +155,7 @@ class ProfileHeaderSection extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  'edit_profile'.tr(),
+                  context.l10n.edit_profile,
                   style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
                 ),
               ),
@@ -255,7 +255,7 @@ class ProfileQuickActions extends ConsumerWidget {
           Expanded(
             child: _QuickActionCard(
               icon: Icons.receipt_long_rounded,
-              label: 'quick_orders'.tr(),
+              label: context.l10n.quick_orders,
               value: '${orderCounts?.total ?? 0}',
               onTap: () => _goOrders(context),
             ),
@@ -264,7 +264,7 @@ class ProfileQuickActions extends ConsumerWidget {
           Expanded(
             child: _QuickActionCard(
               icon: Icons.favorite_border_rounded,
-              label: 'quick_wishlist'.tr(),
+              label: context.l10n.quick_wishlist,
               value: '$wishlistCount',
               onTap: () => Navigator.push(
                 context,
@@ -276,7 +276,7 @@ class ProfileQuickActions extends ConsumerWidget {
           Expanded(
             child: _QuickActionCard(
               icon: Icons.location_on_outlined,
-              label: 'quick_address'.tr(),
+              label: context.l10n.quick_address,
               value: '$addressCount',
               onTap: () => Navigator.push(context, AppPageRoutes.address()),
             ),
@@ -397,7 +397,7 @@ class ProfileActiveOrderCard extends ConsumerWidget {
                     color: AppColor.primary, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'live_order_tracking'.tr(),
+                  context.l10n.live_order_tracking,
                   style: GoogleFonts.poppins(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -468,7 +468,7 @@ class ProfileActiveOrderCard extends ConsumerWidget {
                   ),
                 ),
                 child: Text(
-                  'track_order'.tr(),
+                  context.l10n.track_order,
                   style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
                 ),
               ),
@@ -519,8 +519,8 @@ class ProfileOrdersSection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ProfileSectionTitle(
-            title: 'my_orders'.tr(),
-            actionLabel: 'view_all_arrow'.tr(),
+            title: context.l10n.my_orders,
+            actionLabel: context.l10n.view_all_arrow,
             onAction: () => legacy.Provider.of<HomeProvider>(context,
                     listen: false)
                 .onSelectedChange(3),
@@ -530,28 +530,28 @@ class ProfileOrdersSection extends ConsumerWidget {
               children: [
                 ProfileListTile(
                   icon: Icons.hourglass_top_rounded,
-                  title: '${'pending_orders'.tr()} (${counts.pending})',
+                  title: '${context.l10n.pending_orders} (${counts.pending})',
                   onTap: () => legacy.Provider.of<HomeProvider>(context,
                           listen: false)
                       .onSelectedChange(3),
                 ),
                 ProfileListTile(
                   icon: Icons.check_circle_outline_rounded,
-                  title: '${'delivered_orders'.tr()} (${counts.delivered})',
+                  title: '${context.l10n.delivered_orders} (${counts.delivered})',
                   onTap: () => legacy.Provider.of<HomeProvider>(context,
                           listen: false)
                       .onSelectedChange(3),
                 ),
                 ProfileListTile(
                   icon: Icons.cancel_outlined,
-                  title: '${'cancelled_orders'.tr()} (${counts.cancelled})',
+                  title: '${context.l10n.cancelled_orders} (${counts.cancelled})',
                   onTap: () => legacy.Provider.of<HomeProvider>(context,
                           listen: false)
                       .onSelectedChange(3),
                 ),
                 ProfileListTile(
                   icon: Icons.undo_rounded,
-                  title: '${'returned_orders'.tr()} (${counts.returned})',
+                  title: '${context.l10n.returned_orders} (${counts.returned})',
                   onTap: () => legacy.Provider.of<HomeProvider>(context,
                           listen: false)
                       .onSelectedChange(3),
@@ -596,7 +596,7 @@ class _ProfileSavedCouponsSectionState
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          err ?? 'coupon_applied_checkout'.tr(namedArgs: {'code': coupon.code}),
+          err ?? context.l10n.coupon_applied_checkout(coupon.code),
         ),
         backgroundColor: err == null ? Colors.green.shade700 : Colors.red,
       ),
@@ -606,7 +606,7 @@ class _ProfileSavedCouponsSectionState
   void _copyCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('coupon_copied'.tr(namedArgs: {'code': code}))),
+      SnackBar(content: Text(context.l10n.coupon_copied(code))),
     );
   }
 
@@ -620,15 +620,13 @@ class _ProfileSavedCouponsSectionState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           couponsAsync.when(
-            loading: () => ProfileSectionTitle(title: 'saved_coupons'.tr()),
-            error: (_, __) => ProfileSectionTitle(title: 'saved_coupons'.tr()),
+            loading: () => ProfileSectionTitle(title: context.l10n.saved_coupons),
+            error: (_, __) => ProfileSectionTitle(title: context.l10n.saved_coupons),
             data: (coupons) => ProfileSectionTitle(
-              title: 'saved_coupons'.tr(),
+              title: context.l10n.saved_coupons,
               actionLabel: coupons.isEmpty
                   ? null
-                  : 'coupons_available'.tr(namedArgs: {
-                      'count': '${coupons.length}',
-                    }),
+                  : context.l10n.coupons_available(coupons.length),
               onAction: coupons.isEmpty
                   ? null
                   : () => Navigator.push(
@@ -646,13 +644,13 @@ class _ProfileSavedCouponsSectionState
                 ),
               ),
               error: (_, __) => Text(
-                'could_not_load_coupons'.tr(),
+                context.l10n.could_not_load_coupons,
                 style: GoogleFonts.poppins(color: AppSurface.textMuted),
               ),
               data: (coupons) {
                 if (coupons.isEmpty) {
                   return Text(
-                    'no_saved_coupons'.tr(),
+                    context.l10n.no_saved_coupons,
                     style: GoogleFonts.poppins(
                       color: AppSurface.textMuted,
                       fontSize: 13,
@@ -812,7 +810,7 @@ class _SavedCouponCard extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : Text(
-                      'apply'.tr(),
+                      context.l10n.apply,
                       style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
                     ),
             ),
@@ -840,8 +838,8 @@ class ProfileAddressesSection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ProfileSectionTitle(
-            title: 'saved_addresses'.tr(),
-            actionLabel: 'manage_arrow'.tr(),
+            title: context.l10n.saved_addresses,
+            actionLabel: context.l10n.manage_arrow,
             onAction: () => Navigator.push(context, AppPageRoutes.address()),
           ),
           ProfileCard(
@@ -860,7 +858,7 @@ class ProfileAddressesSection extends ConsumerWidget {
                 if (addresses.isEmpty) {
                   return ProfileListTile(
                     icon: Icons.add_location_alt_outlined,
-                    title: 'add_first_address'.tr(),
+                    title: context.l10n.add_first_address,
                     onTap: () => Navigator.push(context, AppPageRoutes.address()),
                   );
                 }
@@ -1035,8 +1033,8 @@ class _ProfileNotificationsSectionState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ProfileSectionTitle(
-            title: 'notifications'.tr(),
-            actionLabel: 'inbox'.tr(),
+            title: context.l10n.notifications,
+            actionLabel: context.l10n.inbox,
             onAction: () => Navigator.push(context, AppPageRoutes.notifications()),
           ),
           if (_showDeniedBanner) ...[
@@ -1072,31 +1070,31 @@ class _ProfileNotificationsSectionState
               children: [
                 ProfileToggleTile(
                   icon: Icons.local_shipping_outlined,
-                  title: 'order_updates'.tr(),
+                  title: context.l10n.order_updates,
                   value: prefs.orderUpdates,
                   onChanged: (v) => notifier.toggle('orderUpdates', v),
                 ),
                 ProfileToggleTile(
                   icon: Icons.local_offer_outlined,
-                  title: 'offers_discounts'.tr(),
+                  title: context.l10n.offers_discounts,
                   value: prefs.offersDiscounts,
                   onChanged: (v) => notifier.toggle('offersDiscounts', v),
                 ),
                 ProfileToggleTile(
                   icon: Icons.notifications_active_outlined,
-                  title: 'product_alerts'.tr(),
+                  title: context.l10n.product_alerts,
                   value: prefs.productAlerts,
                   onChanged: (v) => notifier.toggle('productAlerts', v),
                 ),
                 ProfileToggleTile(
                   icon: Icons.campaign_outlined,
-                  title: 'promotional_messages'.tr(),
+                  title: context.l10n.promotional_messages,
                   value: prefs.promotionalMessages,
                   onChanged: (v) => notifier.toggle('promotionalMessages', v),
                 ),
                 ProfileToggleTile(
                   icon: Icons.delivery_dining_outlined,
-                  title: 'delivery_notifications'.tr(),
+                  title: context.l10n.delivery_notifications,
                   value: prefs.deliveryNotifications,
                   onChanged: (v) => notifier.toggle('deliveryNotifications', v),
                 ),
@@ -1123,17 +1121,18 @@ class ProfileLanguageSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ProfileSectionTitle(title: 'language'.tr()),
-          legacy.Consumer<LanguageService>(
-            builder: (context, languageService, _) {
-              final current = context.locale;
+          ProfileSectionTitle(title: context.l10n.language),
+          Consumer(
+            builder: (context, ref, _) {
+              final locale = ref.watch(localeProvider);
+              final controller = ref.read(localeProvider.notifier);
               return ProfileCard(
                 child: Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: languageService.getAvailableLanguages().map((lang) {
-                    final isSelected = current.languageCode == lang['code'] &&
-                        current.countryCode == lang['country'];
+                  children: controller.availableLanguages.map((lang) {
+                    final isSelected =
+                        locale.languageCode == lang['code'];
                     return AnimatedContainer(
                       duration: AppMotion.short,
                       curve: AppMotion.standard,
@@ -1143,7 +1142,7 @@ class ProfileLanguageSection extends StatelessWidget {
                             : AppSurface.subtle,
                         borderRadius: BorderRadius.circular(14),
                         child: InkWell(
-                          onTap: () => languageService.changeLanguage(
+                          onTap: () => controller.setLocale(
                             Locale(
                               lang['code'] as String,
                               lang['country'] as String,
@@ -1208,19 +1207,19 @@ class ProfileSupportSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ProfileSectionTitle(title: 'support'.tr()),
+          ProfileSectionTitle(title: context.l10n.support),
           ProfileCard(
             child: Column(
               children: [
                 ProfileListTile(
                   icon: Icons.call_outlined,
-                  title: 'call_support'.tr(),
+                  title: context.l10n.call_support,
                   subtitle: _phone,
                   onTap: () => SupportActionLauncher.callPhone(context, _phone),
                 ),
                 ProfileListTile(
                   icon: Icons.email_outlined,
-                  title: 'email_support'.tr(),
+                  title: context.l10n.email_support,
                   subtitle: _email,
                   onTap: () => SupportActionLauncher.sendEmail(context, _email),
                 ),
@@ -1284,7 +1283,7 @@ class ProfileLegalSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ProfileSectionTitle(title: 'legal'.tr()),
+          ProfileSectionTitle(title: context.l10n.legal),
           ProfileCard(
             child: Column(
               children: [
@@ -1301,7 +1300,7 @@ class ProfileLegalSection extends StatelessWidget {
                 ),
                 ProfileListTile(
                   icon: Icons.smartphone_outlined,
-                  title: 'app_version'.tr(),
+                  title: context.l10n.app_version,
                   subtitle: appVersion,
                   trailing: const SizedBox.shrink(),
                 ),
@@ -1331,7 +1330,7 @@ class ProfileLogoutSection extends StatelessWidget {
           onPressed: () => _confirmLogout(context),
           icon: const Icon(Icons.logout_rounded, color: Colors.red),
           label: Text(
-            'logout'.tr(),
+            context.l10n.logout,
             style: GoogleFonts.poppins(
               color: Colors.red.shade700,
               fontWeight: FontWeight.w700,
@@ -1353,17 +1352,17 @@ class ProfileLogoutSection extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
+        title: Text(context.l10n.logoutTitle),
+        content: Text(context.l10n.logoutConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Logout'),
+            child: Text(context.l10n.logout),
           ),
         ],
       ),
