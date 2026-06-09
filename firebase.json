@@ -4,7 +4,7 @@
   },
   "functions": [
     {
-      "source": "functions",
+      "source": "quick_grocery_admin/functions",
       "codebase": "default",
       "disallowLegacyRuntimeConfig": true,
       "ignore": [
