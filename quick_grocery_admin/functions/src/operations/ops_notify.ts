@@ -527,31 +527,6 @@ export async function notifyVendor(
     data,
   });
 
-  const tokens = new Set<string>();
-  const tokenDocs = await db
-    .collection("vendors")
-    .doc(vendorId)
-    .collection("deviceTokens")
-    .get();
-  for (const doc of tokenDocs.docs) {
-    const t = str(doc.data()?.token);
-    if (t) tokens.add(t);
-  }
-
-  const v = await db.collection("vendors").doc(vendorId).get();
-  const legacy = str(v.data()?.fcmToken || v.data()?.fcm_token);
-  if (legacy) tokens.add(legacy);
-
-  for (const token of tokens) {
-    await sendPushToToken({
-      token,
-      title,
-      body,
-      soundType: "orders",
-      data,
-    });
-  }
-
   await writeNotificationLog({
     type: opts.type,
     sender: "cloud_function",
@@ -603,17 +578,6 @@ export async function notifyDeliveryRider(
     soundType: notifType === "order_cancelled" ? "orders" : "delivery",
     data,
   });
-  const r = await db.collection("delivery_boys").doc(riderId).get();
-  const token = str(r.data()?.fcmToken || r.data()?.fcm_token);
-  if (token) {
-    await sendPushToToken({
-      token,
-      title,
-      body,
-      soundType: notifType === "order_cancelled" ? "orders" : "delivery",
-      data,
-    });
-  }
 
   await writeNotificationLog({
     type: notifType,

@@ -47,10 +47,19 @@ class OrderRepository {
     required DeliveryInstructions instructions,
     required PaymentMethod paymentMethod,
     String? paymentRef,
+    String? idempotencyKey,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       throw StateError('User must be signed in to place an order.');
+    }
+
+    if (idempotencyKey != null && idempotencyKey.isNotEmpty) {
+      final existing = await _resolveIdempotentOrder(
+        uid: user.uid,
+        idempotencyKey: idempotencyKey,
+      );
+      if (existing != null) return existing;
     }
 
     final productItems =
@@ -113,6 +122,8 @@ class OrderRepository {
         'type': address.type,
       },
       'createdAt': FieldValue.serverTimestamp(),
+      if (idempotencyKey != null && idempotencyKey.isNotEmpty)
+        'idempotencyKey': idempotencyKey,
     };
 
     final ref = _firestore.collection('orders').doc();
@@ -138,6 +149,18 @@ class OrderRepository {
 
     try {
       await ref.set(orderData);
+      if (idempotencyKey != null && idempotencyKey.isNotEmpty) {
+        await _firestore
+            .collection('order_idempotency')
+            .doc('${user.uid}_$idempotencyKey')
+            .set({
+          'uid': user.uid,
+          'idempotencyKey': idempotencyKey,
+          'orderId': ref.id,
+          'status': 'completed',
+          'createdAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
       await _mirrorVendorOrders(
         orderId: ref.id,
         vendorIds: vendorIds,
@@ -156,6 +179,20 @@ class OrderRepository {
       rethrow;
     }
     return ref.id;
+  }
+
+  Future<String?> _resolveIdempotentOrder({
+    required String uid,
+    required String idempotencyKey,
+  }) async {
+    final doc = await _firestore
+        .collection('order_idempotency')
+        .doc('${uid}_$idempotencyKey')
+        .get();
+    if (!doc.exists) return null;
+    final orderId = doc.data()?['orderId']?.toString();
+    if (orderId == null || orderId.isEmpty) return null;
+    return orderId;
   }
 
   Future<void> _mirrorVendorOrders({

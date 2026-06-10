@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_delivery/core/navigation/root_back_handler.dart';
 import 'package:quick_grocery_delivery/widgets/delivery_logo.dart';
 import 'package:quick_grocery_delivery/constants/delivery_branding.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
@@ -24,7 +25,9 @@ class _LoginScreenBody extends StatelessWidget {
     final provider = Provider.of<LoginService>(context);
     final width = MediaQuery.of(context).size.width;
     final height = MediaQuery.of(context).size.height;
-    return Scaffold(
+    return RootBackHandler(
+      blockPop: provider.isLoading,
+      child: Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
@@ -185,6 +188,7 @@ class _LoginScreenBody extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

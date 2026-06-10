@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/inventory/inventory_limits.dart';
+import 'package:quickgrocery/core/order/order_idempotency.dart';
 import 'package:quickgrocery/models/product.dart';
 
 /// A single line in the cart — flat, serializable, and decoupled from
@@ -756,6 +757,7 @@ class CheckoutState {
   final double deliveryTipAmount;
   final bool isPlacingOrder;
   final String? errorMessage;
+  final String idempotencyKey;
 
   const CheckoutState({
     required this.selectedAddressIndex,
@@ -765,17 +767,21 @@ class CheckoutState {
     required this.deliveryTipAmount,
     required this.isPlacingOrder,
     required this.errorMessage,
+    required this.idempotencyKey,
   });
 
-  static const CheckoutState initial = CheckoutState(
-    selectedAddressIndex: 0,
-    slot: null,
-    instructions: DeliveryInstructions(),
-    paymentMethod: PaymentMethod.cod,
-    deliveryTipAmount: 0,
-    isPlacingOrder: false,
-    errorMessage: null,
-  );
+  static CheckoutState fresh() => CheckoutState(
+        selectedAddressIndex: 0,
+        slot: null,
+        instructions: const DeliveryInstructions(),
+        paymentMethod: PaymentMethod.cod,
+        deliveryTipAmount: 0,
+        isPlacingOrder: false,
+        errorMessage: null,
+        idempotencyKey: OrderIdempotency.generateKey(),
+      );
+
+  static final CheckoutState initial = fresh();
 
   CheckoutState copyWith({
     int? selectedAddressIndex,
@@ -785,7 +791,9 @@ class CheckoutState {
     double? deliveryTipAmount,
     bool? isPlacingOrder,
     String? errorMessage,
+    String? idempotencyKey,
     bool clearError = false,
+    bool rotateIdempotencyKey = false,
   }) {
     return CheckoutState(
       selectedAddressIndex: selectedAddressIndex ?? this.selectedAddressIndex,
@@ -795,6 +803,9 @@ class CheckoutState {
       deliveryTipAmount: deliveryTipAmount ?? this.deliveryTipAmount,
       isPlacingOrder: isPlacingOrder ?? this.isPlacingOrder,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      idempotencyKey: rotateIdempotencyKey
+          ? OrderIdempotency.generateKey()
+          : (idempotencyKey ?? this.idempotencyKey),
     );
   }
 }

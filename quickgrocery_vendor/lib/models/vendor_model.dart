@@ -7,6 +7,8 @@ class VendorModel {
   final String password;
   final String shopName;
   final String shopAddress;
+  final double? shopLat;
+  final double? shopLng;
   final String vendorImage;
   final String shopImage;
   final bool isActive;
@@ -20,6 +22,8 @@ class VendorModel {
     required this.password,
     required this.shopName,
     required this.shopAddress,
+    this.shopLat,
+    this.shopLng,
     required this.vendorImage,
     required this.shopImage,
     required this.isActive,
@@ -88,6 +92,12 @@ class VendorModel {
     final shopAddress = data['shopAddress']?.toString() ??
         data['shop_address']?.toString() ??
         '';
+    final shopLat = _optionalDouble(
+      data['shop_lat'] ?? data['shopLat'] ?? data['latitude'] ?? data['lat'],
+    );
+    final shopLng = _optionalDouble(
+      data['shop_lng'] ?? data['shopLng'] ?? data['longitude'] ?? data['lng'],
+    );
     final vendorImage = data['vendorImage']?.toString() ??
         data['vendor_image']?.toString() ??
         '';
@@ -104,6 +114,8 @@ class VendorModel {
       password: data['password']?.toString() ?? '',
       shopName: shopName,
       shopAddress: shopAddress,
+      shopLat: shopLat,
+      shopLng: shopLng,
       vendorImage: vendorImage,
       shopImage: shopImage,
       isActive: parseIsActive(data),
@@ -121,9 +133,21 @@ class VendorModel {
       'phone': phone,
       'shop_name': shopName,
       'shop_address': shopAddress,
+      if (shopLat != null) 'shop_lat': shopLat,
+      if (shopLat != null) 'shopLat': shopLat,
+      if (shopLat != null) 'latitude': shopLat,
+      if (shopLng != null) 'shop_lng': shopLng,
+      if (shopLng != null) 'shopLng': shopLng,
+      if (shopLng != null) 'longitude': shopLng,
       'vendor_image': vendorImage,
       'shop_image': shopImage,
       'is_active': isActive,
     };
+  }
+
+  static double? _optionalDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
   }
 }

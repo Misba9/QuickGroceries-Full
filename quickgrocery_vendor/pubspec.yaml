@@ -54,6 +54,9 @@ dependencies:
   vibration: ^2.0.0
   quick_grocery_receipt:
     path: ../packages/quick_grocery_receipt
+  quick_grocery_geo:
+    path: ../packages/quick_grocery_geo
+  geocoding: ^3.0.0
 
 dev_dependencies:
   flutter_test:

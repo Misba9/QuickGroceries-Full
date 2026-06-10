@@ -139,6 +139,21 @@ class OrderModel {
     return null;
   }
 
+  /// Best available creation time for list ordering (newest-first).
+  DateTime get sortCreatedAt {
+    if (createdAt != null) return createdAt!;
+    final parsed = DateTime.tryParse(createdDate.trim());
+    if (parsed != null) return parsed;
+    final idMs = int.tryParse(id);
+    if (idMs != null && idMs > 0) {
+      return DateTime.fromMillisecondsSinceEpoch(idMs);
+    }
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  static int compareNewestFirst(OrderModel a, OrderModel b) =>
+      b.sortCreatedAt.compareTo(a.sortCreatedAt);
+
   factory OrderModel.fromFirestore(Map<String, dynamic> data, String id) {
     List<ProductItem> parsedProducts = [];
     if (data['products'] != null) {

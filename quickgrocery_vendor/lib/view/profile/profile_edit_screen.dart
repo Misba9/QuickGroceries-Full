@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:quick_grocery_geo/quick_grocery_geo.dart';
 import '../../models/vendor_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
@@ -26,6 +27,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final _authService = AuthService();
   final _storageService = StorageService();
   final _imagePicker = ImagePicker();
+  final GeocodeService _geocodeService = GeocodeService();
   bool _isLoading = false;
   bool _isUploadingImage = false;
 
@@ -197,6 +199,33 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           return;
         }
 
+        // Resolve store coordinates from saved values or geocode the address.
+        double? shopLat = widget.vendor.shopLat;
+        double? shopLng = widget.vendor.shopLng;
+        final addressChanged =
+            _shopAddressController.text.trim() != widget.vendor.shopAddress.trim();
+        if (addressChanged ||
+            !GpsPoint.isValidCoord(shopLat, shopLng)) {
+          final geocoded =
+              await _geocodeService.geocodeAddress(_shopAddressController.text.trim());
+          if (geocoded == null) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Could not locate shop address. Check the address and try again.',
+                  ),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            setState(() => _isLoading = false);
+            return;
+          }
+          shopLat = geocoded.latitude;
+          shopLng = geocoded.longitude;
+        }
+
         // Create updated vendor model
         final updatedVendor = VendorModel(
           id: widget.vendor.id,
@@ -207,6 +236,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           password: widget.vendor.password, // Keep existing password
           shopName: _shopNameController.text.trim(),
           shopAddress: _shopAddressController.text.trim(),
+          shopLat: shopLat,
+          shopLng: shopLng,
           vendorImage: finalVendorImageUrl ?? widget.vendor.vendorImage,
           shopImage: finalShopImageUrl ?? widget.vendor.shopImage,
           isActive: widget.vendor.isActive,

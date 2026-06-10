@@ -129,6 +129,11 @@ class OrderLifecycle {
   static bool isLiveTracking(String status) =>
       normalizeStatus(status) == outForDelivery;
 
+  static bool isActiveDelivery(String status) {
+    final s = normalizeStatus(status);
+    return s == deliveryAssigned || s == outForDelivery;
+  }
+
   static bool isInTransit(String status) =>
       normalizeStatus(status) == outForDelivery;
 

@@ -15,7 +15,6 @@ import {
 } from "./ops_notify";
 import {
   OrderStatus,
-  needsRiderAcceptance,
   resolveStatus,
   statusToLegacy,
   vendorMirrorPatch,
@@ -464,18 +463,6 @@ async function handleStatusTransition(
 
     default:
       break;
-  }
-
-  if (needsRiderAcceptance(normalized) && !needsRiderAcceptance(resolveStatus({ status: prevStatus }))) {
-    const riderId = str(after.deliveryBoyId);
-    if (riderId) {
-      await notifyDeliveryRider(riderId, {
-        title: "New delivery assigned",
-        message: `Accept order #${orderId.slice(-6)} to start delivery.`,
-        type: "delivery_assigned",
-        metadata: { orderId },
-      });
-    }
   }
 }
 

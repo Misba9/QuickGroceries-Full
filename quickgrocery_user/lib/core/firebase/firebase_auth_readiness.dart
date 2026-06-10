@@ -35,22 +35,22 @@ class FirebaseAuthReadiness {
     final report = await FirebaseConfigAudit.runAudit();
     FirebasePhoneAuthLogger.info(report.toDebugString());
 
+    // Empty oauth_client in the bundled JSON is often stale even when SHA
+    // fingerprints are registered in Firebase Console — do not block here;
+    // let verifyPhoneNumber() run and surface a real Firebase error if needed.
     if (report.issues.any((i) => i.id == 'missing-sha-oauth-client')) {
       FirebasePhoneAuthLogger.warn(
-        'oauthClientCount=0 in bundled google-services.json — '
-        'informational only, not blocking verifyPhoneNumber()',
+        'google-services.json oauth_client is empty — proceeding anyway '
+        '(SHA may already be registered in Firebase Console).',
       );
     }
 
     if (!report.isReadyForPhoneAuth) {
-      FirebasePhoneAuthLogger.warn(
-        'ensurePhoneAuthReady audit issues (non-blocking): '
-        '${report.toUserFacingSummary()}',
-      );
-    } else {
-      FirebasePhoneAuthLogger.info(
-        'ensurePhoneAuthReady audit PASS',
-      );
+      final summary = report.toUserFacingSummary();
+      if (summary.isNotEmpty) {
+        FirebasePhoneAuthLogger.warn('ensurePhoneAuthReady blocked: $summary');
+        return summary;
+      }
     }
 
     FirebasePhoneAuthLogger.info(

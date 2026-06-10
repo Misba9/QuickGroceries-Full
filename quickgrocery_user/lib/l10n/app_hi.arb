@@ -583,5 +583,8 @@
         "type": "String"
       }
     }
-  }
+  },
+  "partner_with_us": "Partner with us",
+  "become_store_partner": "Become a store partner",
+  "partner_with_us_subtitle": "Join Quick Groceries as a store or delivery partner"
 }

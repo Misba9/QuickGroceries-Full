@@ -1370,4 +1370,14 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get enterCouponCodeHint => 'Enter coupon code';
+
+  @override
+  String get partner_with_us => 'Partner with us';
+
+  @override
+  String get become_store_partner => 'Become a store partner';
+
+  @override
+  String get partner_with_us_subtitle =>
+      'Join Quick Groceries as a store or delivery partner';
 }

@@ -1,12 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/delivery/delivery_zone_lookup.dart';
 import 'package:quickgrocery/models/delivery_zone_model.dart';
 
 class DeliveryZoneService extends ChangeNotifier {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  DeliveryZoneService({FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
+
+  final FirebaseFirestore _firestore;
   List<DeliveryZoneModel> _deliveryZones = [];
   bool _isLoading = false;
   bool _lastLookupFailed = false;
+  bool? _hasActiveZonesCache;
 
   List<DeliveryZoneModel> get deliveryZones => _deliveryZones;
   bool get isLoading => _isLoading;
@@ -30,6 +35,8 @@ class DeliveryZoneService extends ChangeNotifier {
         );
       }).toList();
 
+      _hasActiveZonesCache =
+          _deliveryZones.any((zone) => zone.isActive && zone.pinCodes.isNotEmpty);
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -39,27 +46,21 @@ class DeliveryZoneService extends ChangeNotifier {
     }
   }
 
-  /// Get delivery zone by pin code
-  /// Returns the first active zone that contains the pin code, or null if not found
+  Future<bool> hasActiveDeliveryZones() async {
+    if (_hasActiveZonesCache != null) return _hasActiveZonesCache!;
+    _hasActiveZonesCache = await DeliveryZoneLookup.hasActiveZones(_firestore);
+    return _hasActiveZonesCache!;
+  }
+
+  void invalidateCache() {
+    _hasActiveZonesCache = null;
+  }
+
+  /// Returns the first active zone that contains the pin code, or null if not found.
   Future<DeliveryZoneModel?> getZoneByPinCode(String pinCode) async {
     try {
-      QuerySnapshot snapshot = await _firestore
-          .collection('delivery_zones')
-          .where('pin_codes', arrayContains: pinCode)
-          .where('is_active', isEqualTo: true)
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isEmpty) {
-        _lastLookupFailed = false;
-        return null;
-      }
-
       _lastLookupFailed = false;
-      return DeliveryZoneModel.fromFirestore(
-        snapshot.docs.first.data() as Map<String, dynamic>,
-        snapshot.docs.first.id,
-      );
+      return await DeliveryZoneLookup.findActiveZoneByPin(_firestore, pinCode);
     } catch (e) {
       _lastLookupFailed = true;
       debugPrint('Error getting zone by pin code: $e');
@@ -67,9 +68,37 @@ class DeliveryZoneService extends ChangeNotifier {
     }
   }
 
+  Future<DeliveryZoneCheckResult> checkPinCode(String pinCode) async {
+    final pin = DeliveryZoneLookup.normalizePin(pinCode);
+    if (pin.isEmpty) {
+      final hasZones = await hasActiveDeliveryZones();
+      return hasZones
+          ? DeliveryZoneCheckResult.missingPin
+          : DeliveryZoneCheckResult.noZonesConfigured;
+    }
+
+    try {
+      _lastLookupFailed = false;
+      final hasZones = await hasActiveDeliveryZones();
+      if (!hasZones) {
+        return DeliveryZoneCheckResult.noZonesConfigured;
+      }
+
+      final zone = await DeliveryZoneLookup.findActiveZoneByPin(_firestore, pin);
+      return zone != null
+          ? DeliveryZoneCheckResult.serviceable
+          : DeliveryZoneCheckResult.notServiceable;
+    } catch (e) {
+      _lastLookupFailed = true;
+      debugPrint('Error checking pin code: $e');
+      return DeliveryZoneCheckResult.lookupFailed;
+    }
+  }
+
   /// Check if a pin code is serviceable
   Future<bool> isPinCodeServiceable(String pinCode) async {
-    final zone = await getZoneByPinCode(pinCode);
-    return zone != null;
+    final result = await checkPinCode(pinCode);
+    return result == DeliveryZoneCheckResult.serviceable ||
+        result == DeliveryZoneCheckResult.noZonesConfigured;
   }
 }

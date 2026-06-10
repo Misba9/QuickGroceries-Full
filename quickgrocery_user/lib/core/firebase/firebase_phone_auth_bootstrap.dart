@@ -3,20 +3,25 @@ import 'package:flutter/foundation.dart';
 
 import 'package:quickgrocery/core/firebase/firebase_phone_auth_logger.dart';
 
-/// Android Phone Auth verification settings (Play Integrity vs reCAPTCHA).
+/// Android Phone Auth verification settings.
 ///
-/// [forceRecaptchaFlow] skips Play Integrity (which fails when Play Console
-/// links a different GCP project than Firebase, or when oauth_client is empty
-/// in google-services.json) and uses the Android API key + reCAPTCHA path.
+/// **Native path (Play Integrity / SafetyNet):** default when
+/// [forceRecaptchaFlow] is false. Requires SHA-1/SHA-256 registered in Firebase
+/// Console and a valid `oauth_client` in google-services.json.
+///
+/// **Web reCAPTCHA fallback:** Firebase opens only when native attestation
+/// cannot run (missing SHA, sideloaded release APK, emulator, etc.).
+///
+/// Do NOT force reCAPTCHA — that disables Play Integrity and always shows the
+/// browser verification page when native checks fail.
 Future<void> configureFirebasePhoneAuth() async {
   if (kIsWeb) return;
 
   await FirebaseAuth.instance.setSettings(
-    forceRecaptchaFlow: true,
+    forceRecaptchaFlow: false,
   );
   FirebasePhoneAuthLogger.info(
-    'PhoneAuth setSettings forceRecaptchaFlow=true '
-    'package=com.quickgrocery.io appId=db7a0d4e8b73454f6e0c70 '
-    'kDebugMode=$kDebugMode kProfileMode=$kProfileMode kReleaseMode=$kReleaseMode',
+    'PhoneAuth setSettings forceRecaptchaFlow=false (native Play Integrity when SHA configured) '
+    'kDebugMode=$kDebugMode kReleaseMode=$kReleaseMode',
   );
 }

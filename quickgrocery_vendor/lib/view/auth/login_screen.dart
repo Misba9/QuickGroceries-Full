@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quickgrocery_vendor/core/navigation/root_back_handler.dart';
 import 'package:quickgrocery_vendor/controllers/auth_controller.dart';
 import 'package:quickgrocery_vendor/core/fcm_bootstrap.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
@@ -84,7 +85,9 @@ class _LoginScreenState extends State<LoginScreen> {
       listenable: _authController,
       builder: (context, _) {
         final isLoading = _authController.isLoading;
-        return Scaffold(
+        return RootBackHandler(
+          blockPop: isLoading,
+          child: Scaffold(
           resizeToAvoidBottomInset: true,
           body: SafeArea(
             child: KeyboardSafeBody(
@@ -237,6 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
             ),
           ),
+        ),
         );
       },
     );

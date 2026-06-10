@@ -1,5 +1,6 @@
 import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
+import 'package:quick_grocery_admin/view/orders/widgets/order_bill_summary_section.dart';
 import 'package:quick_grocery_admin/view/orders/services/order_service.dart';
 import 'package:quick_grocery_admin/view/orders/services/invoice_service.dart';
 import 'package:quick_grocery_admin/view/products/screens/product_details_screen.dart';
@@ -228,6 +229,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                         );
                       }),
                     ),
+                  ),
+                  AppSpacing.h20,
+
+                  WrapperWidget(
+                    child: OrderBillSummarySection(order: widget.order),
                   ),
                   AppSpacing.h20,
 

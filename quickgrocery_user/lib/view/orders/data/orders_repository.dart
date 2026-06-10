@@ -19,13 +19,14 @@ class OrdersRepository {
     final query = _firestore
         .collection('orders')
         .where('uuid', isEqualTo: uid)
+        .orderBy('createdAt', descending: true)
         .limit(100);
 
     return query.snapshots().map((snap) {
       final list = snap.docs
           .map((d) => LiveOrder.fromFirestore(d.data(), d.id))
           .toList();
-      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      list.sort(LiveOrder.compareNewestFirst);
       return list;
     });
   }

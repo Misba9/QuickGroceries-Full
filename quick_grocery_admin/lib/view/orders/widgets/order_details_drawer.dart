@@ -9,6 +9,7 @@ import 'package:quick_grocery_admin/view/orders/services/invoice_service.dart';
 import 'package:quick_grocery_admin/view/orders/services/order_service.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_contact_actions.dart';
 import 'package:quick_grocery_admin/view/orders/utils/receipt_product_format.dart';
+import 'package:quick_grocery_admin/view/orders/widgets/order_bill_summary_section.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/order_status_badge.dart';
 import 'package:quick_grocery_admin/core/widgets/admin_text_selection.dart';
 
@@ -160,65 +161,10 @@ class _OrderDetailsDrawerBodyState extends State<OrderDetailsDrawerBody> {
                 ),
               _section(
                 'Payment',
-                child: Builder(
-                  builder: (context) {
-                    final bill = o.billTotals;
-                    final mrpTotal = o.products.fold<double>(
-                      0,
-                      (sum, p) => sum + (p.slashedPrice > p.price ? p.slashedPrice : p.price) * p.itemCount,
-                    );
-                    final productDiscount =
-                        (mrpTotal - bill.subtotal).clamp(0.0, double.infinity);
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            _kv('Method', o.isPaid ? 'Online (Paid)' : 'COD'),
-                            const SizedBox(width: 24),
-                            _kv(
-                              'Total',
-                              '₹${bill.grandTotal.toStringAsFixed(2)}',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        _kv('MRP Total', '₹${mrpTotal.toStringAsFixed(2)}'),
-                        if (productDiscount > 0)
-                          _kv(
-                            'Product Discount',
-                            '- ₹${productDiscount.toStringAsFixed(2)}',
-                          ),
-                        _kv('Item Total', '₹${bill.subtotal.toStringAsFixed(2)}'),
-                        if (bill.couponDiscount > 0)
-                          _kv(
-                            'Coupon discount',
-                            '- ₹${bill.couponDiscount.toStringAsFixed(2)}',
-                          ),
-                        _kv(
-                          'Delivery Fee',
-                          '₹${bill.deliveryFee.toStringAsFixed(2)}',
-                        ),
-                        if (bill.handlingCharge > 0)
-                          _kv(
-                            'Handling Fee',
-                            '₹${bill.handlingCharge.toStringAsFixed(2)}',
-                          ),
-                        if (bill.platformFee > 0)
-                          _kv(
-                            'Platform Fee',
-                            '₹${bill.platformFee.toStringAsFixed(2)}',
-                          ),
-                        if (bill.tax > 0)
-                          _kv('Tax', '₹${bill.tax.toStringAsFixed(2)}'),
-                        if (bill.deliveryPartnerTip > 0)
-                          _kv(
-                            'Delivery Partner Tip',
-                            '₹${bill.deliveryPartnerTip.toStringAsFixed(2)}',
-                          ),
-                      ],
-                    );
-                  },
+                child: OrderBillSummarySection(
+                  order: o,
+                  title: 'Payment',
+                  dense: true,
                 ),
               ),
               _section(
@@ -359,17 +305,6 @@ class _OrderDetailsDrawerBodyState extends State<OrderDetailsDrawerBody> {
       ),
     );
   }
-
-  Widget _kv(String k, String v) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(k, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-          AdminSelectableText(
-            v,
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-        ],
-      );
 }
 
 class _Timeline extends StatelessWidget {

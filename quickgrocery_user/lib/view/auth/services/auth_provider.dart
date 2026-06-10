@@ -15,10 +15,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:quickgrocery/core/firebase/firebase_auth_readiness.dart';
 import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
 import 'package:quickgrocery/core/firebase/firebase_phone_auth_logger.dart';
+import 'package:quickgrocery/core/auth/phone_auth_coordinator.dart';
+import 'package:quickgrocery/core/auth/phone_auth_log.dart';
 import 'package:quickgrocery/core/user/user_profile_cache.dart';
 import 'package:quickgrocery/core/user/user_profile_repository.dart';
 import 'package:quickgrocery/view/auth/screens/customer_profile_add_screen.dart';
-import 'package:quickgrocery/view/auth/screens/otp_screen.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_shell.dart';
 import 'package:quickgrocery/view/refer/services/refer_earn_service.dart';
 
@@ -31,6 +32,7 @@ class AuthService extends ChangeNotifier {
   String _verificationId = '';
   int? _resendToken;
   bool isLoading = false;
+  bool _phoneVerifyInFlight = false;
   String? phoneAuthError;
   TextEditingController nameController = TextEditingController();
   TextEditingController emailController = TextEditingController();
@@ -175,12 +177,25 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _routeAfterSignIn(BuildContext context) async {
+  void _finishPhoneSignIn() {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null || !context.mounted) return;
+    if (user == null) {
+      FirebasePhoneAuthLogger.warn('_finishPhoneSignIn: currentUser null');
+      return;
+    }
 
-    await _profileRepo.hydrateLocal(user.uid);
-    // [AppBootstrapShell] listens to auth and runs the full bootstrap sequence.
+    PhoneAuthLog.signInSuccess(uid: user.uid);
+    PhoneAuthLog.sessionStored();
+    PhoneAuthCoordinator.clearAuthRoutes();
+    PhoneAuthLog.navigateHome();
+    unawaited(_profileRepo.hydrateLocal(user.uid));
+  }
+
+  void _resetPhoneVerifyState({String? error}) {
+    _phoneVerifyInFlight = false;
+    isLoading = false;
+    if (error != null) _setPhoneAuthError(error);
+    notifyListeners();
   }
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -197,8 +212,12 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> verifyPhoneNumber(BuildContext context) async {
-    if (isLoading) return;
+    if (_phoneVerifyInFlight || isLoading) {
+      PhoneAuthLog.duplicateTapIgnored('verifyPhoneNumber');
+      return;
+    }
 
+    PhoneAuthLog.continueTapped();
     clearPhoneAuthError();
 
     final phoneNumber = FirebaseAuthReadiness.normalizePhoneNumber(
@@ -218,26 +237,19 @@ class AuthService extends ChangeNotifier {
       return;
     }
 
-    if (!context.mounted) return;
-
-    await FirebasePhoneAuthLogger.logVerifyPhoneSnapshot(
-      phase: 'BEFORE verifyPhoneNumber',
-      phoneNumber: phoneNumber,
-    );
-
+    PhoneAuthLog.verifyPhoneCalled();
     await _startPhoneVerification(
-      context: context,
       phoneNumber: phoneNumber,
       navigateToOtpOnCodeSent: true,
     );
   }
 
   Future<void> _startPhoneVerification({
-    required BuildContext context,
     required String phoneNumber,
     int? forceResendingToken,
     bool navigateToOtpOnCodeSent = false,
   }) async {
+    _phoneVerifyInFlight = true;
     isLoading = true;
     notifyListeners();
 
@@ -247,13 +259,25 @@ class AuthService extends ChangeNotifier {
 
     Timer? watchdog;
     watchdog = Timer(const Duration(seconds: 90), () {
-      if (!isLoading) return;
+      if (!_phoneVerifyInFlight) return;
       FirebaseAuthReadiness.log('watchdog timeout — resetting loading state');
-      isLoading = false;
-      _setPhoneAuthError(
-        'Phone verification timed out. Check network and iOS Firebase setup, then try again.',
+      _resetPhoneVerifyState(
+        error:
+            'Phone verification timed out. Check network and try again.',
       );
     });
+
+    void onCodeReady() {
+      watchdog?.cancel();
+      _phoneVerifyInFlight = false;
+      isLoading = false;
+      clearPhoneAuthError();
+      notifyListeners();
+      if (navigateToOtpOnCodeSent) {
+        PhoneAuthLog.otpScreenOpened();
+        PhoneAuthCoordinator.openOtpScreen();
+      }
+    }
 
     try {
       FirebasePhoneAuthLogger.info(
@@ -264,24 +288,29 @@ class AuthService extends ChangeNotifier {
         forceResendingToken: forceResendingToken,
         timeout: const Duration(seconds: 60),
         verificationCompleted: (PhoneAuthCredential credential) async {
-          FirebaseAuthReadiness.log('verificationCompleted (auto)');
+          PhoneAuthLog.verificationCompleted();
           watchdog?.cancel();
-          if (!context.mounted) return;
           try {
+            isLoading = true;
+            notifyListeners();
             await _auth.signInWithCredential(credential);
             FirebaseAuthReadiness.log('auto sign-in succeeded');
-            if (context.mounted) await _routeAfterSignIn(context);
+            _finishPhoneSignIn();
           } catch (e, st) {
             FirebaseAuthReadiness.log('auto sign-in failed: $e');
             log('Auto phone sign-in failed', error: e, stackTrace: st);
+            if (e is FirebaseAuthException) {
+              _setPhoneAuthError(await _phoneAuthErrorMessage(e));
+            }
           } finally {
+            _phoneVerifyInFlight = false;
             isLoading = false;
             notifyListeners();
           }
         },
         verificationFailed: (FirebaseAuthException e) async {
+          PhoneAuthLog.verificationFailed(e.code);
           watchdog?.cancel();
-          isLoading = false;
           FirebasePhoneAuthLogger.logAuthException(
             'verificationFailed',
             e,
@@ -292,46 +321,36 @@ class AuthService extends ChangeNotifier {
             phoneNumber: phoneNumber,
           );
           final message = await _phoneAuthErrorMessage(e);
-          _setPhoneAuthError(message);
+          _resetPhoneVerifyState(error: message);
           log('verificationFailed: ${e.code} ${e.message}', error: e, stackTrace: StackTrace.current);
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(message), backgroundColor: Colors.red),
-            );
-          }
         },
         codeSent: (String verificationId, int? resendToken) {
-          watchdog?.cancel();
+          PhoneAuthLog.codeSent();
           _verificationId = verificationId;
           _resendToken = resendToken;
           opController.clear();
-          isLoading = false;
-          clearPhoneAuthError();
           FirebasePhoneAuthLogger.info(
             'codeSent verificationId=${verificationId.substring(0, 8)}… '
             'phone=$phoneNumber resendToken=${resendToken != null}',
           );
-          notifyListeners();
-
-          if (!context.mounted) return;
-
-          if (navigateToOtpOnCodeSent) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const OtpAuthScreen()),
-            );
-          }
+          onCodeReady();
         },
         codeAutoRetrievalTimeout: (String verificationId) {
+          PhoneAuthLog.codeAutoRetrievalTimeout();
           _verificationId = verificationId;
           FirebaseAuthReadiness.log('codeAutoRetrievalTimeout');
-          isLoading = false;
-          notifyListeners();
+          if (navigateToOtpOnCodeSent && !PhoneAuthCoordinator.isOtpRouteOpen) {
+            onCodeReady();
+          } else {
+            watchdog?.cancel();
+            _phoneVerifyInFlight = false;
+            isLoading = false;
+            notifyListeners();
+          }
         },
       );
       FirebasePhoneAuthLogger.info(
-        'FirebaseAuth.verifyPhoneNumber SDK call returned (await completed); '
-        'waiting for verificationFailed/codeSent callbacks',
+        'FirebaseAuth.verifyPhoneNumber SDK call returned; waiting for callbacks',
       );
       await FirebasePhoneAuthLogger.logVerifyPhoneSnapshot(
         phase: 'AFTER verifyPhoneNumber await',
@@ -339,7 +358,6 @@ class AuthService extends ChangeNotifier {
       );
     } catch (e, st) {
       watchdog.cancel();
-      isLoading = false;
       if (e is FirebaseAuthException) {
         FirebasePhoneAuthLogger.logAuthException(
           'verifyPhoneNumber catch',
@@ -356,18 +374,8 @@ class AuthService extends ChangeNotifier {
       final message = e is FirebaseAuthException
           ? await _phoneAuthErrorMessage(e)
           : 'Phone verification failed: $e';
-      if (e is FirebaseAuthException) {
-        FirebaseAuthReadiness.log(
-          'verifyPhoneNumber exception: ${FirebaseConfigAudit.formatAuthException(e)}',
-        );
-      }
-      _setPhoneAuthError(message);
+      _resetPhoneVerifyState(error: message);
       log('verifyPhoneNumber threw', error: e, stackTrace: st);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.red),
-        );
-      }
     }
   }
 
@@ -394,21 +402,51 @@ class AuthService extends ChangeNotifier {
   /// Returns `true` if sign-in succeeded and navigation was performed.
   /// Returns `false` for an invalid OTP (caller should shake UI / show error).
   Future<bool> signInWithOTP(String smsCode, BuildContext context) async {
+    if (isLoading) {
+      PhoneAuthLog.duplicateTapIgnored('signInWithOTP');
+      return false;
+    }
+
+    if (_verificationId.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'OTP session expired. Go back and request a new code.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
+    }
+
+    PhoneAuthLog.otpEntered();
+
     try {
       isLoading = true;
       notifyListeners();
 
+      PhoneAuthLog.credentialCreated();
       final PhoneAuthCredential credential = PhoneAuthProvider.credential(
         verificationId: _verificationId,
         smsCode: smsCode,
       );
 
-      final UserCredential userCredential = await _auth.signInWithCredential(
-        credential,
-      );
+      final UserCredential userCredential = await _auth
+          .signInWithCredential(credential)
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw FirebaseAuthException(
+                code: 'network-request-failed',
+                message: 'Sign-in timed out. Check your connection and try again.',
+              );
+            },
+          );
 
-      if (userCredential.user != null && context.mounted) {
-        await _routeAfterSignIn(context);
+      if (userCredential.user != null) {
+        _finishPhoneSignIn();
         isLoading = false;
         notifyListeners();
         return true;
@@ -450,7 +488,7 @@ class AuthService extends ChangeNotifier {
 
   /// Resend OTP using Firebase [forceResendingToken] when available.
   Future<void> resendOtp(BuildContext context) async {
-    if (isLoading) return;
+    if (_phoneVerifyInFlight || isLoading) return;
 
     final phoneNumber = FirebaseAuthReadiness.normalizePhoneNumber(
       mobileController.text,
@@ -458,9 +496,9 @@ class AuthService extends ChangeNotifier {
     if (phoneNumber == null) return;
 
     await _startPhoneVerification(
-      context: context,
       phoneNumber: phoneNumber,
       forceResendingToken: _resendToken,
+      navigateToOtpOnCodeSent: false,
     );
   }
 

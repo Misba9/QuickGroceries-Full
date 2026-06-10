@@ -13,6 +13,7 @@ import 'package:quickgrocery/view/delivery_tips/services/delivery_tip_service.da
 import 'package:quickgrocery/view/delivery_tips/widgets/delivery_tip_tracking_card.dart';
 import 'package:quickgrocery/view/delivery_tips/widgets/post_delivery_tip_sheet.dart';
 import '../widgets/live_tracking_map.dart';
+import '../widgets/order_navigation_actions.dart';
 import '../widgets/order_actions_bar.dart';
 import '../widgets/order_details_card.dart';
 import '../widgets/order_timeline_widget.dart';
@@ -252,9 +253,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         const SizedBox(height: 14),
                         LiveTrackingMap(
                           dropLocation: order.dropLatLng,
+                          storeLocation: order.storeLatLng,
                           rider: rider,
                           eta: eta,
                         ),
+                        const SizedBox(height: 10),
+                        OrderNavigationActions(order: order, rider: rider),
                         const SizedBox(height: 14),
                       ] else if (!isDelivered) ...[
                         OrderTrackingHeader(order: order, eta: eta),

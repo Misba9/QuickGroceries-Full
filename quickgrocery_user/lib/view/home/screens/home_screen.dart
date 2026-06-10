@@ -17,6 +17,7 @@ import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/domain/cart_models.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
+import 'package:quickgrocery/core/delivery/delivery_zone_lookup.dart';
 import 'package:quickgrocery/view/delivery_location/services/delivery_zone_service.dart';
 import 'package:quickgrocery/view/home/presentation/providers/explore_products_provider.dart';
 import 'package:quickgrocery/view/app_content/models/app_content_config.dart';
@@ -97,29 +98,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       await addressService.ready;
       await addressService.getAddress();
       if (!mounted) return;
-
-      if (addressService.shouldBypassServiceAreaCheck) {
-        _applyServiceableState(
-          addressService,
-          serviceable: true,
-          pin: addressService.activeDeliveryPin,
-        );
-        return;
-      }
-
-      final pin = addressService.activeDeliveryPin;
-      if (addressService.hasSavedAddresses && pin != null && pin.isNotEmpty) {
-        await _checkServiceability(force: true);
-        return;
-      }
-
-      if (pin != null && pin.isNotEmpty) {
-        await _checkServiceability(force: true);
-        return;
-      }
-
-      await addressService.getCurrentLocation(context);
-      if (!mounted) return;
       await _checkServiceability(force: true);
     });
   }
@@ -156,11 +134,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       listen: false,
     );
 
-    if (addressService.shouldBypassServiceAreaCheck) {
-      _applyServiceableState(addressService, serviceable: true);
-      return;
-    }
-
     final pin = addressService.activeDeliveryPin;
     final addressId = addressService.selectedAddressId;
     final pinUnchanged = pin == _lastObservedPin;
@@ -169,11 +142,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     _lastObservedPin = pin;
     _lastObservedAddressId = addressId;
-
-    if (addressService.hasValidatedServiceablePin(pin)) {
-      _applyServiceableState(addressService, serviceable: true, pin: pin);
-      return;
-    }
 
     _checkServiceability(force: true);
   }
@@ -187,22 +155,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
     final pinCode = addressService.activeDeliveryPin;
 
-    if (addressService.shouldBypassServiceAreaCheck) {
-      _applyServiceableState(addressService, serviceable: true, pin: pinCode);
-      return;
-    }
-
-    if (addressService.hasValidatedServiceablePin(pinCode)) {
-      _applyServiceableState(addressService, serviceable: true, pin: pinCode);
-      return;
-    }
-
     if (!force && pinCode == _lastCheckedPinCode) return;
-
-    if (pinCode == null || pinCode.isEmpty) {
-      _applyServiceableState(addressService, serviceable: true, pin: pinCode);
-      return;
-    }
 
     setState(() => _isCheckingServiceability = true);
 
@@ -210,22 +163,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       context,
       listen: false,
     );
-    final ok = await deliveryZoneService.isPinCodeServiceable(pinCode);
+    deliveryZoneService.invalidateCache();
+
+    if (pinCode == null || pinCode.isEmpty) {
+      final hasZones = await deliveryZoneService.hasActiveDeliveryZones();
+      if (!mounted) return;
+
+      if (!hasZones) {
+        await addressService.markAddressValidated(
+          serviceable: true,
+          addressId: addressService.selectedAddressId,
+          pinCode: pinCode,
+        );
+        _applyServiceableState(addressService, serviceable: true, pin: pinCode);
+        return;
+      }
+
+      if (addressService.hasSavedAddresses || addressService.latLng != null) {
+        _applyServiceableState(
+          addressService,
+          serviceable: false,
+          pin: pinCode,
+        );
+        return;
+      }
+
+      await addressService.getCurrentLocation(context);
+      if (!mounted) return;
+      return _checkServiceability(force: true);
+    }
+
+    final result = await deliveryZoneService.checkPinCode(pinCode);
 
     if (!mounted) return;
-    if (!ok &&
-        deliveryZoneService.lastLookupFailed &&
-        addressService.hasValidatedServiceableAddress) {
-      _applyServiceableState(addressService, serviceable: true, pin: pinCode);
-      return;
-    }
+
+    final serviceable = switch (result) {
+      DeliveryZoneCheckResult.serviceable => true,
+      DeliveryZoneCheckResult.noZonesConfigured => true,
+      DeliveryZoneCheckResult.notServiceable => false,
+      DeliveryZoneCheckResult.missingPin => false,
+      DeliveryZoneCheckResult.lookupFailed =>
+        addressService.hasValidatedServiceablePin(pinCode),
+    };
+
     await addressService.markAddressValidated(
-      serviceable: ok,
+      serviceable: serviceable,
       addressId: addressService.selectedAddressId,
       pinCode: pinCode,
     );
     if (!mounted) return;
-    _applyServiceableState(addressService, serviceable: ok, pin: pinCode);
+    _applyServiceableState(addressService, serviceable: serviceable, pin: pinCode);
   }
 
   Future<void> _checkConnectivity() async {
@@ -281,11 +268,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final addressService = legacy.Provider.of<AddressService>(context);
-    if (addressService.shouldBypassServiceAreaCheck && !_serviceabilityReady) {
-      _applyServiceableState(addressService, serviceable: true);
-    }
-
     if (!_serviceabilityReady) {
       return const _ServiceabilityLoading();
     }

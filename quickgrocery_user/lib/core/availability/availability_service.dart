@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:quickgrocery/core/delivery/delivery_zone_lookup.dart';
 import 'package:quickgrocery/maintenance/data/maintenance_repository.dart';
 import 'package:quickgrocery/maintenance/domain/maintenance_config.dart';
 import 'package:quickgrocery/maintenance/presentation/providers/maintenance_providers.dart';
@@ -125,20 +126,26 @@ class AvailabilityService {
   }
 
   Future<({bool isValid, double charge})> _fetchDeliveryArea(String pin) async {
-    if (pin.isEmpty) return (isValid: false, charge: 0.0);
-    final snap = await _firestore
-        .collection('delivery_zones')
-        .where('pin_codes', arrayContains: pin)
-        .where('is_active', isEqualTo: true)
-        .limit(1)
-        .get(const GetOptions(source: Source.server));
+    final normalized = DeliveryZoneLookup.normalizePin(pin);
+    if (normalized.isEmpty) {
+      final hasZones = await DeliveryZoneLookup.hasActiveZones(_firestore);
+      return (isValid: !hasZones, charge: 0.0);
+    }
 
-    if (snap.docs.isEmpty) return (isValid: false, charge: 0.0);
-    final data = snap.docs.first.data();
-    return (
-      isValid: true,
-      charge: (data['delivery_charge'] as num?)?.toDouble() ?? 0.0,
-    );
+    try {
+      final hasZones = await DeliveryZoneLookup.hasActiveZones(_firestore);
+      if (!hasZones) {
+        return (isValid: true, charge: 0.0);
+      }
+
+      final zone =
+          await DeliveryZoneLookup.findActiveZoneByPin(_firestore, normalized);
+      if (zone == null) return (isValid: false, charge: 0.0);
+      return (isValid: true, charge: zone.deliveryCharge);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[AvailabilityService] zone lookup: $e');
+      return (isValid: false, charge: 0.0);
+    }
   }
 }
 

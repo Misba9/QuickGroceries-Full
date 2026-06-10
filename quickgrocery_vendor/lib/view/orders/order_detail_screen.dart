@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_geo/quick_grocery_geo.dart';
 import '../../core/order_lifecycle.dart';
 import '../../models/order_model.dart';
 import '../../models/vendor_model.dart';
@@ -394,6 +395,49 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       label: 'Address',
                       value: _currentOrder.address,
                     ),
+                    if (GpsPoint.isValidCoord(_currentOrder.lat, _currentOrder.lng)) ...[
+                      AppSpacing.h15,
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final ok = await ExternalNavigation.open(
+                              lat: _currentOrder.lat,
+                              lng: _currentOrder.lng,
+                              coordinatesOnly: true,
+                            );
+                            if (!context.mounted || ok) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Could not open maps for customer location.'),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.map_outlined),
+                          label: const Text('View Customer Location'),
+                        ),
+                      ),
+                    ],
+                    if (widget.vendor.shopLat != null &&
+                        widget.vendor.shopLng != null &&
+                        GpsPoint.isValidCoord(
+                          widget.vendor.shopLat,
+                          widget.vendor.shopLng,
+                        )) ...[
+                      AppSpacing.h10,
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => ExternalNavigation.open(
+                            lat: widget.vendor.shopLat,
+                            lng: widget.vendor.shopLng,
+                            coordinatesOnly: true,
+                          ),
+                          icon: const Icon(Icons.storefront_outlined),
+                          label: const Text('View Store Location'),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

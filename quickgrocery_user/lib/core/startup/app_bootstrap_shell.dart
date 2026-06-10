@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as legacy;
 
 import 'package:quickgrocery/core/auth/auth_user_provider.dart';
+import 'package:quickgrocery/core/auth/phone_auth_coordinator.dart';
+import 'package:quickgrocery/core/navigation/auth_floating_cart_guard.dart';
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/core/navigation/home_shell_observer.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_controller.dart';
@@ -36,11 +40,30 @@ class AppBootstrapShell extends ConsumerStatefulWidget {
 
 class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
   String? _bootUid;
+  bool _syncInFlight = false;
+  StreamSubscription<User?>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
+    _authSubscription =
+        FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (!mounted) return;
+      if (user == null && FirebaseAuth.instance.currentUser != null) {
+        return;
+      }
+      final uid = user?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+      if (uid != _bootUid) {
+        _syncAuth();
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncAuth());
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   void _onOnboardingComplete() {
@@ -50,16 +73,24 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
   }
 
   Future<void> _syncAuth() async {
-    final authUser = ref.read(authUserProvider).valueOrNull ??
-        FirebaseAuth.instance.currentUser;
+    if (_syncInFlight) return;
+
+    var authUser = resolveAuthUser(ref.read(authUserProvider));
+    if (authUser == null && FirebaseAuth.instance.currentUser != null) {
+      authUser = FirebaseAuth.instance.currentUser;
+    }
 
     if (!mounted) return;
 
     if (authUser == null) {
+      if (FirebaseAuth.instance.currentUser != null) return;
       _bootUid = null;
+      PhoneAuthCoordinator.reset();
       ref.read(appBootstrapProvider.notifier).markSignedOut();
       return;
     }
+
+    PhoneAuthCoordinator.clearAuthRoutes();
 
     if (_bootUid == authUser.uid &&
         ref.read(appBootstrapCompleteProvider) &&
@@ -67,6 +98,7 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
       return;
     }
 
+    _syncInFlight = true;
     _bootUid = authUser.uid;
     FloatingCartSuppression.reset();
 
@@ -79,27 +111,24 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
           legacy.Provider.of<DeliveryZoneService>(context, listen: false),
     );
 
-    await ref.read(appBootstrapProvider.notifier).runAuthenticated(
-          deps,
-          precacheImages: (snap) => HomeImagePrecache.warm(context, snap),
-        );
+    try {
+      await ref.read(appBootstrapProvider.notifier).runAuthenticated(
+            deps,
+            precacheImages: (snap) => HomeImagePrecache.warm(context, snap),
+          );
+    } finally {
+      _syncInFlight = false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(authUserProvider, (prev, next) {
-      final uid = next.valueOrNull?.uid;
-      if (uid != _bootUid) {
-        _syncAuth();
-      }
-    });
-
     final bootstrap = ref.watch(appBootstrapProvider);
     final authUser =
-        ref.watch(authUserProvider).valueOrNull ?? bootstrap.user;
+        resolveAuthUser(ref.watch(authUserProvider)) ?? bootstrap.user;
 
     if (authUser == null) {
-      return const LoginScreen();
+      return const AuthFloatingCartGuard(child: LoginScreen());
     }
 
     if (bootstrap.needsOnboarding) {

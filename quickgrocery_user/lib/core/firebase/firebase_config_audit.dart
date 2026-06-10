@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -127,12 +128,11 @@ class FirebaseConfigAudit {
   static const expectedProjectId = 'quikgroceries';
   static const _placeholderIosAppIdSuffix = '0000000000000000000000';
 
-  /// SHA-1 for the default Android debug keystore on this machine.
-  /// Re-register in Firebase Console if you use a different machine/keystore.
+  /// Example debug SHA-1 (each machine differs — run [shaFingerprintCommands]).
   static const debugSha1 =
-      '7F:87:2A:51:EE:54:18:48:A0:5D:07:D6:8D:28:62:24:AB:7A:6C:3E';
+      '4F:A1:E2:DE:8E:EB:FC:28:9C:E0:08:2C:78:2D:6D:59:C9:64:4E:B3';
   static const debugSha256 =
-      '6F:CD:6C:DF:D7:96:79:B8:51:AB:91:FD:AF:24:71:B6:9E:EE:C2:3F:28:85:1E:93:22:6C:56:63:70:84:F1:C6';
+      'AB:48:9F:16:83:EF:71:5D:E7:C9:27:FC:B0:A7:7E:82:51:AF:81:75:51:60:24:45:86:B0:31:94:A2:0D:E6:41';
 
   /// Commands to print SHA fingerprints for Firebase Console registration.
   static String shaFingerprintCommands() {
@@ -357,20 +357,22 @@ class FirebaseConfigAudit {
         }
 
         if (primary.oauthClientCount == 0) {
-          // Informational only — empty oauth_client in bundled JSON does not
-          // block OTP; Firebase Phone Auth verifies SHA at runtime via
-          // Play Integrity / reCAPTCHA. Severity warning (not critical).
           issues.add(
             FirebaseConfigIssue(
               id: 'missing-sha-oauth-client',
-              title: 'oauth_client empty in bundled google-services.json',
-              detail: oauthClientEmptyExplanation(
+              title: 'google-services.json oauth_client is empty',
+              detail: '${oauthClientEmptyExplanation(
                 firebaseAppId: primary.mobileSdkAppId,
                 packageName: primary.packageName,
-              ),
+              )}\n\n'
+                  'If SHA fingerprints are already in Firebase Console, phone auth '
+                  'may still work — wait 5–15 minutes for Google to propagate, '
+                  'then re-download google-services.json.',
               fixSteps: [
-                'If OTP fails with missing-client-identifier, confirm SHA in Firebase Console.',
-                'Re-download google-services.json when oauth_client populates.',
+                'Firebase Console → quikgroceries → Project settings → Android app com.quickgrocery.io',
+                'Confirm SHA-1 and SHA-256 match this build (cd android && ./gradlew :app:signingReport)',
+                'Wait 5–15 min, re-download google-services.json (oauth_client should populate)',
+                'Replace android/app/google-services.json → flutter clean && flutter run',
               ],
               severity: 'warning',
             ),
@@ -519,10 +521,16 @@ class FirebaseConfigAudit {
   }
 
   static Future<void> logConfiguration() async {
-    if (!kDebugMode) return;
     try {
       final report = await runAudit();
-      debugPrint(report.toDebugString());
+      final text = report.toDebugString();
+      if (kDebugMode || !report.isReadyForPhoneAuth) {
+        debugPrint(text);
+      }
+      if (!report.isReadyForPhoneAuth) {
+        // Always visible in logcat on physical devices (release included).
+        developer.log(text, name: 'FirebaseConfigAudit', level: 1000);
+      }
     } catch (e, st) {
       debugPrint('[FirebaseConfigAudit] log failed: $e\n$st');
     }
@@ -552,6 +560,14 @@ class FirebaseConfigAudit {
 
     if (!configCodes.contains(e.code)) {
       return formatted;
+    }
+
+    if (e.code == 'missing-client-identifier') {
+      return 'Phone login is not configured for this build.\n\n'
+          'Add your Android SHA-1 and SHA-256 in Firebase Console for '
+          'com.quickgrocery.io, then re-download google-services.json '
+          '(oauth_client must not be empty) and rebuild the app.\n\n'
+          'Run: cd android && ./gradlew :app:signingReport';
     }
 
     if (e.code == 'internal-error') {

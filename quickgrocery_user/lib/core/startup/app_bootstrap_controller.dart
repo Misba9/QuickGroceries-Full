@@ -153,6 +153,7 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
       await Future.wait<void>([
         _wireCartBridge(deps),
         _loadAddress(deps.addressService),
+        deps.deliveryZoneService.fetchDeliveryZones(),
         deps.categoryService.fetchProducts().then((_) {
           AppStartupLog.milestone('Categories loaded');
         }),

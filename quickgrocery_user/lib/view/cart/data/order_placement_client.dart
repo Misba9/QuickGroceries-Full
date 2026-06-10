@@ -33,6 +33,7 @@ class OrderPlacementClient {
     required PaymentMethod paymentMethod,
     String? paymentRef,
     double tipAmount = 0,
+    String? idempotencyKey,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -68,6 +69,8 @@ class OrderPlacementClient {
       'paymentMethod': paymentMethod.id,
       if (paymentRef != null) 'paymentRef': paymentRef,
       if (tipAmount > 0) 'tipAmount': tipAmount.round(),
+      if (idempotencyKey != null && idempotencyKey.isNotEmpty)
+        'idempotencyKey': idempotencyKey,
     });
     debugCallableData(functionName, payload);
 

@@ -87,6 +87,7 @@ class OrderService {
       subArray = _firestore
           .collection(_collectionName)
           .where('vendorIds', arrayContains: vendorId)
+          .orderBy('createdAt', descending: true)
           .limit(200)
           .snapshots()
           .listen(
@@ -109,6 +110,7 @@ class OrderService {
       subSingle = _firestore
           .collection(_collectionName)
           .where('vendorId', isEqualTo: vendorId)
+          .orderBy('createdAt', descending: true)
           .limit(200)
           .snapshots()
           .listen(
@@ -150,11 +152,13 @@ class OrderService {
     final arraySnap = await _firestore
         .collection(_collectionName)
         .where('vendorIds', arrayContains: vendorId)
+        .orderBy('createdAt', descending: true)
         .limit(200)
         .get();
     final singleSnap = await _firestore
         .collection(_collectionName)
         .where('vendorId', isEqualTo: vendorId)
+        .orderBy('createdAt', descending: true)
         .limit(200)
         .get();
     final map = <String, OrderModel>{};
@@ -164,7 +168,16 @@ class OrderService {
     for (final o in _parseAndFilter(singleSnap.docs, vendorId, 'All')) {
       map[o.id] = o;
     }
-    return map.values.toList();
+    final merged = map.values.toList()
+      ..sort((a, b) {
+        final da = VendorOrderUtils.parseCreatedDate(a);
+        final db = VendorOrderUtils.parseCreatedDate(b);
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
+        return db.compareTo(da);
+      });
+    return merged;
   }
 
   Future<OrderModel?> getOrderById(String orderId) async {

@@ -21,7 +21,7 @@ Future<void> vendorFcmBackgroundHandler(RemoteMessage message) async {
     );
   }
   await VendorPushInitializer.ensureInitialized();
-  await VendorPushInitializer.showFromRemoteMessage(message);
+  await VendorPushInitializer.handleBackgroundMessage(message);
 }
 
 Future<void> main() async {

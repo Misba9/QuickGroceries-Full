@@ -54,6 +54,8 @@ dependencies:
   flutter_local_notifications: ^18.0.1
   permission_handler: ^12.0.0
   qr_flutter: ^4.1.0
+  quick_grocery_geo:
+    path: ../packages/quick_grocery_geo
 
 dev_dependencies:
   flutter_test:

@@ -92,7 +92,43 @@ class OrderBillTotals {
     final fromBill = fromMap(
       order.billRaw.isNotEmpty ? order.billRaw : null,
     );
-    if (fromBill != null) return fromBill;
+    if (fromBill != null) {
+      var couponDiscount = fromBill.couponDiscount;
+      if (couponDiscount <= 0 && order.appliedCoupon != null) {
+        couponDiscount = order.appliedCoupon!.discountAmountFor(
+          subtotal: fromBill.subtotal,
+        );
+      }
+      if ((couponDiscount - fromBill.couponDiscount).abs() > 0.009) {
+        final grand = fromBill.grandTotal > 0
+            ? fromBill.grandTotal
+            : OrderBillTotals(
+                subtotal: fromBill.subtotal,
+                itemSavings: fromBill.itemSavings,
+                couponDiscount: couponDiscount,
+                deliveryFee: fromBill.deliveryFee,
+                surgeFee: fromBill.surgeFee,
+                handlingCharge: fromBill.handlingCharge,
+                platformFee: fromBill.platformFee,
+                deliveryPartnerTip: fromBill.deliveryPartnerTip,
+                tax: fromBill.tax,
+                grandTotal: 0,
+              ).computeGrandTotal();
+        return OrderBillTotals(
+          subtotal: fromBill.subtotal,
+          itemSavings: fromBill.itemSavings,
+          couponDiscount: couponDiscount,
+          deliveryFee: fromBill.deliveryFee,
+          surgeFee: fromBill.surgeFee,
+          handlingCharge: fromBill.handlingCharge,
+          platformFee: fromBill.platformFee,
+          deliveryPartnerTip: fromBill.deliveryPartnerTip,
+          tax: fromBill.tax,
+          grandTotal: grand,
+        );
+      }
+      return fromBill;
+    }
 
     final itemsSubtotal = order.products.fold<double>(
       0,

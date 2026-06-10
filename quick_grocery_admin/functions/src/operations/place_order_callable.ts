@@ -139,7 +139,53 @@ export const placeOrderCallable = onCall(
     }
 
     const db = admin.firestore();
-    const orderRef = db.collection("orders").doc();
+    const idempotencyKey = str(req.data?.idempotencyKey);
+    let orderRef = db.collection("orders").doc();
+
+    if (idempotencyKey.length > 0) {
+      const idemRef = db
+        .collection("order_idempotency")
+        .doc(`${uid}_${idempotencyKey}`);
+
+      const idemSnap = await idemRef.get();
+      if (idemSnap.exists) {
+        const existingOrderId = str(idemSnap.data()?.orderId);
+        if (existingOrderId) {
+          const orderSnap = await db
+            .collection("orders")
+            .doc(existingOrderId)
+            .get();
+          if (orderSnap.exists) {
+            return { orderId: existingOrderId, duplicate: true };
+          }
+          orderRef = db.collection("orders").doc(existingOrderId);
+        }
+      } else {
+        try {
+          await idemRef.create({
+            uid,
+            idempotencyKey,
+            orderId: orderRef.id,
+            status: "pending",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        } catch {
+          const retrySnap = await idemRef.get();
+          const retryOrderId = str(retrySnap.data()?.orderId);
+          if (retryOrderId) {
+            const orderSnap = await db
+              .collection("orders")
+              .doc(retryOrderId)
+              .get();
+            if (orderSnap.exists) {
+              return { orderId: retryOrderId, duplicate: true };
+            }
+            orderRef = db.collection("orders").doc(retryOrderId);
+          }
+        }
+      }
+    }
+
     const tipAmount = Math.max(0, Math.round(num(req.data?.tipAmount)));
     const tipSettings = await getDeliveryTipSettings();
     if (tipAmount > 0) {
@@ -487,6 +533,7 @@ export const placeOrderCallable = onCall(
             : {}),
           address_snapshot: address,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          ...(idempotencyKey.length > 0 ? { idempotencyKey } : {}),
         });
       });
     } catch (e) {
@@ -524,6 +571,22 @@ export const placeOrderCallable = onCall(
         );
       }
       await batch.commit();
+    }
+
+    if (idempotencyKey.length > 0) {
+      await db
+        .collection("order_idempotency")
+        .doc(`${uid}_${idempotencyKey}`)
+        .set(
+          {
+            uid,
+            idempotencyKey,
+            orderId: orderRef.id,
+            status: "completed",
+            completedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
     }
 
     return { orderId: orderRef.id };

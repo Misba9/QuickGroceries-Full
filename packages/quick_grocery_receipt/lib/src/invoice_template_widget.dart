@@ -138,7 +138,13 @@ class InvoiceTemplateWidget extends StatelessWidget {
                 _section('TOTALS', scale),
                 _money('Subtotal', data.bill.subtotal, scale),
                 if (data.bill.couponDiscount > 0)
-                  _money('Discount', -data.bill.couponDiscount, scale),
+                  _money(
+                    data.couponCode != null && data.couponCode!.isNotEmpty
+                        ? 'Coupon (${data.couponCode})'
+                        : 'Coupon discount',
+                    -data.bill.couponDiscount,
+                    scale,
+                  ),
                 _money('Delivery Fee', data.bill.deliveryFee, scale),
                 if (data.bill.platformFee > 0)
                   _money('Platform Fee', data.bill.platformFee, scale),

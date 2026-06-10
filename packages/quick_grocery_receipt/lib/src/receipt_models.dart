@@ -19,6 +19,7 @@ class ReceiptOrderData {
     this.instructionLines = const [],
     this.storeName,
     this.trackUrl,
+    this.couponCode,
     this.mode = ReceiptMode.invoice,
     this.paperSize = ReceiptPaperSize.mm80,
   });
@@ -39,6 +40,7 @@ class ReceiptOrderData {
   final List<String> instructionLines;
   final String? storeName;
   final String? trackUrl;
+  final String? couponCode;
   final ReceiptMode mode;
   final ReceiptPaperSize paperSize;
 

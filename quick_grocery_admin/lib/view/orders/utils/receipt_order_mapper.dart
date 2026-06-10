@@ -61,6 +61,7 @@ class ReceiptOrderMapper {
               : null),
       instructionLines: order.deliveryInstructions?.displayLines() ?? const [],
       storeName: storeName,
+      couponCode: order.couponCode,
       mode: mode,
       paperSize: paperSize,
     );

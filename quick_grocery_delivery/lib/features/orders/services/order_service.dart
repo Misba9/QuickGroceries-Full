@@ -9,6 +9,7 @@ import 'package:quick_grocery_delivery/services/delivery_ops_api.dart';
 import 'package:quick_grocery_delivery/services/delivery_trip_tracker.dart';
 import 'package:quick_grocery_delivery/utils/delivery_route_utils.dart';
 import 'package:quick_grocery_delivery/core/delivery_push_initializer.dart';
+import 'package:quick_grocery_delivery/core/firestore_query_errors.dart';
 import 'package:quick_grocery_delivery/core/order_lifecycle.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/models/delivery_boy_model.dart';
@@ -24,6 +25,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class OrderService extends ChangeNotifier {
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _ordersSub;
   String _subscribedRiderId = '';
+  bool _ordersUseServerSort = true;
   int _lastNewOrderCount = 0;
   bool _ordersPrimed = false;
 
@@ -266,6 +268,7 @@ class OrderService extends ChangeNotifier {
         doc.id,
       );
     }).toList();
+    _sortNewestFirst(totalOrders);
     notifyListeners();
   }
 
@@ -281,8 +284,9 @@ class OrderService extends ChangeNotifier {
       ...myTransistOrders,
       ...myPickedOrders,
       ...myAcceptedOrders,
+      ...newOrders,
     ]) {
-      if (OrderLifecycle.isLiveTracking(_statusId(o))) return o.id;
+      if (OrderLifecycle.isActiveDelivery(_statusId(o))) return o.id;
     }
     return null;
   }
@@ -302,16 +306,28 @@ class OrderService extends ChangeNotifier {
 
     await _ordersSub?.cancel();
     _subscribedRiderId = riderId;
+    _ordersUseServerSort = true;
     orders = null;
     _ordersPrimed = false;
     _lastNewOrderCount = 0;
     notifyListeners();
 
-    _ordersSub = FirebaseFirestore.instance
+    _listenRiderOrders(riderId);
+  }
+
+  Query<Map<String, dynamic>> _riderOrdersQuery(String riderId) {
+    final base = FirebaseFirestore.instance
         .collection('orders')
-        .where('deliveryBoyId', isEqualTo: riderId)
-        .snapshots()
-        .listen(
+        .where('deliveryBoyId', isEqualTo: riderId);
+    if (_ordersUseServerSort) {
+      return base.orderBy('createdAt', descending: true);
+    }
+    return base;
+  }
+
+  void _listenRiderOrders(String riderId) {
+    _ordersSub?.cancel();
+    _ordersSub = _riderOrdersQuery(riderId).snapshots().listen(
       (snap) {
         orders = snap.docs
             .map(
@@ -324,10 +340,26 @@ class OrderService extends ChangeNotifier {
         _rebucketOrders(riderId);
         notifyListeners();
       },
-      onError: (Object e) {
-        if (kDebugMode) debugPrint('orders stream error: $e');
+      onError: (Object e, StackTrace stack) {
+        if (_ordersUseServerSort && FirestoreQueryErrors.isMissingIndex(e)) {
+          if (kDebugMode) {
+            debugPrint(
+              'orders stream: createdAt index missing — falling back to client sort',
+            );
+          }
+          _ordersUseServerSort = false;
+          _listenRiderOrders(riderId);
+          return;
+        }
+        if (kDebugMode) {
+          FirestoreQueryErrors.log('orders stream error', e, stack);
+        }
       },
     );
+  }
+
+  static void _sortNewestFirst(List<OrderModel> list) {
+    list.sort(OrderModel.compareNewestFirst);
   }
 
   String _statusId(OrderModel item) {
@@ -374,7 +406,12 @@ class OrderService extends ChangeNotifier {
       }
     }
 
-    newOrders.sort((a, b) => b.createdDate.compareTo(a.createdDate));
+    _sortNewestFirst(newOrders);
+    _sortNewestFirst(myAcceptedOrders);
+    _sortNewestFirst(myPickedOrders);
+    _sortNewestFirst(myTransistOrders);
+    _sortNewestFirst(myCancelledOrders);
+    _sortNewestFirst(myCompletedOrders);
 
     if (_ordersPrimed) {
       if (newOrders.length > _lastNewOrderCount) {
@@ -393,6 +430,12 @@ class OrderService extends ChangeNotifier {
   }
 
   Future<void> _playNewOrderAlert() async {
+    if (DeliveryPushInitializer.recentlyHandledByFcm) {
+      if (kDebugMode) {
+        debugPrint('[DeliveryNotify] skip Firestore alert — FCM already handled');
+      }
+      return;
+    }
     await DeliveryPushInitializer.playAssignmentAlert();
   }
 

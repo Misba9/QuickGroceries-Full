@@ -2,12 +2,10 @@ import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import 'order_alert_sound.dart';
-import 'vendor_alert_vibration.dart';
+import 'push_message_dedupe.dart';
 import 'vendor_notification_hub.dart';
 
 /// FCM foreground/background display + permissions (mobile only).
@@ -85,9 +83,12 @@ class VendorPushInitializer {
   }
 
   static Future<void> handleForegroundMessage(RemoteMessage msg) async {
+    if (!PushMessageDedupe.markIfNew(msg, appTag: 'VendorNotify')) return;
+
     if (kDebugMode) {
       debugPrint(
-        '[VendorNotify] FCM foreground title=${msg.notification?.title} data=${msg.data}',
+        '[VendorNotify] FCM foreground messageId=${msg.messageId} '
+        'title=${msg.notification?.title} data=${msg.data}',
       );
     }
 
@@ -95,28 +96,52 @@ class VendorPushInitializer {
     final type = data['type']?.toString() ?? '';
 
     if (type == 'new_order') {
-      await OrderAlertSound.playNewOrder();
-      await VendorAlertVibration.pulseNewOrder();
       await VendorNotificationHub.instance.handleFcmPayload(data);
       if (kDebugMode) {
-        debugPrint('[VendorNotify] foreground new_order → sound + banner');
+        debugPrint('[VendorNotify] foreground new_order → in-app only');
       }
       return;
     }
 
     if (type == 'order_cancelled') {
-      await OrderAlertSound.playNewOrder();
-      await VendorAlertVibration.pulseNewOrder();
-      await showFromRemoteMessage(msg);
       await VendorNotificationHub.instance.handleFcmPayload(data);
+      if (_shouldShowLocalTray(msg, foreground: true)) {
+        await showFromRemoteMessage(msg);
+      }
       if (kDebugMode) {
         debugPrint('[VendorNotify] foreground order_cancelled');
       }
       return;
     }
 
-    await showFromRemoteMessage(msg);
+    if (_shouldShowLocalTray(msg, foreground: true)) {
+      await showFromRemoteMessage(msg);
+    }
     await VendorNotificationHub.instance.handleFcmPayload(data);
+  }
+
+  /// Background handler entry — skip when FCM notification payload is shown by OS.
+  static Future<void> handleBackgroundMessage(RemoteMessage msg) async {
+    if (!PushMessageDedupe.markIfNew(msg, appTag: 'VendorNotify')) return;
+    if (!_shouldShowLocalTray(msg, foreground: false)) {
+      if (kDebugMode) {
+        debugPrint(
+          '[VendorNotify] background skip local show — OS handles notification payload',
+        );
+      }
+      return;
+    }
+    await showFromRemoteMessage(msg);
+  }
+
+  static bool _shouldShowLocalTray(RemoteMessage msg, {required bool foreground}) {
+    if (msg.notification == null) return true;
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      // iOS auto-presents FCM notification payloads in foreground and background.
+      return false;
+    }
+    // Android shows notification payload in background/killed; not in foreground.
+    return foreground;
   }
 
   static Future<void> showFromRemoteMessage(RemoteMessage msg) async {
@@ -150,10 +175,14 @@ class VendorPushInitializer {
       ),
     );
 
-    final id = msg.hashCode & 0x7fffffff;
-    await _plugin.show(id, title, body, details, payload: payload);
+    final orderId = data['orderId']?.toString() ?? '';
+    final type = data['type']?.toString() ?? '';
+    final id = orderId.isNotEmpty
+        ? '$type:$orderId'.hashCode
+        : (msg.messageId?.hashCode ?? msg.hashCode);
+    await _plugin.show(id & 0x7fffffff, title, body, details, payload: payload);
     if (kDebugMode) {
-      debugPrint('[VendorNotify] system notification shown: $title');
+      debugPrint('[VendorNotify] local notification id=$id title=$title');
     }
   }
 }

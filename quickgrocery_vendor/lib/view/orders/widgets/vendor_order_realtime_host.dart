@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/vendor_new_order_banner.dart';
 import '../../../core/vendor_notification_hub.dart';
-import '../../../core/vendor_notification_store.dart';
 import '../../../core/vendor_order_notification_controller.dart';
 import '../../../models/order_model.dart';
 import '../../../models/vendor_model.dart';
@@ -92,16 +91,6 @@ class _VendorOrderRealtimeHostState extends State<VendorOrderRealtimeHost> {
       vendorId: widget.vendor.id,
     );
 
-    await VendorNotificationStore.writeLocal(
-      vendorId: widget.vendor.id,
-      type: 'new_order',
-      title: '🛒 New Order',
-      body: 'New order from ${order.customerName}',
-      orderId: order.id,
-      customerName: order.customerName,
-      amount: _orders.getVendorOrderTotal(order, widget.vendor.id),
-    );
-
     _scheduleAlertIfNeeded();
   }
 
@@ -116,16 +105,6 @@ class _VendorOrderRealtimeHostState extends State<VendorOrderRealtimeHost> {
     if (order == null || !mounted) return;
 
     widget.notifications.markOrderNotified(statusKey);
-
-    await VendorNotificationStore.writeLocal(
-      vendorId: widget.vendor.id,
-      type: 'order_cancelled',
-      title: '❌ Order Cancelled',
-      body: data['message']?.toString() ??
-          'Order #${orderId.substring(0, 8)} has been cancelled.',
-      orderId: orderId,
-      customerName: order.customerName,
-    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -208,7 +187,7 @@ class _VendorOrderRealtimeHostState extends State<VendorOrderRealtimeHost> {
     _showStatusSnackBar();
   }
 
-  void _showNewOrderBanner() async {
+  void _showNewOrderBanner() {
     final pending = widget.notifications.takePendingNewOrders();
     if (pending.isEmpty) return;
 
@@ -217,15 +196,6 @@ class _VendorOrderRealtimeHostState extends State<VendorOrderRealtimeHost> {
       if (alert.order == null) continue;
       if (widget.notifications.hasBeenNotified(alert.orderId)) continue;
       widget.notifications.markOrderNotified(alert.orderId);
-      await VendorNotificationStore.writeLocal(
-        vendorId: widget.vendor.id,
-        type: 'new_order',
-        title: '🛒 New Order',
-        body: 'New order from ${alert.customerName}',
-        orderId: alert.orderId,
-        customerName: alert.customerName,
-        amount: _orders.getVendorOrderTotal(alert.order!, widget.vendor.id),
-      );
       payloads.add(
         NewOrderBannerPayload.fromOrder(
           alert.order!,

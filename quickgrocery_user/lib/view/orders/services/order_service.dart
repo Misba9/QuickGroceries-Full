@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/models/order_model.dart';
+import 'package:quickgrocery/view/orders/domain/order_created_sort.dart';
 
 class OrderService extends ChangeNotifier {
   List<OrderModel>? orders;
@@ -20,6 +21,7 @@ class OrderService extends ChangeNotifier {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('orders')
           .where('uuid', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+          .orderBy('createdAt', descending: true)
           .get();
 
       orders = snapshot.docs.map((doc) {
@@ -40,9 +42,9 @@ class OrderService extends ChangeNotifier {
       }
 
       // Newest first in all sections
-      deliveredOrders.sort((a, b) => b.createdDate.compareTo(a.createdDate));
-      upmcomingedOrders.sort((a, b) => b.createdDate.compareTo(a.createdDate));
-      cancellOrders.sort((a, b) => b.createdDate.compareTo(a.createdDate));
+      deliveredOrders.sort(compareOrdersNewestFirst);
+      upmcomingedOrders.sort(compareOrdersNewestFirst);
+      cancellOrders.sort(compareOrdersNewestFirst);
 
       notifyListeners();
     } catch (e) {

@@ -9,11 +9,7 @@ cd quickgrocery_delivery/
 ## Run locally
 
 ```bash
-flutter clean
-flutter pub get
-flutter run
 
-flutter run --release -d RZCTA0V0LBF
 ```
 
 ## Build APK (Android)

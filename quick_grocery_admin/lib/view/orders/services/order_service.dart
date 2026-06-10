@@ -8,7 +8,7 @@ import 'package:quick_grocery_admin/model/vendor_model.dart';
 import 'package:quick_grocery_admin/view/orders/models/order_list_preset.dart';
 import 'package:quick_grocery_admin/view/orders/widgets/refund_stats_row.dart';
 import 'package:quick_grocery_admin/view/operations/services/admin_analytics_service.dart';
-import 'package:quick_grocery_admin/view/orders/utils/order_eta_utils.dart';
+import 'package:quick_grocery_admin/view/orders/utils/order_created_sort.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_status_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -143,7 +143,7 @@ class OrderService extends ChangeNotifier {
         final allOrders = snapshot.docs
             .map((doc) => OrderModel.fromFirestore(doc.data(), doc.id))
             .toList()
-          ..sort((a, b) => b.createdDate.compareTo(a.createdDate));
+          ..sort(compareOrdersNewestFirst);
         _allOrdersCache = allOrders;
         orders = allOrders;
         isLoading = false;
@@ -292,7 +292,7 @@ class OrderService extends ChangeNotifier {
       final aFlag = _isRefundFlagged(a) ? 0 : 1;
       final bFlag = _isRefundFlagged(b) ? 0 : 1;
       if (aFlag != bFlag) return aFlag.compareTo(bFlag);
-      return b.createdDate.compareTo(a.createdDate);
+      return compareOrdersNewestFirst(a, b);
     });
     return cancelled;
   }
@@ -339,7 +339,7 @@ class OrderService extends ChangeNotifier {
       );
       return status == OrderLifecycle.orderPlaced;
     }).toList()
-      ..sort((a, b) => b.createdDate.compareTo(a.createdDate));
+      ..sort(compareOrdersNewestFirst);
   }
 
   NewOrdersLiveStats get newOrdersLiveStats {

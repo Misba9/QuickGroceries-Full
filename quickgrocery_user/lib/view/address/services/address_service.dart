@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:quickgrocery/core/user/user_profile_repository.dart';
+import 'package:quickgrocery/core/delivery/delivery_zone_lookup.dart';
 import 'package:quickgrocery/models/address_model.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -81,13 +82,19 @@ class AddressService extends ChangeNotifier {
 
   /// Pin for the currently selected saved address, if any.
   String? get activeDeliveryPin {
-    final fromText = _extractPinCodeFromAddress(_address);
-    if (fromText != null && fromText.isNotEmpty) return fromText;
+    final fromStored = DeliveryZoneLookup.resolvePin(storedPin: _pinCode);
+    if (fromStored != null && fromStored.isNotEmpty) return fromStored;
+
+    final fromCurrent = DeliveryZoneLookup.resolvePin(addressText: _address);
+    if (fromCurrent != null && fromCurrent.isNotEmpty) return fromCurrent;
+
     final list = addresses;
-    if (list == null || list.isEmpty) return _pinCode;
+    if (list == null || list.isEmpty) return null;
     final i = _selectedIndex.clamp(0, list.length - 1);
     final a = list[i];
-    return _extractPinCodeFromAddress('${a.address} ${a.area}') ?? _pinCode;
+    return DeliveryZoneLookup.resolvePin(
+      addressText: '${a.address} ${a.area}',
+    );
   }
 
   bool get hasSavedAddresses =>
@@ -278,7 +285,11 @@ class AddressService extends ChangeNotifier {
         _selectedAddressId = docRef.id;
       }
       _address = '${addressController.text.trim()}, ${areaController.text.trim()}';
-      _pinCode = _extractPinCodeFromAddress(_address) ?? _pinCode;
+      _pinCode = DeliveryZoneLookup.resolvePin(
+          addressText: _address,
+          storedPin: _pinCode,
+        ) ??
+        _pinCode;
       await invalidateAddressValidation(notify: false);
       _isLoading = false;
       _editingAddressId = null;
@@ -294,7 +305,10 @@ class AddressService extends ChangeNotifier {
   void updateAddress(String newAddress) {
     _address = newAddress;
     // Try to extract pin code from address string
-    _pinCode = _extractPinCodeFromAddress(newAddress);
+    _pinCode = DeliveryZoneLookup.resolvePin(
+          storedPin: newAddress,
+          addressText: newAddress,
+        );
     invalidateAddressValidation(notify: false);
     notifyListeners();
   }
@@ -302,7 +316,6 @@ class AddressService extends ChangeNotifier {
   /// Updates preview line + pin from reverse-geocode while picking on the map.
   /// Does not invalidate session validation until the user confirms location.
   void applyMapGeocode(Placemark p) {
-    _pinCode = p.postalCode;
     final parts = <String>[];
     void add(String? s) {
       if (s == null) return;
@@ -318,17 +331,16 @@ class AddressService extends ChangeNotifier {
     add(p.postalCode);
     add(p.administrativeArea);
     _address = parts.isEmpty ? 'Address not found' : parts.join(', ');
+    _pinCode = DeliveryZoneLookup.resolvePin(
+      storedPin: p.postalCode,
+      addressText: _address,
+    );
     notifyListeners();
   }
 
-  /// Extract pin code from address string
-  /// Looks for 6-digit numbers (Indian pin code format)
-  String? _extractPinCodeFromAddress(String address) {
-    // Try to find a 6-digit number in the address
-    final regex = RegExp(r'\b\d{6}\b');
-    final match = regex.firstMatch(address);
-    return match?.group(0);
-  }
+  /// Extract pin code from address string (legacy helper).
+  String? _extractPinCodeFromAddress(String address) =>
+      DeliveryZoneLookup.resolvePin(addressText: address);
 
   /// Set pin code directly
   void setPinCode(String? pinCode) {
@@ -359,7 +371,11 @@ class AddressService extends ChangeNotifier {
     _selectedIndex = index;
     _selectedAddressId = selected.id;
     _address = '${selected.address}, ${selected.area}';
-    _pinCode = _extractPinCodeFromAddress(_address) ?? _pinCode;
+    _pinCode = DeliveryZoneLookup.resolvePin(
+          addressText: _address,
+          storedPin: _pinCode,
+        ) ??
+        _pinCode;
     if (!sameAddress) {
       invalidateAddressValidation(notify: false);
     }

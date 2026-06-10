@@ -1,10 +1,13 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/navigation/auth_floating_cart_guard.dart';
 import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
 import 'package:quickgrocery/view/auth/widgets/pinput_sms_retriever.dart';
@@ -29,6 +32,7 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
   late final PinputSmsRetriever _smsRetriever;
 
   Timer? _resendTimer;
+  StreamSubscription<User?>? _authSubscription;
   int _resendCountdown = _resendSeconds;
   bool _canResend = false;
   bool _localVerifying = false;
@@ -43,6 +47,13 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
       duration: const Duration(milliseconds: 520),
     );
     _startResendCountdown();
+    _authSubscription =
+        FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (!mounted) return;
+      if (user != null) {
+        setState(() => _localVerifying = false);
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _pinFocus.requestFocus();
     });
@@ -71,7 +82,6 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
   Future<void> _verifyIfComplete(String pin) async {
     if (pin.length != _otpLength || _localVerifying) return;
     final auth = context.read<AuthService>();
-    if (auth.isLoading) return;
 
     FocusScope.of(context).unfocus();
     setState(() {
@@ -84,7 +94,6 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
     if (!mounted) return;
 
     if (ok) {
-      setState(() => _localVerifying = false);
       return;
     }
 
@@ -114,6 +123,8 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
   @override
   void dispose() {
     _resendTimer?.cancel();
+    _authSubscription?.cancel();
+    unawaited(_smsRetriever.dispose());
     _shakeController.dispose();
     _pinController.dispose();
     _pinFocus.dispose();
@@ -180,7 +191,8 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
       ),
     ]).animate(_shakeController);
 
-    return Scaffold(
+    return AuthFloatingCartGuard(
+      child: Scaffold(
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: KeyboardSafeBody(
@@ -323,6 +335,7 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
             ],
           ),
         ),
+      ),
       ),
     );
   }

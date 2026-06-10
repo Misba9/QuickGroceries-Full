@@ -84,7 +84,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final notifier = ref.read(cartProvider.notifier);
 
     final addressService = legacy_provider.Provider.of<AddressService>(context);
-    final pin = addressService.pinCode;
+    final pin = addressService.activeDeliveryPin ?? addressService.pinCode;
     final zoneAsync = ref.watch(zoneDeliveryProvider(pin));
     final zoneCharge = zoneAsync.value ?? 0;
     final bill = _bill(cart, zoneCharge);

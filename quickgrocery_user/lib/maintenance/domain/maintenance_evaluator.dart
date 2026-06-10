@@ -9,8 +9,6 @@ class MaintenanceEvaluator {
     required MaintenanceConfig config,
     required DateTime now,
     int? onlineDriversCount,
-    String? userPincode,
-    String? userCity,
   }) {
     if (!config.userAppEnabled) {
       return MaintenanceStatus.blocked(
@@ -40,24 +38,6 @@ class MaintenanceEvaluator {
         config: config,
         effectiveReopen: _nextScheduleOpen(config, now) ?? config.reopenTime,
       );
-    }
-
-    if (config.areaAvailability.enabled && userPincode != null) {
-      final pin = userPincode.trim();
-      if (config.areaAvailability.disabledPincodes.any(
-        (p) => p.trim() == pin,
-      )) {
-        return MaintenanceStatus.areaBlocked(config: config);
-      }
-    }
-
-    if (config.areaAvailability.enabled && userCity != null) {
-      final city = userCity.trim().toLowerCase();
-      if (config.areaAvailability.disabledCities.any(
-        (c) => c.trim().toLowerCase() == city,
-      )) {
-        return MaintenanceStatus.areaBlocked(config: config);
-      }
     }
 
     final driverControlPausesOrders =

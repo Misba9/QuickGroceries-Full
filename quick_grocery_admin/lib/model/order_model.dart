@@ -1,3 +1,4 @@
+import 'package:quick_grocery_admin/view/orders/utils/order_applied_coupon.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_bill_totals.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_delivery_meta.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_product_parse.dart';
@@ -31,6 +32,7 @@ class OrderModel {
   final OrderDeliverySlot? deliverySlot;
   final OrderDeliveryInstructions? deliveryInstructions;
   final Map<String, dynamic> billRaw;
+  final OrderAppliedCoupon? appliedCoupon;
 
   OrderModel({
     required this.id,
@@ -61,6 +63,7 @@ class OrderModel {
     this.deliverySlot,
     this.deliveryInstructions,
     this.billRaw = const {},
+    this.appliedCoupon,
   });
 
   factory OrderModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -98,10 +101,21 @@ class OrderModel {
       billRaw: data['bill'] is Map
           ? Map<String, dynamic>.from(data['bill'] as Map)
           : const {},
+      appliedCoupon: OrderAppliedCoupon.fromMap(
+        data['coupon'] is Map
+            ? Map<String, dynamic>.from(data['coupon'] as Map)
+            : null,
+      ),
     );
   }
 
   OrderBillTotals get billTotals => OrderBillTotals.resolve(this);
+
+  String? get couponCode => appliedCoupon?.code;
+
+  bool get hasCoupon =>
+      (appliedCoupon != null && appliedCoupon!.code.isNotEmpty) ||
+      billTotals.couponDiscount > 0;
 
   Map<String, dynamic> toMap() {
     return {

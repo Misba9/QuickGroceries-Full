@@ -22,11 +22,11 @@ class RealtimeOrderService {
       _firestore.collection(_collection);
 
   Stream<QuerySnapshot<Map<String, dynamic>>> watchUserOrders(String uid) {
-    // Server-side filter on `uuid` so we don't pull the whole collection.
-    // We *don't* `orderBy('created_date')` here because that field is
-    // sometimes a string-ISO and sometimes a Timestamp; the repository
-    // sorts after parsing for consistency.
-    return _ref.where('uuid', isEqualTo: uid).snapshots();
+    // Sort client-side after parsing so legacy string/timestamp fields still work.
+    return _ref
+        .where('uuid', isEqualTo: uid)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> watchOrder(String id) {

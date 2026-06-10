@@ -28,7 +28,7 @@ class VendorFcmBootstrap {
 
       if (defaultTargetPlatform == TargetPlatform.iOS) {
         await messaging.setForegroundNotificationPresentationOptions(
-          alert: true,
+          alert: false,
           badge: true,
           sound: true,
         );

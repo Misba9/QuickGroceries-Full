@@ -133,20 +133,43 @@ class OrdersDataTableSource extends DataTableSource {
   }
 
   static Widget _paymentChip(OrderModel o) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: o.isPaid ? Colors.green.shade50 : Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        o.isPaid ? 'Online' : 'COD',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: o.isPaid ? Colors.green.shade800 : Colors.orange.shade900,
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: o.isPaid ? Colors.green.shade50 : Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            o.isPaid ? 'Online' : 'COD',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: o.isPaid ? Colors.green.shade800 : Colors.orange.shade900,
+            ),
+          ),
         ),
-      ),
+        if (o.hasCoupon)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.deepPurple.shade50,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              o.couponCode ?? 'Coupon',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: Colors.deepPurple.shade800,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

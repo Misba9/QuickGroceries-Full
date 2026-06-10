@@ -84,6 +84,8 @@ dependencies:
   visibility_detector: ^0.4.0+2
   pinput: ^6.0.2
   sms_autofill: ^2.4.1
+  quick_grocery_geo:
+    path: ../packages/quick_grocery_geo
 
 dev_dependencies:
   flutter_test:

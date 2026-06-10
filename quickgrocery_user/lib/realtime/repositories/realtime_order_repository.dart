@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:quickgrocery/models/order_model.dart';
 import 'package:quickgrocery/realtime/services/realtime_order_service.dart';
 import 'package:quickgrocery/view/home/domain/home_failure.dart';
+import 'package:quickgrocery/view/orders/domain/order_created_sort.dart';
 
 /// Buckets the user's orders into the three sections the Orders screen
 /// renders. Lets the UI render straight from a single stream tick.
@@ -61,7 +62,7 @@ class RealtimeOrderRepository {
         if (kDebugMode) debugPrint('[RealtimeOrderRepo] parse fail ${d.id}: $e');
       }
     }
-    all.sort((a, b) => b.createdDate.compareTo(a.createdDate));
+    all.sort(compareOrdersNewestFirst);
 
     final upcoming = <OrderModel>[];
     final delivered = <OrderModel>[];

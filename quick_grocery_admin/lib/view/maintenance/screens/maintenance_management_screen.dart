@@ -25,8 +25,6 @@ class _MaintenanceManagementScreenState
   static const _tabMeta = <(IconData, String)>[
     (Icons.podcasts_rounded, 'Live Status'),
     (Icons.tune_rounded, 'Maintenance'),
-    (Icons.store_rounded, 'Store Hours'),
-    (Icons.map_rounded, 'Delivery Areas'),
     (Icons.palette_rounded, 'Experience'),
     (Icons.history_rounded, 'Audit Logs'),
   ];
@@ -132,8 +130,6 @@ class _MaintenanceManagementScreenState
                                       children: [
                                         MaintenanceLiveStatusTab(svc: svc),
                                         MaintenanceControlsTab(svc: svc),
-                                        StoreAvailabilityTab(svc: svc),
-                                        DeliveryAreasTab(svc: svc),
                                         CustomerExperienceTab(svc: svc),
                                         AuditLogsTab(svc: svc),
                                       ],

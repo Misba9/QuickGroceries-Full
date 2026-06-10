@@ -52,9 +52,6 @@ class MaintenanceManagementService extends ChangeNotifier {
   final closeTime = TextEditingController(text: '22:00');
   final timezone = TextEditingController(text: 'Asia/Kolkata');
   final festivalJson = TextEditingController();
-  final disabledPincodes = TextEditingController();
-  final disabledCities = TextEditingController();
-  final maxRadius = TextEditingController();
   final settingsSearch = TextEditingController();
 
   bool _syncingControllers = false;
@@ -174,9 +171,6 @@ class MaintenanceManagementService extends ChangeNotifier {
       openTime,
       closeTime,
       timezone,
-      disabledPincodes,
-      disabledCities,
-      maxRadius,
     ];
     for (final c in ctrls) {
       c.addListener(_recomputeDirty);
@@ -207,11 +201,6 @@ class MaintenanceManagementService extends ChangeNotifier {
     openTime.text = config.schedule.dailyOpenTime;
     closeTime.text = config.schedule.dailyCloseTime;
     timezone.text = config.schedule.timezone;
-    disabledPincodes.text =
-        config.areaAvailability.disabledPincodes.join(', ');
-    disabledCities.text = config.areaAvailability.disabledCities.join(', ');
-    maxRadius.text =
-        config.areaAvailability.maxDeliveryRadiusKm?.toString() ?? '';
     _syncingControllers = false;
     _recomputeDirty();
   }
@@ -269,11 +258,6 @@ class MaintenanceManagementService extends ChangeNotifier {
         dailyCloseTime: closeTime.text.trim(),
         timezone: timezone.text.trim(),
       ),
-      areaAvailability: config.areaAvailability.copyWith(
-        disabledPincodes: _splitCsv(disabledPincodes.text),
-        disabledCities: _splitCsv(disabledCities.text),
-        maxDeliveryRadiusKm: double.tryParse(maxRadius.text.trim()),
-      ),
     );
   }
 
@@ -292,12 +276,6 @@ class MaintenanceManagementService extends ChangeNotifier {
     final combined = t.isEmpty ? '${d}T00:00:00' : '${d}T$t:00';
     return DateTime.tryParse(combined);
   }
-
-  List<String> _splitCsv(String raw) => raw
-      .split(RegExp(r'[,\n]'))
-      .map((s) => s.trim())
-      .where((s) => s.isNotEmpty)
-      .toList();
 
   Future<bool> save({String? logAction}) async {
     saving = true;
@@ -379,9 +357,6 @@ class MaintenanceManagementService extends ChangeNotifier {
     closeTime.dispose();
     timezone.dispose();
     festivalJson.dispose();
-    disabledPincodes.dispose();
-    disabledCities.dispose();
-    maxRadius.dispose();
     settingsSearch.dispose();
     super.dispose();
   }
@@ -407,20 +382,5 @@ extension _ScheduleCopy on MaintenanceSchedule {
         festivalClosures: festivalClosures,
         emergencyClose: emergencyClose,
         autoReopen: autoReopen,
-      );
-}
-
-extension _AreaCopy on AreaAvailability {
-  AreaAvailability copyWith({
-    List<String>? disabledPincodes,
-    List<String>? disabledCities,
-    double? maxDeliveryRadiusKm,
-  }) =>
-      AreaAvailability(
-        enabled: enabled,
-        disabledPincodes: disabledPincodes ?? this.disabledPincodes,
-        disabledCities: disabledCities ?? this.disabledCities,
-        disabledZoneIds: disabledZoneIds,
-        maxDeliveryRadiusKm: maxDeliveryRadiusKm ?? this.maxDeliveryRadiusKm,
       );
 }

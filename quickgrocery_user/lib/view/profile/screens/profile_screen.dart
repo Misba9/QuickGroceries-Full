@@ -10,7 +10,6 @@ import 'package:quickgrocery/view/profile/domain/profile_models.dart';
 import 'package:quickgrocery/view/profile/presentation/providers/profile_providers.dart';
 import 'package:quickgrocery/view/profile/presentation/widgets/profile_section_safe.dart';
 import 'package:quickgrocery/view/profile/presentation/widgets/profile_sections.dart';
-import 'package:quickgrocery/view/refer/screens/refer_screen.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Premium Blinkit/Zepto-style account dashboard.
@@ -133,6 +132,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ProfileSectionGuard(
                           section: 'Refer & Earn',
                           builder: () => const ProfileReferEarnSection(),
+                        ),
+                        const SizedBox(height: 16),
+                        ProfileSectionGuard(
+                          section: 'Partner with us',
+                          builder: () => const ProfilePartnerSection(),
                         ),
                         const SizedBox(height: 16),
                         ProfileSectionGuard(

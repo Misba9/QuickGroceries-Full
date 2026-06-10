@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -6,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+
+import 'push_message_dedupe.dart';
 
 /// Rider push: foreground sound + system notification for assignments/cancellations.
 class DeliveryPushInitializer {
@@ -16,6 +19,9 @@ class DeliveryPushInitializer {
   static final AudioPlayer _alertPlayer = AudioPlayer();
 
   static bool _initialized = false;
+  static bool _listenersAttached = false;
+  static DateTime? _lastFcmAlertAt;
+
   static void Function(Map<String, dynamic> data)? onAssignmentPush;
   static void Function(Map<String, dynamic> data)? onCancellationPush;
 
@@ -70,6 +76,39 @@ class DeliveryPushInitializer {
     _initialized = true;
   }
 
+  /// Register FCM listeners once at app start (not per screen).
+  static void attachMessagingListeners() {
+    if (_listenersAttached || kIsWeb) return;
+    _listenersAttached = true;
+
+    FirebaseMessaging.onMessage.listen((message) async {
+      await handleForegroundMessage(message);
+    });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      _dispatchFromMessage(message);
+    });
+
+    FirebaseMessaging.instance.getInitialMessage().then((message) {
+      if (message == null) return;
+      _dispatchFromMessage(message);
+    });
+
+    if (kDebugMode) {
+      debugPrint('[DeliveryNotify] FCM listeners attached');
+    }
+  }
+
+  static void _dispatchFromMessage(RemoteMessage message) {
+    final data = Map<String, dynamic>.from(message.data);
+    final type = data['type']?.toString() ?? '';
+    if (type == 'order_cancelled') {
+      onCancellationPush?.call(data);
+      return;
+    }
+    onAssignmentPush?.call(data);
+  }
+
   static void _onNotificationTap(NotificationResponse response) {
     final p = response.payload;
     if (p == null || p.isEmpty) return;
@@ -90,27 +129,58 @@ class DeliveryPushInitializer {
     }
   }
 
+  static bool get recentlyHandledByFcm {
+    final at = _lastFcmAlertAt;
+    if (at == null) return false;
+    return DateTime.now().difference(at) < const Duration(seconds: 8);
+  }
+
+  static void _markFcmAlertHandled() {
+    _lastFcmAlertAt = DateTime.now();
+  }
+
   static Future<void> handleForegroundMessage(RemoteMessage msg) async {
+    if (!PushMessageDedupe.markIfNew(msg, appTag: 'DeliveryNotify')) return;
+
     if (kDebugMode) {
-      debugPrint('[DeliveryNotify] FCM type=${msg.data['type']}');
+      debugPrint(
+        '[DeliveryNotify] FCM foreground messageId=${msg.messageId} '
+        'type=${msg.data['type']}',
+      );
     }
+
     final data = Map<String, dynamic>.from(msg.data);
     final type = data['type']?.toString() ?? '';
 
     if (type == 'order_cancelled') {
+      _markFcmAlertHandled();
       await playCancellationAlert();
       onCancellationPush?.call(data);
-      await showFromRemoteMessage(msg);
+      if (_shouldShowLocalTray(msg, foreground: true)) {
+        await showFromRemoteMessage(msg);
+      }
       return;
     }
 
     if (type == 'delivery_assigned' || type == 'driver_assigned') {
+      _markFcmAlertHandled();
       await playAssignmentAlert();
       onAssignmentPush?.call(data);
-      await showFromRemoteMessage(msg);
+      if (_shouldShowLocalTray(msg, foreground: true)) {
+        await showFromRemoteMessage(msg);
+      }
       return;
     }
-    await showFromRemoteMessage(msg);
+
+    if (_shouldShowLocalTray(msg, foreground: true)) {
+      await showFromRemoteMessage(msg);
+    }
+  }
+
+  static bool _shouldShowLocalTray(RemoteMessage msg, {required bool foreground}) {
+    if (msg.notification == null) return true;
+    if (defaultTargetPlatform == TargetPlatform.iOS) return false;
+    return foreground;
   }
 
   static Future<void> playAssignmentAlert() async {
@@ -163,7 +233,11 @@ class DeliveryPushInitializer {
       ),
     );
 
-    await _plugin.show(msg.hashCode & 0x7fffffff, title, body, details,
-        payload: payload);
+    final orderId = data['orderId']?.toString() ?? '';
+    final type = data['type']?.toString() ?? '';
+    final id = orderId.isNotEmpty
+        ? '$type:$orderId'.hashCode
+        : (msg.messageId?.hashCode ?? msg.hashCode);
+    await _plugin.show(id & 0x7fffffff, title, body, details, payload: payload);
   }
 }

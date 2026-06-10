@@ -84,12 +84,18 @@ class VendorOrderUtils {
   static DateTime? parseCreatedDate(OrderModel order) {
     if (order.createdAt != null) return order.createdAt;
     final raw = order.createdDate.trim();
-    if (raw.isEmpty) return null;
-    try {
-      return DateTime.parse(raw);
-    } catch (_) {
-      return null;
+    if (raw.isNotEmpty) {
+      try {
+        return DateTime.parse(raw);
+      } catch (_) {
+        // fall through to order id
+      }
     }
+    final idMs = int.tryParse(order.id);
+    if (idMs != null && idMs > 0) {
+      return DateTime.fromMillisecondsSinceEpoch(idMs);
+    }
+    return null;
   }
 
   static double vendorRevenueFromOrder(OrderModel order, String vendorId) {

@@ -150,7 +150,9 @@ class ThermalReceiptPdfBuilder {
             _moneyRow('Item Total', data.bill.subtotal, scale, inrBold),
             if (data.bill.couponDiscount > 0)
               _moneyRow(
-                'Coupon Discount',
+                data.couponCode != null && data.couponCode!.isNotEmpty
+                    ? 'Coupon (${data.couponCode})'
+                    : 'Coupon Discount',
                 -data.bill.couponDiscount,
                 scale,
                 inrBold,

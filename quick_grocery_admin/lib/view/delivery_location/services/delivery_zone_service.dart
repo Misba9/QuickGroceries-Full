@@ -196,7 +196,7 @@ class DeliveryZoneService extends ChangeNotifier {
   }
 
   void addPinCode() {
-    String pinCode = pinCodeController.text.trim();
+    final pinCode = pinCodeController.text.trim();
     if (pinCode.isNotEmpty && !pinCodesList.contains(pinCode)) {
       pinCodesList.add(pinCode);
       pinCodeController.clear();

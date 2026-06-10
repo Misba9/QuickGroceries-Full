@@ -60,11 +60,12 @@ Future<void> main() async {
   );
 
   await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-    alert: true,
+    alert: false,
     badge: true,
     sound: true,
   );
   await DeliveryPushInitializer.ensureInitialized();
+  DeliveryPushInitializer.attachMessagingListeners();
   final pref = await SharedPreferences.getInstance();
   final riderId =
       FirebaseAuth.instance.currentUser?.uid ??

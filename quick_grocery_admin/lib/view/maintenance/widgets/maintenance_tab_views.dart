@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:quick_grocery_admin/core/widgets/admin_list_tile.dart';
 import 'package:quick_grocery_admin/model/maintenance_config_model.dart';
 import 'package:quick_grocery_admin/view/maintenance/services/maintenance_management_service.dart';
 import 'package:quick_grocery_admin/view/maintenance/widgets/ops_dashboard_widgets.dart';
@@ -173,257 +172,136 @@ class MaintenanceControlsTab extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          _StoreHoursCard(svc: svc),
         ],
     );
   }
 }
 
-class StoreAvailabilityTab extends StatelessWidget {
-  const StoreAvailabilityTab({required this.svc});
+class _StoreHoursCard extends StatelessWidget {
+  const _StoreHoursCard({required this.svc});
   final MaintenanceManagementService svc;
 
   @override
   Widget build(BuildContext context) {
     final c = svc.config;
     final s = c.schedule;
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        OpsGlassCard(
-        title: 'Store hours & scheduler',
-        icon: Icons.schedule_rounded,
-        child: Column(
-          children: [
-            SwitchListTile(
-              title: const Text('Enable daily schedule'),
-              value: s.enabled,
-              onChanged: (v) => svc.updateConfig(
-                c.copyWith(
-                  schedule: MaintenanceSchedule(
-                    enabled: v,
-                    dailyOpenTime: s.dailyOpenTime,
-                    dailyCloseTime: s.dailyCloseTime,
-                    timezone: s.timezone,
-                    weeklyHolidays: s.weeklyHolidays,
-                    festivalClosures: s.festivalClosures,
-                    emergencyClose: s.emergencyClose,
-                    autoReopen: s.autoReopen,
-                  ),
+    return OpsGlassCard(
+      title: 'Store hours & scheduler',
+      icon: Icons.schedule_rounded,
+      child: Column(
+        children: [
+          SwitchListTile(
+            title: const Text('Enable daily schedule'),
+            value: s.enabled,
+            onChanged: (v) => svc.updateConfig(
+              c.copyWith(
+                schedule: MaintenanceSchedule(
+                  enabled: v,
+                  dailyOpenTime: s.dailyOpenTime,
+                  dailyCloseTime: s.dailyCloseTime,
+                  timezone: s.timezone,
+                  weeklyHolidays: s.weeklyHolidays,
+                  festivalClosures: s.festivalClosures,
+                  emergencyClose: s.emergencyClose,
+                  autoReopen: s.autoReopen,
                 ),
               ),
-            ),
-            OpsFormField(
-              label: 'Daily open',
-              controller: svc.openTime,
-              dirty: svc.isDirty,
-            ),
-            OpsFormField(
-              label: 'Daily close',
-              controller: svc.closeTime,
-              dirty: svc.isDirty,
-            ),
-            OpsFormField(
-              label: 'Timezone',
-              controller: svc.timezone,
-              dirty: svc.isDirty,
-            ),
-            SwitchListTile(
-              title: const Text('Emergency close now'),
-              value: s.emergencyClose,
-              onChanged: (v) => svc.updateConfig(
-                c.copyWith(
-                  schedule: MaintenanceSchedule(
-                    enabled: s.enabled,
-                    dailyOpenTime: s.dailyOpenTime,
-                    dailyCloseTime: s.dailyCloseTime,
-                    timezone: s.timezone,
-                    weeklyHolidays: s.weeklyHolidays,
-                    festivalClosures: s.festivalClosures,
-                    emergencyClose: v,
-                    autoReopen: s.autoReopen,
-                  ),
-                ),
-              ),
-            ),
-            SwitchListTile(
-              title: const Text('Auto reopen'),
-              value: s.autoReopen,
-              onChanged: (v) => svc.updateConfig(
-                c.copyWith(
-                  schedule: MaintenanceSchedule(
-                    enabled: s.enabled,
-                    dailyOpenTime: s.dailyOpenTime,
-                    dailyCloseTime: s.dailyCloseTime,
-                    timezone: s.timezone,
-                    weeklyHolidays: s.weeklyHolidays,
-                    festivalClosures: s.festivalClosures,
-                    emergencyClose: s.emergencyClose,
-                    autoReopen: v,
-                  ),
-                ),
-              ),
-            ),
-            Wrap(
-              spacing: 8,
-              children: List.generate(7, (i) {
-                final day = i + 1;
-                final selected = s.weeklyHolidays.contains(day);
-                return FilterChip(
-                  label: Text(_weekday(day)),
-                  selected: selected,
-                  onSelected: (on) {
-                    final next = List<int>.from(s.weeklyHolidays);
-                    if (on) {
-                      next.add(day);
-                    } else {
-                      next.remove(day);
-                    }
-                    next.sort();
-                    svc.updateConfig(
-                      c.copyWith(
-                        schedule: MaintenanceSchedule(
-                          enabled: s.enabled,
-                          dailyOpenTime: s.dailyOpenTime,
-                          dailyCloseTime: s.dailyCloseTime,
-                          timezone: s.timezone,
-                          weeklyHolidays: next,
-                          festivalClosures: s.festivalClosures,
-                          emergencyClose: s.emergencyClose,
-                          autoReopen: s.autoReopen,
-                        ),
-                      ),
-                    );
-                  },
-                );
-              }),
-            ),
-          ],
-        ),
-        ),
-      ],
-    );
-  }
-
-  String _weekday(int d) =>
-      ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d - 1];
-}
-
-class DeliveryAreasTab extends StatelessWidget {
-  const DeliveryAreasTab({required this.svc});
-  final MaintenanceManagementService svc;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = svc.config;
-    final a = c.areaAvailability;
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-          OpsGlassCard(
-            title: 'Delivery areas',
-            icon: Icons.map_rounded,
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text('Enable area restrictions'),
-                  value: a.enabled,
-                  onChanged: (v) => svc.updateConfig(
-                    c.copyWith(
-                      areaAvailability: AreaAvailability(
-                        enabled: v,
-                        disabledPincodes: a.disabledPincodes,
-                        disabledCities: a.disabledCities,
-                        disabledZoneIds: a.disabledZoneIds,
-                        maxDeliveryRadiusKm: a.maxDeliveryRadiusKm,
-                      ),
-                    ),
-                  ),
-                ),
-                OpsFormField(
-                  label: 'Disabled pincodes',
-                  controller: svc.disabledPincodes,
-                  maxLines: 2,
-                  dirty: svc.isDirty,
-                ),
-                OpsFormField(
-                  label: 'Disabled cities',
-                  controller: svc.disabledCities,
-                  maxLines: 2,
-                  dirty: svc.isDirty,
-                ),
-                OpsFormField(
-                  label: 'Max radius (km)',
-                  controller: svc.maxRadius,
-                  dirty: svc.isDirty,
-                ),
-              ],
             ),
           ),
-          const SizedBox(height: 16),
-          OpsGlassCard(
-            title: 'Driver smart control',
-            icon: Icons.two_wheeler_rounded,
-            child: _DriverSmartSection(svc: svc),
+          OpsFormField(
+            label: 'Daily open',
+            controller: svc.openTime,
+            dirty: svc.isDirty,
+          ),
+          OpsFormField(
+            label: 'Daily close',
+            controller: svc.closeTime,
+            dirty: svc.isDirty,
+          ),
+          OpsFormField(
+            label: 'Timezone',
+            controller: svc.timezone,
+            dirty: svc.isDirty,
+          ),
+          SwitchListTile(
+            title: const Text('Emergency close now'),
+            value: s.emergencyClose,
+            onChanged: (v) => svc.updateConfig(
+              c.copyWith(
+                schedule: MaintenanceSchedule(
+                  enabled: s.enabled,
+                  dailyOpenTime: s.dailyOpenTime,
+                  dailyCloseTime: s.dailyCloseTime,
+                  timezone: s.timezone,
+                  weeklyHolidays: s.weeklyHolidays,
+                  festivalClosures: s.festivalClosures,
+                  emergencyClose: v,
+                  autoReopen: s.autoReopen,
+                ),
+              ),
+            ),
+          ),
+          SwitchListTile(
+            title: const Text('Auto reopen'),
+            value: s.autoReopen,
+            onChanged: (v) => svc.updateConfig(
+              c.copyWith(
+                schedule: MaintenanceSchedule(
+                  enabled: s.enabled,
+                  dailyOpenTime: s.dailyOpenTime,
+                  dailyCloseTime: s.dailyCloseTime,
+                  timezone: s.timezone,
+                  weeklyHolidays: s.weeklyHolidays,
+                  festivalClosures: s.festivalClosures,
+                  emergencyClose: s.emergencyClose,
+                  autoReopen: v,
+                ),
+              ),
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            children: List.generate(7, (i) {
+              final day = i + 1;
+              final selected = s.weeklyHolidays.contains(day);
+              return FilterChip(
+                label: Text(_weekdayLabel(day)),
+                selected: selected,
+                onSelected: (on) {
+                  final next = List<int>.from(s.weeklyHolidays);
+                  if (on) {
+                    next.add(day);
+                  } else {
+                    next.remove(day);
+                  }
+                  next.sort();
+                  svc.updateConfig(
+                    c.copyWith(
+                      schedule: MaintenanceSchedule(
+                        enabled: s.enabled,
+                        dailyOpenTime: s.dailyOpenTime,
+                        dailyCloseTime: s.dailyCloseTime,
+                        timezone: s.timezone,
+                        weeklyHolidays: next,
+                        festivalClosures: s.festivalClosures,
+                        emergencyClose: s.emergencyClose,
+                        autoReopen: s.autoReopen,
+                      ),
+                    ),
+                  );
+                },
+              );
+            }),
           ),
         ],
+      ),
     );
   }
-}
 
-class _DriverSmartSection extends StatelessWidget {
-  const _DriverSmartSection({required this.svc});
-  final MaintenanceManagementService svc;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = svc.config;
-    final d = c.driverSmartControl;
-    return Column(
-      children: [
-        SwitchListTile(
-          title: const Text('Enable smart driver rules'),
-          value: d.enabled,
-          onChanged: (v) => svc.updateConfig(
-            c.copyWith(
-              driverSmartControl: DriverSmartControl(
-                enabled: v,
-                minDriversOnline: d.minDriversOnline,
-                autoPauseCod: d.autoPauseCod,
-                limitOrderDistanceKm: d.limitOrderDistanceKm,
-                pauseOrdering: d.pauseOrdering,
-                highDemandMessage: d.highDemandMessage,
-              ),
-            ),
-          ),
-        ),
-        AdminListTile(
-          title: const Text('Min drivers online'),
-          trailing: SizedBox(
-            width: 64,
-            child: TextFormField(
-              initialValue: '${d.minDriversOnline}',
-              keyboardType: TextInputType.number,
-              onChanged: (v) {
-                final n = int.tryParse(v) ?? 2;
-                svc.updateConfig(
-                  c.copyWith(
-                    driverSmartControl: DriverSmartControl(
-                      enabled: d.enabled,
-                      minDriversOnline: n,
-                      autoPauseCod: d.autoPauseCod,
-                      limitOrderDistanceKm: d.limitOrderDistanceKm,
-                      pauseOrdering: d.pauseOrdering,
-                      highDemandMessage: d.highDemandMessage,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  String _weekdayLabel(int d) =>
+      ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d - 1];
 }
 
 class CustomerExperienceTab extends StatelessWidget {

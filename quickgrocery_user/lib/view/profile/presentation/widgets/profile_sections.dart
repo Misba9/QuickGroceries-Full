@@ -12,7 +12,6 @@ import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/user/user_profile_cache.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:quickgrocery/view/auth/screens/login_screen.dart';
 import 'package:quickgrocery/view/orders/domain/order_models.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
 import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
@@ -26,7 +25,8 @@ import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart
 import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.dart';
 import 'package:quickgrocery/view/coupons/coupon_screen.dart';
 import 'package:quickgrocery/view/profile/presentation/utils/profile_url_opener.dart';
-import 'package:quickgrocery/view/support/models/support_settings_defaults.dart';
+import 'package:quickgrocery/view/support/models/support_settings.dart';
+import 'package:quickgrocery/view/support/presentation/providers/support_settings_providers.dart';
 import 'package:quickgrocery/view/support/services/support_action_launcher.dart';
 import 'package:quickgrocery/view/refer/screens/refer_screen.dart';
 import 'package:quickgrocery/view/wishlist/screens/wishlist_screen.dart';
@@ -881,6 +881,41 @@ class ProfileAddressesSection extends ConsumerWidget {
   }
 }
 
+// ─── Partner with us ──────────────────────────────────────────────────────
+
+class ProfilePartnerSection extends StatelessWidget {
+  const ProfilePartnerSection({super.key, this.animationIndex = 9});
+
+  static const partnerUrl = 'https://www.quickgroceries.in/PartnerWithUs';
+
+  final int animationIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeInUp(
+      duration: Duration(milliseconds: 380 + animationIndex * 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ProfileSectionTitle(title: context.l10n.partner_with_us),
+          ProfileCard(
+            child: ProfileListTile(
+              icon: Icons.storefront_outlined,
+              title: context.l10n.become_store_partner,
+              subtitle: context.l10n.partner_with_us_subtitle,
+              onTap: () => openProfileUrl(
+                context,
+                url: partnerUrl,
+                title: context.l10n.partner_with_us,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Refer & Earn ─────────────────────────────────────────────────────────
 
 class ProfileReferEarnSection extends StatelessWidget {
@@ -1192,16 +1227,16 @@ class ProfileLanguageSection extends StatelessWidget {
 
 // ─── Support ──────────────────────────────────────────────────────────────
 
-class ProfileSupportSection extends StatelessWidget {
+class ProfileSupportSection extends ConsumerWidget {
   const ProfileSupportSection({super.key, this.animationIndex = 12});
 
   final int animationIndex;
 
-  static const _phone = SupportSettingsDefaults.phone;
-  static const _email = SupportSettingsDefaults.email;
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settingsAsync = ref.watch(supportSettingsStreamProvider);
+    final settings = settingsAsync.valueOrNull ?? SupportSettings.defaults;
+
     return FadeInUp(
       duration: Duration(milliseconds: 380 + animationIndex * 40),
       child: Column(
@@ -1211,27 +1246,46 @@ class ProfileSupportSection extends StatelessWidget {
           ProfileCard(
             child: Column(
               children: [
-                ProfileListTile(
-                  icon: Icons.call_outlined,
-                  title: context.l10n.call_support,
-                  subtitle: _phone,
-                  onTap: () => SupportActionLauncher.callPhone(context, _phone),
-                ),
-                ProfileListTile(
-                  icon: Icons.email_outlined,
-                  title: context.l10n.email_support,
-                  subtitle: _email,
-                  onTap: () => SupportActionLauncher.sendEmail(context, _email),
-                ),
-                ProfileListTile(
-                  icon: Icons.chat_outlined,
-                  title: 'WhatsApp Support',
-                  subtitle: SupportSettingsDefaults.whatsapp,
-                  onTap: () => SupportActionLauncher.openWhatsApp(
-                    context,
-                    SupportSettingsDefaults.whatsapp,
+                if (settings.hasPhone)
+                  ProfileListTile(
+                    icon: Icons.call_outlined,
+                    title: context.l10n.call_support,
+                    subtitle: settings.phone,
+                    onTap: () =>
+                        SupportActionLauncher.callPhone(context, settings.phone),
                   ),
-                ),
+                if (settings.hasEmail)
+                  ProfileListTile(
+                    icon: Icons.email_outlined,
+                    title: context.l10n.email_support,
+                    subtitle: settings.email,
+                    onTap: () =>
+                        SupportActionLauncher.sendEmail(context, settings.email),
+                  ),
+                if (settings.hasWhatsapp || settings.hasPhone)
+                  ProfileListTile(
+                    icon: Icons.chat_outlined,
+                    title: 'WhatsApp Support',
+                    subtitle: settings.whatsappLaunch,
+                    onTap: () => SupportActionLauncher.openWhatsApp(
+                      context,
+                      settings.whatsappLaunch,
+                    ),
+                  ),
+                if (settings.hasMessage) ...[
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                    child: Text(
+                      settings.message,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        height: 1.35,
+                        color: AppSurface.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1370,11 +1424,6 @@ class ProfileLogoutSection extends StatelessWidget {
     if (ok != true || !context.mounted) return;
     await UserProfileCache.clearOnLogout();
     await FirebaseAuth.instance.signOut();
-    if (!context.mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
+    // AppBootstrapShell listens to authStateChanges and shows LoginScreen.
   }
 }

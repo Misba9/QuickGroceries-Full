@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/navigation/root_back_handler.dart';
 import '../core/vendor_order_notification_controller.dart';
 import '../models/vendor_model.dart';
 import '../style/app_color.dart';
@@ -111,18 +112,22 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     // Use IndexedStack to maintain state of each screen
     // Each screen has its own Scaffold with bottomNavigationBar
-    return VendorOrderRealtimeHost(
-      vendor: _currentVendor!,
-      notifications: _notifications,
-      onViewAllOrders: () => setState(() => _currentIndex = 1),
-      child: IndexedStack(
-        index: _currentIndex,
-        children: [
-          _buildHomeScreen(),
-          _buildOrdersScreen(),
-          _buildProductsScreen(),
-          _buildProfileScreen(),
-        ],
+    return RootBackHandler(
+      selectedTabIndex: _currentIndex,
+      onTabSelected: (index) => setState(() => _currentIndex = index),
+      child: VendorOrderRealtimeHost(
+        vendor: _currentVendor!,
+        notifications: _notifications,
+        onViewAllOrders: () => setState(() => _currentIndex = 1),
+        child: IndexedStack(
+          index: _currentIndex,
+          children: [
+            _buildHomeScreen(),
+            _buildOrdersScreen(),
+            _buildProductsScreen(),
+            _buildProfileScreen(),
+          ],
+        ),
       ),
     );
   }

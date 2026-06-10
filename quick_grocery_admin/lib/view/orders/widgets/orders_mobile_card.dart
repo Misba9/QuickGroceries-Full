@@ -85,6 +85,10 @@ class OrdersMobileCard extends StatelessWidget {
                     order.isPaid ? 'Paid' : 'COD',
                     order.isPaid ? Colors.green.shade700 : Colors.orange.shade800,
                   ),
+                  if (order.hasCoupon) ...[
+                    const SizedBox(width: 8),
+                    _pill('Coupon', Colors.deepPurple.shade700),
+                  ],
                   const SizedBox(width: 8),
                   Text(
                     '₹${order.getTotalAmount().toStringAsFixed(0)}',

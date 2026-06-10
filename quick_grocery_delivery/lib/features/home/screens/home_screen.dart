@@ -1,5 +1,5 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:quick_grocery_delivery/core/navigation/root_back_handler.dart';
 import 'package:quick_grocery_delivery/core/delivery_push_initializer.dart';
 import 'package:quick_grocery_delivery/features/notifications/delivery_notification_center_screen.dart';
 import 'package:quick_grocery_delivery/constants/app_spacing.dart';
@@ -37,23 +37,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     DeliveryPushInitializer.onAssignmentPush = _onAssignmentPush;
     DeliveryPushInitializer.onCancellationPush = _onCancellationPush;
-
-    FirebaseMessaging.onMessage.listen((message) async {
-      await DeliveryPushInitializer.handleForegroundMessage(message);
-    });
-
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      final data = Map<String, dynamic>.from(message.data);
-      DeliveryPushInitializer.onCancellationPush?.call(data);
-      DeliveryPushInitializer.onAssignmentPush?.call(data);
-    });
-
-    FirebaseMessaging.instance.getInitialMessage().then((message) {
-      if (message == null || !mounted) return;
-      final data = Map<String, dynamic>.from(message.data);
-      _onCancellationPush(data);
-      _onAssignmentPush(data);
-    });
 
     final orders = Provider.of<OrderService>(context, listen: false);
     orders.getDeliveryBoy().then((_) => orders.startRealtimeOrders());
@@ -105,7 +88,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (provider.deliveryBoy == null) {
       if (provider.profileLoadFailed) {
-        return Scaffold(
+        return RootBackHandler(
+          child: Scaffold(
           body: Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -144,13 +128,15 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+        ),
         );
       }
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (!provider.deliveryBoy!.isActive) {
-      return Scaffold(
+      return RootBackHandler(
+        child: Scaffold(
         body: Column(
           children: [
             Expanded(
@@ -181,11 +167,15 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
       );
     }
 
-    return DriverLocationHost(
-      child: Scaffold(
+    return RootBackHandler(
+      selectedTabIndex: _selectIndex,
+      onTabSelected: (index) => setState(() => _selectIndex = index),
+      child: DriverLocationHost(
+        child: Scaffold(
         backgroundColor: GlobalVariables.background,
         body: _pages[_selectIndex],
         bottomNavigationBar: NavigationBar(
@@ -209,6 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const NavigationDestination(icon: Icon(Icons.person_outline), label: 'Account'),
           ],
         ),
+      ),
       ),
     );
   }

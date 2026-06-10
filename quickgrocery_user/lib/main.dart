@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/firebase/firebase_app_check_bootstrap.dart';
 import 'package:quickgrocery/core/firebase/firebase_bootstrap.dart';
+import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
 import 'package:quickgrocery/core/firebase/firebase_phone_auth_bootstrap.dart';
 import 'package:quickgrocery/core/firestore/firestore_retry.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_shell.dart';
@@ -23,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart'
 import 'package:quickgrocery/core/design/app_theme.dart';
 import 'package:quickgrocery/core/localization/locale_provider.dart';
 import 'package:quickgrocery/core/localization/app_locales.dart';
+import 'package:quickgrocery/core/auth/phone_auth_log.dart';
 import 'package:quickgrocery/core/startup/app_startup_log.dart';
 import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
@@ -145,7 +147,8 @@ void _configureProductionErrorPresentation() {
 
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
-  AppStartupLog.markAppStart();
+    AppStartupLog.markAppStart();
+    PhoneAuthLog.appStarted();
 
   try {
     await initializeFirebaseWithRetry();
@@ -153,6 +156,7 @@ Future<void> _bootstrap() async {
     RealtimeBootstrap.configureFirestore();
     await configureFirebaseAppCheck();
     await configureFirebasePhoneAuth();
+    unawaited(FirebaseConfigAudit.logConfiguration());
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     _configureProductionErrorPresentation();

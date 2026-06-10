@@ -35,6 +35,7 @@ class PremiumCheckoutBar extends StatelessWidget {
     this.helperText,
     this.helperIsError = false,
     this.buttonText = 'Proceed to Checkout',
+    this.loadingLabel = 'Loading...',
   });
 
   final double total;
@@ -44,6 +45,7 @@ class PremiumCheckoutBar extends StatelessWidget {
   final bool isLoading;
   final VoidCallback onCheckout;
   final String buttonText;
+  final String loadingLabel;
 
   /// Tiny line of text rendered above the totals row — used to surface
   /// "min order ₹100, add ₹30 more" or "Some items are out of stock".
@@ -127,9 +129,11 @@ class PremiumCheckoutBar extends StatelessWidget {
                   const SizedBox(width: 12),
                   _CheckoutButton(
                     label: buttonText,
+                    loadingLabel: loadingLabel,
                     enabled: enabled && !isLoading,
                     isLoading: isLoading,
                     onTap: () {
+                      if (isLoading) return;
                       HapticFeedback.mediumImpact();
                       onCheckout();
                     },
@@ -159,6 +163,7 @@ class StickyCheckoutBar extends PremiumCheckoutBar {
     super.isLoading = false,
     super.helperText,
     super.helperIsError,
+    super.loadingLabel = 'Loading...',
   }) : super(total: totalAmount, onCheckout: onTap);
 }
 
@@ -242,12 +247,14 @@ class _AnimatedTotal extends StatelessWidget {
 class _CheckoutButton extends StatelessWidget {
   const _CheckoutButton({
     required this.label,
+    required this.loadingLabel,
     required this.enabled,
     required this.isLoading,
     required this.onTap,
   });
 
   final String label;
+  final String loadingLabel;
   final bool enabled;
   final bool isLoading;
   final VoidCallback onTap;
@@ -272,13 +279,33 @@ class _CheckoutButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
             child: Center(
               child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            loadingLabel,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ),
+                      ],
                     )
                   : Row(
                       mainAxisSize: MainAxisSize.min,

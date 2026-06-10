@@ -2681,6 +2681,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter coupon code'**
   String get enterCouponCodeHint;
+
+  /// No description provided for @partner_with_us.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner with us'**
+  String get partner_with_us;
+
+  /// No description provided for @become_store_partner.
+  ///
+  /// In en, this message translates to:
+  /// **'Become a store partner'**
+  String get become_store_partner;
+
+  /// No description provided for @partner_with_us_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Quick Groceries as a store or delivery partner'**
+  String get partner_with_us_subtitle;
 }
 
 class _AppLocalizationsDelegate

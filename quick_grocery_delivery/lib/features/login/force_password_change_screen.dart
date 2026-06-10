@@ -4,6 +4,7 @@ import 'package:quick_grocery_delivery/constants/primary_button.dart';
 import 'package:quick_grocery_delivery/core/auth/delivery_session_prefs.dart';
 import 'package:quick_grocery_delivery/core/auth/partner_auth_api.dart';
 import 'package:quick_grocery_delivery/core/auth/password_validation.dart';
+import 'package:quick_grocery_delivery/core/navigation/root_back_handler.dart';
 import 'package:quick_grocery_delivery/features/home/screens/home_screen.dart';
 import 'package:quick_grocery_delivery/widgets/keyboard_safe_body.dart';
 
@@ -77,7 +78,9 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    return Scaffold(
+    return RootBackHandler(
+      blockPop: _loading,
+      child: Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(title: const Text('Change Password')),
       body: KeyboardSafeBody(
@@ -130,6 +133,7 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 }

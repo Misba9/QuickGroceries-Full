@@ -14,6 +14,7 @@ abstract final class AppRoutes {
   static const login = '/login';
   static const otp = '/otp';
   static const splash = '/splash';
+  static const home = '/home';
 
   /// [HomeProvider.pages] index for the profile tab.
   static const profileTabIndex = 4;

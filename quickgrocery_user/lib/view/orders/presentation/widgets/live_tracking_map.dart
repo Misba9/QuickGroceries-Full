@@ -4,24 +4,24 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quick_grocery_geo/quick_grocery_geo.dart';
 
 import '../../domain/order_models.dart';
 
-/// Live tracking map for the order tracking screen.
-///
-/// Backed by `flutter_map` (OpenStreetMap). Shows drop pin, optional rider
-/// pin, route polyline, distance remaining, and ETA overlay.
+/// Live tracking map backed by OpenStreetMap tiles and OSRM road routing.
 class LiveTrackingMap extends StatefulWidget {
   const LiveTrackingMap({
     super.key,
     required this.dropLocation,
     required this.rider,
+    this.storeLocation,
     this.eta = Duration.zero,
     this.height = 260,
   });
 
   final LatLng dropLocation;
   final RiderLocation? rider;
+  final LatLng? storeLocation;
   final Duration eta;
   final double height;
 
@@ -31,11 +31,17 @@ class LiveTrackingMap extends StatefulWidget {
 
 class _LiveTrackingMapState extends State<LiveTrackingMap> {
   final MapController _mapController = MapController();
+  final OsrmRouteService _routeService = OsrmRouteService();
   LatLng? _lastRiderPosition;
+  List<LatLng> _routePoints = const [];
+  double? _routeDistanceKm;
+  int? _routeEtaMinutes;
+  bool _loadingRoute = false;
 
   @override
   void dispose() {
     _mapController.dispose();
+    _routeService.dispose();
     super.dispose();
   }
 
@@ -45,14 +51,55 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
     final riderPos = widget.rider?.position;
     if (riderPos != null && riderPos != _lastRiderPosition) {
       _lastRiderPosition = riderPos;
-      _fitBounds(riderPos, widget.dropLocation);
+      _fitBounds();
+      _refreshRoute();
     }
   }
 
-  void _fitBounds(LatLng rider, LatLng drop) {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fitBounds();
+      _refreshRoute();
+    });
+  }
+
+  Future<void> _refreshRoute() async {
+    final riderPos = widget.rider?.position;
+    if (riderPos == null || !GpsPoint.isValidCoord(riderPos.latitude, riderPos.longitude)) {
+      return;
+    }
+    setState(() => _loadingRoute = true);
+    final from = GpsPoint(riderPos.latitude, riderPos.longitude);
+    final to = GpsPoint(widget.dropLocation.latitude, widget.dropLocation.longitude);
+    final route = await _routeService.route(from: from, to: to);
+    if (!mounted) return;
+    setState(() {
+      _loadingRoute = false;
+      if (route != null) {
+        _routePoints = route.points
+            .map((p) => LatLng(p.latitude, p.longitude))
+            .toList(growable: false);
+        _routeDistanceKm = route.distanceKm;
+        _routeEtaMinutes = route.etaMinutes;
+      } else {
+        _routePoints = [riderPos, widget.dropLocation];
+        _routeDistanceKm = null;
+        _routeEtaMinutes = null;
+      }
+    });
+  }
+
+  void _fitBounds() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final bounds = LatLngBounds.fromPoints([rider, drop]);
+      final points = <LatLng>[widget.dropLocation];
+      final riderPos = widget.rider?.position;
+      if (riderPos != null) points.add(riderPos);
+      final store = widget.storeLocation;
+      if (store != null) points.add(store);
+      final bounds = LatLngBounds.fromPoints(points);
       _mapController.fitCamera(
         CameraFit.bounds(
           bounds: bounds,
@@ -63,10 +110,17 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
   }
 
   double? _distanceKm() {
+    if (_routeDistanceKm != null && _routeDistanceKm! > 0) {
+      return _routeDistanceKm;
+    }
     final riderPos = widget.rider?.position;
     if (riderPos == null) return null;
-    const dist = Distance();
-    return dist.as(LengthUnit.Kilometer, riderPos, widget.dropLocation);
+    return RouteMath.haversineKm(
+      riderPos.latitude,
+      riderPos.longitude,
+      widget.dropLocation.latitude,
+      widget.dropLocation.longitude,
+    );
   }
 
   @override
@@ -80,8 +134,8 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
           )
         : widget.dropLocation;
     final distanceKm = _distanceKm();
-    final etaMinutes =
-        widget.eta.inSeconds > 0 ? (widget.eta.inSeconds / 60).round() : null;
+    final etaMinutes = _routeEtaMinutes ??
+        (widget.eta.inSeconds > 0 ? (widget.eta.inSeconds / 60).round() : null);
 
     return SizedBox(
       height: widget.height,
@@ -107,11 +161,11 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
                   userAgentPackageName: 'com.quickgrocery.io',
                   maxZoom: 19,
                 ),
-                if (hasRider)
+                if (_routePoints.length >= 2)
                   PolylineLayer(
                     polylines: [
                       Polyline(
-                        points: [widget.rider!.position!, widget.dropLocation],
+                        points: _routePoints,
                         strokeWidth: 4,
                         color: AppColor.primary,
                       ),
@@ -119,6 +173,13 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
                   ),
                 MarkerLayer(
                   markers: [
+                    if (widget.storeLocation != null)
+                      Marker(
+                        point: widget.storeLocation!,
+                        width: 44,
+                        height: 44,
+                        child: const _StorePin(),
+                      ),
                     Marker(
                       point: widget.dropLocation,
                       width: 44,
@@ -136,6 +197,16 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
                 ),
               ],
             ),
+            if (_loadingRoute)
+              const Positioned(
+                top: 12,
+                right: 12,
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
             if (hasRider && (distanceKm != null || etaMinutes != null))
               Positioned(
                 left: 12,
@@ -177,9 +248,7 @@ class _MapStatsBar extends StatelessWidget {
             const Icon(Icons.route_rounded, color: AppColor.primary, size: 18),
             const SizedBox(width: 6),
             Text(
-              distanceKm! < 1
-                  ? '${(distanceKm! * 1000).round()} m away'
-                  : '${distanceKm!.toStringAsFixed(1)} km away',
+              RouteMath.formatDistance(distanceKm),
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
@@ -192,7 +261,7 @@ class _MapStatsBar extends StatelessWidget {
             const Icon(Icons.schedule_rounded, color: AppColor.primary, size: 18),
             const SizedBox(width: 6),
             Text(
-              'ETA $etaMinutes min',
+              'ETA ${RouteMath.formatDuration(etaMinutes)}',
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
@@ -202,6 +271,22 @@ class _MapStatsBar extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _StorePin extends StatelessWidget {
+  const _StorePin();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.orange.shade700,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 3),
+      ),
+      child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 20),
     );
   }
 }

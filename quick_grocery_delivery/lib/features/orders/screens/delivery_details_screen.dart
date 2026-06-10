@@ -79,6 +79,11 @@ class DeliveryDetailsScreen extends StatelessWidget {
                       AppSpacing.h10,
                       _InstructionsCard(lines: live.deliveryInstructionLines),
                     ],
+                    if (live.routeDistanceKm != null &&
+                        live.routeDistanceKm! > 0) ...[
+                      AppSpacing.h10,
+                      _RouteSummaryCard(order: live),
+                    ],
                     AppSpacing.h20,
                     if (isAssigned && live.hasVendorCoordinates)
                       _PrimaryButton(
@@ -270,6 +275,71 @@ class _OrderStatusCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RouteSummaryCard extends StatelessWidget {
+  const _RouteSummaryCard({required this.order});
+
+  final OrderModel order;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Route estimate',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  AppSpacing.h5,
+                  Text(
+                    DeliveryRouteUtils.formatDistance(order.routeDistanceKm),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Expected time',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  AppSpacing.h5,
+                  Text(
+                    DeliveryRouteUtils.formatDuration(
+                      order.expectedDeliveryMinutes,
+                    ),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery_vendor/core/auth/partner_auth_api.dart';
 import 'package:quickgrocery_vendor/core/auth/password_validation.dart';
+import 'package:quickgrocery_vendor/core/navigation/root_back_handler.dart';
 import 'package:quickgrocery_vendor/models/vendor_model.dart';
 import 'package:quickgrocery_vendor/services/preference_service.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
@@ -64,7 +65,9 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return RootBackHandler(
+      blockPop: _loading,
+      child: Scaffold(
       appBar: AppBar(title: const Text('Change Password')),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
@@ -127,6 +130,7 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:quick_grocery_geo/quick_grocery_geo.dart';
 import 'package:quickgrocery/core/order/order_bill_totals.dart';
 import 'package:quickgrocery/models/order_model.dart';
 import 'package:quickgrocery/view/cart/domain/cart_models.dart'
@@ -32,6 +33,10 @@ class LiveOrder {
   final Map<String, dynamic>? addressSnapshot;
   final double tipAmount;
   final String tipStatus;
+  final double? pickupLat;
+  final double? pickupLng;
+  final String pickupAddress;
+  final String vendorName;
 
   const LiveOrder({
     required this.legacy,
@@ -50,13 +55,35 @@ class LiveOrder {
     required this.addressSnapshot,
     this.tipAmount = 0,
     this.tipStatus = '',
+    this.pickupLat,
+    this.pickupLng,
+    this.pickupAddress = '',
+    this.vendorName = '',
   });
 
   String get id => legacy.id;
   String get deliveryBoyId => legacy.deliveryBoyId;
   String get phone => legacy.phone;
   String get customerName => legacy.customerName;
-  LatLng get dropLatLng => LatLng(legacy.lat, legacy.lng);
+  LatLng get dropLatLng {
+    final snap = addressSnapshot;
+    final fromSnap = GpsPoint.tryParse(
+      snap?['lat'] ?? snap?['latitude'],
+      snap?['lng'] ?? snap?['longitude'],
+    );
+    if (fromSnap != null) {
+      return LatLng(fromSnap.latitude, fromSnap.longitude);
+    }
+    return LatLng(legacy.lat, legacy.lng);
+  }
+
+  LatLng? get storeLatLng {
+    final coords = GpsPoint.tryParse(pickupLat, pickupLng);
+    if (coords == null) return null;
+    return LatLng(coords.latitude, coords.longitude);
+  }
+
+  bool get hasStoreCoordinates => storeLatLng != null;
   int get itemCount =>
       legacy.products.fold<int>(0, (acc, p) => acc + p.itemCount);
   bool get isPaid => legacy.isPaid;
@@ -93,6 +120,21 @@ class LiveOrder {
 
   String get shortOrderId =>
       id.length > 8 ? id.substring(id.length - 8).toUpperCase() : id.toUpperCase();
+
+  static int compareNewestFirst(LiveOrder a, LiveOrder b) {
+    DateTime sortAt(LiveOrder o) {
+      if (o.createdAt.millisecondsSinceEpoch > 0) return o.createdAt;
+      final parsed = DateTime.tryParse(o.legacy.createdDate.trim());
+      if (parsed != null) return parsed;
+      final idMs = int.tryParse(o.id);
+      if (idMs != null && idMs > 0) {
+        return DateTime.fromMillisecondsSinceEpoch(idMs);
+      }
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+
+    return sortAt(b).compareTo(sortAt(a));
+  }
 
   double billField(String key) => (billSnapshot[key] as num?)?.toDouble() ?? 0;
 
@@ -171,6 +213,11 @@ class LiveOrder {
             ? (bill['deliveryPartnerTip'] as num?)?.toDouble() ?? 0
             : 0);
 
+    final pickupCoords = GpsPoint.tryParse(
+      data['pickupLat'] ?? data['pickup_lat'],
+      data['pickupLng'] ?? data['pickup_lng'],
+    );
+
     return LiveOrder(
       legacy: legacy,
       status: status,
@@ -193,6 +240,11 @@ class LiveOrder {
           : null,
       tipAmount: tip,
       tipStatus: (data['tipStatus'] as String?) ?? '',
+      pickupLat: pickupCoords?.latitude,
+      pickupLng: pickupCoords?.longitude,
+      pickupAddress: (data['pickupAddress'] ?? data['pickup_address'] ?? '')
+          .toString(),
+      vendorName: (data['vendorName'] ?? data['vendor_name'] ?? '').toString(),
     );
   }
 
