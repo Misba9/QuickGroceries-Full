@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:quick_grocery_delivery/constants/app_spacing.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/models/order_model.dart';
+import 'package:quick_grocery_delivery/services/customer_phone_resolver.dart';
 import 'package:quick_grocery_delivery/utils/delivery_contact_utils.dart';
 import 'package:quick_grocery_delivery/utils/delivery_route_utils.dart';
 
@@ -211,23 +212,74 @@ class _TimelineRow extends StatelessWidget {
   }
 }
 
-class _CustomerContactCard extends StatelessWidget {
+class _CustomerContactCard extends StatefulWidget {
   const _CustomerContactCard({required this.order});
 
   final OrderModel order;
 
   @override
+  State<_CustomerContactCard> createState() => _CustomerContactCardState();
+}
+
+class _CustomerContactCardState extends State<_CustomerContactCard> {
+  String _phone = '';
+  bool _loadingPhone = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhone();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CustomerContactCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.order.id != widget.order.id ||
+        oldWidget.order.phone != widget.order.phone ||
+        oldWidget.order.uuid != widget.order.uuid) {
+      _loadPhone();
+    }
+  }
+
+  Future<void> _loadPhone() async {
+    final direct = DeliveryContactUtils.formatDisplayPhone(widget.order.phone);
+    if (direct.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _phone = direct;
+          _loadingPhone = false;
+        });
+      }
+      return;
+    }
+
+    setState(() => _loadingPhone = true);
+    final resolved = await CustomerPhoneResolver.resolve(
+      orderPhone: widget.order.phone,
+      customerUid: widget.order.uuid,
+    );
+    if (!mounted) return;
+    setState(() {
+      _phone = DeliveryContactUtils.formatDisplayPhone(resolved);
+      _loadingPhone = false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final phone = order.phone.trim();
+    final dialPhone = _phone.isNotEmpty ? _phone : widget.order.phone.trim();
     return _SectionShell(
       title: 'Customer',
       icon: Icons.person_outline,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _DetailLine(label: 'Name', value: order.customerName),
-          _CopyablePhoneLine(phone: phone),
-          _CopyableAddressLine(address: order.address),
+          _DetailLine(label: 'Name', value: widget.order.customerName),
+          _CopyablePhoneLine(
+            phone: _loadingPhone ? '' : _phone,
+            loading: _loadingPhone,
+          ),
+          _CopyableAddressLine(address: widget.order.address),
           AppSpacing.h10,
           _ContactActionRow(
             actions: [
@@ -235,13 +287,14 @@ class _CustomerContactCard extends StatelessWidget {
                 icon: Icons.phone,
                 label: 'Call Customer',
                 color: Colors.green.shade700,
-                onTap: () => DeliveryContactUtils.callPhone(context, phone),
+                onTap: () => DeliveryContactUtils.callPhone(context, dialPhone),
               ),
               _ContactAction(
                 icon: Icons.chat,
                 label: 'WhatsApp',
                 color: const Color(0xFF25D366),
-                onTap: () => DeliveryContactUtils.openWhatsApp(context, phone),
+                onTap: () =>
+                    DeliveryContactUtils.openWhatsApp(context, dialPhone),
               ),
               _ContactAction(
                 icon: Icons.navigation,
@@ -257,7 +310,7 @@ class _CustomerContactCard extends StatelessWidget {
   }
 
   Future<void> _navigateCustomer(BuildContext context) async {
-    if (!order.hasCustomerCoordinates) {
+    if (!widget.order.hasCustomerCoordinates) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Customer GPS coordinates not available for navigation'),
@@ -266,8 +319,8 @@ class _CustomerContactCard extends StatelessWidget {
       return;
     }
     final ok = await DeliveryRouteUtils.openNavigation(
-      lat: order.latitude,
-      lng: order.longitude,
+      lat: widget.order.latitude,
+      lng: widget.order.longitude,
       coordinatesOnly: true,
     );
     if (!context.mounted) return;
@@ -440,15 +493,19 @@ class _DetailLine extends StatelessWidget {
 class _CopyablePhoneLine extends StatelessWidget {
   const _CopyablePhoneLine({
     required this.phone,
+    this.loading = false,
     this.unavailableLabel = 'Customer phone number unavailable',
   });
 
   final String phone;
+  final bool loading;
   final String unavailableLabel;
 
   @override
   Widget build(BuildContext context) {
-    final display = phone.isNotEmpty ? phone : unavailableLabel;
+    final display = loading
+        ? 'Loading...'
+        : (phone.isNotEmpty ? phone : unavailableLabel);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -462,22 +519,31 @@ class _CopyablePhoneLine extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: GestureDetector(
-              onLongPress: phone.isEmpty
-                  ? null
-                  : () => DeliveryContactUtils.copyText(
-                        context,
-                        phone,
-                        successLabel: 'Number',
+            child: loading
+                ? Text(
+                    display,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade500,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  )
+                : GestureDetector(
+                    onLongPress: phone.isEmpty
+                        ? null
+                        : () => DeliveryContactUtils.copyText(
+                              context,
+                              phone,
+                              successLabel: 'Number',
+                            ),
+                    child: Text(
+                      display,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: phone.isEmpty ? Colors.grey : Colors.black87,
                       ),
-              child: Text(
-                display,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: phone.isEmpty ? Colors.grey : Colors.black87,
-                ),
-              ),
-            ),
+                    ),
+                  ),
           ),
         ],
       ),

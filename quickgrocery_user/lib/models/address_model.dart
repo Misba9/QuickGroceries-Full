@@ -47,6 +47,39 @@ class AddressModel {
       latitude != 0 &&
       longitude != 0;
 
+  /// Checkout / address-book title — type only when no contact name saved.
+  String get displayTitle {
+    final n = name.trim();
+    if (n.isNotEmpty) return '$type · $n';
+    return type;
+  }
+
+  /// Mobile on the address, or [fallbackE164] (e.g. Firebase Auth phone).
+  String resolvedMobile(String fallbackE164) {
+    final m = mobile.trim();
+    if (m.isNotEmpty) return m;
+    return AddressModel.localMobileDigits(fallbackE164);
+  }
+
+  /// Last 10 digits for form display / validation.
+  static String localMobileDigits(String? e164OrRaw) {
+    final digits = (e164OrRaw ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.length >= 10) {
+      return digits.substring(digits.length - 10);
+    }
+    return '';
+  }
+
+  /// True when name, house/building, area, and a 10-digit mobile are present.
+  bool isCompleteForDelivery(String? authPhoneE164) {
+    if (name.trim().isEmpty) return false;
+    if (address.trim().isEmpty) return false;
+    if (area.trim().isEmpty) return false;
+    final digits =
+        resolvedMobile(authPhoneE164 ?? '').replaceAll(RegExp(r'\D'), '');
+    return digits.length >= 10;
+  }
+
   String get formattedAddress {
     final parts = <String>[
       if (houseNumber.isNotEmpty) houseNumber,

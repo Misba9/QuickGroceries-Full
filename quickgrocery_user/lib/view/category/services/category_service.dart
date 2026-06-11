@@ -501,4 +501,9 @@ class CategoryService extends ChangeNotifier {
       }
     }
   }
+
+  void resetSessionForLogout() {
+    selectedProduct.clear();
+    notifyListeners();
+  }
 }

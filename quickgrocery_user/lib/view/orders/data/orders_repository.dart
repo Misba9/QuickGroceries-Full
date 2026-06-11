@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../domain/order_models.dart';
 import '../services/order_cancel_api.dart';
@@ -16,16 +17,24 @@ class OrdersRepository {
   /// Live stream of all orders that belong to [uid], newest first. Used by
   /// the Orders screen tabs.
   Stream<List<LiveOrder>> watchUserOrders(String uid) {
+    // Sort client-side so legacy orders without `createdAt` still appear and
+    // we avoid requiring the uuid+createdAt composite index at query time.
     final query = _firestore
         .collection('orders')
         .where('uuid', isEqualTo: uid)
-        .orderBy('createdAt', descending: true)
         .limit(100);
 
     return query.snapshots().map((snap) {
-      final list = snap.docs
-          .map((d) => LiveOrder.fromFirestore(d.data(), d.id))
-          .toList();
+      final list = <LiveOrder>[];
+      for (final d in snap.docs) {
+        try {
+          list.add(LiveOrder.fromFirestore(d.data(), d.id));
+        } catch (e, st) {
+          if (kDebugMode) {
+            debugPrint('[OrdersRepository] parse fail ${d.id}: $e\n$st');
+          }
+        }
+      }
       list.sort(LiveOrder.compareNewestFirst);
       return list;
     });

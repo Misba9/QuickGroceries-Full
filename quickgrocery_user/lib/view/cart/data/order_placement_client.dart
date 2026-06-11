@@ -40,6 +40,9 @@ class OrderPlacementClient {
       throw StateError('User must be signed in to place an order.');
     }
 
+    final authPhone = user.phoneNumber?.trim() ?? '';
+    final resolvedMobile = address.resolvedMobile(authPhone);
+
     final payload = sanitizeCallableData({
       'items': items
           .where((e) => !e.isComboLine)
@@ -53,8 +56,8 @@ class OrderPlacementClient {
       if (coupon != null) 'coupon': coupon.toMap(),
       'address': {
         'id': address.id,
-        'name': address.name,
-        'mobile': address.mobile,
+        'name': address.name.trim(),
+        'mobile': resolvedMobile,
         'address': address.address,
         'area': address.area,
         'type': address.type,
@@ -78,9 +81,23 @@ class OrderPlacementClient {
 
     final data = res.data;
     if (data is Map && data['orderId'] != null) {
-      return data['orderId'].toString();
+      final orderId = data['orderId'].toString();
+      if (data['duplicate'] == true) {
+        debugPrint(
+          'ORDER CALLABLE DEDUPE function=$functionName orderId=$orderId',
+        );
+      }
+      return orderId;
     }
     throw StateError('Invalid response from $functionName');
+  }
+
+  /// True for errors where the server may still be processing the first request.
+  static bool isTransientFunctionsError(FirebaseFunctionsException e) {
+    return e.code == 'deadline-exceeded' ||
+        e.code == 'unavailable' ||
+        e.code == 'internal' ||
+        e.code == 'unknown';
   }
 
   Future<HttpsCallableResult<dynamic>> _callPlaceOrder(

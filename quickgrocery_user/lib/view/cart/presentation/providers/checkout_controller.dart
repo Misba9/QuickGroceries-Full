@@ -54,7 +54,7 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     CheckoutPreferencesStore.persistFromState(state);
   }
 
-  /// Synchronous guard — call before any async work. Returns false on duplicate tap.
+  /// Synchronous guard — call at the first line of the Place Order tap handler.
   bool tryBeginPlacement() {
     if (!mounted) return false;
     if (_placementLock || state.isPlacingOrder) {
@@ -69,20 +69,24 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     return true;
   }
 
+  /// Unlocks the button when validation/auth fails before any order API call.
+  void cancelPlacement() {
+    if (!mounted) return;
+    _placementLock = false;
+    state = state.copyWith(isPlacingOrder: false, clearError: true);
+  }
+
   void finishPlacementSuccess() {
     if (!mounted) return;
     // Stay locked + loading until checkout screen disposes after navigation.
     state = state.copyWith(isPlacingOrder: true, clearError: true);
   }
 
+  /// Re-enables the button. Keeps the same idempotency key so retries dedupe.
   void finishPlacementFailure() {
     if (!mounted) return;
     _placementLock = false;
-    state = state.copyWith(
-      isPlacingOrder: false,
-      rotateIdempotencyKey: true,
-      clearError: true,
-    );
+    state = state.copyWith(isPlacingOrder: false, clearError: true);
   }
 
   void selectAddress(int index) {

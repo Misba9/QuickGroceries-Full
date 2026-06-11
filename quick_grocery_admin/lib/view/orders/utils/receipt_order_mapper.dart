@@ -1,3 +1,4 @@
+import 'package:quick_grocery_admin/model/customer_model.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_bill_totals.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_eta_utils.dart';
@@ -16,16 +17,18 @@ class ReceiptOrderMapper {
     List<ProductItem>? productsOverride,
     String? etaLabel,
     String? customerNameOverride,
+    CustomerModel? customer,
   }) {
     final products = productsOverride ?? order.products;
     final bill = OrderBillTotals.resolve(order);
+    final phone = _resolvePhone(order, customer);
 
     return ReceiptOrderData(
       orderId: order.id,
       invoiceNumber: _invoiceId(order.id),
       createdAt: DateTime.tryParse(order.createdDate),
       customerName: customerNameOverride ?? order.customerName,
-      phone: order.phone,
+      phone: phone,
       address: order.address,
       items: products
           .map(
@@ -46,6 +49,7 @@ class ReceiptOrderMapper {
         handlingCharge: bill.handlingCharge,
         platformFee: bill.platformFee,
         tax: bill.tax,
+        deliveryPartnerTip: bill.deliveryPartnerTip,
         grandTotal: bill.grandTotal,
       ),
       paymentMethod: order.isPaid ? 'Online (Paid)' : 'Cash on Delivery',
@@ -71,6 +75,14 @@ class ReceiptOrderMapper {
     final short =
         id.length > 8 ? id.substring(id.length - 8).toUpperCase() : id.toUpperCase();
     return short;
+  }
+
+  static String _resolvePhone(OrderModel order, CustomerModel? customer) {
+    final onOrder = order.phone.trim();
+    if (onOrder.isNotEmpty) return onOrder;
+    final fromProfile = customer?.phoneNumber.trim() ?? '';
+    if (fromProfile.isNotEmpty) return fromProfile;
+    return '';
   }
 
   static String _statusLabel(OrderModel order) {

@@ -68,7 +68,9 @@ class _OpsLiveOrderQueueState extends State<OpsLiveOrderQueue> {
                 ),
               ),
               Text(
-                '${queue.length} active',
+                ops.pendingOrders > queue.length
+                    ? '${queue.length} of ${ops.pendingOrders} active'
+                    : '${queue.length} active',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey.shade600,

@@ -1,5 +1,6 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +9,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart' as legacy_provider;
 
+import 'package:quickgrocery/core/auth/guest_auth_coordinator.dart';
+import 'package:quickgrocery/core/auth/guest_auth_guard.dart';
 import 'package:quickgrocery/core/order/order_placement_log.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/delivery/delivery_zone_lookup.dart';
@@ -24,6 +27,7 @@ import 'package:quickgrocery/view/cart/domain/pricing_calculator.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/checkout_controller.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/delivery_slots_provider.dart';
+import 'package:quickgrocery/view/cart/data/order_placement_client.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/order_repository_provider.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/delivery_instructions_field.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/delivery_slot_selector.dart';
@@ -114,11 +118,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     required String readableAddress,
   }) async {
     final checkoutNotifier = ref.read(checkoutControllerProvider.notifier);
-    final checkout = ref.read(checkoutControllerProvider);
-    OrderPlacementLog.buttonTapped(idempotencyKey: checkout.idempotencyKey);
-
-    if (!checkoutNotifier.tryBeginPlacement()) return;
-
     final idempotencyKey = ref.read(checkoutControllerProvider).idempotencyKey;
     final payment = legacy_provider.Provider.of<PaymentService>(
       context,
@@ -327,30 +326,84 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     String? paymentRef,
     String? idempotencyKey,
   }) async {
+    final client = ref.read(orderPlacementClientProvider);
+    final repo = ref.read(orderRepositoryProvider);
+    final key = idempotencyKey ?? '';
+
+    Future<String> callCallable() => client.placeOrder(
+          items: cart.items,
+          coupon: cart.coupon,
+          bill: bill,
+          address: address,
+          currentAddressString: readableAddress,
+          currentLatLng: coords,
+          slot: slot,
+          instructions: instructions,
+          paymentMethod: paymentMethod,
+          paymentRef: paymentRef,
+          tipAmount: bill.deliveryPartnerTip,
+          idempotencyKey: key,
+        );
+
     try {
-      return await ref
-          .read(orderPlacementClientProvider)
-          .placeOrder(
-            items: cart.items,
-            coupon: cart.coupon,
-            bill: bill,
-            address: address,
-            currentAddressString: readableAddress,
-            currentLatLng: coords,
-            slot: slot,
-            instructions: instructions,
-            paymentMethod: paymentMethod,
-            paymentRef: paymentRef,
-            tipAmount: bill.deliveryPartnerTip,
-            idempotencyKey: idempotencyKey,
-          );
+      return await callCallable();
     } on FirebaseFunctionsException catch (e, stack) {
       debugPrint(
         'ORDER CALLABLE FAILED code=${e.code} message=${e.message} '
         'details=${e.details}',
       );
       debugPrintStack(stackTrace: stack);
-      if (!_canFallbackToDirectOrder(e)) rethrow;
+
+      if (key.isNotEmpty) {
+        final existing = await repo.findExistingOrderId(idempotencyKey: key);
+        if (existing != null) {
+          OrderPlacementLog.apiCompleted(
+            idempotencyKey: key,
+            orderId: existing,
+            duplicate: true,
+          );
+          return existing;
+        }
+      }
+
+      if (OrderPlacementClient.isTransientFunctionsError(e)) {
+        try {
+          return await callCallable();
+        } on FirebaseFunctionsException catch (retryError, retryStack) {
+          debugPrint(
+            'ORDER CALLABLE RETRY FAILED code=${retryError.code} '
+            'message=${retryError.message}',
+          );
+          debugPrintStack(stackTrace: retryStack);
+          if (key.isNotEmpty) {
+            final existing = await repo.findExistingOrderId(idempotencyKey: key);
+            if (existing != null) {
+              OrderPlacementLog.apiCompleted(
+                idempotencyKey: key,
+                orderId: existing,
+                duplicate: true,
+              );
+              return existing;
+            }
+          }
+          if (!_canFallbackToDirectOrder(retryError)) rethrow;
+        }
+      } else if (!_canFallbackToDirectOrder(e)) {
+        rethrow;
+      }
+
+      if (key.isNotEmpty) {
+        final existing = await repo.findExistingOrderId(idempotencyKey: key);
+        if (existing != null) {
+          OrderPlacementLog.apiCompleted(
+            idempotencyKey: key,
+            orderId: existing,
+            duplicate: true,
+          );
+          return existing;
+        }
+      }
+
       return _createDirectFirestoreOrder(
         cart: cart,
         bill: bill,
@@ -361,7 +414,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         instructions: instructions,
         paymentMethod: paymentMethod,
         paymentRef: paymentRef,
-        idempotencyKey: idempotencyKey,
+        idempotencyKey: key,
       );
     }
   }
@@ -451,6 +504,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       addresses.isEmpty ? 0 : addresses.length - 1,
     );
     final selectedAddr = addresses.isEmpty ? null : addresses[idx];
+    final authPhone = FirebaseAuth.instance.currentUser?.phoneNumber;
+    final addrComplete =
+        selectedAddr?.isCompleteForDelivery(authPhone) ?? false;
 
     final pin = DeliveryZoneLookup.normalizePin(
       addressService.activeDeliveryPin ?? addressService.pinCode ?? '',
@@ -463,11 +519,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     final hasAddr = addresses.isNotEmpty && selectedAddr != null;
     final oos = cart.items.any((e) => e.isUnavailable);
-    final canPay =
-        hasAddr && bill.meetsMinimumOrder && !oos && checkout.slot != null;
+    final canPay = hasAddr &&
+        addrComplete &&
+        bill.meetsMinimumOrder &&
+        !oos &&
+        checkout.slot != null;
 
     String? barHint() {
       if (!hasAddr) return context.l10n.please_add_address;
+      if (!addrComplete) return context.l10n.completeAddressDetails;
       if (oos) return 'Some items are out of stock';
       if (!bill.meetsMinimumOrder) {
         final delta = (bill.minimumOrderValue - bill.subtotal).clamp(
@@ -653,16 +713,42 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               helperText: barHint(),
               helperIsError:
                   !hasAddr ||
+                  !addrComplete ||
                   oos ||
                   !bill.meetsMinimumOrder ||
                   checkout.slot == null,
-              enabled: canPay && !checkout.isPlacingOrder,
+              enabled: canPay,
               isLoading: checkout.isPlacingOrder,
               onTap: () async {
-                if (checkout.isPlacingOrder) return;
-                if (!bill.meetsMinimumOrder || oos || checkout.slot == null) {
+                final checkoutNotifier =
+                    ref.read(checkoutControllerProvider.notifier);
+                OrderPlacementLog.buttonTapped(
+                  idempotencyKey:
+                      ref.read(checkoutControllerProvider).idempotencyKey,
+                );
+                if (!checkoutNotifier.tryBeginPlacement()) return;
+
+                if (!bill.meetsMinimumOrder ||
+                    oos ||
+                    checkout.slot == null ||
+                    !addrComplete) {
+                  checkoutNotifier.cancelPlacement();
+                  if (!addrComplete && selectedAddr != null) {
+                    await _openAddAddress(edit: selectedAddr);
+                  }
                   return;
                 }
+
+                final authed = await GuestAuthGuard.requireAuth(
+                  context,
+                  ref,
+                  postLogin: GuestPostLoginAction.continueCheckout,
+                );
+                if (!authed || !mounted) {
+                  checkoutNotifier.cancelPlacement();
+                  return;
+                }
+
                 await _placeOrder(
                   cart: cart,
                   slot: checkout.slot,

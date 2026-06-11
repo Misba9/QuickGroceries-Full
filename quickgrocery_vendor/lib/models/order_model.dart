@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quick_grocery_geo/quick_grocery_geo.dart';
 
 import '../utils/order_bill_totals.dart';
 import '../utils/order_product_parse.dart';
@@ -70,10 +71,16 @@ class OrderModel {
     final parsedProducts = OrderProductParse.linesFromOrder(data);
 
     DateTime? createdAt;
-    final createdAtRaw = data['createdAt'];
+    final createdAtRaw = data['createdAt'] ?? data['created_at'];
     if (createdAtRaw is Timestamp) {
       createdAt = createdAtRaw.toDate();
+    } else if (createdAtRaw is DateTime) {
+      createdAt = createdAtRaw;
+    } else if (createdAtRaw is int) {
+      createdAt = DateTime.fromMillisecondsSinceEpoch(createdAtRaw);
     }
+
+    final addressSnapshot = _asMap(data['address_snapshot']);
 
     final deliveryRaw = data['delivery_charge'] ?? data['deliveryCharge'] ?? 0;
     final deliveryCharge = deliveryRaw is int
@@ -85,8 +92,24 @@ class OrderModel {
       products: parsedProducts,
       createdDate: data['created_date']?.toString() ??
           (createdAt?.toIso8601String() ?? ''),
-      customerName: data['customer_name'] ?? data['customerName'] ?? '',
-      phone: data['phone'] ?? '',
+      customerName: _firstNonEmpty([
+        data['customer_name'],
+        data['customerName'],
+        addressSnapshot?['name'],
+      ]),
+      phone: _firstNonEmpty([
+        data['phone'],
+        data['customerPhone'],
+        data['customer_phone'],
+        data['phoneNumber'],
+        data['phone_number'],
+        data['mobile'],
+        data['customerMobile'],
+        addressSnapshot?['mobile'],
+        addressSnapshot?['phone'],
+        addressSnapshot?['phoneNumber'],
+        addressSnapshot?['phone_number'],
+      ]),
       address: data['address'] ?? '',
       isPaid: data['isPaid'] == true ||
           (data['paymentStatus']?.toString().toLowerCase() == 'paid'),
@@ -107,8 +130,8 @@ class OrderModel {
       deliveryCharge: deliveryCharge,
       uuid: data['uuid'] ?? '',
       currentLocation: data['current_location'] ?? '',
-      lat: data['lat'] != null ? double.parse(data['lat'].toString()) : 0.0,
-      lng: data['lng'] != null ? double.parse(data['lng'].toString()) : 0.0,
+      lat: _customerLat(data) ?? 0.0,
+      lng: _customerLng(data) ?? 0.0,
       modernStatus: data['status']?.toString() ?? '',
       createdAt: createdAt,
       deliverySlotRaw: _asMap(data['deliverySlot'] ?? data['delivery_slot']),
@@ -123,9 +146,45 @@ class OrderModel {
 
   OrderBillTotals get billTotals => OrderBillTotals.resolve(this);
 
+  GpsPoint? get customerCoordinates =>
+      GpsPoint.tryParse(lat, lng);
+
+  bool get hasCustomerCoordinates =>
+      customerCoordinates?.isValid ?? false;
+
+  static double? _customerLat(Map<String, dynamic> data) {
+    return _customerPoint(data)?.latitude;
+  }
+
+  static double? _customerLng(Map<String, dynamic> data) {
+    return _customerPoint(data)?.longitude;
+  }
+
+  static GpsPoint? _customerPoint(Map<String, dynamic> data) {
+    final top = GpsPoint.tryParse(
+      data['lat'] ?? data['latitude'],
+      data['lng'] ?? data['longitude'],
+    );
+    if (top != null) return top;
+
+    final snap = _asMap(data['address_snapshot']);
+    return GpsPoint.tryParse(
+      snap?['lat'] ?? snap?['latitude'],
+      snap?['lng'] ?? snap?['longitude'],
+    );
+  }
+
   static Map<String, dynamic>? _asMap(dynamic raw) {
     if (raw is Map) return Map<String, dynamic>.from(raw);
     return null;
+  }
+
+  static String _firstNonEmpty(List<dynamic> values) {
+    for (final v in values) {
+      final s = v?.toString().trim() ?? '';
+      if (s.isNotEmpty) return s;
+    }
+    return '';
   }
 
   static Map<String, dynamic>? _instructionsMap(dynamic raw) {
@@ -216,6 +275,32 @@ class ProductItem {
     if (totalPrice != null && totalPrice! > 0) return totalPrice!;
     if (price > 0 && itemCount > 0) return price * itemCount;
     return 0;
+  }
+
+  double get unitMrp => slashedPrice > price ? slashedPrice : price;
+
+  double get unitSellingPrice => price > 0 ? price : lineTotal / (itemCount > 0 ? itemCount : 1);
+
+  bool get hasLineDiscount => unitMrp > unitSellingPrice + 0.01;
+
+  double get mrpLineTotal => unitMrp * itemCount;
+
+  double get lineDiscount =>
+      (mrpLineTotal - lineTotal).clamp(0.0, double.infinity);
+
+  String get quantityLabel {
+    if (variantName.isNotEmpty) {
+      return 'Qty: $itemCount × $variantName';
+    }
+    if (packWeight.isNotEmpty) {
+      final unitLabel = packUnit.isNotEmpty ? packUnit : unit;
+      if (unitLabel.isNotEmpty) {
+        return 'Qty: $itemCount × $packWeight $unitLabel';
+      }
+      return 'Qty: $itemCount × $packWeight';
+    }
+    if (unit.isNotEmpty) return 'Qty: $itemCount $unit';
+    return 'Qty: $itemCount';
   }
 
   factory ProductItem.fromMap(Map<String, dynamic> data) =>

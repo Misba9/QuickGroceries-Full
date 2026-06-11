@@ -9,9 +9,8 @@ import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/localization/locale_provider.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
-import 'package:quickgrocery/core/user/user_profile_cache.dart';
+import 'package:quickgrocery/core/auth/auth_session_manager.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:quickgrocery/view/orders/domain/order_models.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
 import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
@@ -26,7 +25,7 @@ import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.d
 import 'package:quickgrocery/view/coupons/coupon_screen.dart';
 import 'package:quickgrocery/view/profile/presentation/utils/profile_url_opener.dart';
 import 'package:quickgrocery/view/support/models/support_settings.dart';
-import 'package:quickgrocery/view/support/presentation/providers/support_settings_providers.dart';
+import 'package:quickgrocery/view/support/presentation/providers/support_settings_provider.dart';
 import 'package:quickgrocery/view/support/services/support_action_launcher.dart';
 import 'package:quickgrocery/view/refer/screens/refer_screen.dart';
 import 'package:quickgrocery/view/wishlist/screens/wishlist_screen.dart';
@@ -1235,7 +1234,7 @@ class ProfileSupportSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settingsAsync = ref.watch(supportSettingsStreamProvider);
-    final settings = settingsAsync.valueOrNull ?? SupportSettings.defaults;
+    final settings = settingsAsync.value ?? SupportSettings.defaults;
 
     return FadeInUp(
       duration: Duration(milliseconds: 380 + animationIndex * 40),
@@ -1265,7 +1264,7 @@ class ProfileSupportSection extends ConsumerWidget {
                 if (settings.hasWhatsapp || settings.hasPhone)
                   ProfileListTile(
                     icon: Icons.chat_outlined,
-                    title: 'WhatsApp Support',
+                    title: context.l10n.whatsapp_support,
                     subtitle: settings.whatsappLaunch,
                     onTap: () => SupportActionLauncher.openWhatsApp(
                       context,
@@ -1275,13 +1274,13 @@ class ProfileSupportSection extends ConsumerWidget {
                 if (settings.hasMessage) ...[
                   const SizedBox(height: 4),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                     child: Text(
                       settings.message,
                       style: GoogleFonts.poppins(
                         fontSize: 12,
+                        color: AppSurface.textMuted,
                         height: 1.35,
-                        color: AppSurface.textSecondary,
                       ),
                     ),
                   ),
@@ -1369,19 +1368,19 @@ class ProfileLegalSection extends StatelessWidget {
 
 // ─── Logout ───────────────────────────────────────────────────────────────
 
-class ProfileLogoutSection extends StatelessWidget {
+class ProfileLogoutSection extends ConsumerWidget {
   const ProfileLogoutSection({super.key, this.animationIndex = 14});
 
   final int animationIndex;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return FadeInUp(
       duration: Duration(milliseconds: 380 + animationIndex * 40),
       child: SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
-          onPressed: () => _confirmLogout(context),
+          onPressed: () => _confirmLogout(context, ref),
           icon: const Icon(Icons.logout_rounded, color: Colors.red),
           label: Text(
             context.l10n.logout,
@@ -1402,7 +1401,7 @@ class ProfileLogoutSection extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmLogout(BuildContext context) async {
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1422,8 +1421,31 @@ class ProfileLogoutSection extends StatelessWidget {
       ),
     );
     if (ok != true || !context.mounted) return;
-    await UserProfileCache.clearOnLogout();
-    await FirebaseAuth.instance.signOut();
-    // AppBootstrapShell listens to authStateChanges and shows LoginScreen.
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    );
+
+    try {
+      await AuthSessionManager.signOutFromContext(context: context, ref: ref);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Logout failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
   }
 }

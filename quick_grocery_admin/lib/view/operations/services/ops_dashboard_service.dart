@@ -44,8 +44,10 @@ class OpsDashboardService extends ChangeNotifier {
   final Map<String, String> _riderNames = {};
   final Set<String> _knownActiveOrderIds = {};
   List<Map<String, dynamic>> _orderDocs = [];
+  List<Map<String, dynamic>> _recentOrderDocs = [];
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _ordersSub;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _recentOrdersSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _ridersSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _vendorsSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _stockSub;
@@ -57,6 +59,8 @@ class OpsDashboardService extends ChangeNotifier {
   void _stopListening() {
     _ordersSub?.cancel();
     _ordersSub = null;
+    _recentOrdersSub?.cancel();
+    _recentOrdersSub = null;
     _ridersSub?.cancel();
     _ridersSub = null;
     _vendorsSub?.cancel();
@@ -78,6 +82,7 @@ class OpsDashboardService extends ChangeNotifier {
 
   void _listen() {
     _ordersSub?.cancel();
+    _recentOrdersSub?.cancel();
     _ridersSub?.cancel();
     _vendorsSub?.cancel();
     _stockSub?.cancel();
@@ -97,6 +102,26 @@ class OpsDashboardService extends ChangeNotifier {
         isLoadingOrders = false;
         ordersError = e.toString();
         _scheduleNotify();
+      },
+    );
+
+    // Server-ordered recent orders so the live queue always sees newest placements.
+    _recentOrdersSub = _db
+        .collection('orders')
+        .orderBy('createdAt', descending: true)
+        .limit(200)
+        .snapshots()
+        .listen(
+      (snap) {
+        _recentOrderDocs =
+            snap.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList();
+        _recomputeOrders();
+        _scheduleNotify();
+      },
+      onError: (Object e) {
+        if (kDebugMode) {
+          debugPrint('OpsDashboardService recent orders: $e');
+        }
       },
     );
 
@@ -213,8 +238,10 @@ class OpsDashboardService extends ChangeNotifier {
     activeCustomersToday = customersToday.length;
 
     final previousIds = Set<String>.from(_knownActiveOrderIds);
+    final queueSource =
+        _recentOrderDocs.isNotEmpty ? _recentOrderDocs : _orderDocs;
     liveOrders = OpsOrderQueueManager.buildActiveQueue(
-      orders: _orderDocs,
+      orders: queueSource,
       vendorNames: _vendorNames,
       riderNames: _riderNames,
       previousActiveIds: previousIds,
@@ -241,6 +268,7 @@ class OpsDashboardService extends ChangeNotifier {
     _authSub?.cancel();
     _notifyDebounce?.cancel();
     _ordersSub?.cancel();
+    _recentOrdersSub?.cancel();
     _ridersSub?.cancel();
     _vendorsSub?.cancel();
     _stockSub?.cancel();

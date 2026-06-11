@@ -16,6 +16,8 @@ final authUserProvider = StreamProvider<User?>((ref) async* {
 User? resolveAuthUser(AsyncValue<User?> authAsync) {
   final sync = FirebaseAuth.instance.currentUser;
   if (sync != null) return sync;
+  // Signed out — never resurrect session from a stale stream event.
+  if (!authAsync.isLoading) return null;
   return authAsync.valueOrNull;
 }
 

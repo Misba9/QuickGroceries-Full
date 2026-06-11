@@ -9,7 +9,6 @@ import 'package:quick_grocery_delivery/services/delivery_ops_api.dart';
 import 'package:quick_grocery_delivery/services/delivery_trip_tracker.dart';
 import 'package:quick_grocery_delivery/utils/delivery_route_utils.dart';
 import 'package:quick_grocery_delivery/core/delivery_push_initializer.dart';
-import 'package:quick_grocery_delivery/core/firestore_query_errors.dart';
 import 'package:quick_grocery_delivery/core/order_lifecycle.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/models/delivery_boy_model.dart';
@@ -25,7 +24,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 class OrderService extends ChangeNotifier {
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _ordersSub;
   String _subscribedRiderId = '';
-  bool _ordersUseServerSort = true;
   int _lastNewOrderCount = 0;
   bool _ordersPrimed = false;
 
@@ -135,35 +133,14 @@ class OrderService extends ChangeNotifier {
     }
   }
 
+  /// Push notifications are sent by Cloud Functions only — never from the client.
+  @Deprecated('Use Cloud Functions ops_notify; client FCM sends duplicate pushes.')
   Future<void> sendFCMMessage(String customerId, String subt) async {
-    final String serverKey = await getAccessToken(); // Your FCM server key
-    final String token = await getFcmToken(customerId) ?? "";
-    final String fcmEndpoint =
-        'https://fcm.googleapis.com/v1/projects/siswar-bazar/messages:send';
-
-    final Map<String, dynamic> message = {
-      'message': {
-        'token': token,
-        'notification': {
-          'body': 'Check your Order tracking',
-          'title': '$subt 🥳',
-        },
-      },
-    };
-
-    final http.Response response = await http.post(
-      Uri.parse(fcmEndpoint),
-      headers: <String, String>{
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $serverKey',
-      },
-      body: jsonEncode(message),
-    );
-
-    if (response.statusCode == 200) {
-      print('FCM message sent successfully');
-    } else {
-      print('Failed to send FCM message: ${response.statusCode}');
+    if (kDebugMode) {
+      debugPrint(
+        '[DeliveryNotify] BLOCKED client FCM send customerId=$customerId '
+        'title=$subt — server handles all push',
+      );
     }
   }
 
@@ -267,8 +244,8 @@ class OrderService extends ChangeNotifier {
         doc.data() as Map<String, dynamic>,
         doc.id,
       );
-    }).toList();
-    _sortNewestFirst(totalOrders);
+    }).toList()
+      ..sort(OrderModel.compareNewestFirst);
     notifyListeners();
   }
 
@@ -306,28 +283,16 @@ class OrderService extends ChangeNotifier {
 
     await _ordersSub?.cancel();
     _subscribedRiderId = riderId;
-    _ordersUseServerSort = true;
     orders = null;
     _ordersPrimed = false;
     _lastNewOrderCount = 0;
     notifyListeners();
 
-    _listenRiderOrders(riderId);
-  }
-
-  Query<Map<String, dynamic>> _riderOrdersQuery(String riderId) {
-    final base = FirebaseFirestore.instance
+    _ordersSub = FirebaseFirestore.instance
         .collection('orders')
-        .where('deliveryBoyId', isEqualTo: riderId);
-    if (_ordersUseServerSort) {
-      return base.orderBy('createdAt', descending: true);
-    }
-    return base;
-  }
-
-  void _listenRiderOrders(String riderId) {
-    _ordersSub?.cancel();
-    _ordersSub = _riderOrdersQuery(riderId).snapshots().listen(
+        .where('deliveryBoyId', isEqualTo: riderId)
+        .snapshots()
+        .listen(
       (snap) {
         orders = snap.docs
             .map(
@@ -336,30 +301,15 @@ class OrderService extends ChangeNotifier {
                 d.id,
               ),
             )
-            .toList();
+            .toList()
+          ..sort(OrderModel.compareNewestFirst);
         _rebucketOrders(riderId);
         notifyListeners();
       },
-      onError: (Object e, StackTrace stack) {
-        if (_ordersUseServerSort && FirestoreQueryErrors.isMissingIndex(e)) {
-          if (kDebugMode) {
-            debugPrint(
-              'orders stream: createdAt index missing — falling back to client sort',
-            );
-          }
-          _ordersUseServerSort = false;
-          _listenRiderOrders(riderId);
-          return;
-        }
-        if (kDebugMode) {
-          FirestoreQueryErrors.log('orders stream error', e, stack);
-        }
+      onError: (Object e) {
+        if (kDebugMode) debugPrint('orders stream error: $e');
       },
     );
-  }
-
-  static void _sortNewestFirst(List<OrderModel> list) {
-    list.sort(OrderModel.compareNewestFirst);
   }
 
   String _statusId(OrderModel item) {
@@ -408,8 +358,8 @@ class OrderService extends ChangeNotifier {
 
     _sortNewestFirst(newOrders);
     _sortNewestFirst(myAcceptedOrders);
-    _sortNewestFirst(myPickedOrders);
     _sortNewestFirst(myTransistOrders);
+    _sortNewestFirst(myPickedOrders);
     _sortNewestFirst(myCancelledOrders);
     _sortNewestFirst(myCompletedOrders);
 
@@ -422,6 +372,9 @@ class OrderService extends ChangeNotifier {
     }
     _lastNewOrderCount = newOrders.length;
   }
+
+  static void _sortNewestFirst(List<OrderModel> list) =>
+      list.sort(OrderModel.compareNewestFirst);
 
   bool _isNewOffer(OrderModel item, String riderId) {
     if (item.isDelivered || item.isCancelled) return false;

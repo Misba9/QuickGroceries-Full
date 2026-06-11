@@ -1,3 +1,4 @@
+import 'package:quick_grocery_admin/view/operations/utils/ops_firestore_helpers.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_applied_coupon.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_bill_totals.dart';
 import 'package:quick_grocery_admin/view/orders/utils/order_delivery_meta.dart';
@@ -72,7 +73,7 @@ class OrderModel {
     return OrderModel(
       id: id,
       products: parsedProducts,
-      createdDate: data['created_date'] ?? '',
+      createdDate: _createdDateString(data),
       customerName: data['customer_name'] ?? '',
       phone: data['phone'] ?? '',
       address: data['address'] ?? '',
@@ -107,6 +108,12 @@ class OrderModel {
             : null,
       ),
     );
+  }
+
+  static String _createdDateString(Map<String, dynamic> data) {
+    final parsed = OpsFirestoreHelpers.createdAt({...data, 'id': data['id']});
+    if (parsed != null) return parsed.toIso8601String();
+    return (data['created_date'] ?? data['createdDate'] ?? '').toString();
   }
 
   OrderBillTotals get billTotals => OrderBillTotals.resolve(this);

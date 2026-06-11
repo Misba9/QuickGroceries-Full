@@ -66,6 +66,63 @@ function vendorIds(data: Record<string, unknown>): string[] {
   return [...ids];
 }
 
+async function resolveCustomerPhone(uid: string): Promise<string> {
+  if (!uid) return "";
+  const cust = await db.collection("customers").doc(uid).get();
+  if (cust.exists) {
+    const phone = str(
+      cust.data()?.phone || cust.data()?.phoneNumber || cust.data()?.mobile,
+    );
+    if (phone) return phone;
+  }
+  const user = await db.collection("users").doc(uid).get();
+  if (user.exists) {
+    return str(
+      user.data()?.phone || user.data()?.phoneNumber || user.data()?.mobile,
+    );
+  }
+  return "";
+}
+
+/** Backfill contact phone on orders when address snapshot omitted mobile. */
+async function ensureOrderCustomerPhone(
+  orderId: string,
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const existing = str(
+    data.phone || data.customerPhone || data.phoneNumber || data.mobile,
+  );
+  if (existing) return data;
+
+  const uid = str(data.uuid);
+  const phone = await resolveCustomerPhone(uid);
+  if (!phone) return data;
+
+  const addressSnapshot =
+    data.address_snapshot && typeof data.address_snapshot === "object"
+      ? { ...(data.address_snapshot as Record<string, unknown>), mobile: phone }
+      : { mobile: phone };
+
+  await db.collection("orders").doc(orderId).set(
+    {
+      phone,
+      customerPhone: phone,
+      phoneNumber: phone,
+      address_snapshot: addressSnapshot,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  return {
+    ...data,
+    phone,
+    customerPhone: phone,
+    phoneNumber: phone,
+    address_snapshot: addressSnapshot,
+  };
+}
+
 async function vendorNames(ids: string[]): Promise<string> {
   const names: string[] = [];
   for (const id of ids.slice(0, 5)) {
@@ -155,12 +212,19 @@ export const onOrderCreated = onDocumentCreated(
     const snap = event.data;
     if (!snap) return;
     const orderId = event.params.orderId;
-    const data = snap.data() as Record<string, unknown>;
+    console.log(`[ORDER:CREATED] orderId=${orderId} FUNCTION START`);
+    let data = snap.data() as Record<string, unknown>;
+    data = await ensureOrderCustomerPhone(orderId, data);
     const customer = str(data.customer_name || data.customerName);
     const total = orderTotal(data);
     const payment = paymentLabel(data);
     const vIds = vendorIds(data);
     const vName = await vendorNames(vIds);
+
+    console.log(
+      `[ORDER:CREATED] orderId=${orderId} vendors=${vIds.join(",")} ` +
+        `customer=${customer} total=${total}`,
+    );
 
     await notifyAdmins({
       title: "New Order Received",
@@ -211,6 +275,7 @@ export const onOrderCreated = onDocumentCreated(
         console.warn("[onOrderCreated] auto-assign failed", orderId, e),
       );
     }
+    console.log(`[ORDER:CREATED] orderId=${orderId} FUNCTION END`);
   },
 );
 
@@ -219,9 +284,11 @@ export const onOrderUpdated = onDocumentUpdated(
   { document: "orders/{orderId}", region: "us-central1" },
   async (event) => {
     const before = event.data?.before.data() as Record<string, unknown> | undefined;
-    const after = event.data?.after.data() as Record<string, unknown> | undefined;
+    let after = event.data?.after.data() as Record<string, unknown> | undefined;
     if (!before || !after) return;
     const orderId = event.params.orderId;
+    console.log(`[ORDER:UPDATED] orderId=${orderId} FUNCTION START`);
+    after = await ensureOrderCustomerPhone(orderId, after);
 
     const prevStatus = resolveStatus(before);
     const nextStatus = resolveStatus(after);
@@ -318,6 +385,10 @@ export const onOrderUpdated = onDocumentUpdated(
         });
       }
     }
+    console.log(
+      `[ORDER:UPDATED] orderId=${orderId} FUNCTION END ` +
+        `status ${prevStatus}→${nextStatus}`,
+    );
   },
 );
 

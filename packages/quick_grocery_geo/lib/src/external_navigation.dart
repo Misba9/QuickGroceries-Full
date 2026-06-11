@@ -43,9 +43,31 @@ class ExternalNavigation {
       return false;
     }
 
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-      return true;
+    final candidates = <Uri>[uri];
+    if (destination != null) {
+      final dest = '${destination.latitude},${destination.longitude}';
+      candidates.add(Uri.parse('geo:$dest?q=$dest'));
+      candidates.add(
+        Uri.parse('https://www.google.com/maps/search/?api=1&query=$dest'),
+      );
+    } else if (address != null && address.trim().isNotEmpty) {
+      final encoded = Uri.encodeComponent(address.trim());
+      candidates.add(Uri.parse('geo:0,0?q=$encoded'));
+      candidates.add(
+        Uri.parse('https://www.google.com/maps/search/?api=1&query=$encoded'),
+      );
+    }
+
+    for (final candidate in candidates) {
+      try {
+        final launched = await launchUrl(
+          candidate,
+          mode: LaunchMode.externalApplication,
+        );
+        if (launched) return true;
+      } catch (_) {
+        /* try next scheme */
+      }
     }
     return false;
   }

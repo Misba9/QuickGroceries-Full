@@ -163,4 +163,12 @@ abstract final class HomeDataCache {
     final k = key.toLowerCase();
     return k.contains('at') || k.contains('date') || k.contains('time');
   }
+
+  static Future<void> clearOnLogout(SharedPreferences prefs) async {
+    await prefs.remove(_bannersKey);
+    await prefs.remove(_categoriesKey);
+    await prefs.remove(_featuredKey);
+    await prefs.remove(_offersKey);
+    await prefs.remove(_updatedAtKey);
+  }
 }

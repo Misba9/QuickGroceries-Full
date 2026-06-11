@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -11,9 +13,24 @@ class VendorFcmBootstrap {
   VendorFcmBootstrap._();
 
   static const _deviceIdKey = 'vendor_device_id';
+  static const _subscribedTopicKey = 'vendor_fcm_subscribed_topic';
+
+  static String? _configuredVendorId;
+  static StreamSubscription<String>? _tokenRefreshSub;
 
   static Future<void> configureForVendor(String vendorId) async {
     if (kIsWeb || vendorId.isEmpty) return;
+    if (_configuredVendorId == vendorId && _tokenRefreshSub != null) {
+      if (kDebugMode) {
+        debugPrint('[VendorNotify] FCM already configured vendor=$vendorId');
+      }
+      return;
+    }
+
+    await _tokenRefreshSub?.cancel();
+    _tokenRefreshSub = null;
+    _configuredVendorId = vendorId;
+
     try {
       await VendorPushInitializer.ensureInitialized();
 
@@ -41,15 +58,25 @@ class VendorFcmBootstrap {
       }
 
       final topic = _vendorTopic(vendorId);
-      await messaging.subscribeToTopic(topic);
-      VendorAuthErrors.logDebug('[VendorFCM] token saved topic=$topic');
-      if (kDebugMode) {
-        debugPrint('[VendorNotify] FCM token registered vendor=$vendorId');
+      final prefs = await SharedPreferences.getInstance();
+      final subscribed = prefs.getString(_subscribedTopicKey);
+      if (subscribed != topic) {
+        await messaging.subscribeToTopic(topic);
+        await prefs.setString(_subscribedTopicKey, topic);
+        if (kDebugMode) {
+          debugPrint('[VendorNotify] FCM topic subscribed topic=$topic');
+        }
+      } else if (kDebugMode) {
+        debugPrint('[VendorNotify] FCM topic already subscribed topic=$topic');
       }
 
       await _saveToken(vendorId, token, topic);
 
-      messaging.onTokenRefresh.listen((t) async {
+      if (kDebugMode) {
+        debugPrint('[VendorNotify] FCM token registered vendor=$vendorId');
+      }
+
+      _tokenRefreshSub = messaging.onTokenRefresh.listen((t) async {
         VendorAuthErrors.logDebug('[VendorFCM] token refreshed');
         await _saveToken(vendorId, t, topic);
       });

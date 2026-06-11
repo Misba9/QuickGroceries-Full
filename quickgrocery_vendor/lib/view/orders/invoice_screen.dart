@@ -5,11 +5,11 @@ import 'package:quick_grocery_receipt/quick_grocery_receipt.dart';
 import '../../models/order_model.dart';
 import '../../models/vendor_model.dart';
 import '../../services/invoice_service.dart';
+import '../../services/thermal_receipt_pdf.dart';
 import '../../style/app_color.dart';
-import '../../utils/receipt_order_mapper.dart';
 
 /// Thermal receipt preview + print/share (unified Quick Groceries template).
-class InvoiceScreen extends StatelessWidget {
+class InvoiceScreen extends StatefulWidget {
   const InvoiceScreen({
     super.key,
     required this.order,
@@ -22,14 +22,31 @@ class InvoiceScreen extends StatelessWidget {
   final ReceiptMode mode;
 
   @override
-  Widget build(BuildContext context) {
-    final receiptData = ReceiptOrderMapper.fromOrder(
-      order,
-      vendorId: vendor.id,
-      mode: mode,
-      storeName: vendor.shopName,
+  State<InvoiceScreen> createState() => _InvoiceScreenState();
+}
+
+class _InvoiceScreenState extends State<InvoiceScreen> {
+  ReceiptOrderData? _receiptData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReceipt();
+  }
+
+  Future<void> _loadReceipt() async {
+    final data = await ThermalReceiptPdf.receiptData(
+      widget.order,
+      widget.vendor,
+      mode: widget.mode,
     );
-    final title = mode == ReceiptMode.packingSlip ? 'Packing slip' : 'Invoice';
+    if (mounted) setState(() => _receiptData = data);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title =
+        widget.mode == ReceiptMode.packingSlip ? 'Packing slip' : 'Invoice';
 
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
@@ -54,48 +71,62 @@ class InvoiceScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            InvoiceTemplateWidget(
-              data: receiptData,
-              logo: Image.asset(
-                VendorBranding.logoAsset,
-                width: 40,
-                height: 40,
-                errorBuilder: (_, __, ___) => const Icon(
-                  Icons.storefront_rounded,
-                  size: 40,
-                ),
+      body: _receiptData == null
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  InvoiceTemplateWidget(
+                    data: _receiptData!,
+                    logo: Image.asset(
+                      'packages/quick_grocery_receipt/assets/images/qg_logo.png',
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Image.asset(
+                        VendorBranding.logoAsset,
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.storefront_rounded,
+                          size: 44,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () => _print(context),
+                        icon: const Icon(Icons.print),
+                        label: const Text('Print (80mm)'),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => _share(context),
+                        icon: const Icon(Icons.share),
+                        label: const Text('Download PDF'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FilledButton.icon(
-                  onPressed: () => _print(context),
-                  icon: const Icon(Icons.print),
-                  label: const Text('Print (80mm)'),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton.icon(
-                  onPressed: () => _share(context),
-                  icon: const Icon(Icons.share),
-                  label: const Text('Download PDF'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   Future<void> _print(BuildContext context) async {
     try {
-      await InvoiceService().printInvoice(order, vendor, mode: mode);
+      await InvoiceService().printInvoice(
+        widget.order,
+        widget.vendor,
+        mode: widget.mode,
+      );
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -109,7 +140,11 @@ class InvoiceScreen extends StatelessWidget {
 
   Future<void> _share(BuildContext context) async {
     try {
-      await InvoiceService().shareInvoice(order, vendor, mode: mode);
+      await InvoiceService().shareInvoice(
+        widget.order,
+        widget.vendor,
+        mode: widget.mode,
+      );
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

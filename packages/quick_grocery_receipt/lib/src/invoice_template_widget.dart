@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import 'receipt_models.dart';
 import 'receipt_options.dart';
@@ -18,100 +17,93 @@ class InvoiceTemplateWidget extends StatelessWidget {
   final Widget? logo;
   final double? maxWidth;
 
+  static const Color _ink = Color(0xFF000000);
+  static const Color _labelColor = Color(0xFF333333);
+
   @override
   Widget build(BuildContext context) {
     final width = maxWidth ?? _logicalWidth(data.paperSize);
     final scale = _fontScale(data.paperSize);
-    final date = data.createdAt;
-    final dateStr =
-        date != null ? DateFormat('dd MMM yyyy').format(date) : '—';
-    final timeStr =
-        date != null ? DateFormat('hh:mm a').format(date) : '—';
+    final dateTimeStr = ThermalReceiptPdfBuilder.formatDateTime(data.createdAt);
 
     return Center(
       child: Container(
         width: width,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 10 * scale, vertical: 14 * scale),
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: Colors.grey.shade400),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
         child: DefaultTextStyle(
           style: TextStyle(
-            fontFamily: 'Courier',
             fontSize: 11 * scale,
-            color: Colors.black87,
-            height: 1.35,
+            color: _ink,
+            height: 1.4,
+            fontWeight: FontWeight.w500,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (logo != null) Center(child: logo),
-              if (logo != null) SizedBox(height: 6 * scale),
-              _center(ThermalReceiptPdfBuilder.brandTitle, bold: true, size: 13 * scale),
-              _center(
-                ThermalReceiptPdfBuilder.brandSubtitle,
-                muted: true,
-                size: 10 * scale,
-              ),
+              _brandHeader(scale),
               _rule(),
               _kv('Invoice', data.invoiceNumber, scale),
-              _kv('Date', dateStr, scale),
-              _kv('Time', timeStr, scale),
+              _kv('Date & Time', dateTimeStr, scale),
               _kv('Payment', data.paymentMethod, scale),
-              _kv('Status', data.statusLabel, scale),
               _rule(),
               _section('CUSTOMER', scale),
               _kv('Name', data.customerName, scale),
-              _kv('Phone', data.phone, scale),
-              Text('Address:', style: _muted(scale)),
+              _kv(
+                'Phone',
+                data.phone.trim().isNotEmpty ? data.phone : '—',
+                scale,
+              ),
+              Text('Address:', style: _labelStyle(scale)),
               Text(data.address, style: _body(scale)),
               _rule(),
               _section('DELIVERY', scale),
               if (data.deliverySlotLabel != null &&
                   data.deliverySlotLabel!.isNotEmpty)
                 _kv('Slot', data.deliverySlotLabel!, scale),
-              if (data.deliveryTypeLabel != null &&
-                  data.deliveryTypeLabel!.isNotEmpty)
-                _kv('Type', data.deliveryTypeLabel!, scale),
+              if (data.typeAndStoreLine != null)
+                _kv('Type & Store', data.typeAndStoreLine!, scale),
               if (data.instructionLines.isNotEmpty) ...[
-                Text('Instructions:', style: _muted(scale)),
+                Text('Instructions:', style: _labelStyle(scale)),
                 ...data.instructionLines.map((l) => Text(l, style: _body(scale))),
               ],
               _rule(),
               Row(
                 children: [
-                  SizedBox(width: 20, child: Text('NO', style: _bold(scale, 8))),
-                  Expanded(child: Text('PRODUCT', style: _bold(scale, 8))),
+                  SizedBox(width: 22, child: Text('NO', style: _bold(scale, 8.5))),
+                  Expanded(child: Text('PRODUCT', style: _bold(scale, 8.5))),
                   if (data.showPrices)
-                    Text('AMOUNT', style: _bold(scale, 8)),
+                    Text('AMOUNT', style: _bold(scale, 8.5)),
                 ],
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4 * scale),
               ...data.items.asMap().entries.map((e) {
                 final i = e.key + 1;
                 final item = e.value;
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: EdgeInsets.only(bottom: 8 * scale),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SizedBox(width: 20, child: Text('$i')),
+                          SizedBox(width: 22, child: Text('$i', style: _body(scale, 9))),
                           Expanded(
                             child: Text(
                               item.name,
-                              style: _bold(scale, 9),
+                              style: _bold(scale, 9.5),
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -119,79 +111,116 @@ class InvoiceTemplateWidget extends StatelessWidget {
                           if (data.showPrices)
                             Text(
                               ThermalReceiptPdfBuilder.formatInr(item.lineTotal),
-                              style: _bold(scale, 9),
+                              style: _bold(scale, 9.5),
                             ),
                         ],
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(left: 20, top: 2),
-                        child: Text(item.qtyLine, style: _muted(scale, 8)),
+                        padding: const EdgeInsets.only(left: 22, top: 2),
+                        child: Text(item.qtyLine, style: _labelStyle(scale, 8)),
                       ),
                     ],
                   ),
                 );
               }),
               _rule(),
-              Text('Items: ${data.items.length}', style: _bold(scale, 9)),
+              Text('Items: ${data.items.length}', style: _bold(scale, 9.5)),
               if (data.showPrices) ...[
                 _rule(),
                 _section('TOTALS', scale),
-                _money('Subtotal', data.bill.subtotal, scale),
-                if (data.bill.couponDiscount > 0)
-                  _money(
-                    data.couponCode != null && data.couponCode!.isNotEmpty
-                        ? 'Coupon (${data.couponCode})'
-                        : 'Coupon discount',
-                    -data.bill.couponDiscount,
-                    scale,
-                  ),
-                _money('Delivery Fee', data.bill.deliveryFee, scale),
-                if (data.bill.platformFee > 0)
-                  _money('Platform Fee', data.bill.platformFee, scale),
-                if (data.bill.tax > 0) _money('Tax', data.bill.tax, scale),
+                ..._totalLines(scale),
                 _rule(),
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        'GRAND TOTAL',
-                        style: _bold(scale, 11),
-                      ),
+                      child: Text('GRAND TOTAL', style: _bold(scale, 12)),
                     ),
                     Text(
                       ThermalReceiptPdfBuilder.formatInr(data.bill.grandTotal),
-                      style: _bold(scale, 12),
+                      style: _bold(scale, 13),
                     ),
                   ],
                 ),
               ],
               _rule(),
-              _section('PAYMENT', scale),
-              _kv('Payment', data.paymentMethod, scale),
-              _kv('Status', data.statusLabel, scale),
-              _kv('ETA', data.etaLabel, scale),
-              _rule(),
               Center(
                 child: Icon(
                   Icons.qr_code_2_rounded,
-                  size: 72 * scale,
-                  color: Colors.black87,
+                  size: 76 * scale,
+                  color: _ink,
                 ),
               ),
-              _center('Scan to track order', muted: true, size: 10 * scale),
+              _center('Scan to track order', label: true, size: 10 * scale),
               _center(data.trackingUrl, size: 9 * scale),
               _rule(),
-              _center('Thank You!', bold: true, size: 12 * scale),
+              _center('Thank You!', bold: true, size: 13 * scale),
               _center(
                 data.isPackingSlip ? 'Pack with care' : 'Visit again',
-                muted: true,
+                label: true,
               ),
-              _center(ThermalReceiptPdfBuilder.supportEmail, muted: true, size: 9),
+              _center(ThermalReceiptPdfBuilder.supportEmail, label: true, size: 9),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _brandHeader(double scale) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        if (logo != null)
+          SizedBox(
+            width: 44 * scale,
+            height: 44 * scale,
+            child: logo,
+          ),
+        if (logo != null) SizedBox(width: 10 * scale),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                ThermalReceiptPdfBuilder.brandTitle,
+                style: _bold(scale, 14),
+              ),
+              SizedBox(height: 2 * scale),
+              Text(
+                ThermalReceiptPdfBuilder.brandSubtitle,
+                style: _labelStyle(scale, 10),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _totalLines(double scale) {
+    final b = data.bill;
+    return [
+      _money('MRP Total', b.mrpTotal, scale),
+      if (b.itemSavings > 0)
+        _money('Product Discount', -b.itemSavings, scale),
+      _money('Item Total', b.subtotal, scale),
+      if (b.couponDiscount > 0)
+        _money(
+          data.couponCode != null && data.couponCode!.isNotEmpty
+              ? 'Coupon (${data.couponCode})'
+              : 'Coupon Discount',
+          -b.couponDiscount,
+          scale,
+        ),
+      _money('Delivery Fee', b.deliveryFee, scale),
+      if (b.platformFee > 0) _money('Platform Fee', b.platformFee, scale),
+      if (b.surgeFee > 0) _money('Surge Fee', b.surgeFee, scale),
+      if (b.handlingCharge > 0)
+        _money('Handling Charge', b.handlingCharge, scale),
+      if (b.tax > 0) _money('Tax', b.tax, scale),
+      if (b.deliveryPartnerTip > 0)
+        _money('Delivery Partner Tip', b.deliveryPartnerTip, scale),
+    ];
   }
 
   static double _logicalWidth(ReceiptPaperSize size) => switch (size) {
@@ -207,34 +236,34 @@ class InvoiceTemplateWidget extends StatelessWidget {
       };
 
   Widget _rule() => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Container(height: 1, color: Colors.grey.shade400),
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Container(height: 1, color: Colors.grey.shade700),
       );
 
   Widget _section(String t, double scale) => Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Text(t, style: _bold(scale, 9)),
+        padding: EdgeInsets.only(bottom: 4 * scale),
+        child: Text(t, style: _bold(scale, 9.5)),
       );
 
   Widget _kv(String k, String v, double scale) => Padding(
-        padding: const EdgeInsets.only(bottom: 2),
+        padding: const EdgeInsets.only(bottom: 3),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(width: 56, child: Text('$k:', style: _muted(scale))),
+            SizedBox(width: 58, child: Text('$k:', style: _labelStyle(scale))),
             Expanded(child: Text(v, style: _body(scale))),
           ],
         ),
       );
 
   Widget _money(String label, double amount, double scale) => Padding(
-        padding: const EdgeInsets.only(bottom: 3),
+        padding: const EdgeInsets.only(bottom: 4),
         child: Row(
           children: [
-            Expanded(child: Text(label, style: _body(scale))),
+            Expanded(child: Text(label, style: _body(scale, 10))),
             Text(
               ThermalReceiptPdfBuilder.formatInr(amount),
-              style: _body(scale),
+              style: _bold(scale, 10),
             ),
           ],
         ),
@@ -243,25 +272,25 @@ class InvoiceTemplateWidget extends StatelessWidget {
   Widget _center(
     String t, {
     bool bold = false,
-    bool muted = false,
+    bool label = false,
     double size = 11,
   }) =>
       Text(
         t,
         textAlign: TextAlign.center,
         style: TextStyle(
-          fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-          color: muted ? Colors.grey.shade700 : Colors.black87,
+          fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+          color: label ? _labelColor : _ink,
           fontSize: size,
         ),
       );
 
-  TextStyle _body(double scale, [double size = 10]) =>
-      TextStyle(fontSize: size * scale);
+  TextStyle _body(double scale, [double size = 10.5]) =>
+      TextStyle(fontSize: size * scale, color: _ink, fontWeight: FontWeight.w500);
 
   TextStyle _bold(double scale, double size) =>
-      TextStyle(fontSize: size * scale, fontWeight: FontWeight.w700);
+      TextStyle(fontSize: size * scale, fontWeight: FontWeight.w700, color: _ink);
 
-  TextStyle _muted(double scale, [double size = 9.5]) =>
-      TextStyle(fontSize: size * scale, color: Colors.grey.shade700);
+  TextStyle _labelStyle(double scale, [double size = 9.5]) =>
+      TextStyle(fontSize: size * scale, color: _labelColor, fontWeight: FontWeight.w500);
 }

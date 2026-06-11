@@ -114,7 +114,65 @@ function buildDataPayload(parts: Record<string, string>): Record<string, string>
     out[k] = v ?? "";
   }
   out.click_action = "FLUTTER_NOTIFICATION_CLICK";
+  if (!out.timestamp) {
+    out.timestamp = String(Date.now());
+  }
   return out;
+}
+
+/** Data-only FCM — app shows exactly one tray entry via flutter_local_notifications. */
+function buildOpsPushData(
+  parts: Record<string, string>,
+  title: string,
+  body: string,
+): Record<string, string> {
+  return buildDataPayload({
+    ...parts,
+    displayMode: "data_only",
+    title,
+    body,
+    message: body,
+  });
+}
+
+function apnsSoundForChannel(soundType?: string): string {
+  if (soundType === "delivery") return "delivery_alert.mp3";
+  return "new_order.mp3";
+}
+
+/** Stable id: one push per order + type + recipient (retry-safe). */
+export function buildEventId(
+  orderId: string,
+  type: string,
+  receiver: string,
+): string {
+  const oid = orderId || "na";
+  return `${oid}:${type}:${receiver}`;
+}
+
+function isAlreadyExistsError(err: unknown): boolean {
+  const code = (err as { code?: number | string })?.code;
+  return code === 6 || code === "already-exists" || code === "ALREADY_EXISTS";
+}
+
+/** Returns false when this event was already sent (Cloud Function retry safe). */
+async function claimNotificationEvent(eventId: string): Promise<boolean> {
+  const safeId = eventId.replace(/\//g, "_").slice(0, 500);
+  const ref = db.collection("notification_event_dedupe").doc(safeId);
+  try {
+    await ref.create({
+      eventId: safeId,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    console.log(`[ops] notification event claimed eventId=${safeId}`);
+    return true;
+  } catch (err) {
+    if (isAlreadyExistsError(err)) {
+      console.log(`[ops] notification event duplicate skipped eventId=${safeId}`);
+      return false;
+    }
+    throw err;
+  }
 }
 
 function sourceAppForCategory(category: OpsCategory): string {
@@ -301,38 +359,51 @@ export async function sendPushToToken(opts: {
   deepLink?: string;
   redirectType?: string;
   data?: Record<string, string>;
+  eventId?: string;
 }): Promise<string | null> {
   if (!opts.token) return null;
+  const eventId = opts.eventId || opts.data?.eventId || "";
+  if (eventId && !(await claimNotificationEvent(eventId))) {
+    return null;
+  }
   const data = opts.data ?? buildDataPayload({
     title: opts.title,
     message: opts.body,
     deepLink: opts.deepLink || "",
     redirectType: opts.redirectType || "system",
     soundType: opts.soundType || "orders",
+    eventId,
   });
+  if (eventId && !data.eventId) {
+    data.eventId = eventId;
+  }
   try {
     const android = androidNotificationConfig(opts.soundType);
+    const pushData = buildOpsPushData(
+      { ...data, channelId: android.channelId, sound: android.sound },
+      opts.title,
+      opts.body,
+    );
+    console.log(
+      `[FCM:SEND] token receiver=token eventId=${eventId || "—"} ` +
+        `type=${data.type || "—"} orderId=${data.orderId || "—"}`,
+    );
     const id = await admin.messaging().send({
       token: opts.token,
-      notification: { title: opts.title, body: opts.body },
-      data,
-      android: {
-        priority: "high",
-        notification: {
-          channelId: android.channelId,
-          sound: android.sound,
-        },
-      },
+      data: pushData,
+      android: { priority: "high" },
       apns: {
+        headers: { "apns-priority": "10" },
         payload: {
           aps: {
-            sound: "new_order.mp3",
+            "content-available": 1,
+            sound: apnsSoundForChannel(opts.soundType),
             badge: 1,
           },
         },
       },
     });
-    console.log(`[ops] FCM sent token messageId=${id}`);
+    console.log(`[FCM:SENT] token messageId=${id} eventId=${eventId || "—"}`);
     return id;
   } catch (e) {
     console.warn("[ops] FCM token send failed:", e);
@@ -348,37 +419,52 @@ export async function sendPushToTopic(opts: {
   deepLink?: string;
   redirectType?: string;
   data?: Record<string, string>;
+  eventId?: string;
 }): Promise<string | null> {
+  const eventId = opts.eventId || opts.data?.eventId || "";
+  if (eventId && !(await claimNotificationEvent(eventId))) {
+    return null;
+  }
   const data = opts.data ?? buildDataPayload({
     title: opts.title,
     message: opts.body,
     deepLink: opts.deepLink || "",
     redirectType: opts.redirectType || "system",
     soundType: opts.soundType || "orders",
+    eventId,
   });
+  if (eventId && !data.eventId) {
+    data.eventId = eventId;
+  }
   try {
     const android = androidNotificationConfig(opts.soundType);
+    const pushData = buildOpsPushData(
+      { ...data, channelId: android.channelId, sound: android.sound },
+      opts.title,
+      opts.body,
+    );
+    console.log(
+      `[FCM:SEND] topic=${opts.topic} eventId=${eventId || "—"} ` +
+        `type=${data.type || "—"} orderId=${data.orderId || "—"}`,
+    );
     const id = await admin.messaging().send({
       topic: opts.topic,
-      notification: { title: opts.title, body: opts.body },
-      data,
-      android: {
-        priority: "high",
-        notification: {
-          channelId: android.channelId,
-          sound: android.sound,
-        },
-      },
+      data: pushData,
+      android: { priority: "high" },
       apns: {
+        headers: { "apns-priority": "10" },
         payload: {
           aps: {
-            sound: "new_order.mp3",
+            "content-available": 1,
+            sound: apnsSoundForChannel(opts.soundType),
             badge: 1,
           },
         },
       },
     });
-    console.log(`[ops] FCM sent topic=${opts.topic} messageId=${id}`);
+    console.log(
+      `[FCM:SENT] topic=${opts.topic} messageId=${id} eventId=${eventId || "—"}`,
+    );
     return id;
   } catch (e) {
     console.warn("[ops] FCM topic send failed:", e);
@@ -420,25 +506,27 @@ export async function notifyAdmins(opts: {
     metadata: opts.metadata,
   });
   const soundType = soundTypeForCategory(opts.category);
+  const orderId = str(opts.metadata?.orderId);
+  const eventId = buildEventId(orderId, opts.type, "admin_ops");
+  // Topic only — avoid duplicate when admin devices also store a direct token.
   await sendPushToTopic({
     topic: "admin_ops",
     title: opts.title,
     body: opts.message,
     soundType,
     deepLink: str(opts.metadata?.deepLink || "/orders"),
+    eventId,
+    data: buildDataPayload({
+      type: opts.type,
+      orderId,
+      title: opts.title,
+      message: opts.message,
+      deepLink: str(opts.metadata?.deepLink || "/orders"),
+      redirectType: "admin",
+      soundType,
+      eventId,
+    }),
   });
-  const admins = await db.collection("admins").get();
-  for (const doc of admins.docs) {
-    const token = str(doc.data().fcmToken || doc.data().fcm_token);
-    if (token) {
-      await sendPushToToken({
-        token,
-        title: opts.title,
-        body: opts.message,
-        soundType,
-      });
-    }
-  }
 }
 
 /** Callable test hook — writes a sample notification (deploy functions). */
@@ -506,6 +594,11 @@ export async function notifyVendor(
     createdAt: FieldValue.serverTimestamp(),
   });
 
+  const eventId = buildEventId(orderId, opts.type, `vendor:${vendorId}`);
+  console.log(
+    `[NOTIFY:START] notifyVendor vendorId=${vendorId} type=${opts.type} ` +
+      `orderId=${orderId} eventId=${eventId}`,
+  );
   const data = buildDataPayload({
     type: opts.type,
     orderId,
@@ -516,6 +609,7 @@ export async function notifyVendor(
     deepLink: orderId ? `/orders/${orderId}` : "",
     redirectType: "order",
     soundType: "orders",
+    eventId,
   });
 
   const topic = vendorTopic(vendorId);
@@ -525,6 +619,7 @@ export async function notifyVendor(
     body,
     soundType: "orders",
     data,
+    eventId,
   });
 
   await writeNotificationLog({
@@ -536,6 +631,10 @@ export async function notifyVendor(
     body,
     channel: "fcm+firestore",
   });
+  console.log(
+    `[NOTIFY:END] notifyVendor vendorId=${vendorId} type=${opts.type} ` +
+      `orderId=${orderId} eventId=${eventId}`,
+  );
 }
 
 export async function notifyDeliveryRider(
@@ -562,6 +661,7 @@ export async function notifyDeliveryRider(
     createdAt: FieldValue.serverTimestamp(),
   });
 
+  const eventId = buildEventId(orderId, notifType, `rider:${riderId}`);
   const data = buildDataPayload({
     type: notifType,
     orderId,
@@ -569,6 +669,7 @@ export async function notifyDeliveryRider(
     message: body,
     redirectType: "delivery_app",
     soundType: notifType === "order_cancelled" ? "orders" : "delivery",
+    eventId,
   });
   const topic = deliveryTopic(riderId);
   await sendPushToTopic({
@@ -577,6 +678,7 @@ export async function notifyDeliveryRider(
     body,
     soundType: notifType === "order_cancelled" ? "orders" : "delivery",
     data,
+    eventId,
   });
 
   await writeNotificationLog({
@@ -612,6 +714,9 @@ export async function notifyCustomer(
     deepLink: opts.deepLink || "",
   });
 
+  const orderId = opts.orderId || "";
+  const notifType = opts.type || "order";
+  const eventId = buildEventId(orderId, notifType, `customer:${uid}`);
   const cust = await db.collection("customers").doc(uid).get();
   const token = str(cust.data()?.fcmToken || cust.data()?.fcm_token);
   if (token) {
@@ -622,11 +727,18 @@ export async function notifyCustomer(
       soundType: "delivery",
       deepLink: opts.deepLink || "",
       redirectType: "order",
-      data: {
-        type: opts.type || "order",
-        orderId: opts.orderId || "",
+      eventId,
+      data: buildDataPayload({
+        type: notifType,
+        orderId,
+        title: opts.title,
+        message: opts.body,
+        deepLink: opts.deepLink || "",
+        redirectType: "order",
+        soundType: "delivery",
+        eventId,
         ...(opts.extraData || {}),
-      },
+      }),
     });
   }
 

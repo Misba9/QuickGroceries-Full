@@ -11,6 +11,15 @@ class OrderService extends ChangeNotifier {
   List<OrderModel> deliveredOrders = [];
   List<OrderModel> upmcomingedOrders = [];
   List<OrderModel> cancellOrders = [];
+
+  void resetSessionForLogout() {
+    orders = null;
+    deliveredOrders = [];
+    upmcomingedOrders = [];
+    cancellOrders = [];
+    notifyListeners();
+  }
+
   Future<void> getOrders() async {
     try {
       orders = []; // or null if you handle null in UI

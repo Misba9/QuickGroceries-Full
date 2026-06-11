@@ -14,6 +14,8 @@ class VendorOrderNotificationController extends ChangeNotifier {
   final Set<String> _knownOrderIds = {};
   final Set<String> _notifiedOrderIds = {};
   final Set<String> _notifiedStatusKeys = {};
+  final Set<String> _newOrderAlertEmitted = {};
+  final Set<String> _cancellationAlertEmitted = {};
   final Map<String, String> _lastStatusById = {};
   bool _primed = false;
 
@@ -22,6 +24,15 @@ class VendorOrderNotificationController extends ChangeNotifier {
   String? get lastNotifiedOrderId => _lastNotifiedOrderId;
 
   bool hasBeenNotified(String orderId) => _notifiedOrderIds.contains(orderId);
+
+  bool hasNewOrderAlertBeenEmitted(String orderId) =>
+      _newOrderAlertEmitted.contains(orderId);
+
+  bool hasStatusAlertBeenEmitted(String statusKey) =>
+      _notifiedStatusKeys.contains(statusKey);
+
+  bool hasCancellationAlertBeenEmitted(String orderId) =>
+      _cancellationAlertEmitted.contains(orderId);
 
   void markOrderNotified(String orderId) {
     _notifiedOrderIds.add(orderId);
@@ -57,7 +68,9 @@ class VendorOrderNotificationController extends ChangeNotifier {
       final cur = _statusKey(o);
       if (!_knownOrderIds.contains(o.id)) {
         _knownOrderIds.add(o.id);
-        if (_isNewPendingOrder(o) && !_notifiedOrderIds.contains(o.id)) {
+        if (_isNewPendingOrder(o) &&
+            !_notifiedOrderIds.contains(o.id) &&
+            !_newOrderAlertEmitted.contains(o.id)) {
           if (kDebugMode) {
             debugPrint('[VendorNotify] order created id=${o.id} status=${o.orderStatus}');
           }
@@ -101,8 +114,6 @@ class VendorOrderNotificationController extends ChangeNotifier {
     if (o.isCancelled ||
         cur == OrderLifecycle.cancelledByVendor ||
         cur == OrderLifecycle.cancelled) {
-      OrderAlertSound.playNewOrder();
-      VendorAlertVibration.pulseNewOrder();
       _emit(
         type: VendorAlertType.cancelled,
         order: o,
@@ -175,6 +186,7 @@ class VendorOrderNotificationController extends ChangeNotifier {
     if (_knownOrderIds.contains(order.id)) return;
     if (!_isNewPendingOrder(order)) return;
     if (_notifiedOrderIds.contains(order.id)) return;
+    if (_newOrderAlertEmitted.contains(order.id)) return;
 
     _knownOrderIds.add(order.id);
     _lastStatusById[order.id] = order.orderStatus;
@@ -190,12 +202,29 @@ class VendorOrderNotificationController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// FCM cancellation — same in-app alert path as Firestore status updates.
+  void notifyRemoteCancellation(OrderModel order) {
+    if (_cancellationAlertEmitted.contains(order.id)) return;
+    _knownOrderIds.add(order.id);
+    _lastStatusById[order.id] = OrderLifecycle.cancelled;
+    _notifiedStatusKeys.add('${order.id}:${OrderLifecycle.cancelled}');
+    _emit(
+      type: VendorAlertType.cancelled,
+      order: order,
+      message:
+          '❌ Order #${order.id.substring(0, 8)} cancelled by ${order.customerName}',
+    );
+    notifyListeners();
+  }
+
   void _emit({
     required VendorAlertType type,
     required OrderModel order,
     required String message,
   }) {
     if (type == VendorAlertType.newOrder) {
+      if (_newOrderAlertEmitted.contains(order.id)) return;
+      _newOrderAlertEmitted.add(order.id);
       HapticFeedback.heavyImpact();
       OrderAlertSound.playNewOrder();
       VendorAlertVibration.pulseNewOrder();
@@ -203,6 +232,8 @@ class VendorOrderNotificationController extends ChangeNotifier {
         debugPrint('[VendorNotify] sound played order=${order.id}');
       }
     } else if (type == VendorAlertType.cancelled) {
+      if (_cancellationAlertEmitted.contains(order.id)) return;
+      _cancellationAlertEmitted.add(order.id);
       HapticFeedback.heavyImpact();
       OrderAlertSound.playNewOrder();
       VendorAlertVibration.pulseNewOrder();

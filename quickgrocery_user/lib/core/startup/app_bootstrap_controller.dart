@@ -72,7 +72,7 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
     );
   }
 
-  Future<void> retry() async {
+  Future<void> retry({bool guest = false}) async {
     final deps = _lastDeps;
     if (deps == null || _runInFlight) return;
     state = state.copyWith(
@@ -81,8 +81,117 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
       phase: AppBootstrapPhase.splash,
       status: AppBootstrapStatus.loading,
     );
-    await runAuthenticated(deps, precacheImages: _lastPrecacheHook);
+    if (guest) {
+      await runGuest(deps, precacheImages: _lastPrecacheHook);
+    } else {
+      await runAuthenticated(deps, precacheImages: _lastPrecacheHook);
+    }
     state = state.copyWith(isRetrying: false);
+  }
+
+  /// Cold-start for guest browsing — public catalog only, no user data.
+  Future<void> runGuest(
+    BootstrapDependencies deps, {
+    BootstrapPrecacheHook? precacheImages,
+  }) async {
+    if (_runInFlight && state.isComplete) return;
+
+    _runInFlight = true;
+    _lastBootUid = null;
+    _lastDeps = deps;
+    if (precacheImages != null) _lastPrecacheHook = precacheImages;
+
+    _tick(BootstrapLoadingMessages.loadingBanners, 0.2);
+    state = state.copyWith(
+      phase: AppBootstrapPhase.splash,
+      clearUser: true,
+      needsOnboarding: false,
+      status: AppBootstrapStatus.loading,
+    );
+    AppStartupLog.milestone('Guest bootstrap started');
+
+    HomeBootstrapSnapshot diskSnapshot = const HomeBootstrapSnapshot();
+
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      diskSnapshot = await HomeDataCache.read(prefs);
+
+      if (diskSnapshot.hasContent) {
+        state = state.copyWith(homeSnapshot: diskSnapshot);
+      }
+
+      state = state.copyWith(phase: AppBootstrapPhase.loadingHome);
+
+      _tick(BootstrapLoadingMessages.initializingCart, 0.35);
+
+      await Future.wait<void>([
+        _wireCartBridge(deps),
+        deps.deliveryZoneService.fetchDeliveryZones(),
+        deps.categoryService.fetchProducts().then((_) {
+          AppStartupLog.milestone('Categories loaded (guest)');
+        }),
+      ], eagerError: false);
+
+      _tick(BootstrapLoadingMessages.loadingBanners, 0.55);
+      final freshHome = await _fetchHomeSnapshot();
+
+      final merged = freshHome.hasContent
+          ? freshHome
+          : (diskSnapshot.hasContent ? diskSnapshot : freshHome);
+
+      _tick(BootstrapLoadingMessages.precachingImages, 0.85);
+      if (precacheImages != null && merged.hasContent) {
+        await precacheImages(merged);
+      }
+
+      if (!merged.hasContent) {
+        state = state.copyWith(
+          status: AppBootstrapStatus.error,
+          phase: AppBootstrapPhase.error,
+          errorMessage:
+              'We couldn\'t load the store. Check your connection and try again.',
+          progress: 0,
+        );
+        return;
+      }
+
+      state = state.copyWith(
+        status: AppBootstrapStatus.ready,
+        phase: AppBootstrapPhase.ready,
+        homeSnapshot: merged,
+        progress: 1,
+        clearError: true,
+      );
+
+      AppStartupLog.milestone('Guest bootstrap complete');
+
+      if (freshHome.hasContent) {
+        unawaited(HomeDataCache.write(prefs, freshHome));
+      }
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[AppBootstrap] guest failed: $e\n$st');
+      }
+
+      if (diskSnapshot.hasContent) {
+        state = state.copyWith(
+          status: AppBootstrapStatus.ready,
+          phase: AppBootstrapPhase.degraded,
+          homeSnapshot: diskSnapshot,
+          progress: 1,
+          errorMessage: e.toString(),
+        );
+      } else {
+        state = state.copyWith(
+          status: AppBootstrapStatus.error,
+          phase: AppBootstrapPhase.error,
+          errorMessage: e.toString(),
+          progress: 0,
+        );
+      }
+    } finally {
+      _runInFlight = false;
+    }
   }
 
   /// Full cold-start sequence for the signed-in path.
@@ -286,6 +395,11 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
 
   Future<bool> _resolveProfile(User user) async {
     final repo = UserProfileRepository();
+
+    final cachedUid = await UserProfileCache.readCachedUid();
+    if (cachedUid != null && cachedUid != user.uid) {
+      await UserProfileCache.clearOnLogout();
+    }
 
     if (await UserProfileCache.isProfileCompleteCached()) {
       unawaited(repo.hydrateLocal(user.uid).timeout(_networkTimeout));

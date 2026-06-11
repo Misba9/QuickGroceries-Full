@@ -5,10 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import 'push_message_dedupe.dart';
 import 'vendor_notification_hub.dart';
 
-/// FCM foreground/background display + permissions (mobile only).
+/// FCM display for vendor app.
+///
+/// Server sends **data-only** ops pushes (`displayMode=data_only`). This module
+/// is the sole tray display path — never combine with FCM `notification` payloads.
 class VendorPushInitializer {
   VendorPushInitializer._();
 
@@ -66,9 +68,7 @@ class VendorPushInitializer {
     }
 
     _initialized = true;
-    if (kDebugMode) {
-      debugPrint('[VendorNotify] push initializer ready');
-    }
+    _log('push initializer ready');
   }
 
   static void _onNotificationTap(NotificationResponse response) {
@@ -82,107 +82,107 @@ class VendorPushInitializer {
     }
   }
 
-  static Future<void> handleForegroundMessage(RemoteMessage msg) async {
-    if (!PushMessageDedupe.markIfNew(msg, appTag: 'VendorNotify')) return;
+  static bool _isDataOnlyRemote(RemoteMessage msg) {
+    return msg.data['displayMode']?.toString().toLowerCase() == 'data_only';
+  }
 
-    if (kDebugMode) {
-      debugPrint(
-        '[VendorNotify] FCM foreground messageId=${msg.messageId} '
-        'title=${msg.notification?.title} data=${msg.data}',
-      );
-    }
+  static void _log(
+    String stage,
+    RemoteMessage msg, {
+    required String source,
+    String? listenerId,
+  }) {
+    if (!kDebugMode) return;
+    final d = msg.data;
+    debugPrint(
+      '[VendorNotify] $stage '
+      'source=$source '
+      'listenerId=${listenerId ?? "—"} '
+      'messageId=${msg.messageId ?? "—"} '
+      'eventId=${d['eventId'] ?? "—"} '
+      'type=${d['type'] ?? "—"} '
+      'orderId=${d['orderId'] ?? "—"} '
+      'displayMode=${d['displayMode'] ?? "—"}',
+    );
+  }
+
+  static Future<void> handleForegroundMessage(
+    RemoteMessage msg, {
+    String listenerId = 'main_onMessage',
+  }) async {
+    _log('DEVICE RECEIVED', msg, source: 'fcm_foreground', listenerId: listenerId);
 
     final data = Map<String, dynamic>.from(msg.data);
-    final type = data['type']?.toString() ?? '';
-
-    if (type == 'new_order') {
-      await VendorNotificationHub.instance.handleFcmPayload(data);
-      if (kDebugMode) {
-        debugPrint('[VendorNotify] foreground new_order → in-app only');
-      }
-      return;
-    }
-
-    if (type == 'order_cancelled') {
-      await VendorNotificationHub.instance.handleFcmPayload(data);
-      if (_shouldShowLocalTray(msg, foreground: true)) {
-        await showFromRemoteMessage(msg);
-      }
-      if (kDebugMode) {
-        debugPrint('[VendorNotify] foreground order_cancelled');
-      }
-      return;
-    }
-
-    if (_shouldShowLocalTray(msg, foreground: true)) {
-      await showFromRemoteMessage(msg);
-    }
     await VendorNotificationHub.instance.handleFcmPayload(data);
-  }
 
-  /// Background handler entry — skip when FCM notification payload is shown by OS.
-  static Future<void> handleBackgroundMessage(RemoteMessage msg) async {
-    if (!PushMessageDedupe.markIfNew(msg, appTag: 'VendorNotify')) return;
-    if (!_shouldShowLocalTray(msg, foreground: false)) {
-      if (kDebugMode) {
-        debugPrint(
-          '[VendorNotify] background skip local show — OS handles notification payload',
-        );
-      }
+    if (!_isDataOnlyRemote(msg)) {
+      _log(
+        'SKIP LOCAL SHOW — not data_only (legacy payload or pre-deploy server)',
+        msg,
+        source: 'fcm_foreground',
+        listenerId: listenerId,
+      );
       return;
     }
+
     await showFromRemoteMessage(msg);
+    _log('LOCAL SHOW', msg, source: 'fcm_foreground', listenerId: listenerId);
   }
 
-  static bool _shouldShowLocalTray(RemoteMessage msg, {required bool foreground}) {
-    if (msg.notification == null) return true;
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      // iOS auto-presents FCM notification payloads in foreground and background.
-      return false;
+  static Future<void> handleBackgroundMessage(
+    RemoteMessage msg, {
+    String listenerId = 'background_handler',
+  }) async {
+    _log('DEVICE RECEIVED', msg, source: 'fcm_background', listenerId: listenerId);
+
+    if (!_isDataOnlyRemote(msg)) {
+      _log(
+        'SKIP LOCAL SHOW — not data_only (legacy payload or pre-deploy server)',
+        msg,
+        source: 'fcm_background',
+        listenerId: listenerId,
+      );
+      return;
     }
-    // Android shows notification payload in background/killed; not in foreground.
-    return foreground;
+
+    await showFromRemoteMessage(msg);
+    _log('LOCAL SHOW', msg, source: 'fcm_background', listenerId: listenerId);
   }
 
   static Future<void> showFromRemoteMessage(RemoteMessage msg) async {
     if (kIsWeb || !_initialized) return;
 
-    final n = msg.notification;
     final data = msg.data;
-    final title =
-        n?.title ?? data['title']?.toString() ?? '🛒 New Order';
-    final body = n?.body ??
-        data['message']?.toString() ??
-        data['body']?.toString() ??
-        '';
+    final title = data['title']?.toString() ?? '🛒 New Order';
+    final body =
+        data['message']?.toString() ?? data['body']?.toString() ?? '';
 
     final payload = jsonEncode(Map<String, dynamic>.from(data));
+    final eventId = data['eventId']?.toString() ?? msg.messageId ?? '';
+    final id = eventId.hashCode & 0x7fffffff;
 
-    final details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        _channelId,
-        _channelName,
-        channelDescription: 'Vendor order alerts',
-        importance: Importance.max,
-        priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
-        sound: const RawResourceAndroidNotificationSound('new_order'),
+    await _plugin.show(
+      id,
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId,
+          _channelName,
+          channelDescription: 'Vendor order alerts',
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+          sound: const RawResourceAndroidNotificationSound('new_order'),
+          tag: eventId.isNotEmpty ? eventId : null,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
       ),
-      iOS: const DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      ),
+      payload: payload,
     );
-
-    final orderId = data['orderId']?.toString() ?? '';
-    final type = data['type']?.toString() ?? '';
-    final id = orderId.isNotEmpty
-        ? '$type:$orderId'.hashCode
-        : (msg.messageId?.hashCode ?? msg.hashCode);
-    await _plugin.show(id & 0x7fffffff, title, body, details, payload: payload);
-    if (kDebugMode) {
-      debugPrint('[VendorNotify] local notification id=$id title=$title');
-    }
   }
 }

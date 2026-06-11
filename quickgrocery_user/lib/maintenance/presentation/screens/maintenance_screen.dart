@@ -9,6 +9,7 @@ import 'package:quickgrocery/maintenance/domain/maintenance_status.dart';
 import 'package:quickgrocery/maintenance/presentation/providers/maintenance_providers.dart';
 import 'package:quickgrocery/maintenance/presentation/widgets/maintenance_countdown.dart';
 import 'package:quickgrocery/maintenance/presentation/widgets/maintenance_engagement_section.dart';
+import 'package:quickgrocery/view/support/presentation/providers/support_settings_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
@@ -146,7 +147,11 @@ class MaintenanceScreen extends ConsumerWidget {
                     _ActionButton(
                       label: context.l10n.maintenance_contact_support,
                       icon: Icons.support_agent_rounded,
-                      onPressed: () => _contactSupport(config.supportPhone, config.supportEmail),
+                      onPressed: () => _contactSupport(
+                        ref,
+                        config.supportPhone,
+                        config.supportEmail,
+                      ),
                       filled: false,
                       fg: fg,
                     ),
@@ -170,16 +175,28 @@ class MaintenanceScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _contactSupport(String phone, String email) async {
-    if (phone.trim().isNotEmpty) {
-      final uri = Uri.parse('tel:${phone.trim()}');
+  Future<void> _contactSupport(
+    WidgetRef ref,
+    String phone,
+    String email,
+  ) async {
+    final remote = ref.read(supportSettingsStreamProvider).value;
+    final resolvedPhone = phone.trim().isNotEmpty
+        ? phone.trim()
+        : (remote?.phone.trim() ?? '');
+    final resolvedEmail = email.trim().isNotEmpty
+        ? email.trim()
+        : (remote?.email.trim() ?? '');
+
+    if (resolvedPhone.isNotEmpty) {
+      final uri = Uri.parse('tel:$resolvedPhone');
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
         return;
       }
     }
-    if (email.trim().isNotEmpty) {
-      final uri = Uri.parse('mailto:${email.trim()}');
+    if (resolvedEmail.isNotEmpty) {
+      final uri = Uri.parse('mailto:$resolvedEmail');
       if (await canLaunchUrl(uri)) await launchUrl(uri);
     }
   }

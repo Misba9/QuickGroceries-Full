@@ -12,12 +12,14 @@ import 'package:quickgrocery/view/auth/screens/otp_screen.dart';
 abstract final class PhoneAuthCoordinator {
   static bool _otpRouteOpen = false;
 
-  static bool get isOtpRouteOpen =>
+  static bool get isOtpRouteOpen => _otpRouteVisible;
+
+  static bool get _otpRouteVisible =>
       _otpRouteOpen || appRouteObserver.isCurrent(AppRoutes.otp);
 
   /// Push OTP screen once per verification session.
   static void openOtpScreen() {
-    if (isOtpRouteOpen) {
+    if (_otpRouteVisible) {
       FirebasePhoneAuthLogger.info('navigate: OTP already open — skip');
       return;
     }

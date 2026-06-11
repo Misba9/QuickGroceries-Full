@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:quick_grocery_admin/model/order_model.dart';
+import 'package:quick_grocery_admin/view/operations/utils/ops_firestore_helpers.dart';
 
 /// Normalized order row for shared admin analytics (Firestore map or [OrderModel]).
 class AdminOrderRecord {
@@ -36,7 +37,7 @@ class AdminOrderRecord {
   factory AdminOrderRecord.fromMap(Map<String, dynamic> d, {String? docId}) {
     return AdminOrderRecord(
       id: docId ?? d['id']?.toString() ?? '',
-      createdAt: _parse(d['createdAt'] ?? d['created_date']),
+      createdAt: OpsFirestoreHelpers.createdAt(d),
       deliveredAt: _parse(
         d['deliveredTime'] ??
             d['orderDeliveredTime'] ??
@@ -58,7 +59,10 @@ class AdminOrderRecord {
   factory AdminOrderRecord.fromOrderModel(OrderModel o) {
     return AdminOrderRecord(
       id: o.id,
-      createdAt: DateTime.tryParse(o.createdDate)?.toLocal(),
+      createdAt: OpsFirestoreHelpers.createdAt({
+        'id': o.id,
+        'created_date': o.createdDate,
+      }),
       deliveredAt: DateTime.tryParse(o.orderDeliveredTime)?.toLocal(),
       isDelivered: o.isDelivered,
       isCancelled: o.isCancelled,

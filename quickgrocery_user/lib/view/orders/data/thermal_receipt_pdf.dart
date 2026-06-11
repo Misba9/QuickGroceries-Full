@@ -73,7 +73,10 @@ class ThermalReceiptPdf {
           pw.SizedBox(height: 4),
           _label('CUSTOMER'),
           pw.Text(order.customerName, style: _bold(9)),
-          pw.Text(order.phone, style: _muted(8)),
+          if (order.phone.trim().isNotEmpty)
+            pw.Text(order.phone.trim(), style: _text(8))
+          else
+            pw.Text('—', style: _muted(8)),
           if (addr != null) ...[
             pw.SizedBox(height: 3),
             _label('DELIVER TO'),
@@ -143,9 +146,6 @@ class ThermalReceiptPdf {
             ],
           ),
           _divider(),
-          _meta('Payment', order.paymentMethodId.toUpperCase()),
-          _meta('Status', order.paymentStatus),
-          _meta('ETA', '15-20 mins'),
           pw.SizedBox(height: 5),
           pw.Center(
             child: pw.BarcodeWidget(
@@ -176,24 +176,41 @@ class ThermalReceiptPdf {
     return doc;
   }
 
-  static pw.TextStyle _text(double s) => pw.TextStyle(fontSize: s);
+  static pw.TextStyle _text(double s) =>
+      pw.TextStyle(fontSize: s, color: PdfColors.black);
   static pw.TextStyle _bold(double s, {PdfColor? color}) =>
       pw.TextStyle(
         fontSize: s,
         fontWeight: pw.FontWeight.bold,
-        color: color,
+        color: color ?? PdfColors.black,
       );
   static pw.TextStyle _muted(double s) =>
-      pw.TextStyle(fontSize: s, color: PdfColors.grey700);
+      pw.TextStyle(fontSize: s, color: const PdfColor.fromInt(0xFF333333));
 
-  static pw.Widget _header() => pw.Column(
+  static pw.Widget _header() => pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
         children: [
-          pw.Center(child: pw.Text('QUICK GROCERY', style: _bold(13))),
-          pw.SizedBox(height: 1),
-          pw.Center(
-            child: pw.Text(
-              'Fresh groceries • Delivered fast',
-              style: _muted(7),
+          pw.Container(
+            width: 36,
+            height: 36,
+            decoration: pw.BoxDecoration(
+              color: const PdfColor.fromInt(0xFFFFC107),
+              borderRadius: pw.BorderRadius.circular(6),
+            ),
+            alignment: pw.Alignment.center,
+            child: pw.Text('QG', style: _bold(11, color: PdfColors.black)),
+          ),
+          pw.SizedBox(width: 8),
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('Quick Groceries', style: _bold(12, color: PdfColors.black)),
+                pw.Text(
+                  'Fresh groceries delivered fast',
+                  style: _muted(8),
+                ),
+              ],
             ),
           ),
         ],
@@ -242,8 +259,7 @@ class ThermalReceiptPdf {
           title: 'Coupon Discount',
           value: -(bill['couponDiscount'] as num).toDouble(),
         ),
-      if ((bill['deliveryFee'] as num?)?.toDouble() != null &&
-          (bill['deliveryFee'] as num).toDouble() != 0)
+      if ((bill['deliveryFee'] as num?)?.toDouble() != null)
         (title: 'Delivery Fee', value: (bill['deliveryFee'] as num).toDouble()),
       if ((bill['surgeFee'] as num?)?.toDouble() != null &&
           (bill['surgeFee'] as num).toDouble() != 0)

@@ -5,7 +5,7 @@ import 'package:quick_grocery_admin/view/operations/utils/ops_order_status_theme
 
 /// Builds and filters the live active-order queue.
 abstract final class OpsOrderQueueManager {
-  static const defaultLimit = 20;
+  static const defaultLimit = 50;
 
   static List<OpsLiveOrder> buildActiveQueue({
     required List<Map<String, dynamic>> orders,
@@ -15,11 +15,7 @@ abstract final class OpsOrderQueueManager {
     int limit = defaultLimit,
   }) {
     final active = orders.where(OpsFirestoreHelpers.isActive).toList();
-    active.sort((a, b) {
-      final ta = OpsFirestoreHelpers.createdAt(a);
-      final tb = OpsFirestoreHelpers.createdAt(b);
-      return (tb ?? DateTime(0)).compareTo(ta ?? DateTime(0));
-    });
+    active.sort(OpsFirestoreHelpers.compareOrdersNewestFirst);
 
     return active
         .take(limit)

@@ -1,4 +1,5 @@
 import 'package:animate_do/animate_do.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -86,7 +87,7 @@ class _AddressScreenState extends State<AddressScreen> {
                             selected: p.selectedIndex == i,
                             onTap: () => p.selectedIndexChange(i),
                             onEdit: () => _openForm(edit: a),
-                            onDelete: () => p.removeAddress(a.id),
+                            onDelete: () async => p.removeAddress(a.id),
                           ),
                         );
                       },
@@ -100,12 +101,20 @@ class _AddressScreenState extends State<AddressScreen> {
       ),
       bottomNavigationBar: Consumer<AddressService>(
         builder: (context, p, _) {
-          final hasAddr = (p.addresses?.isNotEmpty ?? false);
+          final list = p.addresses;
+          final hasAddr = list?.isNotEmpty ?? false;
+          final selected = p.selectedAddress;
+          final authPhone = FirebaseAuth.instance.currentUser?.phoneNumber;
           return CheckoutBottomBar(
             label: context.l10n.continue_label,
             enabled: hasAddr,
             isLoading: false,
             onPressed: () {
+              if (selected != null &&
+                  !selected.isCompleteForDelivery(authPhone)) {
+                _openForm(edit: selected);
+                return;
+              }
               Navigator.push(context, AppPageRoutes.payment());
             },
           );

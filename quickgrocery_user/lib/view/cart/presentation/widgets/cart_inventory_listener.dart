@@ -36,18 +36,21 @@ class _CartInventoryListenerState extends ConsumerState<CartInventoryListener> {
 
     ref.listen(cartFeedbackProvider, (prev, next) {
       if (next == null || !mounted) return;
-      if (next.kind == CartFeedbackKind.error) {
-        showTopErrorToast(context, next.text);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.text),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-      ref.read(cartFeedbackProvider.notifier).state = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (next.kind == CartFeedbackKind.error) {
+          showTopErrorToast(context, next.text);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(next.text),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+        ref.read(cartFeedbackProvider.notifier).state = null;
+      });
     });
 
     if (_sortedIds.isNotEmpty) {

@@ -10,6 +10,16 @@ class DeliveryContactUtils {
       'Hello, I am your Quick Groceries delivery partner.\n'
       'I am arriving with your order.';
 
+  static String formatDisplayPhone(String phone) {
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return '';
+    if (digits.length == 10) return '+91 $digits';
+    if (digits.length == 12 && digits.startsWith('91')) {
+      return '+${digits.substring(0, 2)} ${digits.substring(2)}';
+    }
+    return phone.trim();
+  }
+
   static String? normalizeDialable(String? raw) {
     if (raw == null) return null;
     var digits = raw.replaceAll(RegExp(r'[^\d+]'), '');

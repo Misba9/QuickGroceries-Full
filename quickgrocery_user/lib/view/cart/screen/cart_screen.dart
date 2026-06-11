@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy_provider;
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:quickgrocery/core/auth/guest_auth_coordinator.dart';
+import 'package:quickgrocery/core/auth/guest_auth_guard.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
@@ -60,6 +63,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (_bootstrappedAddress || !mounted) return;
       _bootstrappedAddress = true;
+      if (FirebaseAuth.instance.currentUser == null) return;
       final address =
           legacy_provider.Provider.of<AddressService>(context, listen: false);
       await address.getAddress();
@@ -137,7 +141,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               helperText: _helperText(cart, bill),
               helperIsError: !bill.meetsMinimumOrder ||
                   cart.items.any((e) => e.isUnavailable),
-              onCheckout: () {
+              onCheckout: () async {
+                final authed = await GuestAuthGuard.requireAuth(
+                  context,
+                  ref,
+                  postLogin: GuestPostLoginAction.continueCheckout,
+                );
+                if (!authed || !context.mounted) return;
                 Navigator.push(context, AppPageRoutes.checkout());
               },
             ),
@@ -205,40 +215,6 @@ class _CartBody extends StatelessWidget {
               ),
             ),
           ),
-          if (bill.isFreeDelivery && cart.pricing.isDeliveryChargesEnabled)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.92, end: 1),
-                  duration: const Duration(milliseconds: 650),
-                  builder: (context, value, child) => Transform.scale(
-                    scale: value,
-                    child: child,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppSurface.success.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(AppRadii.md),
-                      border: Border.all(
-                        color: AppSurface.success.withValues(alpha: 0.24),
-                      ),
-                    ),
-                    child: Text(
-                      '🎉 FREE delivery unlocked',
-                      style: GoogleFonts.poppins(
-                        color: AppSurface.success,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
           if (cart.errorMessage != null)
             SliverToBoxAdapter(
               child: Padding(

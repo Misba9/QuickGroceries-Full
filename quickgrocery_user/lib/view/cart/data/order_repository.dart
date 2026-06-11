@@ -54,12 +54,46 @@ class OrderRepository {
       throw StateError('User must be signed in to place an order.');
     }
 
+    String orderId;
     if (idempotencyKey != null && idempotencyKey.isNotEmpty) {
       final existing = await _resolveIdempotentOrder(
         uid: user.uid,
         idempotencyKey: idempotencyKey,
       );
       if (existing != null) return existing;
+
+      final idemRef = _firestore
+          .collection('order_idempotency')
+          .doc('${user.uid}_$idempotencyKey');
+      orderId = _firestore.collection('orders').doc().id;
+      try {
+        await _firestore.runTransaction((transaction) async {
+          final snap = await transaction.get(idemRef);
+          if (snap.exists) {
+            throw FirebaseException(
+              plugin: 'cloud_firestore',
+              code: 'already-exists',
+              message: 'Idempotency record already exists',
+            );
+          }
+          transaction.set(idemRef, {
+            'uid': user.uid,
+            'idempotencyKey': idempotencyKey,
+            'orderId': orderId,
+            'status': 'pending',
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        });
+      } catch (_) {
+        final retry = await _resolveIdempotentOrder(
+          uid: user.uid,
+          idempotencyKey: idempotencyKey,
+        );
+        if (retry != null) return retry;
+        rethrow;
+      }
+    } else {
+      orderId = _firestore.collection('orders').doc().id;
     }
 
     final productItems =
@@ -72,7 +106,7 @@ class OrderRepository {
       lng: currentLatLng.longitude,
       currentLocation: currentAddressString,
       uuid: user.uid,
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: orderId,
       products: productItems,
       createdDate: DateTime.now().toString(),
       address: '${address.address} ${address.area}',
@@ -126,7 +160,7 @@ class OrderRepository {
         'idempotencyKey': idempotencyKey,
     };
 
-    final ref = _firestore.collection('orders').doc();
+    final ref = _firestore.collection('orders').doc(orderId);
     final vendorIds = productItems
         .map((p) => p.vendorId)
         .where((id) => id.isNotEmpty)
@@ -181,6 +215,35 @@ class OrderRepository {
     return ref.id;
   }
 
+  /// Returns an order id when the server already created one for this checkout key.
+  Future<String?> findExistingOrderId({
+    required String idempotencyKey,
+    Duration timeout = const Duration(seconds: 12),
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || idempotencyKey.isEmpty) return null;
+
+    final deadline = DateTime.now().add(timeout);
+    while (true) {
+      final orderId = await _resolveIdempotentOrder(
+        uid: user.uid,
+        idempotencyKey: idempotencyKey,
+      );
+      if (orderId != null) return orderId;
+
+      final idemSnap = await _firestore
+          .collection('order_idempotency')
+          .doc('${user.uid}_$idempotencyKey')
+          .get();
+      if (!idemSnap.exists) return null;
+
+      final status = idemSnap.data()?['status']?.toString();
+      if (status != 'pending' && status != 'completed') return null;
+      if (DateTime.now().isAfter(deadline)) return null;
+      await Future.delayed(const Duration(milliseconds: 400));
+    }
+  }
+
   Future<String?> _resolveIdempotentOrder({
     required String uid,
     required String idempotencyKey,
@@ -192,6 +255,8 @@ class OrderRepository {
     if (!doc.exists) return null;
     final orderId = doc.data()?['orderId']?.toString();
     if (orderId == null || orderId.isEmpty) return null;
+    final orderSnap = await _firestore.collection('orders').doc(orderId).get();
+    if (!orderSnap.exists) return null;
     return orderId;
   }
 

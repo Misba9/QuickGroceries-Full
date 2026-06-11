@@ -39,6 +39,7 @@ class ThermalReceiptPdfBuilder {
       storeName: vendor?.shopName,
       etaLabel: deliveryEta,
       customerNameOverride: customer?.name,
+      customer: customer,
     );
     return receipt.ThermalReceiptPdfBuilder.build(data);
   }

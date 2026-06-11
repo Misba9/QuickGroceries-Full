@@ -46,6 +46,7 @@ class OrderModel {
   final Map<String, dynamic>? deliverySlotRaw;
   final Map<String, dynamic>? deliveryInstructionsRaw;
   final Map<String, dynamic>? bill;
+  final Map<String, dynamic>? couponRaw;
   final double tipAmount;
   final String tipStatus;
   final String paymentMethod;
@@ -102,6 +103,7 @@ class OrderModel {
     this.deliverySlotRaw,
     this.deliveryInstructionsRaw,
     this.bill,
+    this.couponRaw,
     this.tipAmount = 0,
     this.tipStatus = '',
     this.paymentMethod = 'cod',
@@ -184,8 +186,7 @@ class OrderModel {
       createdAt: _parseCreatedAt(data),
       customerName: (data['customer_name'] ?? data['customerName'] ?? '')
           .toString(),
-      phone: (data['phone'] ?? data['customerPhone'] ?? data['mobile'] ?? '')
-          .toString(),
+      phone: _customerPhoneFromData(data),
       address: (data['address'] ?? data['deliveryAddress'] ?? '').toString(),
       fullAddress: _fullAddress(data),
       isPaid: data['isPaid'] ?? paymentInfo.isPaymentCollected,
@@ -243,6 +244,7 @@ class OrderModel {
         data['deliveryInstructions'] ?? data['delivery_instructions'],
       ),
       bill: billMap,
+      couponRaw: _asMap(data['coupon']),
       tipAmount: _tipFromData(data),
       tipStatus: (data['tipStatus'] ?? '').toString(),
       acceptedAt: _parseDateTime(
@@ -271,6 +273,31 @@ class OrderModel {
   static Map<String, dynamic>? _asMap(dynamic raw) {
     if (raw is Map) return Map<String, dynamic>.from(raw);
     return null;
+  }
+
+  static String _customerPhoneFromData(Map<String, dynamic> data) {
+    final addressSnapshot = data['address_snapshot'];
+    final snapshot = addressSnapshot is Map
+        ? Map<String, dynamic>.from(addressSnapshot)
+        : null;
+
+    for (final v in [
+      data['phone'],
+      data['customerPhone'],
+      data['customer_phone'],
+      data['phoneNumber'],
+      data['phone_number'],
+      data['mobile'],
+      data['customerMobile'],
+      snapshot?['mobile'],
+      snapshot?['phone'],
+      snapshot?['phoneNumber'],
+      snapshot?['phone_number'],
+    ]) {
+      final s = v?.toString().trim() ?? '';
+      if (s.isNotEmpty) return s;
+    }
+    return '';
   }
 
   static String _fullAddress(Map<String, dynamic> data) {
@@ -423,6 +450,7 @@ class OrderModel {
       deliverySlotRaw: deliverySlotRaw,
       deliveryInstructionsRaw: deliveryInstructionsRaw,
       bill: bill,
+      couponRaw: couponRaw,
       tipAmount: tipAmount,
       tipStatus: tipStatus,
       paymentMethod: paymentMethod,

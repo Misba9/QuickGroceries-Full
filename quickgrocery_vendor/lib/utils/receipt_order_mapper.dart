@@ -13,6 +13,7 @@ class ReceiptOrderMapper {
     ReceiptMode mode = ReceiptMode.invoice,
     ReceiptPaperSize paperSize = ReceiptPaperSize.mm80,
     String? storeName,
+    String? phone,
   }) {
     final products = order.products
         .where((p) => p.vendorId == vendorId)
@@ -24,7 +25,7 @@ class ReceiptOrderMapper {
       invoiceNumber: _invoiceId(order.id),
       createdAt: DateTime.tryParse(order.createdDate) ?? order.createdAt,
       customerName: order.customerName,
-      phone: order.phone,
+      phone: phone ?? order.phone,
       address: order.address,
       items: products
           .map(
@@ -45,11 +46,13 @@ class ReceiptOrderMapper {
         handlingCharge: bill.handlingCharge,
         platformFee: bill.platformFee,
         tax: bill.tax,
+        deliveryPartnerTip: bill.deliveryPartnerTip,
         grandTotal: bill.grandTotal,
       ),
       paymentMethod: order.isPaid ? 'Online (Paid)' : 'Cash on Delivery',
       statusLabel: _statusLabel(order),
       etaLabel: '15-20 min',
+      couponCode: _couponCode(order),
       deliverySlotLabel: order.deliverySlotRaw != null
           ? _slotLabel(order.deliverySlotRaw!)
           : null,
@@ -71,13 +74,44 @@ class ReceiptOrderMapper {
     return short;
   }
 
+  static String? _couponCode(OrderModel order) {
+    final bill = order.billRaw;
+    if (bill.isEmpty) return null;
+    final direct = bill['couponCode'] ?? bill['coupon_code'];
+    if (direct != null && direct.toString().trim().isNotEmpty) {
+      return direct.toString().trim();
+    }
+    final coupon = bill['coupon'];
+    if (coupon is Map) {
+      final code = coupon['code'] ?? coupon['couponCode'];
+      if (code != null && code.toString().trim().isNotEmpty) {
+        return code.toString().trim();
+      }
+    }
+    return null;
+  }
+
   static String _statusLabel(OrderModel order) {
     if (order.isCancelled) return 'Cancelled';
     if (order.isDelivered) return 'Delivered';
     final s = order.modernStatus.trim().isNotEmpty
         ? order.modernStatus
         : order.orderStatus.trim();
-    return s.isEmpty ? 'Pending' : s;
+    if (s.isEmpty) return 'Pending';
+    return _humanizeStatus(s);
+  }
+
+  static String _humanizeStatus(String raw) {
+    return raw
+        .replaceAll('_', ' ')
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .map(
+          (w) => w.length <= 3
+              ? w.toUpperCase()
+              : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}',
+        )
+        .join(' ');
   }
 
   static String _slotLabel(Map<String, dynamic> slot) {

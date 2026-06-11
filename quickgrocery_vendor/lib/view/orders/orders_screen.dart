@@ -5,9 +5,11 @@ import '../../models/vendor_model.dart';
 import '../../services/order_service.dart';
 import '../../style/app_color.dart';
 import '../../utils/app_spacing.dart';
+import '../../utils/vendor_order_display.dart';
 import 'order_detail_screen.dart';
 import 'invoice_screen.dart';
 import 'widgets/assign_rider_sheet.dart';
+import 'widgets/customer_phone_line.dart';
 
 class OrdersScreen extends StatefulWidget {
   final VendorModel vendor;
@@ -325,19 +327,10 @@ class _OrderCard extends StatelessWidget {
     required this.onTap,
   });
 
-  String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return dateString;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Calculate vendor's revenue from this order
-    final vendorRevenue = orderService.getVendorRevenueFromOrder(order, vendorId);
+    // Total order amount (what the customer paid) — matches order detail summary.
+    final vendorRevenue = order.getTotalAmount();
     final vendorProducts = order.products.where((p) => p.vendorId == vendorId).toList();
 
     return Card(
@@ -376,7 +369,7 @@ class _OrderCard extends StatelessWidget {
                         ),
                         AppSpacing.h5,
                         Text(
-                          _formatDate(order.createdDate),
+                          VendorOrderDisplay.formatPlacedAt(order),
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],
@@ -429,18 +422,9 @@ class _OrderCard extends StatelessWidget {
                 ],
               ),
                       AppSpacing.h10,
-              Row(
-                children: [
-                  Icon(Icons.phone_outlined, size: 16, color: Colors.grey[600]),
-                  AppSpacing.w10,
-                  Text(
-                    order.phone,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-                ],
+              CustomerPhoneLine(
+                orderPhone: order.phone,
+                customerUid: order.uuid,
               ),
               AppSpacing.h15,
 

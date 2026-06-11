@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quickgrocery/view/support/models/support_settings.dart';
 
-import '../models/support_settings.dart';
-
+/// Reads admin **Settings → Support Settings** (`support_settings/main`).
 class SupportSettingsRepository {
   SupportSettingsRepository({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;

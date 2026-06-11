@@ -60,6 +60,47 @@ class AppLocalizationsEn extends AppLocalizations {
   String get biometric_login => 'Biometric Login';
 
   @override
+  String get browsingAsGuest => 'Browsing as Guest';
+
+  @override
+  String get loginAction => 'Login';
+
+  @override
+  String get loginRequiredTitle => 'Login Required';
+
+  @override
+  String get loginRequiredMessage =>
+      'Continue with Mobile Number to place your order securely.';
+
+  @override
+  String get guestProfileTitle => 'Guest User';
+
+  @override
+  String get guestProfileSubtitle => 'Login to sync your orders and addresses.';
+
+  @override
+  String get guestOrdersTitle => 'Your orders live here';
+
+  @override
+  String get guestOrdersSubtitle =>
+      'Login to view order history and track deliveries.';
+
+  @override
+  String get saveGuestAddressTitle => 'Save this address?';
+
+  @override
+  String get saveGuestAddressMessage => 'Save this address to your account?';
+
+  @override
+  String get saveGuestAddressYes => 'Yes';
+
+  @override
+  String get saveGuestAddressNo => 'No';
+
+  @override
+  String get skipForNow => 'Skip for Now';
+
+  @override
   String get buy_groceries_easily => 'Buy Groceries Easily\\nWith Us';
 
   @override
@@ -143,6 +184,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get continueAction => 'Continue';
+
+  @override
+  String get completeAddressDetails =>
+      'Complete name, house, area & mobile to place order';
 
   @override
   String get continue_label => 'Continue';

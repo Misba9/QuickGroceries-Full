@@ -5,6 +5,7 @@ import 'package:provider/provider.dart' as legacy;
 import 'package:share_plus/share_plus.dart' show Share;
 
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/auth/guest_auth_guard.dart';
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/core/product/product_quantity_label.dart';
@@ -230,6 +231,8 @@ class _FavoriteButton extends ConsumerWidget {
     return _CircleIcon(
       icon: fav ? Icons.favorite : Icons.favorite_border,
       onTap: () async {
+        final authed = await GuestAuthGuard.requireAuth(context, ref);
+        if (!authed || !context.mounted) return;
         try {
           await ref
               .read(productDetailRepositoryProvider)

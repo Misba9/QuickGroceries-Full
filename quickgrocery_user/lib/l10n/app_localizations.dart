@@ -204,6 +204,84 @@ abstract class AppLocalizations {
   /// **'Biometric Login'**
   String get biometric_login;
 
+  /// No description provided for @browsingAsGuest.
+  ///
+  /// In en, this message translates to:
+  /// **'Browsing as Guest'**
+  String get browsingAsGuest;
+
+  /// No description provided for @loginAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Login'**
+  String get loginAction;
+
+  /// No description provided for @loginRequiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Login Required'**
+  String get loginRequiredTitle;
+
+  /// No description provided for @loginRequiredMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Mobile Number to place your order securely.'**
+  String get loginRequiredMessage;
+
+  /// No description provided for @guestProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Guest User'**
+  String get guestProfileTitle;
+
+  /// No description provided for @guestProfileSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Login to sync your orders and addresses.'**
+  String get guestProfileSubtitle;
+
+  /// No description provided for @guestOrdersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your orders live here'**
+  String get guestOrdersTitle;
+
+  /// No description provided for @guestOrdersSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Login to view order history and track deliveries.'**
+  String get guestOrdersSubtitle;
+
+  /// No description provided for @saveGuestAddressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save this address?'**
+  String get saveGuestAddressTitle;
+
+  /// No description provided for @saveGuestAddressMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Save this address to your account?'**
+  String get saveGuestAddressMessage;
+
+  /// No description provided for @saveGuestAddressYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get saveGuestAddressYes;
+
+  /// No description provided for @saveGuestAddressNo.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get saveGuestAddressNo;
+
+  /// No description provided for @skipForNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip for Now'**
+  String get skipForNow;
+
   /// No description provided for @buy_groceries_easily.
   ///
   /// In en, this message translates to:
@@ -371,6 +449,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Continue'**
   String get continueAction;
+
+  /// No description provided for @completeAddressDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete name, house, area & mobile to place order'**
+  String get completeAddressDetails;
 
   /// No description provided for @continue_label.
   ///

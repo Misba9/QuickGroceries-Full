@@ -8,6 +8,12 @@ class WishlistService extends ChangeNotifier {
   List<ProductModel>? wishlistProducts;
   bool isLoading = false;
 
+  void resetSessionForLogout() {
+    wishlistProducts = null;
+    isLoading = false;
+    notifyListeners();
+  }
+
   Future<void> fetchWishlistProducts() async {
     isLoading = true;
     notifyListeners();

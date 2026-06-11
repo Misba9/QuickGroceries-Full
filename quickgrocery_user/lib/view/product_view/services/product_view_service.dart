@@ -15,6 +15,16 @@ class ProductViewService extends ChangeNotifier {
   double averageRating = 0.0;
   int totalRatings = 0;
 
+  void resetSessionForLogout() {
+    isFavorite = false;
+    similorProducts = null;
+    _itemCount = 1;
+    ratings = null;
+    averageRating = 0.0;
+    totalRatings = 0;
+    notifyListeners();
+  }
+
   int get itemCount => _itemCount;
 
   void onItemAdd() {

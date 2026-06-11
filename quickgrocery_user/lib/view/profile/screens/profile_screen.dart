@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart' as legacy;
+import 'package:quickgrocery/core/auth/guest_session_provider.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
@@ -9,6 +10,7 @@ import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.d
 import 'package:quickgrocery/view/profile/domain/profile_models.dart';
 import 'package:quickgrocery/view/profile/presentation/providers/profile_providers.dart';
 import 'package:quickgrocery/view/profile/presentation/widgets/profile_section_safe.dart';
+import 'package:quickgrocery/view/profile/presentation/widgets/guest_profile_view.dart';
 import 'package:quickgrocery/view/profile/presentation/widgets/profile_sections.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
@@ -69,6 +71,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (ref.watch(isGuestModeProvider)) {
+      return const GuestProfileView();
+    }
+
     final profileAsync = ref.watch(customerProfileStreamProvider);
 
     return PopScope(

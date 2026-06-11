@@ -99,24 +99,31 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
       if (!mounted) return;
       if (kDebugMode) {
         debugPrint(
-          '[FCM:fg] ${msg.notification?.title} | ${msg.notification?.body}',
+          '[UserNotify] LISTENER CREATED realtime_bootstrap_onMessage',
         );
       }
       await _persistInboxFromMessage(msg);
-      final n = msg.notification;
-      final title = n?.title ?? (msg.data['title']?.toString() ?? 'Update');
-      final body = n?.body ?? (msg.data['message']?.toString() ?? '');
+      final data = msg.data;
+      final title = data['title']?.toString() ?? msg.notification?.title ?? 'Update';
+      final body = data['message']?.toString() ?? msg.notification?.body ?? '';
       if (kIsWeb) {
         _showInAppSnack(title, body);
       } else {
-        await FcmPushInitializer.showForeground(msg);
+        await FcmPushInitializer.handleRemoteMessage(
+          msg,
+          source: 'fcm_foreground',
+          listenerId: 'realtime_bootstrap',
+        );
+        if (title.isNotEmpty) {
+          _showInAppSnack(title, body);
+        }
       }
       try {
         await FirebaseAnalytics.instance.logEvent(
           name: 'notification_received',
           parameters: {
             'foreground': 'true',
-            'has_notification': (n != null).toString(),
+            'has_notification': (msg.notification != null).toString(),
           },
         );
       } catch (_) {

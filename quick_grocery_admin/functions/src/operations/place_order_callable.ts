@@ -195,6 +195,20 @@ export const placeOrderCallable = onCall(
     const billWithTip =
       tipAmount > 0 ? mergeTipIntoBill(billRaw, tipAmount) : billRaw;
 
+    let profilePhone = "";
+    const custSnap = await db.collection("customers").doc(uid).get();
+    if (custSnap.exists) {
+      const c = custSnap.data() as Record<string, unknown>;
+      profilePhone = str(c.phone || c.phoneNumber || c.mobile);
+    }
+    if (!profilePhone) {
+      const userSnap = await db.collection("users").doc(uid).get();
+      if (userSnap.exists) {
+        const u = userSnap.data() as Record<string, unknown>;
+        profilePhone = str(u.phone || u.phoneNumber || u.mobile);
+      }
+    }
+
     try {
       await db.runTransaction(async (tx) => {
         const systemSnap = await tx.get(
@@ -456,7 +470,13 @@ export const placeOrderCallable = onCall(
           });
         }
 
-        const address = (req.data?.address ?? {}) as Record<string, unknown>;
+        const addressRaw = (req.data?.address ?? {}) as Record<string, unknown>;
+        const addressMobile = str(addressRaw.mobile);
+        const orderPhone = addressMobile || profilePhone;
+        const address: Record<string, unknown> = {
+          ...addressRaw,
+          mobile: orderPhone || addressMobile,
+        };
         const bill = billWithTip;
         const paymentMethod = str(req.data?.paymentMethod) || "cod";
         const paymentRef = str(req.data?.paymentRef);
@@ -476,7 +496,9 @@ export const placeOrderCallable = onCall(
           created_date: new Date().toISOString(),
           address: `${str(address.address)} ${str(address.area)}`.trim(),
           customer_name: str(address.name),
-          phone: str(address.mobile),
+          phone: orderPhone,
+          customerPhone: orderPhone,
+          phoneNumber: orderPhone,
           isPaid,
           order_status: "Order Placed",
           deliveryBoyId: "",

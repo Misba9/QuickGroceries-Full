@@ -2,14 +2,7 @@
 
 Firebase project: **quikgroceries**
 
-## Live web apps
 
-| App | URL |
-|-----|-----|
-| Admin | https://quikgroceries.web.app |
-| User | https://quikgroceries-user.web.app |
-| Vendor | https://quikgroceries-vendor.web.app |
-| Delivery | https://quikgroceries-delivery.web.app |
 
 ## Deploy / update one app (web)
 

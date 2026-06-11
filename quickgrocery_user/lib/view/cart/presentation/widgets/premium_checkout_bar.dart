@@ -130,10 +130,10 @@ class PremiumCheckoutBar extends StatelessWidget {
                   _CheckoutButton(
                     label: buttonText,
                     loadingLabel: loadingLabel,
-                    enabled: enabled && !isLoading,
+                    enabled: enabled,
                     isLoading: isLoading,
                     onTap: () {
-                      if (isLoading) return;
+                      if (isLoading || !enabled) return;
                       HapticFeedback.mediumImpact();
                       onCheckout();
                     },
@@ -263,12 +263,12 @@ class _CheckoutButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedOpacity(
       duration: AppMotion.short,
-      opacity: enabled ? 1 : 0.55,
+      opacity: (enabled || isLoading) ? 1 : 0.55,
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: enabled ? onTap : null,
+          onTap: (!isLoading && enabled) ? onTap : null,
           borderRadius: BorderRadius.circular(14),
           child: Ink(
             decoration: BoxDecoration(

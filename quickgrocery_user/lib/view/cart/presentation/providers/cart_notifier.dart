@@ -6,8 +6,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quickgrocery/core/auth/guest_auth_coordinator.dart';
+import 'package:quickgrocery/core/auth/guest_session_provider.dart';
 import 'package:quickgrocery/core/inventory/inventory_limits.dart';
 import 'package:quickgrocery/core/startup/app_startup_log.dart';
+import 'package:quickgrocery/core/startup/shared_preferences_provider.dart';
+import 'package:quickgrocery/view/cart/data/guest_cart_store.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/realtime/models/inventory_snapshot.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_feedback_provider.dart';
@@ -80,8 +84,12 @@ class CartNotifier extends Notifier<CartState> {
   /// adds before the debounced flush completes (common on real devices).
   int _localRevision = 0;
   int _syncedRevision = 0;
+  List<CartItem> _pendingGuestMerge = const [];
 
   bool get _hasUnsyncedLocalChanges => _localRevision > _syncedRevision;
+
+  bool get _isGuestBrowsing =>
+      _uid == null && ref.read(guestSessionProvider);
 
   void _markLocalMutation() {
     _localRevision++;
@@ -157,6 +165,8 @@ class CartNotifier extends Notifier<CartState> {
       _markLocalMutation();
       _recomputeBill();
       _scheduleSync();
+    } else if (ref.read(guestSessionProvider)) {
+      unawaited(_restoreGuestCartFromDisk());
     }
   }
 
@@ -206,13 +216,25 @@ class CartNotifier extends Notifier<CartState> {
     _cartSub?.cancel();
 
     if (uid == null) {
-      // Signed-out → clear everything but don't error.
+      if (GuestAuthCoordinator.preserveCartOnSignOut) {
+        GuestAuthCoordinator.preserveCartOnSignOut = false;
+        unawaited(_restoreGuestCartFromDisk());
+        return;
+      }
+
+      if (_isGuestBrowsing) {
+        unawaited(_restoreGuestCartFromDisk());
+        return;
+      }
+
       state = CartState.empty;
       _localRevision = 0;
       _syncedRevision = 0;
       _replaceLegacyItems(const []);
       return;
     }
+
+    unawaited(_prepareGuestMerge());
 
     state = state.copyWith(isHydrating: true, clearError: true);
 
@@ -244,14 +266,9 @@ class CartNotifier extends Notifier<CartState> {
     }
 
     if (snap == null) {
-      if (state.items.isNotEmpty) _replaceLegacyItems(const []);
-      state = state.copyWith(
-        items: const [],
-        clearCoupon: true,
-        isHydrating: false,
-        clearError: true,
-      );
-      _recomputeBill();
+      final merged = _mergeGuestAndRemote(_pendingGuestMerge, const []);
+      _pendingGuestMerge = const [];
+      _applyHydratedItems(merged, clearCoupon: true);
       return;
     }
 
@@ -261,18 +278,86 @@ class CartNotifier extends Notifier<CartState> {
       return;
     }
 
+    final merged = _mergeGuestAndRemote(_pendingGuestMerge, snap.items);
+    _pendingGuestMerge = const [];
+    _applyHydratedItems(merged, coupon: snap.coupon);
+    _syncedRevision = _localRevision;
+    _trace(
+      'remote applied: lines=${merged.length} clientId=${snap.clientId}',
+    );
+    if (merged.isNotEmpty) {
+      _scheduleSync();
+    }
+  }
+
+  Future<void> _prepareGuestMerge() async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    _pendingGuestMerge = await GuestCartStore.loadItems(prefs);
+    await GuestCartStore.clear(prefs);
+  }
+
+  Future<void> _restoreGuestCartFromDisk() async {
+    if (_disposed) return;
+    final prefs = ref.read(sharedPreferencesProvider);
+    final items = await GuestCartStore.loadItems(prefs);
+    if (items.isEmpty) {
+      state = state.copyWith(isHydrating: false, clearError: true);
+      return;
+    }
+    _applyHydratedItems(items);
+    _trace('guest cart restored: lines=${items.length}');
+  }
+
+  void _applyHydratedItems(
+    List<CartItem> items, {
+    AppliedCoupon? coupon,
+    bool clearCoupon = false,
+  }) {
+    if (_disposed) return;
     state = state.copyWith(
-      items: snap.items,
-      coupon: snap.coupon,
+      items: items,
+      coupon: clearCoupon ? null : coupon,
+      clearCoupon: clearCoupon,
       isHydrating: false,
       clearError: true,
     );
-    _replaceLegacyItems(snap.items);
+    _replaceLegacyItems(items);
     _recomputeBill();
+    _localRevision++;
     _syncedRevision = _localRevision;
-    _trace(
-      'remote applied: lines=${snap.items.length} clientId=${snap.clientId}',
-    );
+  }
+
+  List<CartItem> _mergeGuestAndRemote(
+    List<CartItem> guest,
+    List<CartItem> remote,
+  ) {
+    if (guest.isEmpty) return remote;
+    if (remote.isEmpty) return guest;
+
+    final merged = [...remote];
+    for (final g in guest) {
+      final idx = merged.indexWhere(
+        (r) =>
+            r.productId == g.productId && r.comboGroupKey == g.comboGroupKey,
+      );
+      if (idx == -1) {
+        merged.add(g);
+      } else {
+        final existing = merged[idx];
+        final cap = existing.effectiveMaxQuantity;
+        final combined = cap > 0
+            ? (existing.itemCount + g.itemCount).clamp(1, cap)
+            : existing.itemCount + g.itemCount;
+        merged[idx] = existing.copyWith(itemCount: combined);
+      }
+    }
+    return merged;
+  }
+
+  Future<void> _persistGuestCart() async {
+    if (!_isGuestBrowsing || _disposed) return;
+    final prefs = ref.read(sharedPreferencesProvider);
+    await GuestCartStore.saveItems(prefs, state.items);
   }
 
   // ── Legacy bridge ────────────────────────────────────────────────────
@@ -667,6 +752,9 @@ class CartNotifier extends Notifier<CartState> {
     _replaceLegacyItems(items);
     _recomputeBill();
     _scheduleSync();
+    if (_isGuestBrowsing) {
+      unawaited(_persistGuestCart());
+    }
     _trace(
       'writeLocal: rev=$_localRevision lines=${state.items.length} units=${state.totalUnits} total=${state.bill.total.toStringAsFixed(2)}',
     );

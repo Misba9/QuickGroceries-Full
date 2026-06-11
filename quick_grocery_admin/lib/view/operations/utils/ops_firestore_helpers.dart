@@ -3,8 +3,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// Shared parsing and order classification for ops dashboard streams.
 abstract final class OpsFirestoreHelpers {
   static DateTime? parseDate(dynamic v) {
+    if (v == null) return null;
     if (v is Timestamp) return v.toDate().toLocal();
     if (v is DateTime) return v.toLocal();
+    if (v is int) {
+      return DateTime.fromMillisecondsSinceEpoch(v).toLocal();
+    }
+    if (v is num) {
+      final ms = v.toInt();
+      if (ms > 0) return DateTime.fromMillisecondsSinceEpoch(ms).toLocal();
+    }
+    if (v is Map) {
+      final sec = v['_seconds'] ?? v['seconds'];
+      if (sec is num) {
+        final nano = (v['_nanoseconds'] ?? v['nanoseconds'] ?? 0) as num;
+        return DateTime.fromMillisecondsSinceEpoch(
+          sec.toInt() * 1000 + nano ~/ 1000000,
+        ).toLocal();
+      }
+    }
     if (v is String && v.isNotEmpty) {
       return DateTime.tryParse(v)?.toLocal();
     }
@@ -111,8 +128,31 @@ abstract final class OpsFirestoreHelpers {
               '')
           .toString();
 
-  static DateTime? createdAt(Map<String, dynamic> d) =>
-      parseDate(d['createdAt'] ?? d['created_date']);
+  static DateTime? createdAt(Map<String, dynamic> d) {
+    for (final key in ['createdAt', 'created_date', 'createdDate']) {
+      final parsed = parseDate(d[key]);
+      if (parsed != null && parsed.millisecondsSinceEpoch > 0) {
+        return parsed;
+      }
+    }
+
+    final id = d['id']?.toString() ?? '';
+    final idMs = int.tryParse(id);
+    if (idMs != null && idMs > 0) {
+      return DateTime.fromMillisecondsSinceEpoch(idMs).toLocal();
+    }
+    return null;
+  }
+
+  /// Newest-first comparator for raw Firestore order maps.
+  static int compareOrdersNewestFirst(
+    Map<String, dynamic> a,
+    Map<String, dynamic> b,
+  ) {
+    final ta = createdAt(a) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final tb = createdAt(b) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    return tb.compareTo(ta);
+  }
 
   static String shortOrderId(String id) =>
       id.length > 6 ? id.substring(id.length - 6).toUpperCase() : id.toUpperCase();

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart' as legacy_provider;
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/auth/guest_auth_guard.dart';
+import 'package:quickgrocery/core/auth/guest_session_provider.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
 import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
@@ -34,6 +36,12 @@ class _OrdersScreenState extends ConsumerState<OrdersScreeen>
 
   @override
   Widget build(BuildContext context) {
+    if (ref.watch(isGuestModeProvider)) {
+      return _GuestOrdersPlaceholder(
+        onLogin: () => GuestAuthGuard.requireAuth(context, ref),
+      );
+    }
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -177,6 +185,84 @@ class _OrdersTabBody extends ConsumerWidget {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _GuestOrdersPlaceholder extends StatelessWidget {
+  const _GuestOrdersPlaceholder({required this.onLogin});
+
+  final VoidCallback onLogin;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        legacy_provider.Provider.of<HomeProvider>(context, listen: false)
+            .onSelectedChange(0);
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF6F7FB),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: AppColor.primary.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.receipt_long_rounded,
+                    size: 56,
+                    color: AppColor.primary.withValues(alpha: 0.85),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  context.l10n.guestOrdersTitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  context.l10n.guestOrdersSubtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: onLogin,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColor.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(context.l10n.loginAction),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

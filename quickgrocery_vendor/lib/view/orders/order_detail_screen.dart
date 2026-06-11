@@ -6,9 +6,11 @@ import '../../models/vendor_model.dart';
 import '../../services/order_service.dart';
 import '../../style/app_color.dart';
 import '../../utils/app_spacing.dart';
+import '../../utils/vendor_order_display.dart';
 import 'package:quick_grocery_receipt/quick_grocery_receipt.dart';
 
 import 'invoice_screen.dart';
+import '../../services/customer_phone_resolver.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final OrderModel order;
@@ -28,11 +30,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   late OrderModel _currentOrder;
   final OrderService _orderService = OrderService();
   bool _isLoading = false;
+  String _customerPhone = '';
 
   @override
   void initState() {
     super.initState();
     _currentOrder = widget.order;
+    _loadCustomerPhone();
+  }
+
+  Future<void> _loadCustomerPhone() async {
+    final phone = await CustomerPhoneResolver.resolve(
+      orderPhone: _currentOrder.phone,
+      customerUid: _currentOrder.uuid,
+    );
+    if (!mounted) return;
+    setState(() {
+      _customerPhone = VendorOrderDisplay.formatPhone(phone);
+    });
   }
 
   Future<void> _confirmOrder() async {
@@ -192,14 +207,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     });
   }
 
-  String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return dateString;
-    }
-  }
+  String _formatDate(String dateString) =>
+      VendorOrderDisplay.formatTimestamp(dateString);
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
@@ -238,7 +247,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Widget _buildBody(BuildContext context) {
     final vendorProducts = _currentOrder.products.where((p) => p.vendorId == widget.vendor.id).toList();
-    final vendorRevenue = _orderService.getVendorRevenueFromOrder(_currentOrder, widget.vendor.id);
+    final orderTotal = _currentOrder.billTotals.grandTotal;
     final statusId = _resolvedStatus();
     final canReject = OrderLifecycle.isPendingVendorAction(statusId);
     final canAssignRider = OrderLifecycle.canAssignRider(statusId) &&
@@ -387,7 +396,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     _InfoRow(
                       icon: Icons.phone_outlined,
                       label: 'Phone',
-                      value: _currentOrder.phone,
+                      value: _customerPhone.isNotEmpty
+                          ? _customerPhone
+                          : 'Not available',
                     ),
                     AppSpacing.h15,
                     _InfoRow(
@@ -395,16 +406,19 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       label: 'Address',
                       value: _currentOrder.address,
                     ),
-                    if (GpsPoint.isValidCoord(_currentOrder.lat, _currentOrder.lng)) ...[
+                    if (_currentOrder.hasCustomerCoordinates ||
+                        _currentOrder.address.trim().isNotEmpty) ...[
                       AppSpacing.h15,
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () async {
+                            final point = _currentOrder.customerCoordinates;
                             final ok = await ExternalNavigation.open(
-                              lat: _currentOrder.lat,
-                              lng: _currentOrder.lng,
-                              coordinatesOnly: true,
+                              lat: point?.latitude,
+                              lng: point?.longitude,
+                              address: _currentOrder.address,
+                              coordinatesOnly: point == null,
                             );
                             if (!context.mounted || ok) return;
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -508,88 +522,71 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                 children: [
                                   Builder(
                                     builder: (_) {
-                                      final mrpLine =
-                                          (product.slashedPrice > product.price
-                                                  ? product.slashedPrice
-                                                  : product.price) *
-                                              product.itemCount;
-                                      final hasDiscount = mrpLine > product.lineTotal + 0.01;
-                                      final discount = (mrpLine - product.lineTotal)
-                                          .clamp(0.0, double.infinity);
                                       return Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                  Text(
-                                    product.name,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                  AppSpacing.h5,
-                                  Text(
-                                    product.category,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                  AppSpacing.h10,
-                                  if (hasDiscount)
-                                    Text(
-                                      'MRP ₹${mrpLine.toStringAsFixed(0)}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
-                                        decoration: TextDecoration.lineThrough,
-                                      ),
-                                    ),
-                                  Text(
-                                    'Paid ₹${product.lineTotal.toStringAsFixed(0)}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                  if (hasDiscount)
-                                    Container(
-                                      margin: const EdgeInsets.only(top: 4),
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFD1EEDB),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        'Saved ₹${discount.toStringAsFixed(0)}',
-                                        style: const TextStyle(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF2E7D32),
-                                        ),
-                                      ),
-                                    ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Qty: ${product.itemCount} ${product.unit}',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.grey[700],
-                                        ),
-                                      ),
-                                      Text(
-                                        '₹${product.lineTotal.toStringAsFixed(2)}',
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColor.primary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                          Text(
+                                            product.name,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          AppSpacing.h5,
+                                          Text(
+                                            product.category,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                          AppSpacing.h10,
+                                          Text(
+                                            product.quantityLabel,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.grey[700],
+                                            ),
+                                          ),
+                                          AppSpacing.h5,
+                                          if (product.hasLineDiscount)
+                                            Text(
+                                              'MRP ₹${product.mrpLineTotal.toStringAsFixed(0)}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[600],
+                                                decoration: TextDecoration.lineThrough,
+                                              ),
+                                            ),
+                                          Text(
+                                            '₹${product.lineTotal.toStringAsFixed(0)}',
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          if (product.hasLineDiscount)
+                                            Container(
+                                              margin: const EdgeInsets.only(top: 4),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 3,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFD1EEDB),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                'Saved ₹${product.lineDiscount.toStringAsFixed(0)}',
+                                                style: const TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF2E7D32),
+                                                ),
+                                              ),
+                                            ),
                                         ],
                                       );
                                     },
@@ -724,7 +721,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             ),
                           ),
                           Text(
-                            '₹${vendorRevenue.toStringAsFixed(2)}',
+                            '₹${orderTotal.toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -816,77 +813,38 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ),
             AppSpacing.h20,
 
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => InvoiceScreen(
-                              order: _currentOrder,
-                              vendor: widget.vendor,
-                            ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.receipt_long),
-                      label: const Text(
-                        'Invoice',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColor.primary,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => InvoiceScreen(
+                        order: _currentOrder,
+                        vendor: widget.vendor,
                       ),
                     ),
+                  );
+                },
+                icon: const Icon(Icons.receipt_long),
+                label: const Text(
+                  'Invoice',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: SizedBox(
-                    height: 50,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => InvoiceScreen(
-                              order: _currentOrder,
-                              vendor: widget.vendor,
-                              mode: ReceiptMode.packingSlip,
-                            ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.inventory_2_outlined),
-                      label: const Text(
-                        'Packing slip',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black87,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColor.primary,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  elevation: 2,
                 ),
-              ],
+              ),
             ),
             AppSpacing.h20,
           ],

@@ -8,9 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import 'push_message_dedupe.dart';
-
-/// Rider push: foreground sound + system notification for assignments/cancellations.
+/// Rider push — data-only FCM from Cloud Functions is the sole tray display path.
 class DeliveryPushInitializer {
   DeliveryPushInitializer._();
 
@@ -21,6 +19,9 @@ class DeliveryPushInitializer {
   static bool _initialized = false;
   static bool _listenersAttached = false;
   static DateTime? _lastFcmAlertAt;
+
+  static StreamSubscription<RemoteMessage>? _onMessageSub;
+  static StreamSubscription<RemoteMessage>? _onMessageOpenedSub;
 
   static void Function(Map<String, dynamic> data)? onAssignmentPush;
   static void Function(Map<String, dynamic> data)? onCancellationPush;
@@ -76,16 +77,18 @@ class DeliveryPushInitializer {
     _initialized = true;
   }
 
-  /// Register FCM listeners once at app start (not per screen).
   static void attachMessagingListeners() {
     if (_listenersAttached || kIsWeb) return;
     _listenersAttached = true;
 
-    FirebaseMessaging.onMessage.listen((message) async {
-      await handleForegroundMessage(message);
+    _onMessageSub?.cancel();
+    _onMessageOpenedSub?.cancel();
+
+    _onMessageSub = FirebaseMessaging.onMessage.listen((message) async {
+      await handleForegroundMessage(message, listenerId: 'main_onMessage');
     });
 
-    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+    _onMessageOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((message) {
       _dispatchFromMessage(message);
     });
 
@@ -95,8 +98,46 @@ class DeliveryPushInitializer {
     });
 
     if (kDebugMode) {
-      debugPrint('[DeliveryNotify] FCM listeners attached');
+      debugPrint('[DeliveryNotify] LISTENER CREATED main_onMessage');
     }
+  }
+
+  static bool _isDataOnlyRemote(RemoteMessage msg) {
+    return msg.data['displayMode']?.toString().toLowerCase() == 'data_only';
+  }
+
+  static void _log(
+    String stage,
+    RemoteMessage msg, {
+    required String source,
+    String? listenerId,
+  }) {
+    if (!kDebugMode) return;
+    final d = msg.data;
+    debugPrint(
+      '[DeliveryNotify] $stage '
+      'source=$source '
+      'listenerId=${listenerId ?? "—"} '
+      'messageId=${msg.messageId ?? "—"} '
+      'eventId=${d['eventId'] ?? "—"} '
+      'type=${d['type'] ?? "—"} '
+      'orderId=${d['orderId'] ?? "—"}',
+    );
+  }
+
+  static Future<void> handleBackgroundMessage(
+    RemoteMessage msg, {
+    String listenerId = 'background_handler',
+  }) async {
+    _log('DEVICE RECEIVED', msg, source: 'fcm_background', listenerId: listenerId);
+
+    if (!_isDataOnlyRemote(msg)) {
+      _log('SKIP LOCAL SHOW — not data_only', msg, source: 'fcm_background');
+      return;
+    }
+
+    await showFromRemoteMessage(msg);
+    _log('LOCAL SHOW', msg, source: 'fcm_background', listenerId: listenerId);
   }
 
   static void _dispatchFromMessage(RemoteMessage message) {
@@ -139,15 +180,11 @@ class DeliveryPushInitializer {
     _lastFcmAlertAt = DateTime.now();
   }
 
-  static Future<void> handleForegroundMessage(RemoteMessage msg) async {
-    if (!PushMessageDedupe.markIfNew(msg, appTag: 'DeliveryNotify')) return;
-
-    if (kDebugMode) {
-      debugPrint(
-        '[DeliveryNotify] FCM foreground messageId=${msg.messageId} '
-        'type=${msg.data['type']}',
-      );
-    }
+  static Future<void> handleForegroundMessage(
+    RemoteMessage msg, {
+    String listenerId = 'default',
+  }) async {
+    _log('DEVICE RECEIVED', msg, source: 'fcm_foreground', listenerId: listenerId);
 
     final data = Map<String, dynamic>.from(msg.data);
     final type = data['type']?.toString() ?? '';
@@ -156,31 +193,19 @@ class DeliveryPushInitializer {
       _markFcmAlertHandled();
       await playCancellationAlert();
       onCancellationPush?.call(data);
-      if (_shouldShowLocalTray(msg, foreground: true)) {
-        await showFromRemoteMessage(msg);
-      }
-      return;
-    }
-
-    if (type == 'delivery_assigned' || type == 'driver_assigned') {
+    } else if (type == 'delivery_assigned' || type == 'driver_assigned') {
       _markFcmAlertHandled();
       await playAssignmentAlert();
       onAssignmentPush?.call(data);
-      if (_shouldShowLocalTray(msg, foreground: true)) {
-        await showFromRemoteMessage(msg);
-      }
+    }
+
+    if (!_isDataOnlyRemote(msg)) {
+      _log('SKIP LOCAL SHOW — not data_only', msg, source: 'fcm_foreground');
       return;
     }
 
-    if (_shouldShowLocalTray(msg, foreground: true)) {
-      await showFromRemoteMessage(msg);
-    }
-  }
-
-  static bool _shouldShowLocalTray(RemoteMessage msg, {required bool foreground}) {
-    if (msg.notification == null) return true;
-    if (defaultTargetPlatform == TargetPlatform.iOS) return false;
-    return foreground;
+    await showFromRemoteMessage(msg);
+    _log('LOCAL SHOW', msg, source: 'fcm_foreground', listenerId: listenerId);
   }
 
   static Future<void> playAssignmentAlert() async {
@@ -206,38 +231,37 @@ class DeliveryPushInitializer {
   static Future<void> showFromRemoteMessage(RemoteMessage msg) async {
     if (kIsWeb || !_initialized) return;
 
-    final n = msg.notification;
     final data = msg.data;
-    final title = n?.title ?? data['title']?.toString() ?? 'Delivery Update';
-    final body = n?.body ??
-        data['message']?.toString() ??
-        data['body']?.toString() ??
-        '';
+    final title = data['title']?.toString() ?? 'Delivery Update';
+    final body =
+        data['message']?.toString() ?? data['body']?.toString() ?? '';
 
     final payload = jsonEncode(Map<String, dynamic>.from(data));
+    final eventId = data['eventId']?.toString() ?? msg.messageId ?? '';
+    final id = eventId.hashCode & 0x7fffffff;
 
-    final details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        _channelId,
-        _channelName,
-        channelDescription: 'Delivery alerts',
-        importance: Importance.max,
-        priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
-        sound: const RawResourceAndroidNotificationSound('delivery_alert'),
+    await _plugin.show(
+      id,
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channelId,
+          _channelName,
+          channelDescription: 'Delivery alerts',
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+          sound: const RawResourceAndroidNotificationSound('delivery_alert'),
+          tag: eventId.isNotEmpty ? eventId : null,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
       ),
-      iOS: const DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      ),
+      payload: payload,
     );
-
-    final orderId = data['orderId']?.toString() ?? '';
-    final type = data['type']?.toString() ?? '';
-    final id = orderId.isNotEmpty
-        ? '$type:$orderId'.hashCode
-        : (msg.messageId?.hashCode ?? msg.hashCode);
-    await _plugin.show(id & 0x7fffffff, title, body, details, payload: payload);
   }
 }

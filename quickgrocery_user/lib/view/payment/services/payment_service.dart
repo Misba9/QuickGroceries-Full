@@ -9,6 +9,14 @@ class PaymentService extends ChangeNotifier {
   void Function(String paymentId)? _onPaymentSuccessCallback;
   void Function(String message)? _onPaymentErrorCallback;
 
+  void resetSessionForLogout() {
+    isCashOnDelivery = false;
+    paymentStatus = 'Pending';
+    _onPaymentSuccessCallback = null;
+    _onPaymentErrorCallback = null;
+    notifyListeners();
+  }
+
   void onPaymentMethodChange(bool v) {
     isCashOnDelivery = v;
     notifyListeners();

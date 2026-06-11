@@ -33,6 +33,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   await DeliveryPushInitializer.ensureInitialized();
+  await DeliveryPushInitializer.handleBackgroundMessage(message);
   if (kDebugMode) {
     debugPrint('[DeliveryFCM:bg] ${message.notification?.title}');
   }

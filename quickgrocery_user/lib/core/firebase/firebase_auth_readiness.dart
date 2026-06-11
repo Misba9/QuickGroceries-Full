@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:quickgrocery/core/firebase/app_check_providers.dart';
 import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
 import 'package:quickgrocery/core/firebase/firebase_phone_auth_logger.dart';
+import 'package:quickgrocery/core/firebase/phone_auth_verification_path.dart';
 
 /// Pre-flight checks before Firebase Phone Auth (especially iOS).
 class FirebaseAuthReadiness {
@@ -35,22 +36,34 @@ class FirebaseAuthReadiness {
     final report = await FirebaseConfigAudit.runAudit();
     FirebasePhoneAuthLogger.info(report.toDebugString());
 
-    // Empty oauth_client in the bundled JSON is often stale even when SHA
-    // fingerprints are registered in Firebase Console — do not block here;
-    // let verifyPhoneNumber() run and surface a real Firebase error if needed.
+    await PhoneAuthVerificationPath.logSelectedPath(
+      phase: 'ensurePhoneAuthReady',
+    );
+
+    final configBlock = await PhoneAuthVerificationPath.blockingMisconfigurationError();
+    if (configBlock != null) {
+      FirebasePhoneAuthLogger.error(
+        'ensurePhoneAuthReady BLOCKED — $configBlock',
+      );
+      return configBlock;
+    }
+
     if (report.issues.any((i) => i.id == 'missing-sha-oauth-client')) {
       FirebasePhoneAuthLogger.warn(
-        'google-services.json oauth_client is empty — proceeding anyway '
-        '(SHA may already be registered in Firebase Console).',
+        'oauthClientCount=0 in bundled google-services.json — '
+        'informational only, not blocking verifyPhoneNumber()',
       );
     }
 
     if (!report.isReadyForPhoneAuth) {
-      final summary = report.toUserFacingSummary();
-      if (summary.isNotEmpty) {
-        FirebasePhoneAuthLogger.warn('ensurePhoneAuthReady blocked: $summary');
-        return summary;
-      }
+      FirebasePhoneAuthLogger.warn(
+        'ensurePhoneAuthReady audit issues (non-blocking): '
+        '${report.toUserFacingSummary()}',
+      );
+    } else {
+      FirebasePhoneAuthLogger.info(
+        'ensurePhoneAuthReady audit PASS',
+      );
     }
 
     FirebasePhoneAuthLogger.info(

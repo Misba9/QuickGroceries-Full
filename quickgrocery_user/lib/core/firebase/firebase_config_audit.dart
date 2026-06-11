@@ -360,21 +360,18 @@ class FirebaseConfigAudit {
           issues.add(
             FirebaseConfigIssue(
               id: 'missing-sha-oauth-client',
-              title: 'google-services.json oauth_client is empty',
-              detail: '${oauthClientEmptyExplanation(
+              title: 'Phone Auth blocked — SHA not registered in Firebase',
+              detail: oauthClientEmptyExplanation(
                 firebaseAppId: primary.mobileSdkAppId,
                 packageName: primary.packageName,
-              )}\n\n'
-                  'If SHA fingerprints are already in Firebase Console, phone auth '
-                  'may still work — wait 5–15 minutes for Google to propagate, '
-                  'then re-download google-services.json.',
+              ),
               fixSteps: [
                 'Firebase Console → quikgroceries → Project settings → Android app com.quickgrocery.io',
-                'Confirm SHA-1 and SHA-256 match this build (cd android && ./gradlew :app:signingReport)',
-                'Wait 5–15 min, re-download google-services.json (oauth_client should populate)',
+                'Add SHA-1 and SHA-256 from: cd android && ./gradlew :app:signingReport',
+                'Re-download google-services.json — oauth_client must NOT be empty',
                 'Replace android/app/google-services.json → flutter clean && flutter run',
               ],
-              severity: 'warning',
+              severity: 'critical',
             ),
           );
         } else {

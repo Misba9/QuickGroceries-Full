@@ -34,7 +34,7 @@ class InvoiceService {
     );
     await Printing.layoutPdf(
       onLayout: (_) async => pdf.save(),
-      format: ThermalReceiptPdf.pageFormatFor(
+      format: await ThermalReceiptPdf.pageFormatFor(
         order,
         vendor,
         mode: mode,

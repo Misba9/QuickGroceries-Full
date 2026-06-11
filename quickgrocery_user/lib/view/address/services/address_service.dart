@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:quickgrocery/core/user/user_profile_repository.dart';
 import 'package:quickgrocery/core/delivery/delivery_zone_lookup.dart';
 import 'package:quickgrocery/models/address_model.dart';
+import 'package:quickgrocery/view/address/data/guest_address_store.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -101,6 +102,7 @@ class AddressService extends ChangeNotifier {
       addresses != null && addresses!.isNotEmpty;
 
   int _selectedIndex = 0;
+  Future<void> _deleteChain = Future.value();
   final dateTime = DateTime.now();
   void onLatlongChanged(LatLng ponint, {bool invalidateValidation = false}) {
     latLng = ponint;
@@ -236,7 +238,7 @@ class AddressService extends ChangeNotifier {
   void prepareNewAddress() {
     _editingAddressId = null;
     nameController.clear();
-    mobileController.clear();
+    mobileController.text = _verifiedMobileDigits();
     addressController.clear();
     areaController.clear();
     _addresstype = 'HOME';
@@ -247,11 +249,27 @@ class AddressService extends ChangeNotifier {
   void loadAddressForEdit(AddressModel model) {
     _editingAddressId = model.id;
     nameController.text = model.name;
-    mobileController.text = model.mobile;
+    final savedMobile = model.mobile.trim();
+    mobileController.text = savedMobile.isNotEmpty
+        ? savedMobile
+        : _verifiedMobileDigits();
     addressController.text = model.address;
     areaController.text = model.area;
     _addresstype = model.type;
     notifyListeners();
+  }
+
+  /// Verified login phone as 10-digit local number for address forms.
+  String _verifiedMobileDigits() {
+    return AddressModel.localMobileDigits(
+      FirebaseAuth.instance.currentUser?.phoneNumber,
+    );
+  }
+
+  String _mobileForSave() {
+    final entered = mobileController.text.trim();
+    if (entered.isNotEmpty) return entered;
+    return _verifiedMobileDigits();
   }
 
   Future<void> addAddress(BuildContext context) async {
@@ -262,7 +280,7 @@ class AddressService extends ChangeNotifier {
       if (_editingAddressId != null) {
         await _firestore.collection('address').doc(_editingAddressId).update({
           'name': nameController.text.trim(),
-          'mobile': mobileController.text.trim(),
+          'mobile': _mobileForSave(),
           'address': addressController.text.trim(),
           'area': areaController.text.trim(),
           'type': _addresstype,
@@ -273,7 +291,7 @@ class AddressService extends ChangeNotifier {
         final docRef = await _firestore.collection('address').add({
           'id': '',
           'name': nameController.text.trim(),
-          'mobile': mobileController.text.trim(),
+          'mobile': _mobileForSave(),
           'address': addressController.text.trim(),
           'area': areaController.text.trim(),
           'type': _addresstype,
@@ -349,7 +367,17 @@ class AddressService extends ChangeNotifier {
     notifyListeners();
   }
 
-  int get selectedIndex => _selectedIndex;
+  int get selectedIndex {
+    final list = addresses;
+    if (list == null || list.isEmpty) return 0;
+    return _selectedIndex.clamp(0, list.length - 1);
+  }
+
+  AddressModel? get selectedAddress {
+    final list = addresses;
+    if (list == null || list.isEmpty) return null;
+    return list[selectedIndex];
+  }
 
   bool get isLoading => _isLoading;
   String get addressType => _addresstype;
@@ -384,11 +412,13 @@ class AddressService extends ChangeNotifier {
   }
 
   Future<void> getAddress() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
     try {
-      // Get the products collection from Firestore
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('address')
-          .where('user_id', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
+          .where('user_id', isEqualTo: uid)
           .get();
 
       // Map Firestore documents to ProductModel instances
@@ -398,7 +428,7 @@ class AddressService extends ChangeNotifier {
           doc.id,
         );
       }).toList();
-      _applyCachedSelection();
+      _normalizeSelection();
       await _syncProfileAddress();
 
       notifyListeners(); // Notify UI or listeners if you're using a state management solution
@@ -408,17 +438,89 @@ class AddressService extends ChangeNotifier {
   }
 
   Future<void> deleteAddress(BuildContext context, String id) async {
-    await _firestore.collection('address').doc(id).delete();
-    await getAddress();
+    await removeAddress(id);
     if (context.mounted && Navigator.canPop(context)) {
       Navigator.pop(context);
     }
   }
 
-  /// Hard-delete without popping routes — used after swipe-to-dismiss UI.
-  Future<void> removeAddress(String id) async {
-    await _firestore.collection('address').doc(id).delete();
-    await getAddress();
+  /// Hard-delete without popping routes — used from the address book UI.
+  /// Deletes are serialized and the local list updates immediately so rapid
+  /// multi-delete cannot leave a stale [selectedIndex].
+  Future<void> removeAddress(String id) {
+    final op = _deleteChain.then((_) => _removeAddressImpl(id));
+    _deleteChain = op.catchError((Object _) {});
+    return op;
+  }
+
+  Future<void> _removeAddressImpl(String id) async {
+    if (id.isEmpty) return;
+
+    final list = addresses;
+    if (list == null) {
+      try {
+        await _firestore.collection('address').doc(id).delete();
+      } catch (e) {
+        debugPrint('AddressService: delete failed $id: $e');
+      }
+      await getAddress();
+      return;
+    }
+
+    final removeIndex = list.indexWhere((a) => a.id == id);
+    if (removeIndex < 0) {
+      try {
+        await _firestore.collection('address').doc(id).delete();
+      } catch (e) {
+        debugPrint('AddressService: delete failed $id: $e');
+      }
+      return;
+    }
+
+    addresses = List<AddressModel>.from(list)..removeAt(removeIndex);
+    _reconcileSelectionAfterRemoval(
+      removedIndex: removeIndex,
+      removedId: id,
+    );
+    notifyListeners();
+
+    try {
+      await _firestore.collection('address').doc(id).delete();
+      if (addresses == null || addresses!.isEmpty) {
+        await invalidateAddressValidation(notify: false);
+      }
+      await _syncProfileAddress();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('AddressService: delete failed $id: $e');
+      await getAddress();
+    }
+  }
+
+  void _reconcileSelectionAfterRemoval({
+    required int removedIndex,
+    required String removedId,
+  }) {
+    final list = addresses;
+    if (list == null || list.isEmpty) {
+      _selectedIndex = 0;
+      _selectedAddressId = null;
+      _address = 'Loading...';
+      return;
+    }
+
+    final removedWasSelected =
+        _selectedAddressId == removedId || _selectedIndex == removedIndex;
+
+    if (removedWasSelected) {
+      final newIndex = removedIndex.clamp(0, list.length - 1);
+      _selectedIndex = newIndex;
+      _selectedAddressId = list[newIndex].id;
+    } else if (_selectedIndex > removedIndex) {
+      _selectedIndex -= 1;
+    }
+
+    _normalizeSelection();
   }
 
   Future<void> restoreValidatedAddress() => _restoreFuture;
@@ -475,8 +577,69 @@ class AddressService extends ChangeNotifier {
     }
     await prefs.setBool(_cacheServiceableKey, serviceable);
     await prefs.setInt(_cacheTimestampKey, _validatedAt!.millisecondsSinceEpoch);
+
+    if (FirebaseAuth.instance.currentUser == null &&
+        _address.isNotEmpty &&
+        _address != 'Loading...') {
+      final point = latLng;
+      await GuestAddressStore.save(
+        prefs,
+        addressText: _address,
+        pinCode: _pinCode,
+        latitude: point?.latitude,
+        longitude: point?.longitude,
+        area: areaController.text.trim().isNotEmpty
+            ? areaController.text.trim()
+            : null,
+      );
+    }
+
     notifyListeners();
     unawaited(_syncProfileAddress());
+  }
+
+  /// Persists a guest delivery snapshot to the signed-in user's address book.
+  Future<void> persistGuestAddressSnapshot(
+    Map<String, dynamic> pending,
+  ) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final addressText = (pending['address'] ?? '').toString().trim();
+    if (addressText.isEmpty) return;
+
+    final area = (pending['area'] ?? '').toString().trim();
+    final lat = (pending['latitude'] as num?)?.toDouble();
+    final lng = (pending['longitude'] as num?)?.toDouble();
+
+    final docRef = await _firestore.collection('address').add({
+      'id': '',
+      'name': (pending['name'] ?? '').toString().trim(),
+      'mobile': (pending['mobile'] ?? '').toString().trim().isNotEmpty
+          ? (pending['mobile'] ?? '').toString().trim()
+          : _verifiedMobileDigits(),
+      'address': addressText,
+      'area': area,
+      'type': 'HOME',
+      'createdAt': FieldValue.serverTimestamp(),
+      'lastEdited': FieldValue.serverTimestamp(),
+      'user_id': uid,
+      if (lat != null) 'latitude': lat,
+      if (lng != null) 'longitude': lng,
+    });
+    await docRef.update({'id': docRef.id});
+    _selectedAddressId = docRef.id;
+    _address = area.isEmpty ? addressText : '$addressText, $area';
+    if (lat != null && lng != null) {
+      latLng = LatLng(lat, lng);
+    }
+    _pinCode = DeliveryZoneLookup.resolvePin(
+          addressText: _address,
+          storedPin: pending['pinCode']?.toString(),
+        ) ??
+        _pinCode;
+    await getAddress();
+    notifyListeners();
   }
 
   Future<void> invalidateAddressValidation({bool notify = true}) async {
@@ -500,18 +663,38 @@ class AddressService extends ChangeNotifier {
   }
 
   void _applyCachedSelection() {
+    _normalizeSelection(preferCachedId: true);
+  }
+
+  void _normalizeSelection({bool preferCachedId = false}) {
     final list = addresses;
-    final selectedId = _selectedAddressId;
-    if (list == null ||
-        list.isEmpty ||
-        selectedId == null ||
-        selectedId.isEmpty) {
+    if (list == null || list.isEmpty) {
+      _selectedIndex = 0;
+      if (list?.isEmpty ?? true) {
+        _selectedAddressId = null;
+      }
       return;
     }
-    final i = list.indexWhere((a) => a.id == selectedId);
-    if (i < 0) return;
-    _selectedIndex = i;
-    final selected = list[i];
+
+    if (preferCachedId) {
+      final selectedId = _selectedAddressId;
+      if (selectedId != null && selectedId.isNotEmpty) {
+        final byId = list.indexWhere((a) => a.id == selectedId);
+        if (byId >= 0) {
+          _selectedIndex = byId;
+          _applySelectedAddressFields(list[byId]);
+          return;
+        }
+      }
+    }
+
+    _selectedIndex = _selectedIndex.clamp(0, list.length - 1);
+    final selected = list[_selectedIndex];
+    _selectedAddressId = selected.id;
+    _applySelectedAddressFields(selected);
+  }
+
+  void _applySelectedAddressFields(AddressModel selected) {
     _address = '${selected.address}, ${selected.area}';
     _pinCode = _extractPinCodeFromAddress('${selected.address} ${selected.area}') ??
         _pinCode;
@@ -558,5 +741,28 @@ class AddressService extends ChangeNotifier {
     } catch (e) {
       debugPrint('AddressService: profile sync failed: $e');
     }
+  }
+
+  /// Wipes in-memory address state after logout (prefs cleared separately).
+  void resetSessionForLogout() {
+    addresses = null;
+    latLng = null;
+    _address = 'Loading...';
+    _pinCode = null;
+    _selectedAddressId = null;
+    _selectedIndex = 0;
+    _isAddressValidated = false;
+    _cachedServiceable = false;
+    _validatedAt = null;
+    _sessionServiceCheckBypass = false;
+    _cacheRestored = false;
+    _validationMutation++;
+    nameController.clear();
+    mobileController.clear();
+    addressController.clear();
+    areaController.clear();
+    _editingAddressId = null;
+    _addresstype = 'HOME';
+    notifyListeners();
   }
 }

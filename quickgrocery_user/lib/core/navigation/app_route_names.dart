@@ -19,6 +19,9 @@ abstract final class AppRoutes {
   /// [HomeProvider.pages] index for the profile tab.
   static const profileTabIndex = 4;
 
+  /// [HomeProvider.pages] index for the orders tab.
+  static const ordersTabIndex = 3;
+
   /// Screens where the floating cart bar must never appear.
   static const hiddenFromFloatingCart = {
     cart,

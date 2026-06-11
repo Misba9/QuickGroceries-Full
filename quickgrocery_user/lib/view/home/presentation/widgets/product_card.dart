@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/auth/guest_auth_guard.dart';
 import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
 import 'package:quickgrocery/core/product/product_quantity_label.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
@@ -269,6 +270,8 @@ class _FavoriteChip extends ConsumerWidget {
         customBorder: const CircleBorder(),
         onTap: () async {
           HapticFeedback.selectionClick();
+          final authed = await GuestAuthGuard.requireAuth(context, ref);
+          if (!authed || !context.mounted) return;
           await ref.read(productDetailRepositoryProvider).toggleFavorite(
                 productId,
                 !fav,

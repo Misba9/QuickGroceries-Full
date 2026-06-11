@@ -403,6 +403,24 @@ class HomeProvider extends ChangeNotifier {
       _showForceUpdateDialog(context);
     }
   }
+
+  /// Clears user-bound home tab state after logout.
+  void resetSessionForLogout() {
+    customer = null;
+    _selectedIndex = 0;
+    HomeTabObserver.selectedIndexListenable.value = 0;
+    products = null;
+    todaysSnack = null;
+    priceDrop = null;
+    thisWeekSpecial = null;
+    beatyProduct = null;
+    categories = [];
+    banners = [];
+    _address = 'Loading...';
+    _isLoading = false;
+    currentLatLng = LatLng(0, 0);
+    notifyListeners();
+  }
 }
 
 bool _isVersionLower(String current, String required) {

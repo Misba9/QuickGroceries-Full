@@ -76,7 +76,7 @@ class _VendorOrderRealtimeHostState extends State<VendorOrderRealtimeHost> {
     }
 
     if (type != 'new_order') return;
-    if (widget.notifications.hasBeenNotified(orderId)) {
+    if (widget.notifications.hasNewOrderAlertBeenEmitted(orderId)) {
       if (kDebugMode) {
         debugPrint('[VendorNotify] FCM skipped duplicate orderId=$orderId');
       }
@@ -98,48 +98,13 @@ class _VendorOrderRealtimeHostState extends State<VendorOrderRealtimeHost> {
     Map<String, dynamic> data,
     String orderId,
   ) async {
-    final statusKey = '$orderId:cancelled';
-    if (widget.notifications.hasBeenNotified(statusKey)) return;
+    if (widget.notifications.hasCancellationAlertBeenEmitted(orderId)) return;
 
     final order = await _orders.getOrderById(orderId);
     if (order == null || !mounted) return;
 
-    widget.notifications.markOrderNotified(statusKey);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _showCancellationPopup(orderId, order.customerName);
-    });
-  }
-
-  void _showCancellationPopup(String orderId, String customerName) {
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.showMaterialBanner(
-      MaterialBanner(
-        backgroundColor: Colors.red.shade50,
-        leading: const Icon(Icons.cancel, color: Colors.red),
-        content: Text(
-          '❌ Order Cancelled\n'
-          'Order #${orderId.substring(0, 8)} cancelled by $customerName.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => messenger.hideCurrentMaterialBanner(),
-            child: const Text('Dismiss'),
-          ),
-          TextButton(
-            onPressed: () {
-              messenger.hideCurrentMaterialBanner();
-              widget.onViewAllOrders();
-            },
-            child: const Text('View Orders'),
-          ),
-        ],
-      ),
-    );
-    Future.delayed(const Duration(seconds: 8), () {
-      messenger?.hideCurrentMaterialBanner();
-    });
+    widget.notifications.notifyRemoteCancellation(order);
+    _scheduleAlertIfNeeded();
   }
 
   void _subscribe() {

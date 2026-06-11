@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -10,16 +12,13 @@ import 'package:quickgrocery_vendor/maintenance/maintenance_gate.dart';
 import 'view/auth/auth_wrapper.dart';
 import 'style/vendor_app_theme.dart';
 
+StreamSubscription<RemoteMessage>? _vendorOnMessageSub;
+StreamSubscription<RemoteMessage>? _vendorOnMessageOpenedSub;
+
 @pragma('vm:entry-point')
 Future<void> vendorFcmBackgroundHandler(RemoteMessage message) async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  if (kDebugMode) {
-    debugPrint(
-      '[VendorNotify] FCM background type=${message.data['type']} '
-      'orderId=${message.data['orderId']}',
-    );
-  }
   await VendorPushInitializer.ensureInitialized();
   await VendorPushInitializer.handleBackgroundMessage(message);
 }
@@ -38,11 +37,17 @@ Future<void> main() async {
     } catch (_) {}
   }
 
-  FirebaseMessaging.onMessage.listen((msg) async {
+  await _vendorOnMessageSub?.cancel();
+  await _vendorOnMessageOpenedSub?.cancel();
+
+  _vendorOnMessageSub = FirebaseMessaging.onMessage.listen((msg) async {
     await VendorPushInitializer.handleForegroundMessage(msg);
   });
+  if (kDebugMode) {
+    debugPrint('[VendorNotify] LISTENER CREATED main_onMessage');
+  }
 
-  FirebaseMessaging.onMessageOpenedApp.listen((msg) async {
+  _vendorOnMessageOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((msg) async {
     if (kDebugMode) {
       debugPrint('[VendorNotify] notification opened app data=${msg.data}');
     }

@@ -1,6 +1,6 @@
 import 'dart:math';
 
-/// One key per checkout session — reused for duplicate taps, new key after errors.
+/// One key per checkout session — reused for duplicate taps and retries.
 abstract final class OrderIdempotency {
   static final _random = Random.secure();
 

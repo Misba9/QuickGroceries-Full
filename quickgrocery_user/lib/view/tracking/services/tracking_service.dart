@@ -7,6 +7,11 @@ import 'package:url_launcher/url_launcher.dart';
 class TrackingService extends ChangeNotifier {
   DeliveryBoyModel? deliveryBoyModel;
 
+  void resetSessionForLogout() {
+    deliveryBoyModel = null;
+    notifyListeners();
+  }
+
   Future<void> getDeliveryBoyById(String id) async {
     if (id != '') {
       final docSnapshot = await FirebaseFirestore.instance

@@ -5,6 +5,7 @@ import 'dart:developer' as developer;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:quickgrocery/core/auth/auth_user_provider.dart';
+import 'package:quickgrocery/core/auth/guest_session_provider.dart';
 import 'package:quickgrocery/core/navigation/app_route_observer.dart';
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/core/navigation/home_shell_observer.dart';
@@ -35,6 +36,7 @@ class _GlobalCartOverlayState extends ConsumerState<GlobalCartOverlay> {
 
   OverlayEntry? _entry;
   bool _externalListenersAttached = false;
+  bool _overlayRefreshScheduled = false;
 
   void _trace(String message) {
     if (!_cartDiagLogs) return;
@@ -70,8 +72,18 @@ class _GlobalCartOverlayState extends ConsumerState<GlobalCartOverlay> {
     HomeShellObserver.readyTick.removeListener(_refreshOverlayEntry);
   }
 
+  /// Never call [OverlayEntry.markNeedsBuild] synchronously from [build] or
+  /// [ref.listen] — that throws "markNeedsBuild called during build" and can
+  /// leave the tree in a broken state after logout / account switch.
   void _refreshOverlayEntry() {
-    _entry?.markNeedsBuild();
+    if (!mounted) return;
+    if (_overlayRefreshScheduled) return;
+    _overlayRefreshScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _overlayRefreshScheduled = false;
+      if (!mounted) return;
+      _entry?.markNeedsBuild();
+    });
   }
 
   void _ensureOverlayEntry() {
@@ -87,7 +99,7 @@ class _GlobalCartOverlayState extends ConsumerState<GlobalCartOverlay> {
       overlay.insert(_entry!);
       AppStartupLog.log('Floating cart overlay entry inserted');
     }
-    _entry!.markNeedsBuild();
+    _refreshOverlayEntry();
   }
 
   bool _computeShow(BuildContext context) {
@@ -100,12 +112,15 @@ class _GlobalCartOverlayState extends ConsumerState<GlobalCartOverlay> {
     final authUser = resolveAuthUser(authAsync);
     final authResolved = isAuthResolved(authAsync);
 
+    final isGuest = ref.read(guestSessionProvider);
+
     return authResolved &&
         !cart.isEmpty &&
         GlobalCartVisibility.shouldShow(
           context,
           authUser: authUser,
           authResolved: authResolved,
+          isGuestMode: isGuest,
         );
   }
 

@@ -49,6 +49,39 @@ class ReceiptOrderData {
 
   String get trackingUrl =>
       trackUrl ?? 'quickgrocery.app/order/${orderId.toLowerCase()}';
+
+  /// e.g. `standard • demo`
+  String? get typeAndStoreLine {
+    final parts = <String>[];
+    final type = deliveryTypeLabel?.trim() ?? '';
+    final store = storeName?.trim() ?? '';
+    if (type.isNotEmpty) parts.add(type);
+    if (store.isNotEmpty) parts.add(store);
+    if (parts.isEmpty) return null;
+    return parts.join(' • ');
+  }
+
+  ReceiptOrderData copyWith({String? phone}) => ReceiptOrderData(
+        orderId: orderId,
+        invoiceNumber: invoiceNumber,
+        createdAt: createdAt,
+        customerName: customerName,
+        phone: phone ?? this.phone,
+        address: address,
+        items: items,
+        bill: bill,
+        paymentMethod: paymentMethod,
+        statusLabel: statusLabel,
+        etaLabel: etaLabel,
+        deliverySlotLabel: deliverySlotLabel,
+        deliveryTypeLabel: deliveryTypeLabel,
+        instructionLines: instructionLines,
+        storeName: storeName,
+        trackUrl: trackUrl,
+        couponCode: couponCode,
+        mode: mode,
+        paperSize: paperSize,
+      );
 }
 
 class ReceiptLineItem {
@@ -76,6 +109,7 @@ class ReceiptBill {
     this.handlingCharge = 0,
     this.platformFee = 0,
     this.tax = 0,
+    this.deliveryPartnerTip = 0,
     required this.grandTotal,
   });
 
@@ -87,5 +121,8 @@ class ReceiptBill {
   final double handlingCharge;
   final double platformFee;
   final double tax;
+  final double deliveryPartnerTip;
   final double grandTotal;
+
+  double get mrpTotal => subtotal + itemSavings;
 }

@@ -1,8 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as legacy_provider;
+import 'package:quickgrocery/core/auth/guest_session_provider.dart';
 import 'package:quickgrocery/core/startup/app_startup_log.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/delivery_location/services/delivery_zone_service.dart';
@@ -78,6 +80,17 @@ class _CartBootstrapState extends ConsumerState<CartBootstrap> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<bool>(cartBootstrapReadyProvider, (previous, next) {
+      if (next == false && previous == true) {
+        _attachScheduled = false;
+        _attachAttempts = 0;
+        final isGuest = ref.read(guestSessionProvider);
+        if (FirebaseAuth.instance.currentUser != null || isGuest) {
+          _scheduleAttach();
+        }
+      }
+    });
+
     return CartInventoryListener(child: widget.child);
   }
 }

@@ -35,7 +35,7 @@ class FcmBootstrap {
     await AppPermissionCoordinator.requestNotificationPermissionOnce();
 
     await messaging.setForegroundNotificationPresentationOptions(
-      alert: true,
+      alert: false,
       badge: true,
       sound: true,
     );

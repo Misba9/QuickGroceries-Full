@@ -9,8 +9,6 @@ import 'package:quickgrocery/core/navigation/home_tab_observer.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/core/widgets/global_floating_cart_widget.dart';
 import 'package:quickgrocery/core/widgets/premium_five_tab_nav.dart';
-
-/// Whether the global floating cart bar should render.
 class GlobalCartVisibility {
   GlobalCartVisibility._();
 
@@ -29,21 +27,34 @@ class GlobalCartVisibility {
     return AppRoutes.hiddenFromFloatingCart.contains(routeName);
   }
 
+  static bool _isOnHiddenScreen() {
+    for (final name in AppRoutes.hiddenFromFloatingCart) {
+      if (appRouteObserver.isCurrent(name)) return true;
+    }
+    return false;
+  }
+
   static bool shouldShow(
     BuildContext context, {
     required User? authUser,
     required bool authResolved,
+    required bool isGuestMode,
   }) {
     if (!authResolved) {
       _trace('hidden: auth stream loading');
       return false;
     }
-    if (authUser == null) {
+    if (authUser == null && !isGuestMode) {
       _trace('hidden: signed out');
       return false;
     }
     if (FloatingCartSuppression.isActive) {
       _trace('hidden: suppression depth=${FloatingCartSuppression.depthListenable.value}');
+      return false;
+    }
+
+    if (_isOnHiddenScreen()) {
+      _trace('hidden: current route in hiddenFromFloatingCart');
       return false;
     }
 
@@ -57,8 +68,9 @@ class GlobalCartVisibility {
     final onRoot = nav != null && !nav.canPop();
     if (onRoot) {
       final tab = HomeTabObserver.selectedIndexListenable.value;
-      if (tab == AppRoutes.profileTabIndex) {
-        _trace('hidden: profile tab');
+      if (tab == AppRoutes.profileTabIndex ||
+          (isGuestMode && tab == AppRoutes.ordersTabIndex)) {
+        _trace('hidden: profile/orders tab (guest orders)');
         return false;
       }
     }

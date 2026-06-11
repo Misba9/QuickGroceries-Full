@@ -28,6 +28,23 @@ class CartService extends ChangeNotifier {
   int handlingCharge = 0;
   String selectedDeliveryType = 'standard';
   bool isLoading = false;
+  bool _placementLock = false;
+
+  void resetSessionForLogout() {
+    cartList = [];
+    coupon = null;
+    selectedCoupon = null;
+    deliveryCharge = 0;
+    standardDeliveryCharge = 0;
+    minumOrder = 100;
+    platformFee = 0;
+    handlingCharge = 0;
+    selectedDeliveryType = 'standard';
+    isLoading = false;
+    _placementLock = false;
+    _zoneDeliveryCharge = null;
+    notifyListeners();
+  }
 
   // Zone-based delivery charge (will be set based on user's pin code)
   double? _zoneDeliveryCharge;
@@ -308,10 +325,13 @@ class CartService extends ChangeNotifier {
     String currentAddress,
     LatLng currentLatLng,
   ) async {
+    if (_placementLock || isLoading) return;
+    _placementLock = true;
     isLoading = true;
     notifyListeners();
 
-    List<ProductItem> productItems = selectedProduct.map((v) {
+    try {
+      List<ProductItem> productItems = selectedProduct.map((v) {
       return ProductItem(
         name: v.name,
         image: v.image,
@@ -390,9 +410,12 @@ class CartService extends ChangeNotifier {
       (Route<dynamic> route) => false,
     );
 
-    isLoading = false;
-    selectedProduct.clear();
-    notifyListeners();
+      selectedProduct.clear();
+    } finally {
+      _placementLock = false;
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
   double getTotalAmount() {

@@ -153,66 +153,94 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       context,
       listen: false,
     );
-    final pinCode = addressService.activeDeliveryPin;
+    var pinCode = addressService.activeDeliveryPin;
 
     if (!force && pinCode == _lastCheckedPinCode) return;
 
     setState(() => _isCheckingServiceability = true);
 
-    final deliveryZoneService = legacy.Provider.of<DeliveryZoneService>(
-      context,
-      listen: false,
-    );
-    deliveryZoneService.invalidateCache();
+    try {
+      final deliveryZoneService = legacy.Provider.of<DeliveryZoneService>(
+        context,
+        listen: false,
+      );
+      deliveryZoneService.invalidateCache();
 
-    if (pinCode == null || pinCode.isEmpty) {
-      final hasZones = await deliveryZoneService.hasActiveDeliveryZones();
-      if (!mounted) return;
+      if (pinCode == null || pinCode.isEmpty) {
+        final hasZones = await deliveryZoneService.hasActiveDeliveryZones();
+        if (!mounted) return;
 
-      if (!hasZones) {
-        await addressService.markAddressValidated(
-          serviceable: true,
-          addressId: addressService.selectedAddressId,
-          pinCode: pinCode,
-        );
-        _applyServiceableState(addressService, serviceable: true, pin: pinCode);
-        return;
+        if (!hasZones) {
+          await addressService.markAddressValidated(
+            serviceable: true,
+            addressId: addressService.selectedAddressId,
+            pinCode: pinCode,
+          );
+          _applyServiceableState(
+            addressService,
+            serviceable: true,
+            pin: pinCode,
+          );
+          return;
+        }
+
+        if (addressService.hasSavedAddresses || addressService.latLng != null) {
+          _applyServiceableState(
+            addressService,
+            serviceable: false,
+            pin: pinCode,
+          );
+          return;
+        }
+
+        await addressService.getCurrentLocation(context, force: true);
+        if (!mounted) return;
+
+        pinCode = addressService.activeDeliveryPin;
+        if (pinCode == null || pinCode.isEmpty) {
+          // GPS denied, disabled, or reverse-geocode failed — stop spinner.
+          _applyServiceableState(
+            addressService,
+            serviceable: false,
+            pin: pinCode,
+          );
+          return;
+        }
       }
 
-      if (addressService.hasSavedAddresses || addressService.latLng != null) {
-        _applyServiceableState(
-          addressService,
-          serviceable: false,
-          pin: pinCode,
-        );
-        return;
-      }
+      final result = await deliveryZoneService.checkPinCode(pinCode);
 
-      await addressService.getCurrentLocation(context);
       if (!mounted) return;
-      return _checkServiceability(force: true);
+
+      final serviceable = switch (result) {
+        DeliveryZoneCheckResult.serviceable => true,
+        DeliveryZoneCheckResult.noZonesConfigured => true,
+        DeliveryZoneCheckResult.notServiceable => false,
+        DeliveryZoneCheckResult.missingPin => false,
+        DeliveryZoneCheckResult.lookupFailed =>
+          addressService.hasValidatedServiceablePin(pinCode),
+      };
+
+      await addressService.markAddressValidated(
+        serviceable: serviceable,
+        addressId: addressService.selectedAddressId,
+        pinCode: pinCode,
+      );
+      if (!mounted) return;
+      _applyServiceableState(
+        addressService,
+        serviceable: serviceable,
+        pin: pinCode,
+      );
+    } catch (e, st) {
+      debugPrint('HomeScreen serviceability check failed: $e\n$st');
+      if (!mounted) return;
+      _applyServiceableState(
+        addressService,
+        serviceable: addressService.hasValidatedServiceablePin(pinCode),
+        pin: pinCode,
+      );
     }
-
-    final result = await deliveryZoneService.checkPinCode(pinCode);
-
-    if (!mounted) return;
-
-    final serviceable = switch (result) {
-      DeliveryZoneCheckResult.serviceable => true,
-      DeliveryZoneCheckResult.noZonesConfigured => true,
-      DeliveryZoneCheckResult.notServiceable => false,
-      DeliveryZoneCheckResult.missingPin => false,
-      DeliveryZoneCheckResult.lookupFailed =>
-        addressService.hasValidatedServiceablePin(pinCode),
-    };
-
-    await addressService.markAddressValidated(
-      serviceable: serviceable,
-      addressId: addressService.selectedAddressId,
-      pinCode: pinCode,
-    );
-    if (!mounted) return;
-    _applyServiceableState(addressService, serviceable: serviceable, pin: pinCode);
   }
 
   Future<void> _checkConnectivity() async {

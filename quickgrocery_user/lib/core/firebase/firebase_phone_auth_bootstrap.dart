@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:quickgrocery/core/firebase/firebase_phone_auth_logger.dart';
+import 'package:quickgrocery/core/firebase/phone_auth_verification_path.dart';
 
 /// Android Phone Auth verification settings.
 ///
@@ -24,4 +25,5 @@ Future<void> configureFirebasePhoneAuth() async {
     'PhoneAuth setSettings forceRecaptchaFlow=false (native Play Integrity when SHA configured) '
     'kDebugMode=$kDebugMode kReleaseMode=$kReleaseMode',
   );
+  await PhoneAuthVerificationPath.logSelectedPath(phase: 'app_startup');
 }

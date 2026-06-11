@@ -109,6 +109,11 @@ abstract final class UserProfileCache {
     }
   }
 
+  static Future<String?> readCachedUid() async {
+    final pref = await SharedPreferences.getInstance();
+    return pref.getString('${_prefix}uid');
+  }
+
   static Future<void> clearOnLogout() async {
     final pref = await SharedPreferences.getInstance();
     final keepKeys = {
@@ -118,16 +123,20 @@ abstract final class UserProfileCache {
       'notif_permission_denied',
       'location_permission_granted',
       'qg_device_id',
+      'promotion_popup_last_shown_ms',
     };
     final keys = pref.getKeys().where((k) => !keepKeys.contains(k)).toList();
     for (final k in keys) {
       if (k.startsWith(_prefix) ||
           k.startsWith('notif_pref_') ||
-          k == 'isUserExist' ||
-          k == 'user_gender' ||
+          k.startsWith('bootstrap_home_') ||
           k.startsWith('selected_address_') ||
           k.startsWith('cache_') ||
-          k.startsWith('recently_viewed_')) {
+          k.startsWith('recently_viewed_') ||
+          k.startsWith('search_history') ||
+          k == 'isUserExist' ||
+          k == 'user_gender' ||
+          k == 'pending_referral_code') {
         await pref.remove(k);
       }
     }

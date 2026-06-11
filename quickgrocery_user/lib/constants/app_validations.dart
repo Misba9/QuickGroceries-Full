@@ -25,7 +25,7 @@ class AppValidations {
   }
 
   static String? validateName(String? value, AppLocalizations l10n) {
-    if (value == null || value.isEmpty) {
+    if (value == null || value.trim().isEmpty) {
       return l10n.nameRequired;
     }
     return null;

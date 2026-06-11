@@ -6,9 +6,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
 
-/// Foreground + tap handling via [flutter_local_notifications] (mobile only).
-///
-/// Web uses FCM / in-app UI only; this module no-ops on `kIsWeb`.
+/// Data-only FCM from Cloud Functions is the sole tray display path for ops pushes.
 class FcmPushInitializer {
   FcmPushInitializer._();
 
@@ -127,36 +125,82 @@ class FcmPushInitializer {
     }
   }
 
-  /// Shows a tray notification while the app is in the foreground (Android/iOS).
-  static Future<void> showForeground(RemoteMessage msg) async {
+  static bool _isDataOnlyRemote(RemoteMessage msg) {
+    return msg.data['displayMode']?.toString().toLowerCase() == 'data_only';
+  }
+
+  static void _log(
+    String stage,
+    RemoteMessage msg, {
+    required String source,
+    String? listenerId,
+  }) {
+    if (!kDebugMode) return;
+    final d = msg.data;
+    debugPrint(
+      '[UserNotify] $stage '
+      'source=$source '
+      'listenerId=${listenerId ?? "—"} '
+      'messageId=${msg.messageId ?? "—"} '
+      'eventId=${d['eventId'] ?? "—"} '
+      'type=${d['type'] ?? "—"}',
+    );
+  }
+
+  static Future<void> handleRemoteMessage(
+    RemoteMessage msg, {
+    required String source,
+    String listenerId = 'default',
+  }) async {
+    if (kIsWeb) return;
+
+    _log('DEVICE RECEIVED', msg, source: source, listenerId: listenerId);
+
+    if (!_isDataOnlyRemote(msg)) {
+      _log('SKIP LOCAL SHOW — not data_only', msg, source: source);
+      return;
+    }
+
+    await _showLocalTray(msg);
+    _log('LOCAL SHOW', msg, source: source, listenerId: listenerId);
+  }
+
+  static Future<void> _showLocalTray(RemoteMessage msg) async {
     if (kIsWeb || !_initialized) return;
-    final n = msg.notification;
-    final title = n?.title ?? msg.data['title']?.toString() ?? 'Quick Grocery';
-    final body = n?.body ?? msg.data['message']?.toString() ?? '';
+    final data = msg.data;
+    final title = data['title']?.toString() ?? 'Quick Grocery';
+    final body = data['message']?.toString() ?? data['body']?.toString() ?? '';
     final payload = jsonEncode({
-      'redirectType': msg.data['redirectType']?.toString() ?? '',
-      'deepLink': msg.data['deepLink']?.toString() ?? '',
-      'logId': msg.data['logId']?.toString() ?? '',
+      'redirectType': data['redirectType']?.toString() ?? '',
+      'deepLink': data['deepLink']?.toString() ?? '',
+      'logId': data['logId']?.toString() ?? '',
     });
 
     final channelId = _androidChannelId(msg);
-    final details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        channelId,
-        _channelTitle(channelId),
-        channelDescription: 'FCM push',
-        importance: Importance.high,
-        priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
-      ),
-      iOS: const DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      ),
-    );
+    final eventId = data['eventId']?.toString() ?? msg.messageId ?? '';
+    final id = eventId.hashCode & 0x7fffffff;
 
-    final id = msg.hashCode & 0x7fffffff;
-    await _plugin.show(id, title, body, details, payload: payload);
+    await _plugin.show(
+      id,
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          channelId,
+          _channelTitle(channelId),
+          channelDescription: 'FCM push',
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+          tag: eventId.isNotEmpty ? eventId : null,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      payload: payload,
+    );
   }
 }

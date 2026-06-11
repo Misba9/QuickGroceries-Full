@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,6 +16,7 @@ class CheckoutAddressCard extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     this.onEdit,
+    this.onDelete,
     this.heroTag,
   });
 
@@ -22,6 +24,7 @@ class CheckoutAddressCard extends StatelessWidget {
   final bool selected;
   final VoidCallback onSelect;
   final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
   final Object? heroTag;
 
   @override
@@ -58,7 +61,7 @@ class CheckoutAddressCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            '${address.type} · ${address.name}',
+                            address.displayTitle,
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
@@ -85,31 +88,64 @@ class CheckoutAddressCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      address.mobile,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppSurface.textMuted,
+                    if (address.mobile.trim().isNotEmpty ||
+                        AddressModel.localMobileDigits(
+                          FirebaseAuth.instance.currentUser?.phoneNumber,
+                        ).isNotEmpty)
+                      Text(
+                        address.mobile.trim().isNotEmpty
+                            ? address.mobile
+                            : AddressModel.localMobileDigits(
+                                FirebaseAuth.instance.currentUser?.phoneNumber,
+                              ),
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppSurface.textMuted,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
-              if (onEdit != null)
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    onEdit!();
-                  },
-                  icon: Icon(
-                    Icons.edit_outlined,
-                    size: 20,
-                    color: AppSurface.textMuted,
-                  ),
+              if (onEdit != null || onDelete != null)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (onEdit != null)
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 36, minHeight: 36),
+                        tooltip: context.l10n.editAddress,
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          onEdit!();
+                        },
+                        icon: Icon(
+                          Icons.edit_outlined,
+                          size: 20,
+                          color: AppSurface.textMuted,
+                        ),
+                      ),
+                    if (onDelete != null)
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 36, minHeight: 36),
+                        tooltip: context.l10n.delete,
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          onDelete!();
+                        },
+                        icon: Icon(
+                          Icons.delete_outline_rounded,
+                          size: 20,
+                          color: AppSurface.danger,
+                        ),
+                      ),
+                  ],
                 ),
             ],
           ),
@@ -158,7 +194,7 @@ class _TypeBadge extends StatelessWidget {
   }
 }
 
-/// Saved-address row with swipe-to-delete confirmation — address book screen.
+/// Saved-address row with edit/delete actions and swipe-to-delete.
 class SavedAddressCard extends StatelessWidget {
   const SavedAddressCard({
     super.key,
@@ -175,45 +211,46 @@ class SavedAddressCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
+  Future<bool> _confirmDelete(BuildContext context) async {
+    HapticFeedback.mediumImpact();
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            ),
+            title: Text(
+              context.l10n.delete_address_title,
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+            ),
+            content: Text(
+              context.l10n.delete_address_body,
+              style: GoogleFonts.poppins(fontSize: 13, height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(context.l10n.cancel),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(
+                  context.l10n.delete,
+                  style: const TextStyle(color: AppSurface.danger),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dismissible(
       key: ValueKey('addr-${address.id}'),
       direction: DismissDirection.endToStart,
-      confirmDismiss: (_) async {
-        HapticFeedback.mediumImpact();
-        final ok = await showDialog<bool>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadii.md),
-                ),
-                title: Text(
-                  context.l10n.delete_address_title,
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
-                ),
-                content: Text(
-                  context.l10n.delete_address_body,
-                  style: GoogleFonts.poppins(fontSize: 13, height: 1.4),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: Text(context.l10n.cancel),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: Text(
-                      context.l10n.delete,
-                      style: const TextStyle(color: AppSurface.danger),
-                    ),
-                  ),
-                ],
-              ),
-            ) ??
-            false;
-        return ok;
-      },
+      confirmDismiss: (_) => _confirmDelete(context),
       onDismissed: (_) => onDelete(),
       background: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -248,6 +285,9 @@ class SavedAddressCard extends StatelessWidget {
         selected: selected,
         onSelect: onTap,
         onEdit: onEdit,
+        onDelete: () async {
+          if (await _confirmDelete(context)) onDelete();
+        },
       ),
     );
   }

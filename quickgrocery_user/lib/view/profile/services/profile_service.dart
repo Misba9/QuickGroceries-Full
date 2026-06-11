@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:share_plus/share_plus.dart';
@@ -70,16 +71,7 @@ class ProfileService extends ChangeNotifier {
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       String? token = await _fcm.getToken();
-      print("FCM Token: $token");
-      // Save this token to your server
+      if (kDebugMode) debugPrint('FCM Token: $token');
     }
-
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print("Foreground message: ${message.notification?.title}");
-    });
-
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print("Notification tapped");
-    });
   }
 }

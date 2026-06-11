@@ -20,7 +20,8 @@ class CustomerModel {
     return CustomerModel(
         email: data['email'] ?? '',
         name: data['name'] ?? '',
-        phoneNumber: data['phone'] ?? '',
+        phoneNumber: (data['phone'] ?? data['phoneNumber'] ?? data['mobile'] ?? '')
+            .toString(),
         image: data['profile_image'] ?? '',
         id: data['uid'] ?? "",
         isBlocked: data['is_blocked'] ?? false,

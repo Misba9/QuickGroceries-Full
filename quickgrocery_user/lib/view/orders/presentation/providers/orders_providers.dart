@@ -1,5 +1,5 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quickgrocery/core/auth/auth_user_provider.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart'
     show firebaseFirestoreProvider;
 
@@ -39,12 +39,13 @@ final etaCalculatorProvider = Provider<EtaCalculator>((_) {
 /// when auth changes so signing in/out swaps cleanly.
 final userOrdersStreamProvider =
     StreamProvider.autoDispose<List<LiveOrder>>((ref) {
-  final repo = ref.watch(ordersRepositoryProvider);
-  final uid = FirebaseAuth.instance.currentUser?.uid;
+  final authAsync = ref.watch(authUserProvider);
+  final uid = resolveAuthUser(authAsync)?.uid;
   if (uid == null || uid.isEmpty) {
-    return const Stream<List<LiveOrder>>.empty();
+    // Stream.empty() never emits — Riverpod stays in AsyncLoading forever.
+    return Stream.value(const <LiveOrder>[]);
   }
-  return repo.watchUserOrders(uid);
+  return ref.watch(ordersRepositoryProvider).watchUserOrders(uid);
 });
 
 /// Live single-order stream by id.

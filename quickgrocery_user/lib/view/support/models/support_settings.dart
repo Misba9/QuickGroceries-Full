@@ -1,6 +1,6 @@
 import 'package:quickgrocery/view/support/models/support_settings_defaults.dart';
 
-/// Live support contact from Firestore `support_settings/main`.
+/// Remote support contact — Firestore `support_settings/main`.
 class SupportSettings {
   const SupportSettings({
     this.phone = SupportSettingsDefaults.phone,
@@ -25,10 +25,10 @@ class SupportSettings {
   factory SupportSettings.fromMap(Map<String, dynamic>? raw) {
     if (raw == null || raw.isEmpty) return defaults;
     return SupportSettings(
-      phone: _str(raw['phone'], SupportSettingsDefaults.phone),
-      email: _str(raw['email'], SupportSettingsDefaults.email),
-      whatsapp: _str(raw['whatsapp'], SupportSettingsDefaults.whatsapp),
-      message: _str(raw['message'], SupportSettingsDefaults.message),
+      phone: _str(raw['phone'], defaults.phone),
+      email: _str(raw['email'], defaults.email),
+      whatsapp: _str(raw['whatsapp'], defaults.whatsapp),
+      message: _str(raw['message'], defaults.message),
     );
   }
 

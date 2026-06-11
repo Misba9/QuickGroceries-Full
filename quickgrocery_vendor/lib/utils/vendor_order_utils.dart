@@ -82,18 +82,15 @@ class VendorOrderUtils {
   static bool countsForRevenue(OrderModel order) => isCompleted(order);
 
   static DateTime? parseCreatedDate(OrderModel order) {
-    if (order.createdAt != null) return order.createdAt;
+    if (order.createdAt != null) return order.createdAt!.toLocal();
     final raw = order.createdDate.trim();
     if (raw.isNotEmpty) {
-      try {
-        return DateTime.parse(raw);
-      } catch (_) {
-        // fall through to order id
-      }
+      final parsed = DateTime.tryParse(raw);
+      if (parsed != null) return parsed.toLocal();
     }
     final idMs = int.tryParse(order.id);
-    if (idMs != null && idMs > 0) {
-      return DateTime.fromMillisecondsSinceEpoch(idMs);
+    if (idMs != null && idMs > 1000000000000) {
+      return DateTime.fromMillisecondsSinceEpoch(idMs).toLocal();
     }
     return null;
   }

@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -7,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/auth/phone_sign_in_navigation.dart';
 import 'package:quickgrocery/core/navigation/auth_floating_cart_guard.dart';
 import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
@@ -32,7 +32,6 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
   late final PinputSmsRetriever _smsRetriever;
 
   Timer? _resendTimer;
-  StreamSubscription<User?>? _authSubscription;
   int _resendCountdown = _resendSeconds;
   bool _canResend = false;
   bool _localVerifying = false;
@@ -47,13 +46,6 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
       duration: const Duration(milliseconds: 520),
     );
     _startResendCountdown();
-    _authSubscription =
-        FirebaseAuth.instance.authStateChanges().listen((user) {
-      if (!mounted) return;
-      if (user != null) {
-        setState(() => _localVerifying = false);
-      }
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _pinFocus.requestFocus();
     });
@@ -94,6 +86,7 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
     if (!mounted) return;
 
     if (ok) {
+      await PhoneSignInNavigation.clearAuthRoutesWhenReady();
       return;
     }
 
@@ -123,7 +116,6 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
   @override
   void dispose() {
     _resendTimer?.cancel();
-    _authSubscription?.cancel();
     unawaited(_smsRetriever.dispose());
     _shakeController.dispose();
     _pinController.dispose();
@@ -133,8 +125,8 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthService>();
-    final verifying = _localVerifying || auth.isLoading;
+    final auth = context.read<AuthService>();
+    final verifying = _localVerifying;
     final theme = Theme.of(context);
     final primary = AppColor.primary;
     final size = MediaQuery.sizeOf(context);

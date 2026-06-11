@@ -323,12 +323,11 @@ class OrderPendingCard extends StatelessWidget {
                         ),
                         AppSpacing.w10,
                         // Product + Customer Info
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width * 0.6,
-                              child: Text(
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
                                 products.length == 1
                                     ? firstProduct.name
                                     : '${firstProduct.name} + ${products.length - 1} more',
@@ -336,32 +335,36 @@ class OrderPendingCard extends StatelessWidget {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                            AppSpacing.h5,
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width * 0.6,
-                              child: Text(
+                              AppSpacing.h5,
+                              Text(
                                 '$customerName | $customerAddress',
                                 style: AppStyle.subSmall,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                            AppSpacing.h5,
-                            Row(
-                              children: [
-                                Text(
-                                  'Ordered on: $date',
-                                  style: AppStyle.subSmall,
-                                ),
-                                AppSpacing.w20,
-                                Text(
-                                  'Order ID: $orderId',
-                                  style: AppStyle.subSmall,
-                                ),
-                              ],
-                            ),
-                          ],
+                              AppSpacing.h5,
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      'Ordered on: $date',
+                                      style: AppStyle.subSmall,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  AppSpacing.w10,
+                                  Flexible(
+                                    child: Text(
+                                      'Order ID: $orderId',
+                                      style: AppStyle.subSmall,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.end,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -373,53 +376,62 @@ class OrderPendingCard extends StatelessWidget {
                         color: Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      height: 80,
-                      width: MediaQuery.of(context).size.width,
+                      width: double.infinity,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Amount
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text('Amount', style: AppStyle.subSmall),
-                              AppSpacing.h5,
-                              Text(
-                                '₹${totalAmount.toStringAsFixed(2)}',
-                                style: AppStyle.titleBold,
-                              ),
-                            ],
-                          ),
-                          // Qty
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text('Total Qty', style: AppStyle.subSmall),
-                              AppSpacing.h5,
-                              Text(
-                                totalQty.toString(),
-                                style: AppStyle.titleBold,
-                              ),
-                            ],
-                          ),
-                          // Order Status
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                'Order Status',
-                                style: AppStyle.subSmall,
-                              ),
-                              AppSpacing.h5,
-                              Text(
-                                status,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green,
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text('Amount', style: AppStyle.subSmall),
+                                AppSpacing.h5,
+                                Text(
+                                  '₹${totalAmount.toStringAsFixed(2)}',
+                                  style: AppStyle.titleBold,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  'Total Qty',
+                                  style: AppStyle.subSmall,
+                                ),
+                                AppSpacing.h5,
+                                Text(
+                                  totalQty.toString(),
+                                  style: AppStyle.titleBold,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  'Order Status',
+                                  style: AppStyle.subSmall,
+                                  textAlign: TextAlign.center,
+                                ),
+                                AppSpacing.h5,
+                                Text(
+                                  status,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),

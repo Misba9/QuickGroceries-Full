@@ -7,6 +7,12 @@ class SearchService extends ChangeNotifier {
   List<ProductModel>? productsList;
   List<ProductModel>? filteredProductsList;
 
+  void resetSessionForLogout() {
+    productsList = null;
+    filteredProductsList = null;
+    notifyListeners();
+  }
+
   Future<void> fetchProducts() async {
     if (productsList == null) {
       try {

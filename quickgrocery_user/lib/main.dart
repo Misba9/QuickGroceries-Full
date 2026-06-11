@@ -24,7 +24,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart'
 import 'package:quickgrocery/core/design/app_theme.dart';
 import 'package:quickgrocery/core/localization/locale_provider.dart';
 import 'package:quickgrocery/core/localization/app_locales.dart';
-import 'package:quickgrocery/core/auth/phone_auth_log.dart';
 import 'package:quickgrocery/core/startup/app_startup_log.dart';
 import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
@@ -61,7 +60,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
   if (!kIsWeb) {
     await FcmPushInitializer.ensureInitialized();
-    await FcmPushInitializer.showForeground(message);
+    await FcmPushInitializer.handleRemoteMessage(
+      message,
+      source: 'fcm_background',
+      listenerId: 'background_handler',
+    );
   }
 }
 
@@ -147,8 +150,7 @@ void _configureProductionErrorPresentation() {
 
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
-    AppStartupLog.markAppStart();
-    PhoneAuthLog.appStarted();
+  AppStartupLog.markAppStart();
 
   try {
     await initializeFirebaseWithRetry();
