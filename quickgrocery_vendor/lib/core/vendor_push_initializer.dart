@@ -68,7 +68,7 @@ class VendorPushInitializer {
     }
 
     _initialized = true;
-    _log('push initializer ready');
+    if (kDebugMode) debugPrint('[VendorNotify] push initializer ready');
   }
 
   static void _onNotificationTap(NotificationResponse response) {

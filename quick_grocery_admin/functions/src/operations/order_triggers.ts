@@ -442,6 +442,7 @@ async function handleStatusTransition(
           body: `The store cancelled order #${orderId.slice(-6)}.`,
           type: "order_cancelled",
           orderId,
+          deepLink: `/orders/${orderId}`,
         });
       }
       break;
@@ -453,6 +454,7 @@ async function handleStatusTransition(
           body: `Your order #${orderId.slice(-6)} is on the way.`,
           type: "order_out_for_delivery",
           orderId,
+          deepLink: `/orders/${orderId}`,
         });
         await writeUserInbox(uid, {
           title: "Out for delivery",
@@ -499,6 +501,7 @@ async function handleStatusTransition(
               : "Your order has been delivered. Would you like to thank your delivery partner with a tip?",
           type: "order_delivered",
           orderId,
+          deepLink: `/orders/${orderId}`,
         });
         await writeUserInbox(uid, {
           title: "Delivered",

@@ -3,6 +3,7 @@ abstract final class AppRoutes {
   static const cart = '/cart';
   static const checkout = '/checkout';
   static const checkoutSuccess = '/checkout-success';
+  static const orderTracking = '/order-tracking';
   static const payment = '/payment';
   static const notifications = '/notifications';
   static const location = '/location';
@@ -27,6 +28,7 @@ abstract final class AppRoutes {
     cart,
     checkout,
     checkoutSuccess,
+    orderTracking,
     payment,
     notifications,
     location,

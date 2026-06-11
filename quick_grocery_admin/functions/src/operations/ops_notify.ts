@@ -692,6 +692,42 @@ export async function notifyDeliveryRider(
   });
 }
 
+/** Maps ops notification `type` to client `targetScreen` for deep linking. */
+export function customerTargetScreen(type: string): string {
+  const t = str(type).toLowerCase();
+  switch (t) {
+    case "order_placed":
+    case "order_accepted":
+    case "order_packed":
+    case "order_confirmed":
+    case "payment_successful":
+    case "payment_success":
+      return "order_tracking";
+    case "delivery_assigned":
+    case "delivery_partner_assigned":
+    case "driver_assigned":
+      return "delivery_tracking";
+    case "order_out_for_delivery":
+    case "out_for_delivery":
+      return "live_tracking";
+    case "order_delivered":
+    case "delivered":
+      return "order_delivered";
+    case "order_cancelled":
+    case "cancelled":
+    case "cancelled_by_vendor":
+    case "cancelled_by_customer":
+      return "order_cancelled";
+    case "payment_failed":
+      return "payment_retry";
+    case "refund_initiated":
+    case "refund":
+      return "refund_details";
+    default:
+      return "order_tracking";
+  }
+}
+
 /** Push + inbox for end customers (`customers/{uid}`). */
 export async function notifyCustomer(
   uid: string,
@@ -716,6 +752,8 @@ export async function notifyCustomer(
 
   const orderId = opts.orderId || "";
   const notifType = opts.type || "order";
+  const deepLink = opts.deepLink || (orderId ? `/orders/${orderId}` : "");
+  const targetScreen = customerTargetScreen(notifType);
   const eventId = buildEventId(orderId, notifType, `customer:${uid}`);
   const cust = await db.collection("customers").doc(uid).get();
   const token = str(cust.data()?.fcmToken || cust.data()?.fcm_token);
@@ -725,16 +763,19 @@ export async function notifyCustomer(
       title: opts.title,
       body: opts.body,
       soundType: "delivery",
-      deepLink: opts.deepLink || "",
-      redirectType: "order",
+      deepLink,
+      redirectType: "order_page",
       eventId,
       data: buildDataPayload({
         type: notifType,
+        notificationType: notifType,
+        status: notifType,
         orderId,
+        targetScreen,
         title: opts.title,
         message: opts.body,
-        deepLink: opts.deepLink || "",
-        redirectType: "order",
+        deepLink,
+        redirectType: "order_page",
         soundType: "delivery",
         eventId,
         ...(opts.extraData || {}),

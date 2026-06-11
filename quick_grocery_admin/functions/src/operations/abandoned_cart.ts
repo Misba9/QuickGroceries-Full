@@ -54,7 +54,9 @@ export const abandonedCartReminder = onSchedule(
           body,
           soundType: "offers",
           deepLink: "/cart",
-          redirectType: "cart",
+          redirectType: "cart_page",
+          targetScreen: "cart_page",
+          notificationType: "abandoned_cart",
         });
       }
 

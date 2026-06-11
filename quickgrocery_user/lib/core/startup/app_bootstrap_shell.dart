@@ -291,6 +291,7 @@ class _ReadyHomeState extends ConsumerState<_ReadyHome> {
     }
     if (!mounted) return;
     await GuestAddressMigrator.discardPendingAfterLogin(ref);
+    await consumePendingPushNavigation();
   }
 
   @override

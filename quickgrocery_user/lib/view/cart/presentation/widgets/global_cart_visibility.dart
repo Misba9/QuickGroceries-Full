@@ -24,10 +24,15 @@ class GlobalCartVisibility {
 
   static bool _isHiddenRoute(String? routeName) {
     if (routeName == null) return false;
+    if (routeName.startsWith('${AppRoutes.orderTracking}/')) return true;
     return AppRoutes.hiddenFromFloatingCart.contains(routeName);
   }
 
   static bool _isOnHiddenScreen() {
+    final top = appRouteObserver.topRouteName;
+    if (top != null && top.startsWith('${AppRoutes.orderTracking}/')) {
+      return true;
+    }
     for (final name in AppRoutes.hiddenFromFloatingCart) {
       if (appRouteObserver.isCurrent(name)) return true;
     }

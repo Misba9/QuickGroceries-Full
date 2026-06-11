@@ -170,11 +170,7 @@ class FcmPushInitializer {
     final data = msg.data;
     final title = data['title']?.toString() ?? 'Quick Grocery';
     final body = data['message']?.toString() ?? data['body']?.toString() ?? '';
-    final payload = jsonEncode({
-      'redirectType': data['redirectType']?.toString() ?? '',
-      'deepLink': data['deepLink']?.toString() ?? '',
-      'logId': data['logId']?.toString() ?? '',
-    });
+    final payload = jsonEncode(pushNavigationPayload(data));
 
     final channelId = _androidChannelId(msg);
     final eventId = data['eventId']?.toString() ?? msg.messageId ?? '';

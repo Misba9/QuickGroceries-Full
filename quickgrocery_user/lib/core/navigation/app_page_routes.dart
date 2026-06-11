@@ -83,4 +83,12 @@ abstract final class AppPageRoutes {
           fromCheckout: true,
         ),
       );
+
+  static MaterialPageRoute<void> orderTracking({
+    required String orderId,
+  }) =>
+      material(
+        name: '${AppRoutes.orderTracking}/$orderId',
+        builder: (_) => OrderTrackingScreen(orderId: orderId),
+      );
 }

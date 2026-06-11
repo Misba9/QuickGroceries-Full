@@ -62,7 +62,7 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
       final initial = await FirebaseMessaging.instance.getInitialMessage();
       if (initial != null) {
         await _persistInboxFromMessage(initial);
-        await handlePushNavigation(initial.data);
+        enqueuePushNavigation(initial.data);
       }
     });
   }
@@ -115,7 +115,7 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
           listenerId: 'realtime_bootstrap',
         );
         if (title.isNotEmpty) {
-          _showInAppSnack(title, body);
+          _showInAppSnack(title, body, navigationData: Map<String, dynamic>.from(data));
         }
       }
       try {
@@ -185,7 +185,11 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
     }
   }
 
-  void _showInAppSnack(String title, String body) {
+  void _showInAppSnack(
+    String title,
+    String body, {
+    Map<String, dynamic>? navigationData,
+  }) {
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
     messenger.showSnackBar(
@@ -207,6 +211,12 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
             ],
           ],
         ),
+        action: navigationData != null
+            ? SnackBarAction(
+                label: 'View',
+                onPressed: () => handlePushNavigation(navigationData),
+              )
+            : null,
       ),
     );
   }
