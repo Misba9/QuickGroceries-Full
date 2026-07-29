@@ -62,7 +62,7 @@ class _TimelineRow extends StatelessWidget {
                 boxShadow: entry.active
                     ? [
                         BoxShadow(
-                          color: AppColor.primary.withOpacity(0.4),
+                          color: AppColor.primary.withValues(alpha: 0.4),
                           blurRadius: 12,
                           spreadRadius: 1,
                         ),

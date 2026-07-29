@@ -16,26 +16,36 @@ import 'package:quickgrocery/view/cart/presentation/utils/cart_quantity_actions.
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
-import 'package:quickgrocery/view/product_view/presentation/widgets/product_image_carousel.dart'
-    show productHeroTag;
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 
 /// Modern, Zepto/Blinkit-style product card used by every home rail and
 /// the explore grid. Bridges the new dynamic homepage with the legacy
 /// [CategoryService] so the cart continues to work end-to-end.
+///
+/// Hero transitions are **opt-in** via [heroTag]. Do not use a bare
+/// `product-image-$id` tag here: [LandingScreen]'s [IndexedStack] keeps
+/// Home + Categories mounted together, and the same product often appears
+/// in multiple rails — duplicate tags throw and cascade into
+/// `_dependents.isEmpty`.
 class HomeProductCard extends ConsumerWidget {
   const HomeProductCard({
     super.key,
     required this.product,
     this.width = 150,
     this.onAfterProductDetailClosed,
+    this.heroTag,
   });
 
   final ProductModel product;
   final double width;
   /// Called after the product detail route is popped (e.g. wishlist refresh).
   final VoidCallback? onAfterProductDetailClosed;
+
+  /// Optional unique [Hero] tag for this card instance only. Must not collide
+  /// with any other Hero in the current route subtree (including offstage
+  /// [IndexedStack] tabs). Prefer `productHeroTag(id, scope: 'rail-$i')`.
+  final String? heroTag;
 
   static const double _radius = AppRadii.lg;
   static const double _cardPadding = 8;
@@ -72,7 +82,7 @@ class HomeProductCard extends ConsumerWidget {
                 HapticFeedback.selectionClick();
                 await Navigator.push(
                   context,
-                  AppPageRoutes.product(product),
+                  AppPageRoutes.product(product, heroTag: heroTag),
                 );
                 onAfterProductDetailClosed?.call();
               },
@@ -91,7 +101,10 @@ class HomeProductCard extends ConsumerWidget {
                     final image = Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        _ImageWithDiscount(product: product),
+                        _ImageWithDiscount(
+                          product: product,
+                          heroTag: heroTag,
+                        ),
                         Positioned(
                           top: 0,
                           right: 0,
@@ -291,14 +304,25 @@ class _FavoriteChip extends ConsumerWidget {
 }
 
 class _ImageWithDiscount extends StatelessWidget {
-  const _ImageWithDiscount({required this.product});
+  const _ImageWithDiscount({required this.product, this.heroTag});
 
   final ProductModel product;
+  final String? heroTag;
 
   static const double _innerR = 12;
 
   @override
   Widget build(BuildContext context) {
+    Widget image = CachedImage(
+      url: product.image,
+      fit: BoxFit.contain,
+      borderRadius: BorderRadius.circular(_innerR - 2),
+      memCacheWidth: 400,
+    );
+    if (heroTag != null) {
+      image = Hero(tag: heroTag!, child: image);
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(_innerR),
       child: Stack(
@@ -308,17 +332,7 @@ class _ImageWithDiscount extends StatelessWidget {
             color: AppSurface.subtle.withValues(alpha: 0.45),
             child: Padding(
               padding: const EdgeInsets.all(4),
-              child: Center(
-                child: Hero(
-                  tag: productHeroTag(product.id),
-                  child: CachedImage(
-                    url: product.image,
-                    fit: BoxFit.contain,
-                    borderRadius: BorderRadius.circular(_innerR - 2),
-                    memCacheWidth: 400,
-                  ),
-                ),
-              ),
+              child: Center(child: image),
             ),
           ),
           if (product.hasDiscount)

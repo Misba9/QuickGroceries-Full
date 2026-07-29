@@ -21,7 +21,7 @@ import 'package:quickgrocery/core/user/user_profile_cache.dart';
 
 /// Central sign-out — clears every user-scoped layer so account B never
 /// inherits account A state. Does **not** replace the nav root; [AppBootstrapShell]
-/// shows login when [FirebaseAuth.currentUser] becomes null.
+/// rebuilds as guest home when [FirebaseAuth.currentUser] becomes null.
 abstract final class AuthSessionManager {
   /// Full logout from a widget tree that has legacy [Provider] services.
   static Future<void> signOutFromContext({
@@ -46,8 +46,6 @@ abstract final class AuthSessionManager {
       final cartItems = ref.read(cartProvider).items;
       await GuestCartStore.saveItems(prefs, cartItems);
       GuestAuthCoordinator.preserveCartOnSignOut = true;
-      await ref.read(guestSessionProvider.notifier).enable();
-      GuestAuthCoordinator.notifyGuestModeEntered();
 
       legacy.resetInMemoryState();
       PhoneAuthCoordinator.reset();
@@ -60,7 +58,11 @@ abstract final class AuthSessionManager {
 
       await FirebaseAuth.instance.signOut();
 
-      _clearNavigationStackToLogin();
+      // Guest flag is a no-op while currentUser != null — enable after signOut.
+      await ref.read(guestSessionProvider.notifier).enable();
+
+      // Drop overlays / pushed routes only; keep the MaterialApp home route.
+      _clearOverlayRoutes();
 
       // Defer stream invalidation so listeners (e.g. GlobalCartOverlay) do not
       // mutate the element tree during an in-flight build.
@@ -70,6 +72,8 @@ abstract final class AuthSessionManager {
         AuthSessionLog.providersReset();
       });
 
+      // Single shell signal — do not also fire guestModeTick before signOut
+      // (that raced markSignedOut and started guest bootstrap while still authed).
       AuthSignOutCoordinator.notifySignedOut();
       AuthSessionLog.firebaseSignOutCompleted(previousUid: previousUid);
       AuthSessionLog.authListenerState(
@@ -90,9 +94,9 @@ abstract final class AuthSessionManager {
     }
   }
 
-  /// Clears pushed routes; login is shown by [AppBootstrapShell] auth gate
-  /// (equivalent to pushAndRemoveUntil LoginScreen without destroying the shell).
-  static void _clearNavigationStackToLogin() {
+  /// Pops every route above the root shell. Must never pop the first route —
+  /// that leaves [MaterialApp.builder] with `child == null` (black screen).
+  static void _clearOverlayRoutes() {
     final nav = rootNavigatorKey.currentState;
     if (nav == null || !nav.mounted) return;
     nav.popUntil((route) => route.isFirst);

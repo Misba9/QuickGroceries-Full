@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -14,6 +13,10 @@ class ProfileService extends ChangeNotifier {
       androidParameters: const AndroidParameters(
         packageName: "com.quickgrocery.io",
         minimumVersion: 1,
+      ),
+      iosParameters: const IOSParameters(
+        bundleId: 'com.ahmed.quickgrocery',
+        minimumVersion: '1.0.0',
       ),
     );
 

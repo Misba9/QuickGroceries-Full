@@ -90,6 +90,9 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
   }
 
   /// Cold-start for guest browsing — public catalog only, no user data.
+  ///
+  /// Fast path: disk cache → [ready] immediately; network + catalog deferred.
+  /// Cold path: fetch home rails only (banners/categories/featured/offers).
   Future<void> runGuest(
     BootstrapDependencies deps, {
     BootstrapPrecacheHook? precacheImages,
@@ -116,35 +119,34 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
       final prefs = ref.read(sharedPreferencesProvider);
       diskSnapshot = await HomeDataCache.read(prefs);
 
+      // Cart bridge is local — never wait on Firestore catalog/zones.
+      unawaited(_wireCartBridge(deps));
+
       if (diskSnapshot.hasContent) {
-        state = state.copyWith(homeSnapshot: diskSnapshot);
+        state = state.copyWith(
+          status: AppBootstrapStatus.ready,
+          phase: AppBootstrapPhase.ready,
+          homeSnapshot: diskSnapshot,
+          progress: 1,
+          clearError: true,
+        );
+        AppStartupLog.milestone('Guest bootstrap ready from cache');
+        unawaited(
+          _refreshHomeAfterPaint(
+            deps: deps,
+            prefs: prefs,
+            precacheImages: precacheImages,
+            guest: true,
+          ),
+        );
+        return;
       }
 
       state = state.copyWith(phase: AppBootstrapPhase.loadingHome);
-
-      _tick(BootstrapLoadingMessages.initializingCart, 0.35);
-
-      await Future.wait<void>([
-        _wireCartBridge(deps),
-        deps.deliveryZoneService.fetchDeliveryZones(),
-        deps.categoryService.fetchProducts().then((_) {
-          AppStartupLog.milestone('Categories loaded (guest)');
-        }),
-      ], eagerError: false);
-
       _tick(BootstrapLoadingMessages.loadingBanners, 0.55);
+
       final freshHome = await _fetchHomeSnapshot();
-
-      final merged = freshHome.hasContent
-          ? freshHome
-          : (diskSnapshot.hasContent ? diskSnapshot : freshHome);
-
-      _tick(BootstrapLoadingMessages.precachingImages, 0.85);
-      if (precacheImages != null && merged.hasContent) {
-        await precacheImages(merged);
-      }
-
-      if (!merged.hasContent) {
+      if (!freshHome.hasContent) {
         state = state.copyWith(
           status: AppBootstrapStatus.error,
           phase: AppBootstrapPhase.error,
@@ -158,16 +160,17 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
       state = state.copyWith(
         status: AppBootstrapStatus.ready,
         phase: AppBootstrapPhase.ready,
-        homeSnapshot: merged,
+        homeSnapshot: freshHome,
         progress: 1,
         clearError: true,
       );
-
       AppStartupLog.milestone('Guest bootstrap complete');
 
-      if (freshHome.hasContent) {
-        unawaited(HomeDataCache.write(prefs, freshHome));
+      unawaited(HomeDataCache.write(prefs, freshHome));
+      if (precacheImages != null) {
+        unawaited(precacheImages(freshHome));
       }
+      unawaited(_deferHeavyCatalogLoads(deps, guest: true));
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[AppBootstrap] guest failed: $e\n$st');
@@ -238,7 +241,6 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
           'banners=${diskSnapshot.banners.length} '
           'categories=${diskSnapshot.categories.length}',
         );
-        state = state.copyWith(homeSnapshot: diskSnapshot);
       }
 
       if (needsOnboarding) {
@@ -252,40 +254,37 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
         return;
       }
 
+      unawaited(_wireCartBridge(deps));
+
+      if (diskSnapshot.hasContent) {
+        state = state.copyWith(
+          status: AppBootstrapStatus.ready,
+          phase: AppBootstrapPhase.ready,
+          homeSnapshot: diskSnapshot,
+          needsOnboarding: false,
+          progress: 1,
+          clearError: true,
+        );
+        AppStartupLog.milestone('Auth bootstrap ready from cache');
+        unawaited(
+          _refreshHomeAfterPaint(
+            deps: deps,
+            prefs: prefs,
+            precacheImages: precacheImages,
+            guest: false,
+          ),
+        );
+        return;
+      }
+
       state = state.copyWith(
         phase: AppBootstrapPhase.loadingHome,
         needsOnboarding: false,
       );
-
-      _tick(BootstrapLoadingMessages.initializingCart, 0.28);
-
-      await Future.wait<void>([
-        _wireCartBridge(deps),
-        _loadAddress(deps.addressService),
-        deps.deliveryZoneService.fetchDeliveryZones(),
-        deps.categoryService.fetchProducts().then((_) {
-          AppStartupLog.milestone('Categories loaded');
-        }),
-        deps.homeProvider.getCustomer().then((_) {
-          AppStartupLog.milestone('Profile loaded');
-        }),
-        deps.homeProvider.getStatus(),
-        deps.homeProvider.updateAdminFcmToken(),
-      ], eagerError: false);
-
       _tick(BootstrapLoadingMessages.loadingBanners, 0.55);
+
       final freshHome = await _fetchHomeSnapshot();
-
-      final merged = freshHome.hasContent
-          ? freshHome
-          : (diskSnapshot.hasContent ? diskSnapshot : freshHome);
-
-      _tick(BootstrapLoadingMessages.precachingImages, 0.85);
-      if (precacheImages != null && merged.hasContent) {
-        await precacheImages(merged);
-      }
-
-      _tick(BootstrapLoadingMessages.almostReady, 0.95);
+      final merged = freshHome.hasContent ? freshHome : diskSnapshot;
 
       if (!merged.hasContent) {
         state = state.copyWith(
@@ -316,9 +315,11 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
 
       if (freshHome.hasContent) {
         unawaited(HomeDataCache.write(prefs, freshHome));
-      } else {
-        unawaited(_refreshHomeInBackground(prefs));
       }
+      if (precacheImages != null && merged.hasContent) {
+        unawaited(precacheImages(merged));
+      }
+      unawaited(_deferHeavyCatalogLoads(deps, guest: false));
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[AppBootstrap] failed: $e\n$st');
@@ -347,6 +348,59 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
     }
   }
 
+  /// Zones, full product catalog, profile/FCM — after first home paint.
+  Future<void> _deferHeavyCatalogLoads(
+    BootstrapDependencies deps, {
+    required bool guest,
+  }) async {
+    AppStartupLog.milestone('Deferred catalog loads start');
+    final tasks = <Future<void>>[
+      deps.deliveryZoneService.fetchDeliveryZones(),
+      deps.categoryService.fetchProducts().then((_) {
+        AppStartupLog.milestone(
+          guest ? 'Categories loaded (guest, deferred)' : 'Categories loaded (deferred)',
+        );
+      }),
+    ];
+    if (!guest) {
+      tasks.addAll([
+        _loadAddress(deps.addressService),
+        deps.homeProvider.getCustomer().then((_) {
+          AppStartupLog.milestone('Profile loaded (deferred)');
+        }),
+        deps.homeProvider.getStatus(),
+        deps.homeProvider.updateAdminFcmToken(),
+      ]);
+    }
+    await Future.wait<void>(tasks, eagerError: false);
+    AppStartupLog.milestone('Deferred catalog loads complete');
+  }
+
+  Future<void> _refreshHomeAfterPaint({
+    required BootstrapDependencies deps,
+    required SharedPreferences prefs,
+    BootstrapPrecacheHook? precacheImages,
+    required bool guest,
+  }) async {
+    await _deferHeavyCatalogLoads(deps, guest: guest);
+    try {
+      final fresh = await _fetchHomeSnapshot();
+      if (!fresh.hasContent) return;
+      state = state.copyWith(
+        homeSnapshot: fresh,
+        status: AppBootstrapStatus.ready,
+        phase: AppBootstrapPhase.ready,
+      );
+      await HomeDataCache.write(prefs, fresh);
+      if (precacheImages != null) {
+        unawaited(precacheImages(fresh));
+      }
+      AppStartupLog.milestone('Background home refresh complete');
+    } catch (e) {
+      if (kDebugMode) debugPrint('[AppBootstrap] background refresh: $e');
+    }
+  }
+
   void markSignedOut() {
     _lastBootUid = null;
     _lastDeps = null;
@@ -361,18 +415,6 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
       phase: AppBootstrapPhase.splash,
       status: AppBootstrapStatus.loading,
     );
-  }
-
-  Future<void> _refreshHomeInBackground(SharedPreferences prefs) async {
-    try {
-      final fresh = await _fetchHomeSnapshot();
-      if (!fresh.hasContent) return;
-      state = state.copyWith(homeSnapshot: fresh);
-      await HomeDataCache.write(prefs, fresh);
-      AppStartupLog.milestone('Background refresh complete');
-    } catch (e) {
-      if (kDebugMode) debugPrint('[AppBootstrap] background refresh: $e');
-    }
   }
 
   Future<void> _wireCartBridge(BootstrapDependencies deps) async {
@@ -439,16 +481,14 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
       bannerRepo,
     );
 
-    final banners = await bannerRepo.fetchActiveBanners(limit: 20);
-    AppStartupLog.milestone('Banners loaded', 'count=${banners.length}');
+    final bannersFuture = bannerRepo.fetchActiveBanners(limit: 20);
 
-    _tick(BootstrapLoadingMessages.loadingOffers, 0.72);
-
+    // All home rails in parallel (offers awaits the shared banners future).
     final results = await Future.wait<List<dynamic>>([
-      Future.value(banners),
+      bannersFuture,
       _safeCategories(categoryRepo),
       productRepo.fetchFeatured(limit: 12),
-      _safeOffers(offerRepo, banners),
+      bannersFuture.then((b) => _safeOffers(offerRepo, b)),
     ], eagerError: false);
 
     AppStartupLog.milestone(

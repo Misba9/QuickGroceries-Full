@@ -6,13 +6,29 @@ import 'package:quickgrocery/view/product_view/presentation/widgets/product_bran
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_display_image.dart';
 import 'package:video_player/video_player.dart';
 
-/// Stable hero tag derived from a product id — used by list cards and PDP.
-String productHeroTag(String productId) => 'product-image-$productId';
+/// Hero tag for product image flights.
+///
+/// Always pass a unique [scope] when placing Heroes in list/grid rails —
+/// the same [productId] often appears in multiple sections and in multiple
+/// [IndexedStack] tabs at once. Duplicate tags cause:
+/// `There are multiple heroes that share the same tag` →
+/// `_dependents.isEmpty`.
+String productHeroTag(String productId, {String? scope}) =>
+    scope == null || scope.isEmpty
+        ? 'product-image-$productId'
+        : 'product-image-$productId::$scope';
 
 /// Premium product gallery: large hero (~68% screen width), thumbnails, zoom.
 class ProductImageCarousel extends StatefulWidget {
-  const ProductImageCarousel({super.key, required this.product});
+  const ProductImageCarousel({
+    super.key,
+    required this.product,
+    this.heroTag,
+  });
   final ProductModel product;
+
+  /// When null, no [Hero] is used (avoids unpaired / colliding flights).
+  final String? heroTag;
 
   @override
   State<ProductImageCarousel> createState() => _ProductImageCarouselState();
@@ -230,7 +246,7 @@ class _ProductImageCarouselState extends State<ProductImageCarousel> {
           width: screenW,
           height: heroH,
           memCacheWidth: cacheW,
-          heroTag: index == 0 ? productHeroTag(widget.product.id) : null,
+          heroTag: index == 0 ? widget.heroTag : null,
         ),
       );
     }

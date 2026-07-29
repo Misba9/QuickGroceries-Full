@@ -11,6 +11,9 @@ enum PhoneAuthVerificationMethod {
   /// Play Integrity / SafetyNet when SHA is registered in Firebase Console.
   nativePlayIntegrity,
 
+  /// iOS silent APNs push when APNs key is uploaded and entitlements are correct.
+  silentApns,
+
   /// Browser reCAPTCHA when native attestation is unavailable.
   webRecaptchaFallback,
 }
@@ -59,8 +62,13 @@ abstract final class PhoneAuthVerificationPath {
     if (kIsWeb) {
       return PhoneAuthVerificationMethod.webRecaptchaFallback;
     }
+    if (Platform.isIOS) {
+      // Expected path when APNs key + Push + Background Modes are configured.
+      // If any of those fail at runtime, Firebase silently falls back to Safari.
+      return PhoneAuthVerificationMethod.silentApns;
+    }
     if (!Platform.isAndroid) {
-      return PhoneAuthVerificationMethod.nativePlayIntegrity;
+      return PhoneAuthVerificationMethod.webRecaptchaFallback;
     }
 
     final gs = await GoogleServicesConfig.loadFromAssets();
@@ -81,6 +89,7 @@ extension _PhoneAuthVerificationMethodLog on PhoneAuthVerificationMethod {
   String get logLabel => switch (this) {
         PhoneAuthVerificationMethod.nativePlayIntegrity =>
           'native_play_integrity',
+        PhoneAuthVerificationMethod.silentApns => 'silent_apns',
         PhoneAuthVerificationMethod.webRecaptchaFallback =>
           'web_recaptcha_fallback',
       };

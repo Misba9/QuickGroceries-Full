@@ -1,7 +1,6 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +19,6 @@ import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/address_model.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/user/checkout_preferences_store.dart';
-import 'package:quickgrocery/view/address/screens/add_address_screen.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/domain/cart_models.dart';
 import 'package:quickgrocery/view/cart/domain/pricing_calculator.dart';
@@ -34,7 +32,6 @@ import 'package:quickgrocery/view/cart/presentation/widgets/delivery_slot_select
 import 'package:quickgrocery/view/cart/presentation/widgets/payment_method_selector.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/premium_checkout_bar.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/premium_bill_card.dart';
-import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
 import 'package:quickgrocery/view/checkout/widgets/address_card.dart';
 import 'package:quickgrocery/view/checkout/widgets/empty_address_widget.dart';
 import 'package:quickgrocery/core/device/device_id_service.dart';
@@ -733,7 +730,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     checkout.slot == null ||
                     !addrComplete) {
                   checkoutNotifier.cancelPlacement();
-                  if (!addrComplete && selectedAddr != null) {
+                  if (!addrComplete) {
                     await _openAddAddress(edit: selectedAddr);
                   }
                   return;

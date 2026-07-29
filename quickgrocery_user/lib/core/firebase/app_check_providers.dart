@@ -9,22 +9,20 @@ const bool kFirebaseAppCheckEnforced = false;
 
 /// Which App Check attestation provider to use per Flutter build mode.
 ///
-/// | Mode    | kDebugMode | kProfileMode | kReleaseMode | Provider        |
-/// |---------|------------|--------------|--------------|-----------------|
-/// | debug   | true       | false        | false        | debug           |
-/// | profile | false      | true         | true         | debug           |
-/// | release | false      | false        | true         | playIntegrity   |
+/// | Mode    | Android            | Apple                              |
+/// |---------|--------------------|------------------------------------|
+/// | debug   | debug              | debug                              |
+/// | profile | debug              | debug                              |
+/// | release | Play Integrity     | App Attest + DeviceCheck fallback  |
 ///
-/// Sideloaded release builds (`flutter run --release`, USB APK) are signed with
-/// the debug keystore unless key.properties exists — they cannot pass Play
-/// Integrity. Only enable for Play Store app bundles:
-/// `flutter build appbundle --dart-define=PLAY_STORE_RELEASE=true`
-bool get usePlayIntegrityAppCheck =>
-    kReleaseMode &&
-    !kDebugMode &&
-    !kProfileMode &&
-    const bool.fromEnvironment('PLAY_STORE_RELEASE', defaultValue: false);
+/// Debug providers are **never** used in release builds (store or local).
+bool get usePlayIntegrityAppCheck => kReleaseMode;
+
+bool get useAppAttestAppCheck => kReleaseMode;
 
 /// Human-readable label for logs.
 String get appCheckAndroidProviderLabel =>
     usePlayIntegrityAppCheck ? 'playIntegrity' : 'debug';
+
+String get appCheckAppleProviderLabel =>
+    useAppAttestAppCheck ? 'appAttestWithDeviceCheckFallback' : 'debug';

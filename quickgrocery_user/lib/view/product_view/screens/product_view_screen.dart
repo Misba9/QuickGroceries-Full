@@ -33,8 +33,16 @@ import 'package:quickgrocery/core/localization/l10n_extension.dart';
 /// The bootstrap [product] is shown immediately (no flicker) while the
 /// realtime Firestore document upgrades it under the hood.
 class ProductViewScreen extends ConsumerStatefulWidget {
-  const ProductViewScreen({super.key, required this.product});
+  const ProductViewScreen({
+    super.key,
+    required this.product,
+    this.heroTag,
+  });
   final ProductModel product;
+
+  /// Must match a unique source [Hero] tag when provided. Leave null when
+  /// opening from list rails that omit Heroes (default) to avoid collisions.
+  final String? heroTag;
 
   @override
   ConsumerState<ProductViewScreen> createState() => _ProductViewScreenState();
@@ -108,7 +116,10 @@ class _ProductViewScreenState extends ConsumerState<ProductViewScreen> {
               productId: product.id,
               productNameForShare: product.name,
               priceForShare: product.price,
-              child: _DetailBody(product: product),
+              child: _DetailBody(
+                product: product,
+                heroTag: widget.heroTag,
+              ),
             ),
       bottomNavigationBar:
           isFreshLoading ? null : CartActionBar(product: product),
@@ -265,8 +276,9 @@ class _FavoriteButton extends ConsumerWidget {
 // ──────────────────────────────────────────────────────────────────────────
 
 class _DetailBody extends ConsumerWidget {
-  const _DetailBody({required this.product});
+  const _DetailBody({required this.product, this.heroTag});
   final ProductModel product;
+  final String? heroTag;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -281,7 +293,10 @@ class _DetailBody extends ConsumerWidget {
         SliverPadding(
           padding: const EdgeInsets.only(top: 56),
           sliver: SliverToBoxAdapter(
-            child: ProductImageCarousel(product: product),
+            child: ProductImageCarousel(
+              product: product,
+              heroTag: heroTag,
+            ),
           ),
         ),
         SliverToBoxAdapter(child: _ProductHeader(product: product)),

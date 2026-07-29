@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:quick_grocery_delivery/features/orders/screens/delivery_details_screen.dart';
@@ -16,9 +14,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quick_grocery_delivery/models/order_model.dart';
-import 'package:googleapis_auth/auth_io.dart' as auth;
-import 'package:http/http.dart' as http;
-import 'package:googleapis/servicecontrol/v1.dart' as servicecontrol;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OrderService extends ChangeNotifier {
@@ -68,79 +63,6 @@ class OrderService extends ChangeNotifier {
       }
     } catch (e) {
       print('Error updating FCM token: $e');
-    }
-  }
-
-  Future<String> getAccessToken() async {
-    final serviceAccountJson = {
-      "type": "service_account",
-      "project_id": "siswar-bazar",
-      "private_key_id": "22eae8f571ab96e800045b148c307829e7f42dbf",
-      "private_key":
-          "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDO5j4l7Jz6n9yG\nmQNpVzY9Gaxk9U0mV7fKhmsW3C/jlL6PLoqcaSNBjhErZsQIU2Th/nomGx9hpeSd\n9r3dAcsLxUMoR+HFy7OgFRIOZV4aFZdns3v+Q2X+/KUR3v/9/7AoPCWulsbzG2vu\nMhYq4sJl78lPVfeHWVYIj0XSa0/KSKzWZwpWn1v+JwyAAHyFHND80IgjkvW0HgRz\nG7YVTk4cOawbQMY2Z8RR6P5cEKa1z1jUygtbrIzPG/J6lRGNRoqR8WDM+lEjmR6b\n6amc/vWWTAbfZnAlTX6PZLlYSW4AY/lTls1tgJYHIjMm75vZAYarn85InQKrLe32\n6642XFL/AgMBAAECggEADEAKVU6BgOlZh51PBrwDhHHyXiE+tH15xAOvcDFl+HtE\nc8/VTyt+debb0g5fSarpDI8iW608GhkAxJrpD56H5NDaMsFcIcz3fAv4qgzgbyTw\ny6gPOF/J4zjBlqGggJZ/WfKDEfzwF1F7/iTNtoj/P5qHTdY7i10DwLVS9Kwmk5sc\nms2dYB366apE21Qx6zSNQQFZY29fU3XWfGV4CNINdeifVWRvMKfijK2dfQkBIA7H\nPlryfpOQnzrI00Wx2P0CfyrOkG4o68KKtZENXwGt47JV4deJl2chQSwvkH97OwO2\nyFPeu6itbnJbxSYaBTA1EMrOinGAZ5TBWyOx0/o2WQKBgQD8H0i3gR80/Oyvvr/o\nZtSg0eoEi1U3U0wMvx8qMXiQFrXmxmnoXM9iMptMFjbDCEKcYJu+yeTIzi25ffyh\n/iQaxYMDUTyivGzv+YIE0HvNH/n+BtUTHm38PU2EexbpPZuIcFIKZ2hHpRH6Lrra\nvuzqKGPLYjbB//BoYdrrH4EsxQKBgQDSFOWHyNqqlGziwIXsMFPms7vvXbG9wGIf\nqu3ZkODUTRzbm4jTRCjrC+sZQkcs3FTbyFQn62QFtHvz166NEf3mNa7iGMxvqtTC\nDnaq+Xso/LdPXDOhUEa27P1n+HaktBMSFK8QPn9URL2s1HTvgZmp4iKRRtmmkiNE\ntw+CvhjE8wKBgQDvQASyVq61itpUQBA+yu41ml2XaF06fiop4mgBkyaUnWiKkXjJ\nDuGhjuJ+Bop682i6mpbRKyeXQshzQNIvK0s5uHqF+F4xE9vQshYm2WzSD+kcnYEv\nfm3iso3QDTqFpXfltqizxMNZUZTIs/WPRSTvY9qnkxDhci3B8DJdcu0S/QKBgErd\njYqdJmfhqwgHqfIoqs2tQY0k66F+fLliVY7SFX0y2dTdEZ6QTLCut6JxvyGah1cn\nhe4P8b4iuoWEWD0Hq16txNvoEHq++0EInHuDmsNZhA3xAqk7DWhE/m1d2xII5j7s\nRhLY4tFqCdocgGuV2Of0oXL6N7gnng/v2MQz8GnHAoGBALZfHwD77HqiZMO8YNId\npDGtwVSdL1j4CSHZaygoVMyArI0DjOiKSihnq/6a/fxPcE20ETupGmev6/s3pN6Z\nTLvxposnlNTeaIt2df/dkDRy+Laj0BXBHd5BIroNIuyIjvs2+KaQAFd6bSXGXT2+\nu/uBczOk4FUspR/XF1gyHQyV\n-----END PRIVATE KEY-----\n",
-      "client_email":
-          "firebase-adminsdk-fbsvc@siswar-bazar.iam.gserviceaccount.com",
-      "client_id": "107158617119345223601",
-      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-      "token_uri": "https://oauth2.googleapis.com/token",
-      "auth_provider_x509_cert_url":
-          "https://www.googleapis.com/oauth2/v1/certs",
-      "client_x509_cert_url":
-          "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40siswar-bazar.iam.gserviceaccount.com",
-      "universe_domain": "googleapis.com",
-    };
-
-    List<String> scopes = [
-      "https://www.googleapis.com/auth/userinfo.email",
-      "https://www.googleapis.com/auth/firebase.database",
-      "https://www.googleapis.com/auth/firebase.messaging",
-    ];
-
-    http.Client client = await auth.clientViaServiceAccount(
-      auth.ServiceAccountCredentials.fromJson(serviceAccountJson),
-      scopes,
-    );
-
-    auth.AccessCredentials credentials = await auth
-        .obtainAccessCredentialsViaServiceAccount(
-          auth.ServiceAccountCredentials.fromJson(serviceAccountJson),
-          scopes,
-          client,
-        );
-
-    client.close();
-
-    return credentials.accessToken.data;
-  }
-
-  Future<String?> getFcmToken(String customerId) async {
-    try {
-      DocumentSnapshot doc = await FirebaseFirestore.instance
-          .collection('customers')
-          .doc(customerId)
-          .get();
-
-      if (doc.exists) {
-        var data = doc.data() as Map<String, dynamic>;
-        return data['fcm_token'];
-      } else {
-        print("Document does not exist");
-        return null;
-      }
-    } catch (e) {
-      print("Error getting FCM token: $e");
-      return null;
-    }
-  }
-
-  /// Push notifications are sent by Cloud Functions only — never from the client.
-  @Deprecated('Use Cloud Functions ops_notify; client FCM sends duplicate pushes.')
-  Future<void> sendFCMMessage(String customerId, String subt) async {
-    if (kDebugMode) {
-      debugPrint(
-        '[DeliveryNotify] BLOCKED client FCM send customerId=$customerId '
-        'title=$subt — server handles all push',
-      );
     }
   }
 
@@ -595,7 +517,6 @@ class OrderService extends ChangeNotifier {
             TextButton(
               onPressed: () async {
                 await acceptDelivery(id);
-                sendFCMMessage(customerId, 'Delivery Boy Accepted your Order');
                 Navigator.of(context).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Delivery accepted')),
@@ -922,9 +843,6 @@ class OrderService extends ChangeNotifier {
     final confirmed = await showConfirmDeliveryDialog(context);
     if (!confirmed || !context.mounted) return;
     await markDelivered(context, id);
-    if (context.mounted && userID.isNotEmpty) {
-      sendFCMMessage(userID, 'Your order has been delivered successfully.');
-    }
   }
 
   Future<Map<String, dynamic>> _buildRiderAcceptancePatch(OrderModel order) async {

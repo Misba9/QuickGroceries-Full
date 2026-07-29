@@ -64,25 +64,29 @@ class FcmBootstrap {
   ]) async {
     if (kIsWeb) return;
     final m = messaging ?? FirebaseMessaging.instance;
-    for (final topic in defaultTopics) {
-      try {
-        await m.subscribeToTopic(topic);
-        _log('subscribed to topic: $topic');
-      } catch (e, st) {
-        _log('subscribe $topic failed: $e');
-        if (kDebugMode) debugPrintStack(stackTrace: st);
-      }
-    }
+    await Future.wait(
+      defaultTopics.map((topic) async {
+        try {
+          await m.subscribeToTopic(topic);
+          _log('subscribed to topic: $topic');
+        } catch (e, st) {
+          _log('subscribe $topic failed: $e');
+          if (kDebugMode) debugPrintStack(stackTrace: st);
+        }
+      }),
+    );
   }
 
   static Future<void> _waitForApnsToken(FirebaseMessaging messaging) async {
-    for (var attempt = 0; attempt < 12; attempt++) {
+    // Deferred from main — keep this short so topic subscribe isn't delayed
+    // for many seconds after first paint.
+    for (var attempt = 0; attempt < 6; attempt++) {
       final apns = await messaging.getAPNSToken();
       if (apns != null) {
         _log('APNs token ready (length=${apns.length})');
         return;
       }
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 400));
     }
     _log(
       'APNs token still null — use a physical iPhone with Push capability '

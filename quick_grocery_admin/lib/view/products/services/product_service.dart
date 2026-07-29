@@ -412,6 +412,7 @@ class ProductService extends ChangeNotifier {
             'cut': cutcontroller.text,
             'images': imageUrls,
             'videos': videoUrls,
+            'product_index': DateTime.now().millisecondsSinceEpoch,
             if (selectedSubCategory != null) 'subcategory': selectedSubCategory,
           });
       String vendorId = docRef.id;

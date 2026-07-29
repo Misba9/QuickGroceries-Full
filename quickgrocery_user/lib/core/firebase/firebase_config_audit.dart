@@ -6,7 +6,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import 'package:flutter/foundation.dart';
 
 import 'package:quickgrocery/core/firebase/app_check_providers.dart';
 import 'package:quickgrocery/core/firebase/firebase_options.dart';
@@ -506,6 +505,57 @@ class FirebaseConfigAudit {
           ],
           severity: 'warning',
         ),
+      );
+    }
+
+    // Always surface the APNs console requirement — cannot verify upload from the app.
+    issues.add(
+      FirebaseConfigIssue(
+        id: 'ios-apns-key-console-check',
+        title: 'Verify APNs Auth Key is uploaded in Firebase Console',
+        detail:
+            'Silent phone verification requires an APNs .p8 key (or certificate) under '
+            'Firebase → Project settings → Cloud Messaging. Without it, every sign-in '
+            'opens Safari at *.firebaseapp.com for reCAPTCHA.',
+        fixSteps: [
+          'Apple Developer → Certificates, Identifiers & Profiles → Keys → create APNs key',
+          'Firebase Console → ⚙️ Project settings → Cloud Messaging → Apple app configuration → Upload',
+          'Enter Key ID + Team ID (9Z4Q9DXTDW) and upload the .p8 file',
+          'Rebuild on a physical iPhone (not Simulator)',
+        ],
+        severity: 'warning',
+      ),
+    );
+
+    if (options.iosClientId == null || options.iosClientId!.isEmpty) {
+      issues.add(
+        FirebaseConfigIssue(
+          id: 'ios-missing-client-id',
+          title: 'GoogleService-Info.plist missing CLIENT_ID / REVERSED_CLIENT_ID',
+          detail:
+              'The bundled iOS plist has no OAuth CLIENT_ID. Encoded App ID URL scheme '
+              'covers reCAPTCHA return, but re-download a complete GoogleService-Info.plist '
+              'and add REVERSED_CLIENT_ID as a URL Type in Info.plist.',
+          fixSteps: [
+            'Firebase Console → Project settings → Your apps → iOS (com.ahmed.quickgrocery)',
+            'Download GoogleService-Info.plist → replace ios/Runner/GoogleService-Info.plist',
+            'Copy REVERSED_CLIENT_ID into Info.plist CFBundleURLSchemes (second URL Type)',
+            'Optionally run: flutterfire configure',
+          ],
+          severity: 'warning',
+        ),
+      );
+    } else {
+      passed.add('iOS OAuth CLIENT_ID present in FirebaseOptions');
+    }
+
+    if (useAppAttestAppCheck) {
+      passed.add(
+        'App Check uses App Attest — enable App Check for the iOS app in Firebase Console',
+      );
+    } else {
+      passed.add(
+        'App Check uses debug provider — register debug token in Firebase Console → App Check',
       );
     }
   }

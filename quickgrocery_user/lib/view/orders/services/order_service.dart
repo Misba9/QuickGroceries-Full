@@ -2,6 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/models/order_model.dart';
 import 'package:quickgrocery/view/orders/domain/order_created_sort.dart';
@@ -57,7 +58,7 @@ class OrderService extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      print('Error fetching orders: $e');
+      if (kDebugMode) debugPrint('Error fetching orders: $e');
     }
   }
 
@@ -124,7 +125,6 @@ class OrderService extends ChangeNotifier {
             ),
             ElevatedButton(
               onPressed: () async {
-                String review = reviewController.text;
                 await FirebaseFirestore.instance
                     .collection('orders')
                     .doc(id)

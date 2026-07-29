@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.6+7
+version: 1.0.7+8
 
 environment:
   sdk: ^3.9.2
@@ -64,8 +64,6 @@ dependencies:
   firebase_dynamic_links: ^6.1.5
   share_plus: ^10.1.4
   http: ^1.3.0
-  googleapis: ^14.0.0
-  googleapis_auth: ^2.0.0
   intl: ^0.20.2
   speech_to_text: ^7.0.0
   permission_handler: ^12.0.0
@@ -111,6 +109,12 @@ icons_launcher:
 
 # The following section is specific to Flutter packages.
 flutter:
+  # CocoaPods fallback: project path contains spaces which breaks Flutter 3.44 SPM
+  # package resolution (firebase_storage pubspec path). Re-enable SPM after moving
+  # the repo off a space-containing path or once Flutter fixes URL-encoding.
+  config:
+    enable-swift-package-manager: false
+
   generate: true
 
   # The following line ensures that the Material Icons font is

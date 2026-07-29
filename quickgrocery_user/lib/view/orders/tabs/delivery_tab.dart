@@ -1,16 +1,13 @@
-import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
 import 'package:quickgrocery/core/order/order_line_display.dart';
 import 'package:quickgrocery/models/order_model.dart';
 import 'package:quickgrocery/models/product.dart';
-import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
 import 'package:quickgrocery/view/orders/services/order_service.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
-import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
 
 class DeliveryTab extends StatelessWidget {
   const DeliveryTab({super.key});
@@ -268,7 +265,7 @@ class DeliveredListWidget extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(context.l10n.totalItemsLabel + ' $totalQty'),
+                    Text('${context.l10n.totalItemsLabel} $totalQty'),
                     Text(context.l10n.deliveryChargeLabel(order.deliveryCharge.toStringAsFixed(0))),
                   ],
                 ),

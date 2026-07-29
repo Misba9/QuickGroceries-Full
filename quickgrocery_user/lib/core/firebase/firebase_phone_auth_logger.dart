@@ -73,7 +73,7 @@ class FirebasePhoneAuthLogger {
       'package=$packageName projectId=$projectId appId=$appId '
       'appCheckProvider=$appCheckProvider'
       '${phoneNumber != null ? ' phone=$phoneNumber' : ''}'
-      '${verificationIdPrefix != null ? ' verificationId=${verificationIdPrefix}…' : ''}',
+      '${verificationIdPrefix != null ? ' verificationId=$verificationIdPrefix…' : ''}',
     );
   }
 

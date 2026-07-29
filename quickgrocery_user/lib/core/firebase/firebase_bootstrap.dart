@@ -34,8 +34,11 @@ Future<void> initializeFirebaseWithRetry({
           }
         }
       }
-      await FirebaseStartupValidation.logAndValidate();
-      await FirebaseConfigAudit.logConfiguration();
+      // Validation / audit are diagnostic — never block first paint.
+      if (kDebugMode) {
+        await FirebaseStartupValidation.logAndValidate();
+        await FirebaseConfigAudit.logConfiguration();
+      }
       return;
     } catch (e, st) {
       lastError = e;

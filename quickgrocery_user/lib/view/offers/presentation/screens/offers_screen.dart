@@ -28,7 +28,6 @@ import 'package:quickgrocery/view/combo/presentation/providers/combo_providers.d
 import 'package:quickgrocery/view/combo/presentation/widgets/combo_offers_section.dart';
 import 'package:quickgrocery/view/offers/presentation/widgets/offer_category_chips.dart';
 import 'package:quickgrocery/view/offers/presentation/widgets/offer_promo_video_card.dart';
-import 'package:quickgrocery/view/search/screens/search_screen.dart';
 
 /// Dedicated Offers hub — hero video carousel, stories, flash deals,
 /// coupons, and curated product rails (Blinkit / Zepto style).

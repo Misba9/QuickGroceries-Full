@@ -1,4 +1,3 @@
-import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
 import 'package:quickgrocery/core/order/order_line_display.dart';
@@ -13,8 +12,6 @@ class CancelledTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final height = MediaQuery.of(context).size.height;
     return Consumer<OrderService>(
       builder: (context, p, _) {
         return RefreshIndicator(
@@ -164,7 +161,6 @@ class CancelledOrderListWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
     if (orders.isEmpty) {
       return Center(child: Text(context.l10n.noOrdersFoundPeriod));
     }
@@ -226,7 +222,7 @@ class CancelledOrderListWidget extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(context.l10n.totalItemsLabel + ' $totalQty'),
+                    Text('${context.l10n.totalItemsLabel} $totalQty'),
                     Text(context.l10n.deliveryChargeLabel(order.deliveryCharge.toStringAsFixed(0))),
                   ],
                 ),

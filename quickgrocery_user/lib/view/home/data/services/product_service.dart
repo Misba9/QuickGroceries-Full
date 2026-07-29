@@ -4,16 +4,12 @@ import '../home_product_debug.dart';
 
 /// How the explore grid is ordered in Firestore.
 ///
-/// **Why two modes:** `orderBy('product_index')` **drops every document that
-/// does not define `product_index`** (Firestore rule). Legacy catalogs often
-/// omit this field, which produced an empty explore grid while categories
-/// still loaded from `categories/`.
+/// Explore always uses [productIndex]. Documents missing `product_index` are
+/// excluded by Firestore from `orderBy('product_index')` — see
+/// [ProductIndexBackfill] and admin create paths that write the field.
 enum HomeExploreSortKey {
-  /// Admin reorder field — preferred when present on documents.
+  /// Admin reorder field — required for consistent explore pagination.
   productIndex,
-
-  /// Stable fallback — includes all documents, works without composite indexes.
-  documentId,
 }
 
 /// Thin Firestore service for the `products` collection.
@@ -79,43 +75,34 @@ class HomeProductService {
 
   // ── Explore (paginated) ────────────────────────────────────────────────
 
-  /// First page: prefer `product_index` ordering when it returns data.
-  /// If the snapshot is **empty** (common when no doc defines the field) or
-  /// the query fails (missing index / permission), fall back to document ID
-  /// ordering so legacy catalogs still render.
+  /// First page ordered by `product_index` only (no documentId fallback).
+  ///
+  /// If the catalog has no indexed docs yet, attempts an in-place backfill
+  /// of missing `product_index` values, then re-queries.
   Future<({QuerySnapshot<Map<String, dynamic>> snap, HomeExploreSortKey key})>
       fetchExploreFirstPage({
     int pageSize = 18,
   }) async {
-    logHomeProducts('explore first page: attempting orderBy(product_index), '
-        'limit=$pageSize');
+    logHomeProducts(
+      'explore first page: orderBy(product_index), limit=$pageSize',
+    );
 
-    try {
-      final byIndex =
-          await _ref.orderBy('product_index').limit(pageSize).get();
-      logHomeProducts(
-        'orderBy(product_index): raw docs=${byIndex.docs.length}',
-      );
-      if (byIndex.docs.isNotEmpty) {
-        return (snap: byIndex, key: HomeExploreSortKey.productIndex);
+    var byIndex = await _ref.orderBy('product_index').limit(pageSize).get();
+    logHomeProducts(
+      'orderBy(product_index): raw docs=${byIndex.docs.length}',
+    );
+
+    if (byIndex.docs.isEmpty) {
+      final repaired = await _ensureProductIndexesAndReload(pageSize: pageSize);
+      if (repaired != null) {
+        byIndex = repaired;
+        logHomeProducts(
+          'orderBy(product_index) after backfill: raw docs=${byIndex.docs.length}',
+        );
       }
-      logHomeProducts(
-        'orderBy(product_index): 0 documents — likely missing product_index '
-        'on all products; falling back to documentId',
-      );
-    } on FirebaseException catch (e, st) {
-      logHomeProducts(
-        'orderBy(product_index) failed: code=${e.code} message=${e.message}',
-      );
-      logHomeProducts('$st');
     }
 
-    final byId =
-        await _ref.orderBy(FieldPath.documentId).limit(pageSize).get();
-    logHomeProducts(
-      'orderBy(documentId): raw docs=${byId.docs.length}',
-    );
-    return (snap: byId, key: HomeExploreSortKey.documentId);
+    return (snap: byIndex, key: HomeExploreSortKey.productIndex);
   }
 
   Future<QuerySnapshot<Map<String, dynamic>>> fetchExploreNextPage({
@@ -124,12 +111,51 @@ class HomeProductService {
     int pageSize = 18,
   }) {
     logHomeProducts(
-      'explore next page: sort=$sortKey after=${lastDoc.id} limit=$pageSize',
+      'explore next page: sort=productIndex after=${lastDoc.id} limit=$pageSize',
     );
-    final Query<Map<String, dynamic>> ordered = switch (sortKey) {
-      HomeExploreSortKey.productIndex => _ref.orderBy('product_index'),
-      HomeExploreSortKey.documentId => _ref.orderBy(FieldPath.documentId),
-    };
-    return ordered.startAfterDocument(lastDoc).limit(pageSize).get();
+    return _ref
+        .orderBy('product_index')
+        .startAfterDocument(lastDoc)
+        .limit(pageSize)
+        .get();
+  }
+
+  /// Assigns contiguous `product_index` on docs that lack the field, then
+  /// reloads the first explore page. Returns null if writes are denied.
+  Future<QuerySnapshot<Map<String, dynamic>>?> _ensureProductIndexesAndReload({
+    required int pageSize,
+  }) async {
+    try {
+      final unindexed =
+          await _ref.orderBy(FieldPath.documentId).limit(pageSize * 3).get();
+      if (unindexed.docs.isEmpty) return null;
+
+      var next = 0;
+      final batch = _firestore.batch();
+      var ops = 0;
+      for (final doc in unindexed.docs) {
+        final data = doc.data();
+        if (data['product_index'] is num) {
+          final v = (data['product_index'] as num).toInt();
+          if (v >= next) next = v + 1;
+          continue;
+        }
+        batch.set(
+          doc.reference,
+          {'product_index': next++},
+          SetOptions(merge: true),
+        );
+        ops++;
+      }
+      if (ops > 0) {
+        await batch.commit();
+        logHomeProducts('assigned product_index on $ops documents');
+      }
+
+      return _ref.orderBy('product_index').limit(pageSize).get();
+    } catch (e) {
+      logHomeProducts('product_index ensure failed: $e');
+      return null;
+    }
   }
 }

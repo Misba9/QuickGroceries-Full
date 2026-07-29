@@ -44,9 +44,13 @@ abstract final class AppPageRoutes {
   static MaterialPageRoute<void> search() =>
       material(name: AppRoutes.search, builder: (_) => const SearchScreen());
 
-  static MaterialPageRoute<void> product(ProductModel product) => material(
+  static MaterialPageRoute<void> product(
+    ProductModel product, {
+    String? heroTag,
+  }) =>
+      material(
         name: AppRoutes.product,
-        builder: (_) => ProductViewScreen(product: product),
+        builder: (_) => ProductViewScreen(product: product, heroTag: heroTag),
       );
 
   static MaterialPageRoute<void> comboDetail({

@@ -1,4 +1,3 @@
-import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
@@ -179,7 +178,7 @@ class ProcessingCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                           color: isPaid == 'Paid'
                               ? const Color(0xFFD1EEDB)
-                              : Colors.red.withOpacity(0.2),
+                              : Colors.red.withValues(alpha: 0.2),
                         ),
                         child: Center(
                           child: Text(
@@ -370,7 +369,7 @@ class OrderListWidget extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(context.l10n.totalItemsLabel + ' $totalQty'),
+                    Text('${context.l10n.totalItemsLabel} $totalQty'),
                     Text(context.l10n.deliveryChargeLabel(order.deliveryCharge.toStringAsFixed(0))),
                   ],
                 ),

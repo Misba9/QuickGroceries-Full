@@ -91,6 +91,7 @@ class _MainCategoryViewScreenState
       child: Scaffold(
         backgroundColor: AppSurface.background,
         body: SafeArea(
+          top: false,
           bottom: false,
           child: Stack(
             children: [

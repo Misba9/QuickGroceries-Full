@@ -12,6 +12,7 @@ import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/core/widgets/home_section_error_card.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
+import 'package:quickgrocery/core/startup/widgets/home_bootstrap_shimmer.dart';
 import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
@@ -96,6 +97,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     addressService.addListener(_onAddressChanged);
     Future.microtask(() async {
       await addressService.ready;
+      if (!mounted) return;
+
+      // Paint home immediately when a recent serviceability result is cached.
+      if (addressService.shouldBypassServiceAreaCheck) {
+        _applyServiceableState(
+          addressService,
+          serviceable: true,
+          pin: addressService.activeDeliveryPin,
+        );
+      }
+
       await addressService.getAddress();
       if (!mounted) return;
       await _checkServiceability(force: true);
@@ -315,7 +327,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       backgroundColor: AppSurface.background,
+      // Top inset comes from LandingScreen's SafeArea only.
       body: SafeArea(
+        top: false,
+        bottom: false,
         child: RefreshIndicator(
           color: AppColor.primary,
           onRefresh: _refreshAll,
@@ -641,20 +656,8 @@ class _ServiceabilityLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text(context.l10n.checking_service_availability),
-            ],
-          ),
-        ),
-      ),
-    );
+    // Match home layout with shimmer — never a blank spinner gate after bootstrap.
+    return const HomeBootstrapShimmer();
   }
 }
 
@@ -666,6 +669,8 @@ class _OfflineView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
+        top: false,
+        bottom: false,
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(24.0),

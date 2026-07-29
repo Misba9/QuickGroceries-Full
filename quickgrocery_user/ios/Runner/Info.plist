@@ -26,24 +26,38 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>We use your location to show the map near you and set your delivery address.</string>
+	<string>We use your location to show nearby stores and set your delivery address.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We use your location to show the map near you and set your delivery address.</string>
+	<string>We use your location to show nearby stores and set your delivery address.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs access to your microphone for voice search functionality.</string>
+	<string>This app needs access to your microphone for voice search.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>This app needs access to speech recognition for voice search functionality.</string>
+	<string>This app needs access to speech recognition for voice search.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to your photos so you can set a profile picture and upload product reviews.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app may save images such as receipts to your photo library.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app may use the camera if you choose to take a photo for your profile or a review.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.ahmed.quickgrocery.firebase-auth</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.970937777233-REPLACE_WITH_FIREBASE_CONSOLE_CLIENT_ID</string>
+				<string>app-1-970937777233-ios-10b9106006f6e0c66e0c70</string>
 			</array>
 		</dict>
 	</array>

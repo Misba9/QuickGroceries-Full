@@ -27,13 +27,13 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   final double gutter;
 
-  static const double _height = 100;
+  static const double _contentHeight = 82;
 
   @override
-  double get maxExtent => _height;
+  double get maxExtent => _contentHeight;
 
   @override
-  double get minExtent => _height;
+  double get minExtent => _contentHeight;
 
   @override
   Widget build(
@@ -41,6 +41,10 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
+    // LandingScreen already applied status-bar SafeArea — only a small
+    // content gutter here (never MediaQuery.padding.top again).
+    final topGutter = (gutter * 0.35).clamp(4.0, 8.0);
+
     final shadow = overlapsContent
         ? [
             BoxShadow(
@@ -54,7 +58,7 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
     return ColoredBox(
       color: AppSurface.background,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(gutter, 8, gutter, 10),
+        padding: EdgeInsets.fromLTRB(gutter, topGutter, gutter, 8),
         child: AnimatedContainer(
           duration: AppMotion.short,
           curve: AppMotion.standard,

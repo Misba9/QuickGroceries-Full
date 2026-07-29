@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import UserNotifications
+import FirebaseCore
 import FirebaseAuth
 
 @main
@@ -9,11 +10,22 @@ import FirebaseAuth
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Configure native Firebase before any Auth / APNs work.
+    // Dart `Firebase.initializeApp` is a no-op when an app already exists.
+    if FirebaseApp.app() == nil {
+      FirebaseApp.configure()
+    }
+
     GeneratedPluginRegistrant.register(with: self)
+
     if #available(iOS 10.0, *) {
       UNUserNotificationCenter.current().delegate = self
     }
+
+    // Silent APNs is required for Firebase Phone Auth without Safari reCAPTCHA.
+    // User permission is NOT required for silent verification pushes.
     application.registerForRemoteNotifications()
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -22,11 +34,13 @@ import FirebaseAuth
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
-    #if DEBUG
-    Auth.auth().setAPNSToken(deviceToken, type: .sandbox)
-    #else
-    Auth.auth().setAPNSToken(deviceToken, type: .prod)
-    #endif
+    // Prefer `.unknown` so the SDK detects sandbox vs production from the
+    // provisioning profile — DEBUG/RELEASE macros alone are unreliable.
+    Auth.auth().setAPNSToken(deviceToken, type: .unknown)
+    NSLog(
+      "[PhoneAuth] APNs token registered with Firebase Auth "
+        + "(bytes=\(deviceToken.count), type=unknown/auto)"
+    )
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
   }
 
@@ -34,7 +48,10 @@ import FirebaseAuth
     _ application: UIApplication,
     didFailToRegisterForRemoteNotificationsWithError error: Error
   ) {
-    NSLog("[PhoneAuth] APNs registration failed: \(error.localizedDescription)")
+    NSLog(
+      "[PhoneAuth] APNs registration failed: \(error.localizedDescription). "
+        + "Firebase Phone Auth will fall back to Safari reCAPTCHA."
+    )
     super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
   }
 
@@ -45,6 +62,7 @@ import FirebaseAuth
     fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
   ) {
     if Auth.auth().canHandleNotification(userInfo) {
+      NSLog("[PhoneAuth] Handled Firebase Auth silent verification notification")
       completionHandler(.noData)
       return
     }

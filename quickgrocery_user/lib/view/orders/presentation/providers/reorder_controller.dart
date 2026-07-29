@@ -46,7 +46,6 @@ class ReorderController {
           continue;
         }
 
-        final cap = product.effectiveMaxQuantity;
         final qty = InventoryLimits.clampQuantity(
           requested: item.itemCount,
           stock: product.stock,

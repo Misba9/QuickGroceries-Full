@@ -49,7 +49,10 @@ abstract final class AuthSessionLog {
   }
 
   static void navigationToLogin() {
-    _log('navigation_to_login', 'popUntil first — AppBootstrapShell → LoginScreen');
+    _log(
+      'navigation_to_login',
+      'popUntil first — AppBootstrapShell → guest LandingScreen',
+    );
   }
 
   static void logoutCompleted() {

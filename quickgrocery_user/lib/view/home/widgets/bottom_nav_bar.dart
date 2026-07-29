@@ -29,7 +29,7 @@ class BottomNavButton extends StatelessWidget {
                       BoxShadow(
                         blurRadius: 10,
                         spreadRadius: 1,
-                        color: AppColor.primary.withOpacity(0.2),
+                        color: AppColor.primary.withValues(alpha: 0.2),
                         offset: Offset(0, 5),
                       ),
                     ],

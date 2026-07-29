@@ -46,24 +46,26 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
         child: legacy.Consumer<HomeProvider>(
           builder: (context, provider, _) {
             return Scaffold(
-              body: Column(
-                children: [
-                  SafeArea(
-                    bottom: false,
-                    child: const GuestModeBanner(),
-                  ),
-                  Expanded(
-                    child: DeliveryPricingUpdateListener(
-                      child: PromotionPopupBootstrap(
-                        child: IndexedStack(
-                          key: ValueKey<String>('tabs-$localeKey'),
-                          index: provider.selectedIndex,
-                          children: provider.pages,
+              // Single top SafeArea for all tabs — never nest another top
+              // SafeArea inside Home/Category/Orders (that doubles the status-bar gap).
+              body: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    const GuestModeBanner(),
+                    Expanded(
+                      child: DeliveryPricingUpdateListener(
+                        child: PromotionPopupBootstrap(
+                          child: IndexedStack(
+                            key: ValueKey<String>('tabs-$localeKey'),
+                            index: provider.selectedIndex,
+                            children: provider.pages,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               bottomNavigationBar: PremiumFiveTabNav(
                 key: ValueKey<String>('nav-$localeKey'),

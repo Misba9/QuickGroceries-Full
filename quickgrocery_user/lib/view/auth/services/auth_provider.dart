@@ -6,7 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +22,6 @@ import 'package:quickgrocery/core/auth/phone_sign_in_navigation.dart';
 import 'package:quickgrocery/core/navigation/app_route_names.dart';
 import 'package:quickgrocery/core/user/user_profile_cache.dart';
 import 'package:quickgrocery/core/user/user_profile_repository.dart';
-import 'package:quickgrocery/view/auth/screens/customer_profile_add_screen.dart';
 import 'package:quickgrocery/view/auth/screens/otp_screen.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_shell.dart';
 import 'package:quickgrocery/view/refer/services/refer_earn_service.dart';
@@ -79,7 +77,7 @@ class AuthService extends ChangeNotifier {
           _captureReferralFromUri(data.link);
         })
         .onError((error) {
-          print("Dynamic Link Error: $error");
+          if (kDebugMode) debugPrint("Dynamic Link Error: $error");
         });
   }
 
@@ -139,7 +137,7 @@ class AuthService extends ChangeNotifier {
       String downloadUrl = await taskSnapshot.ref.getDownloadURL();
       return downloadUrl;
     } catch (e) {
-      print('Error uploading image: $e');
+      if (kDebugMode) debugPrint('Error uploading image: $e');
       return '';
     }
   }

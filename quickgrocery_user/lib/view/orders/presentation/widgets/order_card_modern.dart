@@ -125,7 +125,7 @@ class _StatusPill extends StatelessWidget {
           Colors.purple.shade800,
         ),
       OrderStatus.outForDelivery => (
-          AppColor.primary.withOpacity(0.18),
+          AppColor.primary.withValues(alpha: 0.18),
           Colors.brown.shade800,
         ),
       OrderStatus.delivered => (Colors.green.shade50, Colors.green.shade800),

@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/coupon_service.dart';
 import '../../domain/coupon_savings_estimator.dart';
 import 'cart_notifier.dart';
 import 'coupons_provider.dart';

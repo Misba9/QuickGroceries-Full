@@ -52,6 +52,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreeen>
       child: Scaffold(
         backgroundColor: const Color(0xFFF6F7FB),
         body: SafeArea(
+          top: false,
+          bottom: false,
           child: Column(
             children: [
               const SizedBox(height: 8),
@@ -207,6 +209,8 @@ class _GuestOrdersPlaceholder extends StatelessWidget {
       child: Scaffold(
         backgroundColor: const Color(0xFFF6F7FB),
         body: SafeArea(
+          top: false,
+          bottom: false,
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(

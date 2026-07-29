@@ -1,31 +1,25 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:quickgrocery/core/firebase/firebase_app_check_bootstrap.dart';
 import 'package:quickgrocery/core/firebase/firebase_bootstrap.dart';
-import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
-import 'package:quickgrocery/core/firebase/firebase_phone_auth_bootstrap.dart';
-import 'package:quickgrocery/core/firestore/firestore_retry.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_shell.dart';
+import 'package:quickgrocery/core/startup/deferred_startup.dart';
 import 'package:quickgrocery/core/startup/shared_preferences_provider.dart';
 import 'package:quickgrocery/core/widgets/startup_failure_screen.dart';
-import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/l10n/app_localizations.dart';
 // Riverpod and `package:provider` both export `ChangeNotifierProvider`
 // and `Consumer`. Restrict Riverpod to `ProviderScope` here so the legacy
 // Provider symbols remain unambiguous everywhere else in the app.
 import 'package:flutter_riverpod/flutter_riverpod.dart'
-    show ProviderScope, Consumer, ConsumerWidget, WidgetRef;
+    show ProviderScope, ConsumerWidget, WidgetRef;
 import 'package:quickgrocery/core/design/app_theme.dart';
 import 'package:quickgrocery/core/localization/locale_provider.dart';
 import 'package:quickgrocery/core/localization/app_locales.dart';
 import 'package:quickgrocery/core/startup/app_startup_log.dart';
-import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 import 'package:quickgrocery/core/navigation/app_route_observer.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
@@ -83,7 +77,9 @@ Future<void> handleReferralAfterInstall() async {
         await _storePendingReferralCode(data.link);
       })
       .onError((error) {
-        print("Dynamic Link Error: $error");
+        if (kDebugMode) {
+          debugPrint('Dynamic Link Error: $error');
+        }
       });
 }
 
@@ -153,17 +149,14 @@ Future<void> _bootstrap() async {
   AppStartupLog.markAppStart();
 
   try {
+    // Critical path only: Firebase + prefs → first Flutter frame.
+    // App Check / Phone Auth / FCM topics run in [DeferredStartup].
     await initializeFirebaseWithRetry();
     AppStartupLog.milestone('Firebase initialized');
     RealtimeBootstrap.configureFirestore();
-    await configureFirebaseAppCheck();
-    await configureFirebasePhoneAuth();
-    unawaited(FirebaseConfigAudit.logConfiguration());
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     _configureProductionErrorPresentation();
-
-    await FcmBootstrap.configure();
 
     final prefs = await SharedPreferences.getInstance();
     AppStartupLog.milestone('Preferences loaded');
@@ -178,6 +171,7 @@ Future<void> _bootstrap() async {
         child: const MyApp(),
       ),
     );
+    DeferredStartup.scheduleAfterFirstFrame();
   } catch (e, st) {
     FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
     runApp(

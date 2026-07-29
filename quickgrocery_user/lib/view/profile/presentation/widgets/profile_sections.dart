@@ -1425,15 +1425,35 @@ class ProfileLogoutSection extends ConsumerWidget {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
+      useRootNavigator: true,
       builder: (_) => const PopScope(
         canPop: false,
-        child: Center(child: CircularProgressIndicator()),
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Center(child: CircularProgressIndicator()),
+        ),
       ),
     );
 
+    // AuthSessionManager.popUntil(isFirst) already dismisses this dialog.
+    // An unconditional finally-pop removed the MaterialApp root route on iOS
+    // (child == null → SizedBox.shrink → black screen).
+    var loadingStillOpen = true;
+    void dismissLoadingIfNeeded() {
+      if (!loadingStillOpen || !context.mounted) return;
+      final nav = Navigator.of(context, rootNavigator: true);
+      if (nav.canPop()) {
+        nav.pop();
+      }
+      loadingStillOpen = false;
+    }
+
     try {
       await AuthSessionManager.signOutFromContext(context: context, ref: ref);
+      loadingStillOpen = false;
     } catch (e) {
+      dismissLoadingIfNeeded();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1441,10 +1461,6 @@ class ProfileLogoutSection extends ConsumerWidget {
             backgroundColor: Colors.red,
           ),
         );
-      }
-    } finally {
-      if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
       }
     }
   }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
-import 'package:quickgrocery/view/cart/screen/cart_screen.dart';
 
 class CartAddButton extends StatelessWidget {
   const CartAddButton({

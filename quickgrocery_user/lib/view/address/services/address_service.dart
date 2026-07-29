@@ -3,6 +3,7 @@ import 'dart:developer';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
@@ -433,7 +434,7 @@ class AddressService extends ChangeNotifier {
 
       notifyListeners(); // Notify UI or listeners if you're using a state management solution
     } catch (e) {
-      print('Error fetching products: $e');
+      if (kDebugMode) debugPrint('Error fetching products: $e');
     }
   }
 

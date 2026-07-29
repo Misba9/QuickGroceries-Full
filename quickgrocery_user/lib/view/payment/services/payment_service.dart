@@ -5,7 +5,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 class PaymentService extends ChangeNotifier {
   bool isCashOnDelivery = false;
   String paymentStatus = "Pending";
-  Razorpay _razorpay = Razorpay();
+  final Razorpay _razorpay = Razorpay();
   void Function(String paymentId)? _onPaymentSuccessCallback;
   void Function(String message)? _onPaymentErrorCallback;
 

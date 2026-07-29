@@ -14,7 +14,7 @@ class ExploreState {
     this.cursor,
     this.isLoadingMore = false,
     this.hasReachedEnd = false,
-    this.sortKey = HomeExploreSortKey.documentId,
+    this.sortKey = HomeExploreSortKey.productIndex,
     this.diagnosticRawDocs = 0,
     this.diagnosticSkippedParse = 0,
     this.diagnosticFilteredUnavailable = 0,

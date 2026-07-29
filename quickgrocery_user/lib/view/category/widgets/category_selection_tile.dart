@@ -28,7 +28,7 @@ class CategorySelectionTile extends StatelessWidget {
               border: isSelected ? Border.all(color: AppColor.primary) : null,
               borderRadius: BorderRadius.circular(6),
               color: isSelected
-                  ? AppColor.primary.withOpacity(0.2)
+                  ? AppColor.primary.withValues(alpha: 0.2)
                   : Colors.grey.shade200,
               image: DecorationImage(image: NetworkImage(image)),
             ),
