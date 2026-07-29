@@ -8,6 +8,12 @@ import {
   mergeTipIntoBill,
   validateTipAmount,
 } from "../delivery_tips/delivery_tips_engine";
+import { verifyRazorpayCheckoutSignature, assertRazorpayPaymentCaptured } from "../payments/razorpay_api";
+import { razorpaySecretBindings } from "../payments/razorpay_config";
+import {
+  consumeRazorpayCheckoutOrder,
+  linkConsumedPaymentToGroceryOrder,
+} from "../payments/razorpay_orders_store";
 
 function num(v: unknown, fallback = 0): number {
   const n = Number(v);
@@ -113,7 +119,11 @@ interface LineInput {
 
 /** Validates stock/max-order and places order atomically (decrements inventory). */
 export const placeOrderCallable = onCall(
-  { ...callableBaseOptions(), invoker: "public" },
+  {
+    ...callableBaseOptions(),
+    secrets: razorpaySecretBindings(),
+    invoker: "public",
+  },
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) {
@@ -207,6 +217,64 @@ export const placeOrderCallable = onCall(
         const u = userSnap.data() as Record<string, unknown>;
         profilePhone = str(u.phone || u.phoneNumber || u.mobile);
       }
+    }
+
+    const paymentMethod = str(req.data?.paymentMethod) || "cod";
+    const isOnline = paymentMethod !== "cod";
+    const razorpayPaymentId = str(
+      req.data?.razorpay_payment_id ?? req.data?.paymentRef,
+    );
+    const razorpayOrderId = str(req.data?.razorpay_order_id);
+    const razorpaySignature = str(req.data?.razorpay_signature);
+
+    let paymentRef = "";
+    let isPaid = false;
+
+    if (isOnline) {
+      const expectedPaise = Math.round(
+        num(billWithTip.total ?? billWithTip.grandTotal) * 100,
+      );
+      if (expectedPaise < 100) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Invalid payable amount for online payment.",
+        );
+      }
+
+      if (razorpayPaymentId && razorpayOrderId && razorpaySignature) {
+        verifyRazorpayCheckoutSignature({
+          orderId: razorpayOrderId,
+          paymentId: razorpayPaymentId,
+          signature: razorpaySignature,
+        });
+
+        const consumed = await consumeRazorpayCheckoutOrder({
+          uid,
+          razorpayOrderId,
+          paymentId: razorpayPaymentId,
+          expectedAmountPaise: expectedPaise,
+          purpose: "grocery_order",
+        });
+
+        if (consumed.alreadyConsumed && consumed.linkedOrderId) {
+          return { orderId: consumed.linkedOrderId, duplicate: true };
+        }
+      } else if (razorpayPaymentId) {
+        // Fallback when createRazorpayOrderCallable is not deployed yet:
+        // verify the payment directly with Razorpay Payments API.
+        await assertRazorpayPaymentCaptured({
+          paymentId: razorpayPaymentId,
+          expectedAmountPaise: expectedPaise,
+        });
+      } else {
+        throw new HttpsError(
+          "failed-precondition",
+          "Online payment requires a Razorpay payment id.",
+        );
+      }
+
+      paymentRef = razorpayPaymentId;
+      isPaid = true;
     }
 
     try {
@@ -478,9 +546,6 @@ export const placeOrderCallable = onCall(
           mobile: orderPhone || addressMobile,
         };
         const bill = billWithTip;
-        const paymentMethod = str(req.data?.paymentMethod) || "cod";
-        const paymentRef = str(req.data?.paymentRef);
-        const isPaid = paymentMethod !== "cod" && paymentRef.length > 0;
         const slotRaw = req.data?.delivery_slot ?? req.data?.deliverySlot;
         const instr = deliveryInstructionsPayload(
           req.data?.delivery_instructions ?? req.data?.deliveryInstructions,
@@ -536,6 +601,7 @@ export const placeOrderCallable = onCall(
           ...(isPaid
             ? {
                 razorpayPaymentId: paymentRef,
+                razorpayOrderId,
                 transactionId: paymentRef,
                 paidAmount: num(bill.total ?? bill.grandTotal),
                 paidAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -609,6 +675,14 @@ export const placeOrderCallable = onCall(
           },
           { merge: true },
         );
+    }
+
+    if (isPaid && razorpayOrderId && paymentRef) {
+      await linkConsumedPaymentToGroceryOrder({
+        razorpayOrderId,
+        paymentId: paymentRef,
+        groceryOrderId: orderRef.id,
+      });
     }
 
     return { orderId: orderRef.id };

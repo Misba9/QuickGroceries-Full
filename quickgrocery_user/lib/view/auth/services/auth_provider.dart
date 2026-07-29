@@ -3,7 +3,6 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/firebase/firebase_auth_readiness.dart';
 import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
 import 'package:quickgrocery/core/firebase/firebase_phone_auth_logger.dart';
@@ -61,34 +61,15 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Handle Referral
+  /// Loads a referral code saved by [handleReferralAfterInstall] in main.dart
+  /// (HTTPS / custom-scheme deep links via `app_links`).
   Future<void> handleReferralAfterInstall() async {
-    final PendingDynamicLinkData? initialLink = await FirebaseDynamicLinks
-        .instance
-        .getInitialLink();
-
-    if (initialLink != null) {
-      final Uri deepLink = initialLink.link;
-      _captureReferralFromUri(deepLink);
-    }
-
-    FirebaseDynamicLinks.instance.onLink
-        .listen((PendingDynamicLinkData data) {
-          _captureReferralFromUri(data.link);
-        })
-        .onError((error) {
-          if (kDebugMode) debugPrint("Dynamic Link Error: $error");
-        });
-  }
-
-  void _captureReferralFromUri(Uri deepLink) {
-    final code = deepLink.queryParameters['code'] ??
-        deepLink.queryParameters['ref'] ??
-        '';
-    if (code.trim().isEmpty) return;
-    _pendingReferralCode = code.trim();
+    final pref = await SharedPreferences.getInstance();
+    final code = pref.getString('pending_referral_code')?.trim() ?? '';
+    if (code.isEmpty) return;
+    _pendingReferralCode = code;
     if (referralCodeController.text.trim().isEmpty) {
-      referralCodeController.text = code.trim();
+      referralCodeController.text = code;
     }
   }
 
@@ -362,9 +343,7 @@ class AuthService extends ChangeNotifier {
           log('verificationFailed: ${e.code} ${e.message}', error: e, stackTrace: StackTrace.current);
           // Login screen already shows [phoneAuthError] banner — avoid duplicate snackbar.
           if (context.mounted && navigateToOtpOnCodeSent) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(message), backgroundColor: Colors.red),
-            );
+            AppSnackBar.error(message, context: context);
           }
         },
         codeSent: (String verificationId, int? resendToken) {
@@ -436,9 +415,7 @@ class AuthService extends ChangeNotifier {
       _setPhoneAuthError(message);
       log('verifyPhoneNumber threw', error: e, stackTrace: st);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.red),
-        );
+        AppSnackBar.error(message, context: context);
       }
     }
   }
@@ -468,13 +445,9 @@ class AuthService extends ChangeNotifier {
   Future<bool> signInWithOTP(String smsCode, BuildContext context) async {
     if (_verificationId.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'OTP session expired. Go back and request a new code.',
-            ),
-            backgroundColor: Colors.red,
-          ),
+        AppSnackBar.error(
+          'OTP session expired. Go back and request a new code.',
+          context: context,
         );
       }
       return false;
@@ -525,22 +498,15 @@ class AuthService extends ChangeNotifier {
       }
       if (context.mounted) {
         final message = await _phoneAuthErrorMessage(e);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackBar.error(message, context: context);
       }
       return false;
     } catch (e, st) {
       PhoneAuthFlowLog.otpVerificationFailed(error: e, stack: st);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.unexpectedError(e.toString())),
-            backgroundColor: Colors.red,
-          ),
+        AppSnackBar.error(
+          context.l10n.unexpectedError(e.toString()),
+          context: context,
         );
       }
     } finally {
@@ -569,21 +535,11 @@ class AuthService extends ChangeNotifier {
 
   Future<void> registerUser(BuildContext context) async {
     if (nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.pleaseEnterName),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackBar.error(context.l10n.pleaseEnterName, context: context);
       return;
     }
     if (selectedGender == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.pleaseSelectGender),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackBar.error(context.l10n.pleaseSelectGender, context: context);
       return;
     }
 
@@ -625,12 +581,7 @@ class AuthService extends ChangeNotifier {
 
       if (!context.mounted) return;
       if (referralMsg != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(referralMsg),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        AppSnackBar.info(referralMsg, context: context);
       }
       AppBootstrapShell.markOnboardingComplete(context);
     } finally {

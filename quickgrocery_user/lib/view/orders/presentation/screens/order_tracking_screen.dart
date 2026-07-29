@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
 
 import '../../domain/order_models.dart';
@@ -59,12 +60,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     if (!mounted) return;
     setState(() => _busyAction = null);
 
-    final messenger = ScaffoldMessenger.of(context);
     if (result.nothingAdded) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('None of these items are available right now'),
-        ),
+      AppSnackBar.error(
+        'None of these items are available right now',
+        context: context,
       );
       return;
     }
@@ -72,7 +71,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     final summary = result.unavailable.isEmpty
         ? 'Added ${result.added.length} items to your cart'
         : 'Added ${result.added.length} · ${result.unavailable.length} unavailable';
-    messenger.showSnackBar(SnackBar(content: Text(summary)));
+    AppSnackBar.success(summary, context: context);
 
     Navigator.push(context, AppPageRoutes.cart());
   }
@@ -83,9 +82,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       await ref.read(invoiceServiceProvider).generateAndShare(order);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not generate invoice: $e')),
-      );
+      AppSnackBar.error('Could not generate invoice: $e', context: context);
     } finally {
       if (mounted) setState(() => _busyAction = null);
     }
@@ -346,10 +343,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   onCallRider: () async {
                     final phone = rider?.phone ?? '';
                     if (phone.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Delivery partner not assigned yet'),
-                        ),
+                      AppSnackBar.info(
+                        'Delivery partner not assigned yet',
+                        context: context,
                       );
                       return;
                     }

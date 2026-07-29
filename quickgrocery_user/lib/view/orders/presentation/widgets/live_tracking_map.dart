@@ -30,6 +30,8 @@ class LiveTrackingMap extends StatefulWidget {
 }
 
 class _LiveTrackingMapState extends State<LiveTrackingMap> {
+  static const _fallbackCenter = LatLng(12.9352, 77.6147);
+
   final MapController _mapController = MapController();
   final OsrmRouteService _routeService = OsrmRouteService();
   LatLng? _lastRiderPosition;
@@ -37,6 +39,13 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
   double? _routeDistanceKm;
   int? _routeEtaMinutes;
   bool _loadingRoute = false;
+  bool _mapReady = false;
+
+  static bool _isValid(LatLng? p) =>
+      p != null && GpsPoint.isValidCoord(p.latitude, p.longitude);
+
+  LatLng get _safeDrop =>
+      _isValid(widget.dropLocation) ? widget.dropLocation : _fallbackCenter;
 
   @override
   void dispose() {
@@ -49,42 +58,32 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
   void didUpdateWidget(covariant LiveTrackingMap oldWidget) {
     super.didUpdateWidget(oldWidget);
     final riderPos = widget.rider?.position;
-    if (riderPos != null && riderPos != _lastRiderPosition) {
+    if (_isValid(riderPos) && riderPos != _lastRiderPosition) {
       _lastRiderPosition = riderPos;
       _fitBounds();
       _refreshRoute();
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fitBounds();
-      _refreshRoute();
-    });
-  }
-
   Future<void> _refreshRoute() async {
     final riderPos = widget.rider?.position;
-    if (riderPos == null || !GpsPoint.isValidCoord(riderPos.latitude, riderPos.longitude)) {
-      return;
-    }
+    if (!_isValid(riderPos) || !_isValid(_safeDrop)) return;
     setState(() => _loadingRoute = true);
-    final from = GpsPoint(riderPos.latitude, riderPos.longitude);
-    final to = GpsPoint(widget.dropLocation.latitude, widget.dropLocation.longitude);
+    final from = GpsPoint(riderPos!.latitude, riderPos.longitude);
+    final to = GpsPoint(_safeDrop.latitude, _safeDrop.longitude);
     final route = await _routeService.route(from: from, to: to);
     if (!mounted) return;
     setState(() {
       _loadingRoute = false;
       if (route != null) {
         _routePoints = route.points
+            .where((p) => GpsPoint.isValidCoord(p.latitude, p.longitude))
             .map((p) => LatLng(p.latitude, p.longitude))
             .toList(growable: false);
         _routeDistanceKm = route.distanceKm;
         _routeEtaMinutes = route.etaMinutes;
       } else {
-        _routePoints = [riderPos, widget.dropLocation];
+        _routePoints = [riderPos, _safeDrop];
         _routeDistanceKm = null;
         _routeEtaMinutes = null;
       }
@@ -92,20 +91,42 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
   }
 
   void _fitBounds() {
+    if (!_mapReady || !mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final points = <LatLng>[widget.dropLocation];
-      final riderPos = widget.rider?.position;
-      if (riderPos != null) points.add(riderPos);
-      final store = widget.storeLocation;
-      if (store != null) points.add(store);
-      final bounds = LatLngBounds.fromPoints(points);
-      _mapController.fitCamera(
-        CameraFit.bounds(
-          bounds: bounds,
-          padding: const EdgeInsets.all(48),
-        ),
-      );
+      if (!mounted || !_mapReady) return;
+      try {
+        final size = _mapController.camera.nonRotatedSize;
+        if (size.width <= 0 || size.height <= 0) return;
+
+        final points = <LatLng>[_safeDrop];
+        final riderPos = widget.rider?.position;
+        if (_isValid(riderPos)) points.add(riderPos!);
+        final store = widget.storeLocation;
+        if (_isValid(store)) points.add(store!);
+
+        if (points.length == 1) {
+          _mapController.move(points.first, 15.5);
+          return;
+        }
+
+        final bounds = LatLngBounds.fromPoints(points);
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.all(48),
+            maxZoom: 16,
+          ),
+        );
+
+        final c = _mapController.camera.center;
+        if (!GpsPoint.isValidCoord(c.latitude, c.longitude)) {
+          _mapController.move(_safeDrop, 14);
+        }
+      } catch (_) {
+        try {
+          _mapController.move(_safeDrop, 14);
+        } catch (_) {}
+      }
     });
   }
 
@@ -114,25 +135,26 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
       return _routeDistanceKm;
     }
     final riderPos = widget.rider?.position;
-    if (riderPos == null) return null;
+    if (!_isValid(riderPos)) return null;
     return RouteMath.haversineKm(
-      riderPos.latitude,
+      riderPos!.latitude,
       riderPos.longitude,
-      widget.dropLocation.latitude,
-      widget.dropLocation.longitude,
+      _safeDrop.latitude,
+      _safeDrop.longitude,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final hasRider = widget.rider?.position != null;
+    final riderPos = widget.rider?.position;
+    final hasRider = _isValid(riderPos);
+    final drop = _safeDrop;
     final center = hasRider
         ? LatLng(
-            (widget.rider!.position!.latitude + widget.dropLocation.latitude) / 2,
-            (widget.rider!.position!.longitude + widget.dropLocation.longitude) /
-                2,
+            (riderPos!.latitude + drop.latitude) / 2,
+            (riderPos.longitude + drop.longitude) / 2,
           )
-        : widget.dropLocation;
+        : drop;
     final distanceKm = _distanceKm();
     final etaMinutes = _routeEtaMinutes ??
         (widget.eta.inSeconds > 0 ? (widget.eta.inSeconds / 60).round() : null);
@@ -153,6 +175,11 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
                       InteractiveFlag.drag |
                       InteractiveFlag.doubleTapZoom,
                 ),
+                onMapReady: () {
+                  _mapReady = true;
+                  _fitBounds();
+                  _refreshRoute();
+                },
               ),
               children: [
                 TileLayer(
@@ -173,7 +200,7 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
                   ),
                 MarkerLayer(
                   markers: [
-                    if (widget.storeLocation != null)
+                    if (_isValid(widget.storeLocation))
                       Marker(
                         point: widget.storeLocation!,
                         width: 44,
@@ -181,14 +208,14 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
                         child: const _StorePin(),
                       ),
                     Marker(
-                      point: widget.dropLocation,
+                      point: drop,
                       width: 44,
                       height: 44,
                       child: const _DropPin(),
                     ),
                     if (hasRider)
                       Marker(
-                        point: widget.rider!.position!,
+                        point: riderPos!,
                         width: 56,
                         height: 56,
                         child: const _RiderPin(),

@@ -1,5 +1,6 @@
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/inventory/inventory_limits.dart';
 import 'package:quickgrocery/models/category_model.dart';
@@ -69,6 +70,8 @@ class CategoryService extends ChangeNotifier {
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('products')
+          .orderBy(FieldPath.documentId)
+          .limit(300)
           .get();
 
       allProducts = snapshot.docs.map((doc) {
@@ -76,7 +79,7 @@ class CategoryService extends ChangeNotifier {
         return ProductModel.fromFirestore(data, doc.id);
       }).toList();
     } catch (e) {
-      debugPrint("Error fetching products: $e");
+      if (kDebugMode) debugPrint("Error fetching products: $e");
     }
   }
 

@@ -253,6 +253,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String get delete_account => 'Delete Account';
 
   @override
+  String get delete_account_title => 'Delete Account';
+
+  @override
+  String get delete_account_confirmation =>
+      'Deleting your account is permanent.\n\nThis action will permanently remove your account, saved addresses, cart, profile information and other personal data.\n\nThis action cannot be undone.';
+
+  @override
+  String get delete_account_warning => 'This action cannot be undone.';
+
+  @override
+  String get delete_account_success => 'Your account has been deleted.';
+
+  @override
+  String get delete_account_failed =>
+      'We couldn\'t delete your account. Please try again.';
+
+  @override
+  String get delete_account_reauth_title => 'Verify it\'s you';
+
+  @override
+  String get delete_account_reauth_message =>
+      'For security, enter the OTP sent to your phone to confirm account deletion.';
+
+  @override
+  String get delete_account_reauth_send_otp => 'Send OTP';
+
+  @override
+  String get delete_account_in_progress => 'Deleting your account…';
+
+  @override
+  String get delete_account_network_error =>
+      'Network error. Check your connection and try again.';
+
+  @override
+  String get delete_account_permission_error =>
+      'Permission denied while deleting your data. Please contact support.';
+
+  @override
   String get delete_address_body =>
       'This address will be deleted from your saved list.';
 

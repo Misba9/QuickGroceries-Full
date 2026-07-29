@@ -153,14 +153,24 @@ class _RecentTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.max,
               children: [
                 Expanded(
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: CachedImage(
-                      url: item.product.image,
-                      fit: BoxFit.contain,
-                      borderRadius: AppRadii.all(AppRadii.sm),
-                      memCacheWidth: 240,
-                    ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final side = constraints.maxWidth < constraints.maxHeight
+                          ? constraints.maxWidth
+                          : constraints.maxHeight;
+                      return Center(
+                        child: SizedBox(
+                          width: side,
+                          height: side,
+                          child: CachedImage(
+                            url: item.product.image,
+                            fit: BoxFit.contain,
+                            borderRadius: AppRadii.all(AppRadii.sm),
+                            memCacheWidth: 240,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 6),

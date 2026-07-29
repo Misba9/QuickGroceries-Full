@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart' show Share;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/auth/guest_auth_guard.dart';
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/core/product/product_quantity_label.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
@@ -249,21 +250,15 @@ class _FavoriteButton extends ConsumerWidget {
               .read(productDetailRepositoryProvider)
               .toggleFavorite(productId, !fav);
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              behavior: SnackBarBehavior.floating,
-              content: Text(
-                fav ? 'Removed from favorites' : 'Added to favorites',
-              ),
-              duration: const Duration(seconds: 1),
-            ),
+          AppSnackBar.success(
+            fav ? 'Removed from favorites' : 'Added to favorites',
+            context: context,
           );
         } catch (_) {
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Sign in required to favorite items.'),
-            ),
+          AppSnackBar.error(
+            'Sign in required to favorite items.',
+            context: context,
           );
         }
       },
@@ -749,14 +744,11 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
       if (!mounted) return;
       if (res['canReview'] != true) {
         final reason = res['reason']?.toString() ?? '';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              reason == 'already_reviewed'
-                  ? 'You already reviewed this product'
-                  : 'Only verified buyers can review this product',
-            ),
-          ),
+        AppSnackBar.error(
+          reason == 'already_reviewed'
+              ? 'You already reviewed this product'
+              : 'Only verified buyers can review this product',
+          context: context,
         );
         return;
       }

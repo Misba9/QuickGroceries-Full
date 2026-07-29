@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/realtime/providers/realtime_providers.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_feedback_provider.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 
@@ -39,15 +39,9 @@ class _CartInventoryListenerState extends ConsumerState<CartInventoryListener> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (next.kind == CartFeedbackKind.error) {
-          showTopErrorToast(context, next.text);
+          AppSnackBar.error(next.text, context: context);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(next.text),
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 2),
-            ),
-          );
+          AppSnackBar.success(next.text, context: context);
         }
         ref.read(cartFeedbackProvider.notifier).state = null;
       });

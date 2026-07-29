@@ -2,27 +2,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ProfileService extends ChangeNotifier {
-  Future<String> createReferralLink(String referralCode) async {
-    final dynamicLinkParams = DynamicLinkParameters(
-      uriPrefix: "https://siswar.page.link",
-      link: Uri.parse("https://siswar.com/referral?code=$referralCode"),
-      androidParameters: const AndroidParameters(
-        packageName: "com.quickgrocery.io",
-        minimumVersion: 1,
-      ),
-      iosParameters: const IOSParameters(
-        bundleId: 'com.ahmed.quickgrocery',
-        minimumVersion: '1.0.0',
-      ),
-    );
+  /// HTTPS referral link (Universal Link / Hosting) — no Firebase Dynamic Links.
+  static const String _referralBaseUrl =
+      'https://www.quickgroceries.in/referral';
 
-    final dynamicLink =
-        await FirebaseDynamicLinks.instance.buildShortLink(dynamicLinkParams);
-    return dynamicLink.shortUrl.toString();
+  Future<String> createReferralLink(String referralCode) async {
+    final uri = Uri.parse(_referralBaseUrl).replace(
+      queryParameters: {'code': referralCode},
+    );
+    return uri.toString();
   }
 
   void shareReferralLink(String referralCode) async {
@@ -67,14 +58,14 @@ class ProfileService extends ChangeNotifier {
     return progress.clamp(0.0, 1.0);
   }
 
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  FirebaseMessaging get _fcm => FirebaseMessaging.instance;
 
   Future<void> init() async {
     NotificationSettings settings = await _fcm.requestPermission();
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       String? token = await _fcm.getToken();
-      if (kDebugMode) debugPrint('FCM Token: $token');
+      if (kDebugMode) debugPrint('FCM Token obtained');
     }
   }
 }

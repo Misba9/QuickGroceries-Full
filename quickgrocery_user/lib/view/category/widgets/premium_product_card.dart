@@ -18,8 +18,9 @@ import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 /// 5. **Price + ADD** — current price + slashed price; right-aligned
 ///    [AnimatedAddButton] that swaps in a [QuantityStepper] on tap.
 ///
-/// Uses Hero with tag `product-${id}` so opening the product detail
-/// screen animates the image smoothly.
+/// Uses an optional [heroTag] for image handoff. Never hardcode
+/// `product-${id}` — under [IndexedStack] the same product can appear in
+/// multiple rails and duplicate tags corrupt the element tree.
 class PremiumProductCard extends StatelessWidget {
   const PremiumProductCard({
     super.key,
@@ -29,6 +30,7 @@ class PremiumProductCard extends StatelessWidget {
     required this.onAdd,
     required this.onIncrement,
     required this.onDecrement,
+    this.heroTag,
   });
 
   final ProductModel product;
@@ -37,6 +39,10 @@ class PremiumProductCard extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
+
+  /// Optional unique [Hero] tag. Leave null unless a matching destination
+  /// tag is also provided on the product detail route.
+  final String? heroTag;
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +73,7 @@ class PremiumProductCard extends StatelessWidget {
                     constraints.maxHeight < double.infinity;
                 final image = _ImageSurface(
                   imageUrl: product.image,
-                  heroTag: 'product-${product.id}',
+                  heroTag: heroTag,
                   discountPct: discount,
                 );
                 return Column(
@@ -76,9 +82,24 @@ class PremiumProductCard extends StatelessWidget {
                       bounded ? MainAxisSize.max : MainAxisSize.min,
                   children: [
                     if (bounded)
-                      Expanded(child: image)
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, c) {
+                            final side = c.maxWidth < c.maxHeight
+                                ? c.maxWidth
+                                : c.maxHeight;
+                            return Center(
+                              child: SizedBox(
+                                width: side,
+                                height: side,
+                                child: image,
+                              ),
+                            );
+                          },
+                        ),
+                      )
                     else
-                      image,
+                      AspectRatio(aspectRatio: 1, child: image),
                     const SizedBox(height: 8),
                     if (product.unitPerItem.isNotEmpty)
                       _UnitChip(text: product.unitPerItem),
@@ -101,7 +122,6 @@ class PremiumProductCard extends StatelessWidget {
                         reviews: product.totalReviews,
                       ),
                     ],
-                    if (bounded) const Spacer() else const SizedBox(height: 6),
                     const SizedBox(height: 8),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -149,43 +169,40 @@ class PremiumProductCard extends StatelessWidget {
 class _ImageSurface extends StatelessWidget {
   const _ImageSurface({
     required this.imageUrl,
-    required this.heroTag,
     required this.discountPct,
+    this.heroTag,
   });
 
   final String imageUrl;
-  final String heroTag;
+  final String? heroTag;
   final int discountPct;
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.sm),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ColoredBox(
-              color: AppSurface.subtle,
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Center(
-                  child: Hero(
-                    tag: heroTag,
-                    child: CachedImage(url: imageUrl, fit: BoxFit.contain),
-                  ),
-                ),
-              ),
+    Widget image = CachedImage(url: imageUrl, fit: BoxFit.contain);
+    if (heroTag != null) {
+      image = Hero(tag: heroTag!, child: image);
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadii.sm),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ColoredBox(
+            color: AppSurface.subtle,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Center(child: image),
             ),
-            if (discountPct > 0)
-              Positioned(
-                top: 6,
-                left: 6,
-                child: DiscountBadge(percent: discountPct),
-              ),
-          ],
-        ),
+          ),
+          if (discountPct > 0)
+            Positioned(
+              top: 6,
+              left: 6,
+              child: DiscountBadge(percent: discountPct),
+            ),
+        ],
       ),
     );
   }

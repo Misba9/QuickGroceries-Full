@@ -9,6 +9,7 @@ import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -63,11 +64,9 @@ class _SearchScreenState extends State<SearchScreen> {
           setState(() {
             _isListening = false;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.speechRecognitionError(error.errorMsg)),
-              backgroundColor: Colors.red,
-            ),
+          AppSnackBar.error(
+            context.l10n.speechRecognitionError(error.errorMsg),
+            context: context,
           );
         }
       },
@@ -83,11 +82,9 @@ class _SearchScreenState extends State<SearchScreen> {
     var status = await Permission.microphone.request();
     if (status != PermissionStatus.granted) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.microphonePermissionRequired),
-            backgroundColor: Colors.red,
-          ),
+        AppSnackBar.error(
+          context.l10n.microphonePermissionRequired,
+          context: context,
         );
       }
       return;
@@ -95,11 +92,9 @@ class _SearchScreenState extends State<SearchScreen> {
 
     if (!_isSpeechAvailable) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.speechRecognitionUnavailable),
-            backgroundColor: Colors.red,
-          ),
+        AppSnackBar.error(
+          context.l10n.speechRecognitionUnavailable,
+          context: context,
         );
       }
       return;

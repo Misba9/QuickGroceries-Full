@@ -9,9 +9,26 @@ Map<String, dynamic> sanitizeCallableData(Map<String, dynamic> data) {
 }
 
 void debugCallableData(String functionName, Map<String, dynamic> payload) {
+  if (!kDebugMode) return;
   debugPrint('========== CALLABLE PAYLOAD: $functionName ==========');
-  debugPrint(const JsonEncoder.withIndent('  ').convert(payload));
-  debugPrint(_describeTypes(payload));
+  // Redact high-risk keys before any debug dump.
+  final safe = Map<String, dynamic>.from(payload);
+  for (final key in safe.keys.toList()) {
+    final lower = key.toLowerCase();
+    if (lower.contains('token') ||
+        lower.contains('otp') ||
+        lower.contains('phone') ||
+        lower.contains('email') ||
+        lower.contains('address') ||
+        lower.contains('secret') ||
+        lower.contains('signature') ||
+        lower.contains('payment') ||
+        lower.contains('razorpay')) {
+      safe[key] = '***';
+    }
+  }
+  debugPrint(const JsonEncoder.withIndent('  ').convert(safe));
+  debugPrint(_describeTypes(safe));
 }
 
 Object? _sanitizeValue(Object? value, String path) {

@@ -175,7 +175,22 @@ class HomeShimmer {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.max,
             children: [
-              Expanded(child: AspectRatio(aspectRatio: 1, child: _box(radius: 12))),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final side = constraints.maxWidth < constraints.maxHeight
+                        ? constraints.maxWidth
+                        : constraints.maxHeight;
+                    return Center(
+                      child: SizedBox(
+                        width: side,
+                        height: side,
+                        child: _box(radius: 12),
+                      ),
+                    );
+                  },
+                ),
+              ),
               const SizedBox(height: 8),
               _box(height: 10, width: 80),
               const SizedBox(height: 6),

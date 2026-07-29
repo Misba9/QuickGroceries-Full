@@ -9,6 +9,7 @@ import 'package:quickgrocery/view/auth/screens/firebase_diagnostic_screen.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
 import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
 import 'package:provider/provider.dart' as legacy_provider;
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class LoginScreen extends ConsumerWidget {
@@ -99,11 +100,9 @@ class LoginScreen extends ConsumerWidget {
                       : () {
                           provider.clearPhoneAuthError();
                           if (provider.mobileController.text.length < 10) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(context.l10n.please_enter_valid_phone),
-                                backgroundColor: Colors.red,
-                              ),
+                            AppSnackBar.error(
+                              context.l10n.please_enter_valid_phone,
+                              context: context,
                             );
                           } else {
                             provider.verifyPhoneNumber(context);

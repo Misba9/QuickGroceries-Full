@@ -74,6 +74,8 @@ import FirebaseAuth
   }
 
   // Handle reCAPTCHA / OAuth redirect URLs for phone auth fallback.
+  // Also forwards unknown URLs to Flutter/plugins (Razorpay UPI return paths
+  // are handled inside the Razorpay iOS SDK presented Checkout).
   override func application(
     _ app: UIApplication,
     open url: URL,
@@ -83,5 +85,21 @@ import FirebaseAuth
       return true
     }
     return super.application(app, open: url, options: options)
+  }
+
+  // iOS 13+ scene / universal-link style opens — keep Firebase Auth covered.
+  override func application(
+    _ application: UIApplication,
+    continue userActivity: NSUserActivity,
+    restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
+  ) -> Bool {
+    if let url = userActivity.webpageURL, Auth.auth().canHandle(url) {
+      return true
+    }
+    return super.application(
+      application,
+      continue: userActivity,
+      restorationHandler: restorationHandler
+    )
   }
 }

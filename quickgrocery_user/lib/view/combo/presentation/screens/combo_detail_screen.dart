@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/constants/app_color.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/combo_offer_model.dart';
 import 'package:quickgrocery/models/product.dart';
@@ -79,8 +79,9 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
 
   void _addToCart(List<ProductModel> products) {
     if (!widget.combo.isAvailableNow) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This combo is currently unavailable')),
+      AppSnackBar.error(
+        'This combo is currently unavailable',
+        context: context,
       );
       return;
     }
@@ -261,11 +262,11 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                       qty: _qty,
                       maxQty: combo.stock > 0 ? combo.stock : null,
                       onChanged: (v) => setState(() => _qty = v),
-                      onMaxReached: () => showTopErrorToast(
-                        context,
+                      onMaxReached: () => AppSnackBar.error(
                         combo.stock == 1
                             ? 'Only 1 combo available'
                             : 'Only ${combo.stock} combos available',
+                        context: context,
                       ),
                     ),
                     const SizedBox(width: 12),

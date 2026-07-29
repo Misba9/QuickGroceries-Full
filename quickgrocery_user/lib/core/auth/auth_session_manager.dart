@@ -13,6 +13,7 @@ import 'package:quickgrocery/core/auth/guest_session_provider.dart';
 import 'package:quickgrocery/core/auth/phone_auth_coordinator.dart';
 import 'package:quickgrocery/core/auth/session_legacy_services.dart';
 import 'package:quickgrocery/core/auth/user_session_store.dart';
+import 'package:quickgrocery/view/address/data/guest_address_store.dart';
 import 'package:quickgrocery/view/cart/data/guest_cart_store.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
@@ -34,18 +35,38 @@ abstract final class AuthSessionManager {
     );
   }
 
+  /// Clears local session after Firebase Auth account deletion.
+  /// Does **not** preserve cart/address — the account no longer exists.
+  static Future<void> finalizeAfterAccountDeletion({
+    required BuildContext context,
+    required WidgetRef ref,
+  }) {
+    return signOut(
+      ref: ref,
+      legacy: SessionLegacyServices.fromContext(context),
+      preserveCartForGuest: false,
+    );
+  }
+
   static Future<void> signOut({
     required WidgetRef ref,
     required SessionLegacyServices legacy,
+    bool preserveCartForGuest = true,
   }) async {
     final previousUid = FirebaseAuth.instance.currentUser?.uid;
     AuthSessionLog.logoutStarted(uid: previousUid);
 
     try {
       final prefs = ref.read(sharedPreferencesProvider);
-      final cartItems = ref.read(cartProvider).items;
-      await GuestCartStore.saveItems(prefs, cartItems);
-      GuestAuthCoordinator.preserveCartOnSignOut = true;
+      if (preserveCartForGuest) {
+        final cartItems = ref.read(cartProvider).items;
+        await GuestCartStore.saveItems(prefs, cartItems);
+        GuestAuthCoordinator.preserveCartOnSignOut = true;
+      } else {
+        GuestAuthCoordinator.preserveCartOnSignOut = false;
+        await GuestCartStore.clear(prefs);
+        await GuestAddressStore.clear(prefs);
+      }
 
       legacy.resetInMemoryState();
       PhoneAuthCoordinator.reset();
@@ -56,7 +77,10 @@ abstract final class AuthSessionManager {
       AuthSessionLog.userCacheCleared();
       AuthSessionLog.sessionCleared();
 
-      await FirebaseAuth.instance.signOut();
+      // After Auth.delete(), currentUser is already null — signOut is a no-op.
+      if (FirebaseAuth.instance.currentUser != null) {
+        await FirebaseAuth.instance.signOut();
+      }
 
       // Guest flag is a no-op while currentUser != null — enable after signOut.
       await ref.read(guestSessionProvider.notifier).enable();

@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quickgrocery/core/firestore/firestore_retry.dart';
 import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/core/user/user_profile_repository.dart';
 
@@ -190,35 +191,8 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
     String body, {
     Map<String, dynamic>? navigationData,
   }) {
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger == null) return;
-    messenger.showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(12),
-        duration: const Duration(seconds: 4),
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            if (body.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(body),
-            ],
-          ],
-        ),
-        action: navigationData != null
-            ? SnackBarAction(
-                label: 'View',
-                onPressed: () => handlePushNavigation(navigationData),
-              )
-            : null,
-      ),
-    );
+    final message = body.isNotEmpty ? '$title\n$body' : title;
+    AppSnackBar.info(message, context: context);
   }
 
   @override

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
 
 /// Shows a lightweight in-app “notification” (SnackBar) when admin changes
@@ -39,12 +40,9 @@ class _DeliveryPricingUpdateListenerState
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!context.mounted) return;
-          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-            SnackBar(
-              behavior: SnackBarBehavior.floating,
-              content: Text(DeliveryPricingPolicy.snackbarOnRemoteChange(config)),
-              duration: const Duration(seconds: 4),
-            ),
+          AppSnackBar.info(
+            DeliveryPricingPolicy.snackbarOnRemoteChange(config),
+            context: context,
           );
         });
       });

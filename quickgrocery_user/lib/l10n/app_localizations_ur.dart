@@ -252,6 +252,44 @@ class AppLocalizationsUr extends AppLocalizations {
   String get delete_account => 'اکاؤنٹ حذف';
 
   @override
+  String get delete_account_title => 'اکاؤنٹ حذف';
+
+  @override
+  String get delete_account_confirmation =>
+      'آپ کا اکاؤنٹ مستقل طور پر حذف کر دیا جائے گا۔\n\nاس سے آپ کا اکاؤنٹ، محفوظ پتے، کارٹ، پروفائل معلومات اور دیگر ذاتی ڈیٹا مستقل طور پر ہٹ جائے گا۔\n\nیہ عمل واپس نہیں ہو سکتا۔';
+
+  @override
+  String get delete_account_warning => 'یہ عمل واپس نہیں ہو سکتا۔';
+
+  @override
+  String get delete_account_success => 'آپ کا اکاؤنٹ حذف کر دیا گیا ہے۔';
+
+  @override
+  String get delete_account_failed =>
+      'ہم آپ کا اکاؤنٹ حذف نہیں کر سکے۔ براہ کرم دوبارہ کوشش کریں۔';
+
+  @override
+  String get delete_account_reauth_title => 'تصدیق کریں کہ یہ آپ ہیں';
+
+  @override
+  String get delete_account_reauth_message =>
+      'سیکیورٹی کے لیے، اکاؤنٹ حذف کی تصدیق کیلئے اپنے فون پر بھیجا گیا OTP درج کریں۔';
+
+  @override
+  String get delete_account_reauth_send_otp => 'OTP بھیجیں';
+
+  @override
+  String get delete_account_in_progress => 'آپ کا اکاؤنٹ حذف ہو رہا ہے…';
+
+  @override
+  String get delete_account_network_error =>
+      'نیٹ ورک خرابی۔ کنکشن چیک کریں اور دوبارہ کوشش کریں۔';
+
+  @override
+  String get delete_account_permission_error =>
+      'ڈیٹا حذف کرتے وقت اجازت مسترد۔ براہ کرم سپورٹ سے رابطہ کریں۔';
+
+  @override
   String get delete_address_body =>
       'یہ پتہ آپ کی محفوظ فہرست سے حذف ہو جائے گا۔';
 

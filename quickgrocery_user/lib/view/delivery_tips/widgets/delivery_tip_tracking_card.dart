@@ -5,10 +5,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/delivery_tips/models/delivery_tip_settings.dart';
 import 'package:quickgrocery/view/delivery_tips/services/delivery_tip_service.dart';
 import 'package:quickgrocery/view/orders/domain/order_models.dart';
+import 'package:quickgrocery/view/payment/data/razorpay_order_client.dart';
+import 'package:quickgrocery/view/payment/domain/razorpay_payment_result.dart';
 import 'package:quickgrocery/view/payment/services/payment_service.dart';
 
 /// Active-order tip increase card (assigned → out for delivery).
@@ -68,9 +70,9 @@ class _DeliveryTipTrackingCardState extends State<DeliveryTipTrackingCard> {
     final current = _displayTip;
     final newTotal = current + delta;
     if (newTotal > widget.settings.maxTipAmount) {
-      showTopErrorToast(
-        context,
+      AppSnackBar.error(
         'Maximum tip is ₹${widget.settings.maxTipAmount}.',
+        context: context,
       );
       return;
     }
@@ -93,30 +95,66 @@ class _DeliveryTipTrackingCardState extends State<DeliveryTipTrackingCard> {
     final payment = Provider.of<PaymentService>(context, listen: false);
     var paymentCompleted = false;
 
-    payment.openCheckout(
-      delta.toDouble(),
-      widget.order.customerName.isNotEmpty
-          ? widget.order.customerName
-          : 'Quick Grocery',
-      'Delivery partner tip',
-      onPaymentSuccess: (paymentId) async {
-        paymentCompleted = true;
-        if (!mounted) return;
-        await _commitTipDelta(
-          delta,
-          paymentRef: paymentId,
-          paymentStatus: 'paid',
-        );
-      },
-      onPaymentError: (message) {
-        if (!mounted || paymentCompleted) return;
+    try {
+      final session = await RazorpayOrderClient().createTipOrder(
+        amountRupees: delta.toDouble(),
+        groceryOrderId: widget.order.id,
+      );
+      if (!mounted) return;
+      payment.openCheckoutSession(
+        session: session,
+        name: widget.order.customerName.isNotEmpty
+            ? widget.order.customerName
+            : 'Quick Grocery',
+        description: 'Delivery partner tip',
+        onPaymentSuccess: (RazorpayPaymentResult result) async {
+          paymentCompleted = true;
+          if (!mounted) return;
+          try {
+            await RazorpayOrderClient().confirmTipPayment(
+              groceryOrderId: widget.order.id,
+              payment: result,
+              tipDeltaRupees: delta,
+            );
+            if (!mounted) return;
+            setState(() {
+              _optimisticTip = _displayTip + delta;
+              _loading = false;
+            });
+            AppSnackBar.success(
+              'Tip of ₹$delta added. Thank you!',
+              context: context,
+            );
+          } catch (e) {
+            if (mounted) {
+              setState(() => _loading = false);
+              AppSnackBar.error(
+                e is StateError
+                    ? e.message
+                    : 'Tip payment could not be verified.',
+                context: context,
+              );
+            }
+          }
+        },
+        onPaymentError: (message) {
+          if (!mounted || paymentCompleted) return;
+          setState(() => _loading = false);
+          AppSnackBar.error(
+            message.isNotEmpty ? message : 'Payment was not completed.',
+            context: context,
+          );
+        },
+      );
+    } catch (e) {
+      if (mounted) {
         setState(() => _loading = false);
-        showTopErrorToast(
-          context,
-          message.isNotEmpty ? message : 'Payment was not completed.',
+        AppSnackBar.error(
+          e is StateError ? e.message : 'Could not start tip payment.',
+          context: context,
         );
-      },
-    );
+      }
+    }
   }
 
   Future<void> _commitTipDelta(
@@ -143,22 +181,18 @@ class _DeliveryTipTrackingCardState extends State<DeliveryTipTrackingCard> {
       );
       if (!mounted) return;
       setState(() => _optimisticTip = result.newTip);
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text(
-              '🎉 Thank you! ₹${result.delta.toStringAsFixed(0)} tip added successfully.',
-            ),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+      AppSnackBar.success(
+        '🎉 Thank you! ₹${result.delta.toStringAsFixed(0)} tip added successfully.',
+        context: context,
+      );
     } on DeliveryTipException catch (e) {
-      if (mounted) showTopErrorToast(context, e.message);
+      if (mounted) AppSnackBar.error(e.message, context: context);
     } catch (e) {
       if (mounted) {
-        showTopErrorToast(context, 'Could not update tip. Please try again.');
+        AppSnackBar.error(
+          'Could not update tip. Please try again.',
+          context: context,
+        );
       }
       debugPrint('TIP UI ERROR: $e');
     } finally {

@@ -130,3 +130,7 @@ export {
   reportProductReview,
   canReviewProduct,
 } from "./reviews/review_callables";
+
+/** Razorpay: create Orders API checkout sessions (secret stays on server). */
+export { createRazorpayOrderCallable } from "./payments/create_razorpay_order_callable";
+export { confirmRazorpayTipPaymentCallable } from "./payments/confirm_razorpay_tip_callable";

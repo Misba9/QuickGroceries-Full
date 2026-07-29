@@ -99,7 +99,8 @@ class OrderRepository {
     final productItems =
         items.map(OrderLineSnapshot.toProductItem).toList();
 
-    final isPaid = paymentMethod.isOnline && paymentRef != null;
+    // Client fallback must never mark online payments as paid.
+    const isPaid = false;
 
     final legacyOrder = OrderModel(
       lat: currentLatLng.latitude,
@@ -132,7 +133,8 @@ class OrderRepository {
     final modernExtras = <String, dynamic>{
       'status': OrderStatus.orderPlaced.id,
       'paymentMethod': paymentMethod.id,
-      'paymentStatus': isPaid ? 'paid' : 'pending',
+      // Always pending on client fallback — paid status is server-verified only.
+      'paymentStatus': 'pending',
       if (paymentRef != null) 'paymentRef': paymentRef,
       'delivery_instructions': instructions.legacyText,
       'deliveryInstructions': instructions.toMap(),
@@ -176,10 +178,12 @@ class OrderRepository {
       if (vendorIds.length == 1) 'vendor_id': vendorIds.first,
     };
 
-    debugPrint(
+    if (kDebugMode) {
+      debugPrint(
       'ORDER FIRESTORE WRITE path=orders/${ref.id} '
       'vendorIds=$vendorIds user=${user.uid}',
-    );
+      );
+    }
 
     try {
       await ref.set(orderData);
@@ -201,14 +205,16 @@ class OrderRepository {
         orderData: orderData,
       );
     } on FirebaseException catch (e, stack) {
-      debugPrint(
+      if (kDebugMode) {
+        debugPrint(
         'ORDER FIRESTORE ERROR path=orders/${ref.id} '
         'code=${e.code} message=${e.message}',
-      );
-      debugPrintStack(stackTrace: stack);
+        );
+      }
+      if (kDebugMode) debugPrintStack(stackTrace: stack);
       rethrow;
     } catch (e, stack) {
-      debugPrint('ORDER FIRESTORE ERROR path=orders/${ref.id} error=$e');
+      if (kDebugMode) debugPrint('ORDER FIRESTORE ERROR path=orders/${ref.id} error=$e');
       debugPrintStack(stackTrace: stack);
       rethrow;
     }

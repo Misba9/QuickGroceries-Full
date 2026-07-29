@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/refer/services/refer_earn_service.dart';
 import 'package:quickgrocery/view/refer/widgets/refer_share_actions.dart';
 import 'package:share_plus/share_plus.dart';
@@ -54,11 +55,9 @@ class _ReferScreenState extends State<ReferScreen>
   }
 
   void _showShareDisabled() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('App download link not configured by Admin'),
-        backgroundColor: Colors.orange,
-      ),
+    AppSnackBar.error(
+      'App download link not configured by Admin',
+      context: context,
     );
   }
 
@@ -67,9 +66,7 @@ class _ReferScreenState extends State<ReferScreen>
     await Clipboard.setData(ClipboardData(text: _data.referralCode));
     if (!mounted) return;
     HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Referral code copied')),
-    );
+    AppSnackBar.success('Referral code copied', context: context);
   }
 
   void _shareInvite() {

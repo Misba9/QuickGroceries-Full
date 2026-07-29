@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/widgets/firestore_connection_lost.dart';
 import 'package:quickgrocery/maintenance/presentation/providers/maintenance_providers.dart';
 import 'package:quickgrocery/maintenance/presentation/screens/maintenance_screen.dart';
@@ -88,10 +89,5 @@ class _MaintenanceGateState extends ConsumerState<MaintenanceGate> {
 
 /// Snackbar when maintenance blocks checkout.
 void showMaintenanceOrderBlocked(BuildContext context, {String? message}) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(message ?? 'Ordering disabled by admin'),
-      behavior: SnackBarBehavior.floating,
-    ),
-  );
+  AppSnackBar.error(message ?? 'Ordering disabled by admin', context: context);
 }

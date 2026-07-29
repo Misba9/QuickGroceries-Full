@@ -17,6 +17,7 @@ import 'package:quickgrocery/view/home/presentation/widgets/home_banner_helpers.
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
@@ -429,16 +430,9 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
                         ? () => _handleTap(context)
                         : () {
                             HapticFeedback.lightImpact();
-                            ScaffoldMessenger.of(context).clearSnackBars();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                behavior: SnackBarBehavior.floating,
-                                margin: const EdgeInsets.all(14),
-                                content: Text(
-                                  context.l10n.promo_more_soon,
-                                  style: GoogleFonts.poppins(),
-                                ),
-                              ),
+                            AppSnackBar.info(
+                              context.l10n.promo_more_soon,
+                              context: context,
                             );
                           },
                     child: Row(

@@ -10,6 +10,7 @@ import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/user/user_profile_repository.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/profile/domain/profile_models.dart';
 
 /// Edit name, email, and profile photo.
@@ -80,14 +81,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated')),
-      );
+      AppSnackBar.success('Profile updated', context: context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save profile: $e')),
-        );
+        AppSnackBar.error('Could not save profile: $e', context: context);
       }
     } finally {
       if (mounted) setState(() => _saving = false);

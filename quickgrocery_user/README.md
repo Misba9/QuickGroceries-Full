@@ -28,10 +28,13 @@ Output: `build/app/outputs/flutter-apk/app-release.apk`
 open ios/Runner.xcworkspace
 
 flutter clean
-flutter pub get
+flutter pub get 
 flutter build appbundle --release
 ```
 Output: `build/app/outputs/bundle/release/app-release.aab`
+
+
+flutter build ipa
 
 ## Firebase Phone Auth (avoid external reCAPTCHA page)
 

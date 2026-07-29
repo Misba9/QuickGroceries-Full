@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:quickgrocery/constants/app_color.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/inventory/inventory_limit_messages.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
@@ -56,8 +56,7 @@ class _CartActionBarState extends ConsumerState<CartActionBar> {
     final added = ref.read(cartProvider.notifier).addProductDirectly(copy);
     if (!added) {
       if (!mounted) return;
-      showTopErrorToast(
-        context,
+      AppSnackBar.error(
         widget.product.isOutOfStock
             ? InventoryLimitMessages.outOfStock(context.l10n)
             : InventoryLimitMessages.incrementBlocked(
@@ -66,18 +65,13 @@ class _CartActionBarState extends ConsumerState<CartActionBar> {
                 maxOrder: widget.product.maxOrder,
                 currentCount: qty,
               ),
+        context: context,
       );
       return;
     }
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.item_added_to_cart),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppSnackBar.success(context.l10n.item_added_to_cart, context: context);
     }
 
     // Fly-to-cart animation, anchored on the bottom-bar thumbnail.
@@ -176,14 +170,14 @@ class _CartActionBarState extends ConsumerState<CartActionBar> {
                   maxOrder: widget.product.maxOrder,
                 ).increment();
                 if (!ok && context.mounted) {
-                  showTopErrorToast(
-                    context,
+                  AppSnackBar.error(
                     InventoryLimitMessages.incrementBlocked(
                       l10n: context.l10n,
                       stock: widget.product.stock,
                       maxOrder: widget.product.maxOrder,
                       currentCount: qty,
                     ),
+                    context: context,
                   );
                 }
               },

@@ -46,6 +46,8 @@ abstract final class OrderPlacementLog {
   }
 
   static void _log(String event, String detail) {
-    debugPrint('[OrderPlacement] $event | $detail');
+    if (!kDebugMode) return;
+    // Avoid logging order / payment identifiers outside debug builds.
+    debugPrint('[OrderPlacement] $event');
   }
 }

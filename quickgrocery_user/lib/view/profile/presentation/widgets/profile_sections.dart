@@ -1,15 +1,21 @@
 import 'package:animate_do/animate_do.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/account/account_deletion_exception.dart';
+import 'package:quickgrocery/core/account/account_deletion_reauth.dart';
+import 'package:quickgrocery/core/account/account_deletion_service.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/locale_provider.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/auth/auth_session_manager.dart';
+import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/orders/domain/order_models.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
@@ -592,21 +598,19 @@ class _ProfileSavedCouponsSectionState
         );
     if (!mounted) return;
     setState(() => _applyingCode = null);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          err ?? context.l10n.coupon_applied_checkout(coupon.code),
-        ),
-        backgroundColor: err == null ? Colors.green.shade700 : Colors.red,
-      ),
-    );
+    if (err != null) {
+      AppSnackBar.error(err, context: context);
+    } else {
+      AppSnackBar.success(
+        context.l10n.coupon_applied_checkout(coupon.code),
+        context: context,
+      );
+    }
   }
 
   void _copyCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.coupon_copied(code))),
-    );
+    AppSnackBar.success(context.l10n.coupon_copied(code), context: context);
   }
 
   @override
@@ -1366,10 +1370,212 @@ class ProfileLegalSection extends StatelessWidget {
   }
 }
 
+// ─── Delete Account (Apple Guideline 5.1.1(v)) ────────────────────────────
+
+class ProfileDeleteAccountSection extends ConsumerWidget {
+  const ProfileDeleteAccountSection({super.key, this.animationIndex = 14});
+
+  final int animationIndex;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FadeInUp(
+      duration: Duration(milliseconds: 380 + animationIndex * 40),
+      child: Semantics(
+        button: true,
+        label: context.l10n.delete_account,
+        child: SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => _confirmAndDeleteAccount(context, ref),
+            icon: Icon(Icons.person_remove_outlined, color: Colors.red.shade700),
+            label: Text(
+              context.l10n.delete_account,
+              style: GoogleFonts.poppins(
+                color: Colors.red.shade700,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              side: BorderSide(color: Colors.red.shade300),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              minimumSize: const Size(48, 48),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmAndDeleteAccount(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final l10n = context.l10n;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.delete_account_title),
+        content: Text(l10n.delete_account_confirmation),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(l10n.delete_account),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+
+    await _runAccountDeletion(context, ref);
+  }
+
+  Future<void> _runAccountDeletion(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final l10n = context.l10n;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      AppSnackBar.error(l10n.delete_account_failed, context: context);
+      return;
+    }
+    final uid = user.uid;
+
+    // Reauth BEFORE wiping data so canceling OTP cannot leave a half-deleted account.
+    final reauthed = await showAccountDeletionReauthSheet(context);
+    if (!reauthed || !context.mounted) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Material(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    child: Text(
+                      l10n.delete_account_in_progress,
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    var loadingStillOpen = true;
+    void dismissLoadingIfNeeded() {
+      if (!loadingStillOpen || !context.mounted) return;
+      final nav = Navigator.of(context, rootNavigator: true);
+      if (nav.canPop()) nav.pop();
+      loadingStillOpen = false;
+    }
+
+    final service = AccountDeletionService();
+
+    try {
+      final current = FirebaseAuth.instance.currentUser;
+      if (current == null || current.uid != uid) {
+        throw AccountDeletionException(AccountDeletionErrorKind.notSignedIn);
+      }
+
+      await service.deleteUserOwnedData(uid);
+
+      try {
+        await service.deleteAuthUser();
+      } on AccountDeletionException catch (e) {
+        if (e.kind != AccountDeletionErrorKind.requiresRecentLogin) rethrow;
+        // Rare: session aged during long data wipe — reauth once more.
+        dismissLoadingIfNeeded();
+        if (!context.mounted) {
+          throw AccountDeletionException(AccountDeletionErrorKind.cancelled);
+        }
+        final again = await showAccountDeletionReauthSheet(context);
+        if (!again) {
+          throw AccountDeletionException(AccountDeletionErrorKind.cancelled);
+        }
+        if (!context.mounted) {
+          throw AccountDeletionException(AccountDeletionErrorKind.cancelled);
+        }
+        loadingStillOpen = true;
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          useRootNavigator: true,
+          builder: (_) => const PopScope(
+            canPop: false,
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ),
+        );
+        await service.deleteAuthUser();
+      }
+
+      if (!context.mounted) return;
+      final successMessage = l10n.delete_account_success;
+      await AuthSessionManager.finalizeAfterAccountDeletion(
+        context: context,
+        ref: ref,
+      );
+      loadingStillOpen = false;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = rootNavigatorKey.currentContext;
+        if (ctx == null || !ctx.mounted) return;
+        AppSnackBar.success(successMessage, context: ctx);
+      });
+    } catch (e) {
+      dismissLoadingIfNeeded();
+      if (!context.mounted) return;
+      if (e is AccountDeletionException &&
+          e.kind == AccountDeletionErrorKind.cancelled) {
+        return;
+      }
+      AppSnackBar.error(
+        accountDeletionErrorMessage(context, e),
+        context: context,
+      );
+    }
+  }
+}
+
 // ─── Logout ───────────────────────────────────────────────────────────────
 
 class ProfileLogoutSection extends ConsumerWidget {
-  const ProfileLogoutSection({super.key, this.animationIndex = 14});
+  const ProfileLogoutSection({super.key, this.animationIndex = 15});
 
   final int animationIndex;
 
@@ -1455,12 +1661,7 @@ class ProfileLogoutSection extends ConsumerWidget {
     } catch (e) {
       dismissLoadingIfNeeded();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Logout failed: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackBar.error('Logout failed: $e', context: context);
       }
     }
   }

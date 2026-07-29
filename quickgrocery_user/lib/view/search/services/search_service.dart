@@ -18,6 +18,8 @@ class SearchService extends ChangeNotifier {
       try {
         QuerySnapshot snapshot = await FirebaseFirestore.instance
             .collection('products')
+            .orderBy(FieldPath.documentId)
+            .limit(300)
             .get();
 
         productsList = snapshot.docs

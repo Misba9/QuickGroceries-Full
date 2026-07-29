@@ -1,5 +1,6 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/database/cancel_resons.dart';
 import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
 import 'package:quickgrocery/view/cancell_order/cancel_succes_screen.dart';
@@ -49,9 +50,7 @@ class _CancelOrderState extends State<CancelOrder> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      AppSnackBar.error(e.toString(), context: context);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

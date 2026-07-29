@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Opens phone, email, and WhatsApp using platform handlers.
@@ -37,6 +38,6 @@ class SupportActionLauncher {
   }
 
   static void _snack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    AppSnackBar.error(message, context: context);
   }
 }

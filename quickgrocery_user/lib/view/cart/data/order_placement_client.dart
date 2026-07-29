@@ -32,6 +32,8 @@ class OrderPlacementClient {
     required DeliveryInstructions instructions,
     required PaymentMethod paymentMethod,
     String? paymentRef,
+    String? razorpayOrderId,
+    String? razorpaySignature,
     double tipAmount = 0,
     String? idempotencyKey,
   }) async {
@@ -71,6 +73,9 @@ class OrderPlacementClient {
       'deliveryInstructions': instructions.toMap(),
       'paymentMethod': paymentMethod.id,
       if (paymentRef != null) 'paymentRef': paymentRef,
+      if (paymentRef != null) 'razorpay_payment_id': paymentRef,
+      if (razorpayOrderId != null) 'razorpay_order_id': razorpayOrderId,
+      if (razorpaySignature != null) 'razorpay_signature': razorpaySignature,
       if (tipAmount > 0) 'tipAmount': tipAmount.round(),
       if (idempotencyKey != null && idempotencyKey.isNotEmpty)
         'idempotencyKey': idempotencyKey,

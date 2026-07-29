@@ -20,8 +20,6 @@ import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 /// * **Out-of-stock state** — red sash + disabled stepper.
 /// * **Swipe to remove** — full-width red action with trash icon, with
 ///   haptic confirm; falls back to long-press → remove for accessibility.
-/// * **Hero animation** — `cart-item-${productId}` so opening the product
-///   detail screen animates the image smoothly.
 class PremiumCartItemCard extends StatelessWidget {
   const PremiumCartItemCard({
     super.key,
@@ -41,7 +39,9 @@ class PremiumCartItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dismissible(
-      key: ValueKey('cart-${item.productId}'),
+      key: ValueKey(
+        'cart-${item.productId}-${item.comboGroupKey ?? 'solo'}',
+      ),
       direction: DismissDirection.endToStart,
       background: _DismissBackground(),
       confirmDismiss: (_) async {
@@ -109,7 +109,6 @@ class _CardSurface extends StatelessWidget {
               children: [
                 _ItemImage(
                   url: item.image,
-                  productId: item.productId,
                   outOfStock: outOfStock,
                 ),
                 const SizedBox(width: 12),
@@ -213,34 +212,29 @@ class _CardSurface extends StatelessWidget {
 class _ItemImage extends StatelessWidget {
   const _ItemImage({
     required this.url,
-    required this.productId,
     required this.outOfStock,
   });
 
   final String url;
-  final String productId;
   final bool outOfStock;
 
   @override
   Widget build(BuildContext context) {
-    return Hero(
-      tag: 'cart-item-$productId',
-      child: SizedBox(
-        width: 78,
-        height: 78,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadii.sm),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ColoredBox(
-                color: AppSurface.subtle,
-                child: CachedImage(url: url, fit: BoxFit.cover),
-              ),
-              if (outOfStock)
-                ColoredBox(color: Colors.black.withValues(alpha: 0.35)),
-            ],
-          ),
+    return SizedBox(
+      width: 78,
+      height: 78,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ColoredBox(
+              color: AppSurface.subtle,
+              child: CachedImage(url: url, fit: BoxFit.cover),
+            ),
+            if (outOfStock)
+              ColoredBox(color: Colors.black.withValues(alpha: 0.35)),
+          ],
         ),
       ),
     );

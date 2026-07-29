@@ -96,10 +96,12 @@ void validateOrderLinesAgainstSubtotal({
     (sum, p) => sum + OrderLinePricing.fromProductItem(p).lineTotal,
   );
   if ((fromLines - subtotal).abs() > 0.05) {
-    debugPrint(
+    if (kDebugMode) {
+      debugPrint(
       '${tag != null ? '[$tag] ' : ''}'
       'ORDER LINE WARNING: line sum=$fromLines != subtotal=$subtotal',
-    );
+      );
+    }
   }
 }
 

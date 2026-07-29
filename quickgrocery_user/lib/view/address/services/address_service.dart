@@ -12,6 +12,7 @@ import 'package:quickgrocery/core/delivery/delivery_zone_lookup.dart';
 import 'package:quickgrocery/models/address_model.dart';
 import 'package:quickgrocery/view/address/data/guest_address_store.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:quick_grocery_geo/quick_grocery_geo.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AddressService extends ChangeNotifier {
@@ -105,33 +106,49 @@ class AddressService extends ChangeNotifier {
   int _selectedIndex = 0;
   Future<void> _deleteChain = Future.value();
   final dateTime = DateTime.now();
-  void onLatlongChanged(LatLng ponint, {bool invalidateValidation = false}) {
+  void onLatlongChanged(
+    LatLng ponint, {
+    bool invalidateValidation = false,
+    bool notify = true,
+  }) {
+    if (!GpsPoint.isValidCoord(ponint.latitude, ponint.longitude)) return;
     latLng = ponint;
     if (invalidateValidation) {
       invalidateAddressValidation();
     }
-    notifyListeners();
+    if (notify) notifyListeners();
   }
 
   Future<void> onLatLongUpdatedinHome(BuildContext context, LatLng lat) async {
+    if (!GpsPoint.isValidCoord(lat.latitude, lat.longitude)) return;
     latLng = lat;
     invalidateAddressValidation(notify: false);
-    List<Placemark> placemarks = await placemarkFromCoordinates(
-      lat.latitude,
-      lat.longitude,
-    );
-    if (placemarks.isNotEmpty) {
-      Placemark place = placemarks[0];
+    try {
+      final placemarks = await placemarkFromCoordinates(
+        lat.latitude,
+        lat.longitude,
+      );
+      if (placemarks.isNotEmpty) {
+        final place = placemarks[0];
+        _address =
+            '${place.subLocality} ${place.street}, ${place.locality} ${place.postalCode} ${place.country}';
+        _pinCode = place.postalCode;
+        addressController.text = _address;
+      }
+    } catch (e) {
+      debugPrint('AddressService: reverse geocode on confirm failed: $e');
+    }
 
-      _address =
-          '${place.subLocality} ${place.street}, ${place.locality} ${place.postalCode} ${place.country}';
-      _pinCode = place.postalCode;
-      addressController.text = _address;
-      notifyListeners();
-
+    // Pop first, then notify underneath route on the next frame.
+    // notifyListeners() + Navigator.pop() + notifyListeners() in one turn
+    // rebuilds AddressService dependents while the location route is disposing
+    // → InheritedElement `_dependents.isEmpty` / wrong build scope.
+    if (context.mounted) {
       Navigator.pop(context);
     }
-    notifyListeners();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
   }
 
   Future<void> getCurrentLocation(
@@ -183,6 +200,12 @@ class AddressService extends ChangeNotifier {
       );
 
       latLng = LatLng(position.latitude, position.longitude);
+      if (!GpsPoint.isValidCoord(latLng!.latitude, latLng!.longitude)) {
+        latLng = null;
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
       if (force) {
         invalidateAddressValidation(notify: false);
       }
@@ -334,7 +357,10 @@ class AddressService extends ChangeNotifier {
 
   /// Updates preview line + pin from reverse-geocode while picking on the map.
   /// Does not invalidate session validation until the user confirms location.
-  void applyMapGeocode(Placemark p) {
+  ///
+  /// Pass [notify]: false from the map picker so camera gestures do not rebuild
+  /// the whole route (that recreates [FlutterMap] layers and crashes).
+  void applyMapGeocode(Placemark p, {bool notify = true}) {
     final parts = <String>[];
     void add(String? s) {
       if (s == null) return;
@@ -354,7 +380,7 @@ class AddressService extends ChangeNotifier {
       storedPin: p.postalCode,
       addressText: _address,
     );
-    notifyListeners();
+    if (notify) notifyListeners();
   }
 
   /// Extract pin code from address string (legacy helper).
@@ -531,8 +557,8 @@ class AddressService extends ChangeNotifier {
     _selectedAddressId = prefs.getString(_cacheAddressIdKey);
     final lat = prefs.getDouble(_cacheLatKey);
     final lng = prefs.getDouble(_cacheLngKey);
-    if (lat != null && lng != null) {
-      latLng = LatLng(lat, lng);
+    if (GpsPoint.isValidCoord(lat, lng)) {
+      latLng = LatLng(lat!, lng!);
     }
     _pinCode = prefs.getString(_cachePinKey) ?? _pinCode;
     _cachedServiceable = prefs.getBool(_cacheServiceableKey) ?? false;
@@ -631,8 +657,8 @@ class AddressService extends ChangeNotifier {
     await docRef.update({'id': docRef.id});
     _selectedAddressId = docRef.id;
     _address = area.isEmpty ? addressText : '$addressText, $area';
-    if (lat != null && lng != null) {
-      latLng = LatLng(lat, lng);
+    if (GpsPoint.isValidCoord(lat, lng)) {
+      latLng = LatLng(lat!, lng!);
     }
     _pinCode = DeliveryZoneLookup.resolvePin(
           addressText: _address,

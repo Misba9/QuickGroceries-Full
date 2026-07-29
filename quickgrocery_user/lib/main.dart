@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
+import 'package:app_links/app_links.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ import 'package:quickgrocery/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'
     show ProviderScope, ConsumerWidget, WidgetRef;
 import 'package:quickgrocery/core/design/app_theme.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/locale_provider.dart';
 import 'package:quickgrocery/core/localization/app_locales.dart';
 import 'package:quickgrocery/core/startup/app_startup_log.dart';
@@ -62,25 +64,38 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 }
 
-// Handle Referral
+StreamSubscription<Uri>? _referralLinkSub;
+
+/// Captures referral codes from HTTPS / custom-scheme deep links
+/// (replaces Firebase Dynamic Links).
 Future<void> handleReferralAfterInstall() async {
-  final PendingDynamicLinkData? initialLink = await FirebaseDynamicLinks
-      .instance
-      .getInitialLink();
-
-  if (initialLink != null) {
-    await _storePendingReferralCode(initialLink.link);
+  try {
+    final appLinks = AppLinks();
+    final initial = await appLinks.getInitialLink();
+    if (initial != null) {
+      await _storePendingReferralCode(initial);
+    }
+    await _referralLinkSub?.cancel();
+    _referralLinkSub = appLinks.uriLinkStream.listen(
+      (uri) => _storePendingReferralCode(uri),
+      onError: (Object error) {
+        if (kDebugMode) debugPrint('Deep link error: $error');
+      },
+    );
+  } catch (e) {
+    if (kDebugMode) debugPrint('Deep link init failed: $e');
   }
+}
 
-  FirebaseDynamicLinks.instance.onLink
-      .listen((PendingDynamicLinkData data) async {
-        await _storePendingReferralCode(data.link);
-      })
-      .onError((error) {
-        if (kDebugMode) {
-          debugPrint('Dynamic Link Error: $error');
-        }
-      });
+void _installCrashlyticsHandlers() {
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
 }
 
 Future<void> _storePendingReferralCode(Uri deepLink) async {
@@ -153,6 +168,10 @@ Future<void> _bootstrap() async {
     // App Check / Phone Auth / FCM topics run in [DeferredStartup].
     await initializeFirebaseWithRetry();
     AppStartupLog.milestone('Firebase initialized');
+    await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
+      !kDebugMode,
+    );
+    _installCrashlyticsHandlers();
     RealtimeBootstrap.configureFirestore();
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
@@ -161,7 +180,7 @@ Future<void> _bootstrap() async {
     final prefs = await SharedPreferences.getInstance();
     AppStartupLog.milestone('Preferences loaded');
 
-    handleReferralAfterInstall();
+    unawaited(handleReferralAfterInstall());
     AppStartupLog.log('runApp');
     runApp(
       ProviderScope(
@@ -173,6 +192,9 @@ Future<void> _bootstrap() async {
     );
     DeferredStartup.scheduleAfterFirstFrame();
   } catch (e, st) {
+    try {
+      await FirebaseCrashlytics.instance.recordError(e, st, fatal: true);
+    } catch (_) {}
     FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
     runApp(
       StartupFailureScreen(
@@ -194,8 +216,7 @@ Future<void> main() async {
   await runZonedGuarded(
     _bootstrap,
     (error, stack) {
-      // Re-emit uncaught zone errors via Flutter's normal error pipeline
-      // so Crashlytics / dev tooling still see them.
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
       FlutterError.reportError(
         FlutterErrorDetails(exception: error, stack: stack),
       );
@@ -203,6 +224,8 @@ Future<void> main() async {
     zoneSpecification: ZoneSpecification(
       print: (self, parent, zone, line) {
         if (_shouldSilencePrint(line)) return;
+        // Never emit print() in release (PII / token risk).
+        if (kReleaseMode) return;
         parent.print(zone, line);
       },
     ),
@@ -246,6 +269,7 @@ class MyApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         title: 'QuickGrocery',
         theme: AppTheme.light(),
+        scaffoldMessengerKey: AppSnackBar.messengerKey,
         builder: (context, child) {
           return Directionality(
             textDirection: AppLocales.isRtl(locale)

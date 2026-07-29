@@ -56,10 +56,20 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                     Expanded(
                       child: DeliveryPricingUpdateListener(
                         child: PromotionPopupBootstrap(
+                          // Inactive IndexedStack tabs stay mounted. Without
+                          // HeroMode, duplicate Hero tags across tabs corrupt
+                          // the element tree → RenderFlex overflow cascade,
+                          // `_dependents.isEmpty`, wrong build scope.
                           child: IndexedStack(
                             key: ValueKey<String>('tabs-$localeKey'),
                             index: provider.selectedIndex,
-                            children: provider.pages,
+                            children: [
+                              for (var i = 0; i < provider.pages.length; i++)
+                                HeroMode(
+                                  enabled: provider.selectedIndex == i,
+                                  child: provider.pages[i],
+                                ),
+                            ],
                           ),
                         ),
                       ),

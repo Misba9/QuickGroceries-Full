@@ -14,7 +14,7 @@ import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/domain/cart_models.dart';
 import 'package:quickgrocery/view/cart/domain/pricing_calculator.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/inventory/inventory_limit_messages.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
@@ -243,14 +243,11 @@ class _CartBody extends StatelessWidget {
                   onRemoveUnavailable: () {
                     final n = notifier.removeUnavailableItems();
                     if (context.mounted && n > 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            n == 1
-                                ? 'Removed 1 unavailable item'
-                                : 'Removed $n unavailable items',
-                          ),
-                        ),
+                      AppSnackBar.success(
+                        n == 1
+                            ? 'Removed 1 unavailable item'
+                            : 'Removed $n unavailable items',
+                        context: context,
                       );
                     }
                   },
@@ -332,14 +329,14 @@ class _CartBody extends StatelessWidget {
                       item: item,
                       onIncrement: () {
                         if (notifier.increment(item.productId)) return;
-                        showTopErrorToast(
-                          context,
+                        AppSnackBar.error(
                           InventoryLimitMessages.incrementBlocked(
                             l10n: context.l10n,
                             stock: item.stock,
                             maxOrder: item.maxOrder,
                             currentCount: item.itemCount,
                           ),
+                          context: context,
                         );
                       },
                       onDecrement: () => notifier.decrement(item.productId),

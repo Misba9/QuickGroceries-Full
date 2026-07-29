@@ -11,6 +11,7 @@ import 'package:quickgrocery/view/cart/services/cart_service.dart';
 import 'package:quickgrocery/view/cart/widgets/address_card.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/payment/services/payment_service.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
@@ -120,15 +121,11 @@ class PaymentScreen extends StatelessWidget {
               onTap: () async {
                 if (addressService.addresses == null ||
                     addressService.addresses!.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(context.l10n.please_add_address)),
+                  AppSnackBar.error(
+                    context.l10n.please_add_address,
+                    context: context,
                   );
                 } else {
-                  // Get delivery charge from zone
-                  final pinCode = addressService.pinCode;
-                  final deliveryCharge = await cartService
-                      .getDeliveryChargeFromZone(pinCode);
-
                   if (provider.isCashOnDelivery) {
                     cartService.addCartItemto(
                       context,
@@ -138,25 +135,12 @@ class PaymentScreen extends StatelessWidget {
                       addressService.latLng ?? homeService.currentLatLng,
                     );
                   } else {
-                    provider.openCheckout(
-                      catService.getTotalAmount(
-                        deliveryCharge.toInt(),
-                        cartService.selectedCoupon,
-                        platformFee: cartService.platformFee,
-                        handlingCharge: cartService.handlingCharge,
-                      ),
-                      "",
-                      "Payment for product",
-                      onPaymentSuccess: (_) {
-                        cartService.addCartItemto(
-                          context,
-                          catService.selectedProduct,
-                          addressService.addresses![addressService
-                              .selectedIndex],
-                          addressService.address,
-                          addressService.latLng ?? homeService.currentLatLng,
-                        );
-                      },
+                    // Legacy PaymentScreen cannot verify Razorpay server-side.
+                    // Online payments must go through CheckoutScreen.
+                    if (!context.mounted) return;
+                    AppSnackBar.error(
+                      'Please pay online from Checkout for secure payment.',
+                      context: context,
                     );
                   }
                 }

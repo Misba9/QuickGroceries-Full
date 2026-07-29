@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/device/device_id_service.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/cart/data/coupon_service.dart';
 import 'package:quickgrocery/view/cart/domain/coupon_savings_estimator.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/best_coupon_provider.dart';
@@ -67,7 +67,7 @@ class _CheckoutCouponSectionState extends ConsumerState<CheckoutCouponSection> {
     setState(() => _applying = false);
 
     if (err != null) {
-      showTopErrorToast(context, err);
+      AppSnackBar.error(err, context: context);
       return;
     }
     _codeController.clear();
@@ -77,7 +77,7 @@ class _CheckoutCouponSectionState extends ConsumerState<CheckoutCouponSection> {
   Future<void> _applyBest() async {
     final best = ref.read(bestCouponSuggestionProvider);
     if (best == null) {
-      showTopErrorToast(context, 'No eligible coupons for this cart');
+      AppSnackBar.error('No eligible coupons for this cart', context: context);
       return;
     }
     await _applyCode(best.coupon.code);

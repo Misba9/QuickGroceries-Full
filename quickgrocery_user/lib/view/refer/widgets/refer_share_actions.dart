@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -36,9 +37,7 @@ class ReferShareActions extends StatelessWidget {
       return;
     }
     Clipboard.setData(ClipboardData(text: message));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Invite message copied')),
-    );
+    AppSnackBar.success('Invite message copied', context: context);
   }
 
   @override

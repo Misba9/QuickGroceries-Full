@@ -22,9 +22,12 @@ import 'package:quickgrocery/core/localization/l10n_extension.dart';
 ///
 /// Both presentations:
 ///   * Press-scale animation (haptic on tap).
-///   * Hero handoff into [CategoryScreen] (matches the product card hero).
 ///   * Brand gradient ring on the image so categories pop on the soft
 ///     background even when the catalog uses muted product photos.
+///
+/// Heroes are intentionally omitted: [CategoryScreen] has no matching
+/// destination tag, and [LandingScreen]'s [IndexedStack] keeps this tab
+/// mounted with Home — duplicate tags corrupt the element tree.
 class AnimatedCategoryCard extends StatefulWidget {
   const AnimatedCategoryCard({
     super.key,
@@ -37,6 +40,8 @@ class AnimatedCategoryCard extends StatefulWidget {
 
   final CategoryModel category;
   final AnimatedCategoryCardVariant variant;
+
+  /// Kept for call-site compatibility; Heroes are no longer used.
   final String heroPrefix;
 
   /// From live product inventory (optional).
@@ -82,14 +87,12 @@ class _AnimatedCategoryCardState extends State<AnimatedCategoryCard> {
         child: switch (widget.variant) {
           AnimatedCategoryCardVariant.tile => _Tile(
               category: widget.category,
-              heroPrefix: widget.heroPrefix,
               productCount: widget.productCount,
               topDiscountPercent: widget.topDiscountPercent,
             ),
           AnimatedCategoryCardVariant.trendingHero =>
             _TrendingHero(
               category: widget.category,
-              heroPrefix: widget.heroPrefix,
               productCount: widget.productCount,
               topDiscountPercent: widget.topDiscountPercent,
             ),
@@ -102,12 +105,10 @@ class _AnimatedCategoryCardState extends State<AnimatedCategoryCard> {
 class _Tile extends StatelessWidget {
   const _Tile({
     required this.category,
-    required this.heroPrefix,
     this.productCount,
     this.topDiscountPercent,
   });
   final CategoryModel category;
-  final String heroPrefix;
   final int? productCount;
   final int? topDiscountPercent;
 
@@ -120,68 +121,71 @@ class _Tile extends StatelessWidget {
       mainAxisSize: MainAxisSize.max,
       children: [
         Expanded(
-          child: Center(
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: Stack(
-                clipBehavior: Clip.none,
-                fit: StackFit.expand,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppColor.primary.withValues(alpha: 0.16),
-                          Colors.white,
-                          AppSurface.subtle.withValues(alpha: 0.85),
-                        ],
-                      ),
-                      borderRadius: AppRadii.all(AppRadii.lg),
-                      border: Border.all(
-                        color: AppSurface.border.withValues(alpha: 0.8),
-                      ),
-                      boxShadow: AppShadow.card,
-                    ),
-                    padding: const EdgeInsets.all(10),
-                    child: Hero(
-                      tag: '$heroPrefix${category.id}-${category.name}',
-                      child: CachedImage(
-                        url: category.image,
-                        fit: BoxFit.contain,
-                        borderRadius: AppRadii.all(AppRadii.sm),
-                        memCacheWidth: 240,
-                      ),
-                    ),
-                  ),
-                  if (disc > 0)
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final side = math.min(constraints.maxWidth, constraints.maxHeight);
+              return Center(
+                child: SizedBox(
+                  width: side,
+                  height: side,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    fit: StackFit.expand,
+                    children: [
+                      Container(
                         decoration: BoxDecoration(
-                          color: AppSurface.danger,
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: AppShadow.dim,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppColor.primary.withValues(alpha: 0.16),
+                              Colors.white,
+                              AppSurface.subtle.withValues(alpha: 0.85),
+                            ],
+                          ),
+                          borderRadius: AppRadii.all(AppRadii.lg),
+                          border: Border.all(
+                            color: AppSurface.border.withValues(alpha: 0.8),
+                          ),
+                          boxShadow: AppShadow.card,
                         ),
-                        child: Text(
-                          '$disc%',
-                          style: GoogleFonts.poppins(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                        padding: const EdgeInsets.all(10),
+                        child: CachedImage(
+                          url: category.image,
+                          fit: BoxFit.contain,
+                          borderRadius: AppRadii.all(AppRadii.sm),
+                          memCacheWidth: 240,
+                        ),
+                      ),
+                      if (disc > 0)
+                        Positioned(
+                          top: 4,
+                          left: 4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppSurface.danger,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: AppShadow.dim,
+                            ),
+                            child: Text(
+                              '$disc%',
+                              style: GoogleFonts.poppins(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
         const SizedBox(height: CategoryGridLayout.tileImageGap),
@@ -229,12 +233,10 @@ class _Tile extends StatelessWidget {
 class _TrendingHero extends StatelessWidget {
   const _TrendingHero({
     required this.category,
-    required this.heroPrefix,
     this.productCount,
     this.topDiscountPercent,
   });
   final CategoryModel category;
-  final String heroPrefix;
   final int? productCount;
   final int? topDiscountPercent;
 
@@ -339,14 +341,11 @@ class _TrendingHero extends StatelessWidget {
                       height: 78,
                       child: Padding(
                         padding: const EdgeInsets.all(8),
-                        child: Hero(
-                          tag: '$heroPrefix${category.id}-${category.name}',
-                          child: CachedImage(
-                            url: category.image,
-                            fit: BoxFit.contain,
-                            borderRadius: AppRadii.all(AppRadii.sm),
-                            memCacheWidth: 200,
-                          ),
+                        child: CachedImage(
+                          url: category.image,
+                          fit: BoxFit.contain,
+                          borderRadius: AppRadii.all(AppRadii.sm),
+                          memCacheWidth: 200,
                         ),
                       ),
                     ),

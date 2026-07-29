@@ -120,6 +120,8 @@ class HomeProvider extends ChangeNotifier {
       try {
         QuerySnapshot snapshot = await FirebaseFirestore.instance
             .collection('products')
+            .orderBy(FieldPath.documentId)
+            .limit(300)
             .get();
 
         // Map Firestore documents to ProductModel list
@@ -154,7 +156,7 @@ class HomeProvider extends ChangeNotifier {
 
         notifyListeners();
       } catch (e) {
-        debugPrint("Error fetching products: $e");
+        if (kDebugMode) debugPrint("Error fetching products: $e");
       }
     }
   }
@@ -164,6 +166,8 @@ class HomeProvider extends ChangeNotifier {
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('products')
+          .orderBy(FieldPath.documentId)
+          .limit(300)
           .get();
 
       // Map Firestore documents to ProductModel list
@@ -198,7 +202,7 @@ class HomeProvider extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      debugPrint("Error refreshing products: $e");
+      if (kDebugMode) debugPrint("Error refreshing products: $e");
     }
   }
 
@@ -251,6 +255,7 @@ class HomeProvider extends ChangeNotifier {
     try {
       final snap = await FirebaseFirestore.instance
           .collection('categories')
+          .limit(100)
           .get();
 
       final fresh = <CategoryModel>[];
@@ -258,7 +263,9 @@ class HomeProvider extends ChangeNotifier {
         try {
           fresh.add(CategoryModel.fromFirestore(doc.data(), doc.id));
         } catch (e) {
-          debugPrint('[HomeProvider] category parse fail ${doc.id}: $e');
+          if (kDebugMode) {
+            debugPrint('[HomeProvider] category parse fail ${doc.id}: $e');
+          }
         }
       }
 
@@ -274,9 +281,11 @@ class HomeProvider extends ChangeNotifier {
         ..clear()
         ..addAll(fresh);
       notifyListeners();
-      debugPrint('[HomeProvider] categories loaded: ${categories.length}');
+      if (kDebugMode) {
+        debugPrint('[HomeProvider] categories loaded: ${categories.length}');
+      }
     } catch (e) {
-      debugPrint('[HomeProvider] error loading categories: $e');
+      if (kDebugMode) debugPrint('[HomeProvider] error loading categories: $e');
     }
   }
 
@@ -285,6 +294,7 @@ class HomeProvider extends ChangeNotifier {
       try {
         QuerySnapshot querySnapshot = await FirebaseFirestore.instance
             .collection('banners')
+            .limit(50)
             .get();
 
         for (var doc in querySnapshot.docs) {

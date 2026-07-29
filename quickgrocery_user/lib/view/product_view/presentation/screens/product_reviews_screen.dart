@@ -8,6 +8,7 @@ import 'package:quickgrocery/models/rating_model.dart';
 import 'package:quickgrocery/view/product_view/data/review_api_client.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
 import 'package:quickgrocery/view/product_view/presentation/screens/write_review_screen.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_review_widget.dart';
 
@@ -53,15 +54,11 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
     try {
       await _api.deleteReview(r.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.reviewDeleted)),
-        );
+        AppSnackBar.success(context.l10n.reviewDeleted, context: context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
-        );
+        AppSnackBar.error('$e', context: context);
       }
     }
   }

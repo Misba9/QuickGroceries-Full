@@ -1,6 +1,7 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +15,7 @@ import 'package:quickgrocery/core/order/order_placement_log.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/delivery/delivery_zone_lookup.dart';
 import 'package:quickgrocery/core/availability/availability_service.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/address_model.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
@@ -41,6 +42,8 @@ import 'package:quickgrocery/view/cart/presentation/widgets/checkout_tip_section
 import 'package:quickgrocery/view/delivery_tips/models/delivery_tip_settings.dart';
 import 'package:quickgrocery/view/delivery_tips/services/delivery_tip_service.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
+import 'package:quickgrocery/view/payment/data/razorpay_order_client.dart';
+import 'package:quickgrocery/view/payment/domain/razorpay_payment_result.dart';
 import 'package:quickgrocery/view/payment/services/payment_service.dart';
 import 'package:quickgrocery/view/app_content/presentation/providers/app_content_extensions.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
@@ -136,10 +139,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final tip = ref.read(checkoutControllerProvider).deliveryTipAmount;
       final bill = _bill(cart, zoneCharge, tip: tip);
 
-      debugPrint(
+      if (kDebugMode) {
+        debugPrint(
         'ORDER PAYMENT: method=${paymentMethod.id} total=${bill.total} '
         'cod=${paymentMethod == PaymentMethod.cod}',
-      );
+        );
+      }
 
       if (paymentMethod == PaymentMethod.cod) {
         await _finalizeOrder(
@@ -156,11 +161,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         return;
       }
 
-      payment.openCheckout(
-        bill.total,
-        address.name,
-        'Quick Grocery order',
-        onPaymentSuccess: (paymentId) async {
+      // Online: create Razorpay Order on backend → Checkout → verify on placeOrder.
+      final razorpayClient = RazorpayOrderClient();
+      final session = await razorpayClient.createGroceryOrder(
+        amountRupees: bill.total,
+        idempotencyKey: idempotencyKey,
+      );
+
+      if (!mounted) return;
+      payment.openCheckoutSession(
+        session: session,
+        name: address.name,
+        description: 'Quick Grocery order',
+        onPaymentSuccess: (RazorpayPaymentResult result) async {
           try {
             await _finalizeOrder(
               cart: cart,
@@ -171,7 +184,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               slot: slot,
               instructions: instructions,
               paymentMethod: paymentMethod,
-              paymentRef: paymentId,
+              paymentRef: result.paymentId,
+              razorpayOrderId: result.orderId,
+              razorpaySignature: result.signature,
               idempotencyKey: idempotencyKey,
             );
           } catch (e, stack) {
@@ -185,7 +200,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             error: message,
           );
           checkoutNotifier.finishPlacementFailure();
-          if (mounted) showTopErrorToast(context, message);
+          if (mounted) AppSnackBar.error(message, context: context);
         },
       );
     } catch (e, stack) {
@@ -205,6 +220,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     required PaymentMethod paymentMethod,
     required String idempotencyKey,
     String? paymentRef,
+    String? razorpayOrderId,
+    String? razorpaySignature,
   }) async {
     if (_orderSuccessNavigated) {
       OrderPlacementLog.navigationBlocked(reason: 'already_navigated');
@@ -227,6 +244,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         instructions: instructions,
         paymentMethod: paymentMethod,
         paymentRef: paymentRef,
+        razorpayOrderId: razorpayOrderId,
+        razorpaySignature: razorpaySignature,
         idempotencyKey: idempotencyKey,
       );
       OrderPlacementLog.apiCompleted(
@@ -249,7 +268,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 deviceId: deviceId,
               );
         } catch (e, stack) {
-          debugPrint('COUPON REDEEM ERROR: $e');
+          if (kDebugMode) debugPrint('COUPON REDEEM ERROR: $e');
           debugPrintStack(stackTrace: stack);
         }
       }
@@ -276,8 +295,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   void _showOrderError(Object e, StackTrace stack) {
-    debugPrint('ORDER ERROR: $e');
-    debugPrintStack(stackTrace: stack);
+    if (kDebugMode) {
+      debugPrint('ORDER ERROR: $e');
+      debugPrintStack(stackTrace: stack);
+    }
     String checkoutError(Object error) {
       if (error is FirebaseFunctionsException) {
         if (error.code == 'not-found') {
@@ -292,10 +313,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         return error.message ?? 'Failed to create order (${error.code})';
       }
       if (error is FirebaseException) {
-        debugPrint(
-          'ORDER FIREBASE ERROR code=${error.code} '
-          'message=${error.message} plugin=${error.plugin}',
-        );
+        if (kDebugMode) {
+          debugPrint(
+            'ORDER FIREBASE ERROR code=${error.code} '
+            'message=${error.message} plugin=${error.plugin}',
+          );
+        }
         if (error.code == 'not-found') {
           return 'Required order data was not found.';
         }
@@ -308,7 +331,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
 
     if (!mounted) return;
-    showTopErrorToast(context, checkoutError(e));
+    AppSnackBar.error(checkoutError(e), context: context);
   }
 
   Future<String> _createOrderWithFallback({
@@ -321,11 +344,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     required DeliveryInstructions instructions,
     required PaymentMethod paymentMethod,
     String? paymentRef,
+    String? razorpayOrderId,
+    String? razorpaySignature,
     String? idempotencyKey,
   }) async {
     final client = ref.read(orderPlacementClientProvider);
     final repo = ref.read(orderRepositoryProvider);
     final key = idempotencyKey ?? '';
+    final isOnline = paymentMethod != PaymentMethod.cod;
 
     Future<String> callCallable() => client.placeOrder(
           items: cart.items,
@@ -338,6 +364,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           instructions: instructions,
           paymentMethod: paymentMethod,
           paymentRef: paymentRef,
+          razorpayOrderId: razorpayOrderId,
+          razorpaySignature: razorpaySignature,
           tipAmount: bill.deliveryPartnerTip,
           idempotencyKey: key,
         );
@@ -345,11 +373,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     try {
       return await callCallable();
     } on FirebaseFunctionsException catch (e, stack) {
-      debugPrint(
+      if (kDebugMode) {
+        debugPrint(
         'ORDER CALLABLE FAILED code=${e.code} message=${e.message} '
         'details=${e.details}',
-      );
-      debugPrintStack(stackTrace: stack);
+        );
+      }
+      if (kDebugMode) debugPrintStack(stackTrace: stack);
 
       if (key.isNotEmpty) {
         final existing = await repo.findExistingOrderId(idempotencyKey: key);
@@ -367,13 +397,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         try {
           return await callCallable();
         } on FirebaseFunctionsException catch (retryError, retryStack) {
-          debugPrint(
+          if (kDebugMode) {
+            debugPrint(
             'ORDER CALLABLE RETRY FAILED code=${retryError.code} '
             'message=${retryError.message}',
-          );
-          debugPrintStack(stackTrace: retryStack);
+            );
+          }
+          if (kDebugMode) debugPrintStack(stackTrace: retryStack);
           if (key.isNotEmpty) {
-            final existing = await repo.findExistingOrderId(idempotencyKey: key);
+            final existing =
+                await repo.findExistingOrderId(idempotencyKey: key);
             if (existing != null) {
               OrderPlacementLog.apiCompleted(
                 idempotencyKey: key,
@@ -383,9 +416,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               return existing;
             }
           }
-          if (!_canFallbackToDirectOrder(retryError)) rethrow;
+          if (isOnline || !_canFallbackToDirectOrder(retryError)) rethrow;
         }
-      } else if (!_canFallbackToDirectOrder(e)) {
+      } else if (isOnline || !_canFallbackToDirectOrder(e)) {
         rethrow;
       }
 
@@ -401,6 +434,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         }
       }
 
+      // COD-only emergency fallback — never mark online payments paid here.
       return _createDirectFirestoreOrder(
         cart: cart,
         bill: bill,
@@ -409,8 +443,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         coords: coords,
         slot: slot,
         instructions: instructions,
-        paymentMethod: paymentMethod,
-        paymentRef: paymentRef,
+        paymentMethod: PaymentMethod.cod,
+        paymentRef: null,
         idempotencyKey: key,
       );
     }
@@ -432,10 +466,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     String? paymentRef,
     String? idempotencyKey,
   }) async {
-    debugPrint(
+    if (kDebugMode) {
+      debugPrint(
       'ORDER FALLBACK: creating direct Firestore order path=orders '
       'reason=callable_unavailable',
-    );
+      );
+    }
     try {
       final orderId = await ref
           .read(orderRepositoryProvider)
@@ -452,17 +488,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             paymentRef: paymentRef,
             idempotencyKey: idempotencyKey,
           );
-      debugPrint('ORDER FALLBACK SUCCESS firestorePath=orders/$orderId');
+      if (kDebugMode) debugPrint('ORDER FALLBACK SUCCESS firestorePath=orders/$orderId');
       return orderId;
     } on FirebaseException catch (e, stack) {
-      debugPrint(
+      if (kDebugMode) {
+        debugPrint(
         'ORDER FALLBACK FIRESTORE ERROR path=orders '
         'code=${e.code} message=${e.message}',
-      );
-      debugPrintStack(stackTrace: stack);
+        );
+      }
+      if (kDebugMode) debugPrintStack(stackTrace: stack);
       rethrow;
     } catch (e, stack) {
-      debugPrint('ORDER FALLBACK ERROR path=orders error=$e');
+      if (kDebugMode) debugPrint('ORDER FALLBACK ERROR path=orders error=$e');
       debugPrintStack(stackTrace: stack);
       rethrow;
     }
@@ -486,7 +524,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       checkoutControllerProvider.select((s) => s.errorMessage),
       (_, msg) {
         if (msg != null) {
-          showTopErrorToast(context, msg);
+          AppSnackBar.error(msg, context: context);
           ref.read(checkoutControllerProvider.notifier).clearError();
         }
       },

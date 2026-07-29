@@ -570,6 +570,72 @@ abstract class AppLocalizations {
   /// **'Delete Account'**
   String get delete_account;
 
+  /// No description provided for @delete_account_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Account'**
+  String get delete_account_title;
+
+  /// No description provided for @delete_account_confirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your account is permanent.\n\nThis action will permanently remove your account, saved addresses, cart, profile information and other personal data.\n\nThis action cannot be undone.'**
+  String get delete_account_confirmation;
+
+  /// No description provided for @delete_account_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'This action cannot be undone.'**
+  String get delete_account_warning;
+
+  /// No description provided for @delete_account_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account has been deleted.'**
+  String get delete_account_success;
+
+  /// No description provided for @delete_account_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t delete your account. Please try again.'**
+  String get delete_account_failed;
+
+  /// No description provided for @delete_account_reauth_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify it\'s you'**
+  String get delete_account_reauth_title;
+
+  /// No description provided for @delete_account_reauth_message.
+  ///
+  /// In en, this message translates to:
+  /// **'For security, enter the OTP sent to your phone to confirm account deletion.'**
+  String get delete_account_reauth_message;
+
+  /// No description provided for @delete_account_reauth_send_otp.
+  ///
+  /// In en, this message translates to:
+  /// **'Send OTP'**
+  String get delete_account_reauth_send_otp;
+
+  /// No description provided for @delete_account_in_progress.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your account…'**
+  String get delete_account_in_progress;
+
+  /// No description provided for @delete_account_network_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error. Check your connection and try again.'**
+  String get delete_account_network_error;
+
+  /// No description provided for @delete_account_permission_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission denied while deleting your data. Please contact support.'**
+  String get delete_account_permission_error;
+
   /// No description provided for @delete_address_body.
   ///
   /// In en, this message translates to:

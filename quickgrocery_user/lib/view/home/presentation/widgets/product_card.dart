@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/auth/guest_auth_guard.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/product/product_quantity_label.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/widgets/discount_badge.dart';
@@ -137,9 +137,9 @@ class HomeProductCard extends ConsumerWidget {
                         product: product,
                         legacyCart: cartService,
                       ),
-                      onMaxReached: () => showTopErrorToast(
-                        context,
+                      onMaxReached: () => AppSnackBar.error(
                         maxQuantityMessageFor(context, product),
+                        context: context,
                       ),
                       onDecrement: () {
                         ref.read(cartProvider.notifier).decrement(product.id);

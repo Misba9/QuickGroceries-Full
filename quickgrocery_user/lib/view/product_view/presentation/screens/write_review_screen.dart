@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/models/rating_model.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/product_view/data/review_api_client.dart';
 
 class WriteReviewScreen extends StatefulWidget {
@@ -95,14 +96,16 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
 
   Future<void> _submit() async {
     if (!_withinEditWindow) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reviews can only be edited within 24 hours')),
+      AppSnackBar.error(
+        'Reviews can only be edited within 24 hours',
+        context: context,
       );
       return;
     }
     if (_reviewController.text.trim().length < 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please write at least 10 characters')),
+      AppSnackBar.error(
+        'Please write at least 10 characters',
+        context: context,
       );
       return;
     }
@@ -133,22 +136,16 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
         );
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.isEdit
-                ? 'Review updated'
-                : 'Review submitted! It will appear after approval.',
-          ),
-          backgroundColor: Colors.green,
-        ),
+      AppSnackBar.success(
+        widget.isEdit
+            ? 'Review updated'
+            : 'Review submitted! It will appear after approval.',
+        context: context,
       );
       Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
+        AppSnackBar.error(e.toString(), context: context);
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
