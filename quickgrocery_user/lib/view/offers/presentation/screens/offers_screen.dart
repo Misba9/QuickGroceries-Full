@@ -138,13 +138,13 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
             .onSelectedChange(0);
       },
       child: Scaffold(
-        backgroundColor: AppSurface.background,
+        backgroundColor: AppSurface.of(context).background,
         body: RefreshIndicator(
           color: AppColor.primary,
           onRefresh: _refresh,
           child: CustomScrollView(
             controller: _scrollCtrl,
-            physics: const AlwaysScrollableScrollPhysics(
+            physics: AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
             slivers: [
@@ -152,14 +152,14 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
                 pinned: true,
                 centerTitle: false,
                 elevation: 0,
-                backgroundColor: AppSurface.background,
+                backgroundColor: AppSurface.of(context).background,
                 surfaceTintColor: Colors.transparent,
                 title: Text(
                   'Offers & deals',
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w800,
                     fontSize: 20,
-                    color: AppSurface.textPrimary,
+                    color: AppSurface.of(context).textPrimary,
                   ),
                 ),
               ),
@@ -197,20 +197,20 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 8),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(AppRadii.md),
-                        border: Border.all(color: AppSurface.border),
+                        border: Border.all(color: AppSurface.of(context).border),
                       ),
                       child: Text(
                         DeliveryPricingPolicy.offersLine(pricing),
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w600,
-                          color: AppSurface.textSecondary,
+                          color: AppSurface.of(context).textSecondary,
                           fontSize: 12.5,
                         ),
                       ),
@@ -221,7 +221,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
                 child: Padding(
                   key: _keyCombo,
                   padding: EdgeInsets.fromLTRB(gutter, 12, gutter, 0),
-                  child: const ComboOffersSection(),
+                  child: ComboOffersSection(),
                 ),
               ),
               SliverToBoxAdapter(
@@ -333,7 +333,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
                         'Could not load offers. Pull to retry.',
                         textAlign: TextAlign.start,
                         style: GoogleFonts.poppins(
-                          color: AppSurface.textSecondary,
+                          color: AppSurface.of(context).textSecondary,
                         ),
                       ),
                     ),
@@ -383,7 +383,7 @@ class _OffersHeroCarousel extends StatelessWidget {
         child: Container(
           height: 200,
           alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: EdgeInsets.symmetric(horizontal: 20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -398,7 +398,7 @@ class _OffersHeroCarousel extends StatelessWidget {
             textAlign: TextAlign.start,
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w600,
-              color: AppSurface.textSecondary,
+              color: AppSurface.of(context).textSecondary,
               fontSize: 13,
             ),
           ),
@@ -448,13 +448,13 @@ class _OffersHeroCarousel extends StatelessWidget {
                   ),
                   child: AnimatedContainer(
                     duration: AppMotion.short,
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    margin: EdgeInsets.symmetric(horizontal: 3),
                     height: 6,
                     width: i == heroIndex ? 22 : 6,
                     decoration: BoxDecoration(
                       color: i == heroIndex
                           ? AppColor.primary
-                          : AppSurface.border,
+                          : AppSurface.of(context).border,
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -489,7 +489,7 @@ class _CouponStrip extends StatelessWidget {
           },
         ),
         asyncCoupons.when(
-          loading: () => const SizedBox(
+          loading: () => SizedBox(
             height: 52,
             child: Center(
               child: SizedBox(
@@ -501,14 +501,14 @@ class _CouponStrip extends StatelessWidget {
           ),
           error: (_, __) => Text(
             'Coupons unavailable',
-            style: GoogleFonts.poppins(color: AppSurface.textMuted, fontSize: 13),
+            style: GoogleFonts.poppins(color: AppSurface.of(context).textMuted, fontSize: 13),
           ),
           data: (coupons) {
             if (coupons.isEmpty) {
               return Text(
                 'New coupons drop soon.',
                 style: GoogleFonts.poppins(
-                  color: AppSurface.textSecondary,
+                  color: AppSurface.of(context).textSecondary,
                   fontSize: 13,
                 ),
               );
@@ -541,7 +541,7 @@ class _CouponStrip extends StatelessWidget {
                       child: Ink(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(AppRadii.md),
-                          border: Border.all(color: AppSurface.border),
+                          border: Border.all(color: AppSurface.of(context).border),
                           gradient: LinearGradient(
                             colors: [
                               AppColor.primary.withValues(alpha: 0.08),

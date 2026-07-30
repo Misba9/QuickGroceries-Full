@@ -39,14 +39,14 @@ class SectionHeader extends StatelessWidget {
     final titleStyle = GoogleFonts.poppins(
       fontWeight: FontWeight.w700,
       fontSize: compact ? 16 : 17,
-      color: AppSurface.textPrimary,
+      color: AppSurface.of(context).textPrimary,
       height: 1.2,
       letterSpacing: -0.25,
     );
     final subtitleStyle = GoogleFonts.poppins(
       fontSize: 12,
       fontWeight: FontWeight.w500,
-      color: AppSurface.textMuted,
+      color: AppSurface.of(context).textMuted,
       height: 1.25,
     );
 

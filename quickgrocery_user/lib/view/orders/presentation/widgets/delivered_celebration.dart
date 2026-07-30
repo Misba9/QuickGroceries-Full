@@ -23,7 +23,7 @@ class DeliveredCelebration extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -56,7 +56,7 @@ class DeliveredCelebration extends StatelessWidget {
           Text(
             'Hope you enjoy your groceries.',
             style: GoogleFonts.poppins(
-              color: AppSurface.textMuted,
+              color: AppSurface.of(context).textMuted,
               fontSize: 13,
             ),
           ),
@@ -106,10 +106,10 @@ class _RateButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppSurface.border),
+            border: Border.all(color: AppSurface.of(context).border),
           ),
           child: Column(
             children: [

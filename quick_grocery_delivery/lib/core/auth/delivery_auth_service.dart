@@ -231,6 +231,11 @@ class DeliveryAuthService {
 
   Future<void> _logoutSafely() async {
     try {
+      await DeliveryFcmBootstrap.clearForLogout();
+    } catch (e) {
+      DeliveryAuthErrors.logDebug('clearForLogout: $e');
+    }
+    try {
       await _auth.signOut();
     } catch (e) {
       DeliveryAuthErrors.logDebug('signOut: $e');

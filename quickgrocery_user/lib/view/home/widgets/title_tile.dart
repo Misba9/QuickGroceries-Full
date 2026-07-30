@@ -23,7 +23,7 @@ class TitleTile extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w700,
               fontSize: 17,
-              color: AppSurface.textPrimary,
+              color: AppSurface.of(context).textPrimary,
               letterSpacing: -0.25,
             ),
           ),

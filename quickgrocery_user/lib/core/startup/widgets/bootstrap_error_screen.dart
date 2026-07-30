@@ -20,10 +20,10 @@ class BootstrapErrorScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppSurface.of(context).scaffold,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(28),
+          padding: EdgeInsets.all(28),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -47,10 +47,10 @@ class BootstrapErrorScreen extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
-                  color: AppSurface.textPrimary,
+                  color: AppSurface.of(context).textPrimary,
                 ),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Text(
                 message.isEmpty
                     ? 'Check your connection and try again.'
@@ -59,7 +59,7 @@ class BootstrapErrorScreen extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   height: 1.5,
-                  color: AppSurface.textSecondary,
+                  color: AppSurface.of(context).textSecondary,
                 ),
               ),
               const SizedBox(height: 32),

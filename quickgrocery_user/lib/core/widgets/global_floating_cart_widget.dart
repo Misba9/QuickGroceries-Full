@@ -217,9 +217,9 @@ class _Avatars extends StatelessWidget {
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Container(
                     color: Colors.grey.shade200,
-                    child: const Icon(
+                    child: Icon(
                       Icons.image_outlined,
-                      color: AppSurface.textMuted,
+                      color: AppSurface.of(context).textMuted,
                       size: 16,
                     ),
                   ),

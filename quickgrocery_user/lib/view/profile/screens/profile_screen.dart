@@ -85,7 +85,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             .onSelectedChange(0);
       },
       child: Scaffold(
-        backgroundColor: AppSurface.background,
+        backgroundColor: AppSurface.of(context).background,
         body: profileAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Error: $e')),
@@ -96,7 +96,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             }
 
             return RefreshIndicator(
-              color: AppSurface.text,
+              color: AppSurface.of(context).text,
               onRefresh: _refresh,
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(
@@ -151,6 +151,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                         const SizedBox(height: 16),
                         ProfileSectionGuard(
+                          section: 'Appearance',
+                          builder: () => const ProfileAppearanceSection(),
+                        ),
+                        const SizedBox(height: 16),
+                        ProfileSectionGuard(
                           section: 'Language',
                           builder: () => const ProfileLanguageSection(),
                         ),
@@ -202,7 +207,7 @@ class ProfileTile extends StatelessWidget {
         SizedBox(
           height: 25,
           width: 25,
-          child: Image.asset(icon, color: AppSurface.text),
+          child: Image.asset(icon, color: AppSurface.of(context).text),
         ),
         const SizedBox(width: 10),
         Text(label, style: const TextStyle(fontSize: 16)),

@@ -192,7 +192,23 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
     Map<String, dynamic>? navigationData,
   }) {
     final message = body.isNotEmpty ? '$title\n$body' : title;
-    AppSnackBar.info(message, context: context);
+    if (navigationData == null || navigationData.isEmpty) {
+      AppSnackBar.info(message, context: context);
+      return;
+    }
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'View',
+          onPressed: () => handlePushNavigation(navigationData),
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
   }
 
   @override

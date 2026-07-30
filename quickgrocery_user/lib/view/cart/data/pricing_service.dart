@@ -80,6 +80,7 @@ class PricingService {
           .collection(AppSettingsPaths.collection)
           .doc(AppSettingsPaths.documentId)
           .get(),
+      _firestore.doc('app_settings/cod_convenience_fee').get(),
     ]);
 
     final standardDoc = results[0].data() ?? const {};
@@ -88,6 +89,7 @@ class PricingService {
     final appConfig = results[3].data() ?? const {};
     final deliverySettings = results[4].data() ?? const {};
     final mainSettings = results[5].data() ?? const {};
+    final codFeeDoc = results[6].data() ?? const {};
 
     final standard = (standardDoc['amount'] as num?)?.toInt() ?? 0;
     final minOrder = (minOrderDoc['amount'] as num?)?.toInt() ?? 100;
@@ -159,6 +161,27 @@ class PricingService {
       surgeMultiplier: surgeMultiplier,
       surgeActive: surgeActive,
       surgeReason: surgeReason,
+      codFeeEnabled: codFeeDoc['codFeeEnabled'] == true,
+      codFeeAmount: (codFeeDoc['codFeeAmount'] as num?)?.toDouble() ?? 0,
+      codFeeMinimumOrderAmount:
+          (codFeeDoc['minimumOrderAmount'] as num?)?.toDouble() ?? 0,
+      codFeeMaximumOrderAmount:
+          (codFeeDoc['maximumOrderAmount'] as num?)?.toDouble() ?? 0,
+      freeCodAboveAmount:
+          (codFeeDoc['freeCodAboveAmount'] as num?)?.toDouble() ?? 0,
+      codFeeDescription:
+          (codFeeDoc['feeDescription'] as String?)?.trim().isNotEmpty == true
+              ? (codFeeDoc['feeDescription'] as String).trim()
+              : 'Convenience Fee for Cash on Delivery',
+      codFeeApplicableTo:
+          (codFeeDoc['applicableTo'] as String?)?.trim().isNotEmpty == true
+              ? (codFeeDoc['applicableTo'] as String).trim()
+              : 'all',
+      codFeeApplicableUsers: _stringList(codFeeDoc['applicableUsers']),
+      codFeeApplicableCities: _stringList(codFeeDoc['applicableCities']),
+      codFeeApplicableVendors: _stringList(codFeeDoc['applicableVendors']),
+      codFeeApplicableCategories:
+          _stringList(codFeeDoc['applicableCategories']),
     );
 
     final merged = AppSettingsService.mergeMainDocument(base, mainSettings);
@@ -202,6 +225,9 @@ class PricingService {
       _guardDoc(
         _firestore.collection('delivery_charge').doc(_minOrderDocId).snapshots(),
       ),
+      _guardDoc(
+        _firestore.doc('app_settings/cod_convenience_fee').snapshots(),
+      ),
     ];
 
     yield* Rx.merge(paths).asyncMap((snap) async {
@@ -211,5 +237,13 @@ class PricingService {
       lastKnown = await fetch();
       return lastKnown;
     });
+  }
+
+  static List<String> _stringList(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .map((e) => e.toString().trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
 }

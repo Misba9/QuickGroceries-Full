@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:quick_grocery_admin/model/customer_model.dart';
 import 'package:quick_grocery_admin/view/customers/models/customer_crm_models.dart';
 import 'package:quick_grocery_admin/view/customers/services/customer_admin_service.dart';
+import 'package:quick_grocery_admin/view/customers/widgets/customer_payment_restrictions_section.dart';
 import 'package:quick_grocery_admin/view/orders/screens/order_details_screen.dart';
 
 class CustomerProfileScreen extends StatefulWidget {
@@ -125,6 +126,10 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen>
                     label: Text(c.isBlocked ? 'Unblock' : 'Block'),
                   ),
                 ],
+              ),
+              CustomerPaymentRestrictionsSection(
+                userId: widget.enriched.displayId,
+                userName: c.name,
               ),
             ],
           ),

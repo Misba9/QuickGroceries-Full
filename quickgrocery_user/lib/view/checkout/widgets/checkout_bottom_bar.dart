@@ -38,7 +38,7 @@ class CheckoutBottomBar extends StatelessWidget {
       top: false,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -67,10 +67,10 @@ class CheckoutBottomBar extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppSurface.textSecondary,
+                  color: AppSurface.of(context).textSecondary,
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               SizedBox(
                 width: double.infinity,
                 child: Center(
@@ -97,7 +97,7 @@ class CheckoutBottomBar extends StatelessWidget {
                         style: GoogleFonts.poppins(
                           fontSize: 34,
                           fontWeight: FontWeight.w900,
-                          color: AppSurface.text,
+                          color: AppSurface.of(context).text,
                           letterSpacing: -0.8,
                         ),
                       ),
@@ -130,7 +130,7 @@ class _HintStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = isError ? AppSurface.danger : AppSurface.textSecondary;
+    final c = isError ? AppSurface.of(context).danger : AppSurface.of(context).textSecondary;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

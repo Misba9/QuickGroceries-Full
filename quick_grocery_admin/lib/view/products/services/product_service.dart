@@ -7,6 +7,7 @@ import 'package:quick_grocery_admin/core/realtime/firestore_sync_cache.dart';
 import 'package:quick_grocery_admin/model/catrgory_model.dart';
 import 'package:quick_grocery_admin/model/product_model.dart';
 import 'package:quick_grocery_admin/model/vendor_model.dart';
+import 'package:quick_grocery_admin/utils/product_search.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +31,7 @@ class ProductService extends ChangeNotifier {
   String _searchQuery = '';
   String? _categoryFilter;
   int _visibleProductCount = productPageSize;
+  Timer? _searchDebounce;
 
   Uint8List? imageBytes;
   List<Uint8List> imageBytesList = []; // For multiple images
@@ -152,11 +154,29 @@ class ProductService extends ChangeNotifier {
   }
 
   void onSearchQuary(String query) {
-    _searchQuery = query.trim();
+    _searchDebounce?.cancel();
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
+      _searchQuery = '';
+      _applyFilters();
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 280), () {
+      _searchQuery = trimmed;
+      _applyFilters();
+    });
+  }
+
+  void clearSearchOnly() {
+    _searchDebounce?.cancel();
+    _searchQuery = '';
     _applyFilters();
   }
 
+  String get searchQuery => _searchQuery;
+
   void clear() {
+    _searchDebounce?.cancel();
     _categoryFilter = null;
     _searchQuery = '';
     selectedItem = null;
@@ -184,8 +204,21 @@ class ProductService extends ChangeNotifier {
           .toList();
     }
     if (_searchQuery.isNotEmpty) {
-      final q = _searchQuery.toLowerCase();
-      list = list.where((p) => p.name.toLowerCase().contains(q)).toList();
+      list = list
+          .where(
+            (p) => productMatchesSearchQuery(
+              _searchQuery,
+              name: p.name,
+              category: p.category,
+              subcategory: p.subcategory ?? '',
+              brand: p.brand,
+              sku: p.sku,
+              barcode: p.barcode,
+              description: p.description,
+              shopName: p.shopName,
+            ),
+          )
+          .toList();
     }
     filteredProductsList = list;
     _visibleProductCount = productPageSize;

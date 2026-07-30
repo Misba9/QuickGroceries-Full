@@ -153,6 +153,28 @@ class OrderModel {
     return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
+  /// Local display label for order placement (invoice / detail screens).
+  String get orderedAtLabel {
+    final dt = createdAt ?? DateTime.tryParse(createdDate.trim());
+    if (dt == null) {
+      final raw = createdDate.trim();
+      return raw.isEmpty ? '—' : raw;
+    }
+    final local = dt.toLocal();
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final d = local.day.toString().padLeft(2, '0');
+    final m = months[local.month - 1];
+    final h24 = local.hour;
+    final h12 = h24 % 12 == 0 ? 12 : h24 % 12;
+    final ampm = h24 >= 12 ? 'PM' : 'AM';
+    final min = local.minute.toString().padLeft(2, '0');
+    final hour = h12.toString().padLeft(2, '0');
+    return '$d $m ${local.year}, $hour:$min $ampm';
+  }
+
   static int compareNewestFirst(OrderModel a, OrderModel b) =>
       b.sortCreatedAt.compareTo(a.sortCreatedAt);
 

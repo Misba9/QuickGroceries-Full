@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/theme/theme_extensions.dart';
+
+export 'package:quickgrocery/core/theme/theme_extensions.dart'
+    show AppPalette, AppPaletteContext;
 
 /// Design tokens for the premium UI overhaul.
 ///
@@ -20,6 +24,30 @@ class AppRadii {
 }
 
 class AppShadow {
+  static List<BoxShadow> cardOf(BuildContext context) {
+    final isDark = context.isDarkTheme;
+    return [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.04),
+        blurRadius: isDark ? 18 : 14,
+        offset: const Offset(0, 6),
+      ),
+    ];
+  }
+
+  static List<BoxShadow> raisedOf(BuildContext context) {
+    final isDark = context.isDarkTheme;
+    return [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.06),
+        blurRadius: isDark ? 24 : 20,
+        offset: const Offset(0, 10),
+      ),
+    ];
+  }
+
+  /// Light-mode defaults (prefer [cardOf] / [raisedOf] when [BuildContext]
+  /// is available).
   static List<BoxShadow> get card => [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.04),
@@ -67,6 +95,15 @@ class AppGradients {
     end: Alignment.bottomRight,
   );
 
+  static LinearGradient surfaceOf(BuildContext context) {
+    final p = AppSurface.of(context);
+    return LinearGradient(
+      colors: [p.card, p.background],
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+    );
+  }
+
   static const LinearGradient surface = LinearGradient(
     colors: [Color(0xFFFFFFFF), Color(0xFFF7F7FB)],
     begin: Alignment.topCenter,
@@ -100,7 +137,16 @@ class AppBreakpoints {
   static const double desktop = 1024;
 }
 
+/// Semantic surface / text colors.
+///
+/// **Always prefer [of]** so colors adapt to light/dark. Static consts remain
+/// as the light-theme fallback for rare non-context call sites.
 class AppSurface {
+  AppSurface._();
+
+  static AppPalette of(BuildContext context) => context.appPalette;
+
+  // ── Light-theme constants (fallback / non-context) ─────────────────────
   static const Color background = Color(0xFFF6F7FB);
   static const Color card = Colors.white;
   static const Color subtle = Color(0xFFEFEFF3);

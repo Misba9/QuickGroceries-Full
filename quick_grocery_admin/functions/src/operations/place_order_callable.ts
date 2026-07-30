@@ -8,6 +8,17 @@ import {
   mergeTipIntoBill,
   validateTipAmount,
 } from "../delivery_tips/delivery_tips_engine";
+import {
+  assertBillTotalMatches,
+  calculateCodConvenienceFee,
+  mergeCodFeeIntoBill,
+} from "../cod_fee/cod_fee_engine";
+import { getCodFeeSettings } from "../cod_fee/cod_fee_settings";
+import {
+  parseCodPaymentRestriction,
+  resolveCodEligibility,
+  clearedRestrictionWrite,
+} from "../cod_restrictions/cod_restriction_engine";
 import { verifyRazorpayCheckoutSignature, assertRazorpayPaymentCaptured } from "../payments/razorpay_api";
 import { razorpaySecretBindings } from "../payments/razorpay_config";
 import {
@@ -202,14 +213,17 @@ export const placeOrderCallable = onCall(
       validateTipAmount(tipAmount, tipSettings);
     }
     const billRaw = (req.data?.bill ?? {}) as Record<string, unknown>;
+    // Strip any client COD fee before tip merge so fee cannot be double-counted.
+    const billSansCodFee = mergeCodFeeIntoBill(billRaw, 0, "");
     const billWithTip =
-      tipAmount > 0 ? mergeTipIntoBill(billRaw, tipAmount) : billRaw;
+      tipAmount > 0 ? mergeTipIntoBill(billSansCodFee, tipAmount) : billSansCodFee;
 
     let profilePhone = "";
+    let customerRaw: Record<string, unknown> | undefined;
     const custSnap = await db.collection("customers").doc(uid).get();
     if (custSnap.exists) {
-      const c = custSnap.data() as Record<string, unknown>;
-      profilePhone = str(c.phone || c.phoneNumber || c.mobile);
+      customerRaw = custSnap.data() as Record<string, unknown>;
+      profilePhone = str(customerRaw.phone || customerRaw.phoneNumber || customerRaw.mobile);
     }
     if (!profilePhone) {
       const userSnap = await db.collection("users").doc(uid).get();
@@ -221,6 +235,79 @@ export const placeOrderCallable = onCall(
 
     const paymentMethod = str(req.data?.paymentMethod) || "cod";
     const isOnline = paymentMethod !== "cod";
+
+    // Server-side COD eligibility — never trust the client.
+    if (!isOnline) {
+      const eligibility = resolveCodEligibility(
+        parseCodPaymentRestriction(customerRaw),
+      );
+      if (eligibility.expired && custSnap.exists) {
+        await custSnap.ref.set(
+          clearedRestrictionWrite("system", "Auto-expiry"),
+          { merge: true },
+        );
+      } else if (!eligibility.allowed) {
+        throw new HttpsError(
+          "failed-precondition",
+          eligibility.message ||
+            "Cash on Delivery is unavailable for your account. Please use Online Payment.",
+        );
+      }
+    }
+
+    const addressForFee = (req.data?.address ?? {}) as Record<string, unknown>;
+    const itemsForFee = [
+      ...(Array.isArray(req.data?.items)
+        ? (req.data.items as Record<string, unknown>[])
+        : []),
+      ...(Array.isArray(req.data?.comboItems)
+        ? (req.data.comboItems as Record<string, unknown>[])
+        : []),
+    ];
+    const vendorIdsForFee = [
+      ...new Set(
+        itemsForFee
+          .map((it) => str(it.vendorId ?? it.vendor_id))
+          .filter((id) => id.length > 0),
+      ),
+    ];
+    const categoriesForFee = [
+      ...new Set(
+        itemsForFee
+          .map((it) => str(it.category))
+          .filter((c) => c.length > 0),
+      ),
+    ];
+    const taxableForFee = Math.max(
+      0,
+      num(billWithTip.subtotal) - num(billWithTip.couponDiscount ?? billWithTip.discount),
+    );
+    const codSettings = await getCodFeeSettings();
+    const codFeeResult = calculateCodConvenienceFee(codSettings, {
+      paymentMethod,
+      orderAmount: taxableForFee,
+      userId: uid,
+      city: str(
+        addressForFee.city ??
+          addressForFee.City ??
+          addressForFee.area ??
+          addressForFee.district,
+      ),
+      vendorIds: vendorIdsForFee,
+      categories: categoriesForFee,
+    });
+    const billFinal = mergeCodFeeIntoBill(
+      billWithTip,
+      codFeeResult.fee,
+      codFeeResult.description,
+    );
+    try {
+      assertBillTotalMatches(billRaw, billFinal);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Order total mismatch.";
+      throw new HttpsError("invalid-argument", msg);
+    }
+
     const razorpayPaymentId = str(
       req.data?.razorpay_payment_id ?? req.data?.paymentRef,
     );
@@ -232,7 +319,7 @@ export const placeOrderCallable = onCall(
 
     if (isOnline) {
       const expectedPaise = Math.round(
-        num(billWithTip.total ?? billWithTip.grandTotal) * 100,
+        num(billFinal.total ?? billFinal.grandTotal) * 100,
       );
       if (expectedPaise < 100) {
         throw new HttpsError(
@@ -545,7 +632,7 @@ export const placeOrderCallable = onCall(
           ...addressRaw,
           mobile: orderPhone || addressMobile,
         };
-        const bill = billWithTip;
+        const bill = billFinal;
         const slotRaw = req.data?.delivery_slot ?? req.data?.deliverySlot;
         const instr = deliveryInstructionsPayload(
           req.data?.delivery_instructions ?? req.data?.deliveryInstructions,

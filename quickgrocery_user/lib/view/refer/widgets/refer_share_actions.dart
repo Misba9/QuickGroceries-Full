@@ -147,10 +147,10 @@ class _ShareChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         child: Ink(
           width: w.clamp(100, 140),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppSurface.border),
+            border: Border.all(color: AppSurface.of(context).border),
             boxShadow: AppShadow.card,
           ),
           child: Column(

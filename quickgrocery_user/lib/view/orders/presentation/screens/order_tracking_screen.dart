@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
+import 'package:quickgrocery/core/review/review_service.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
 
 import '../../domain/order_models.dart';
@@ -44,6 +48,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   String? _busyAction;
   DeliveryTipSettings _tipSettings = DeliveryTipSettings.defaults();
   bool _postDeliverySheetShown = false;
+  bool _experienceReviewScheduled = false;
 
   @override
   void initState() {
@@ -51,6 +56,38 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     deliveryTipServiceProvider.fetchSettings().then((s) {
       if (mounted) setState(() => _tipSettings = s);
     });
+  }
+
+  /// Tip sheet first (if enabled from checkout), then "Rate Your Order".
+  Future<void> _schedulePostDeliveryFlow(LiveOrder order) async {
+    // Let the Delivered celebration paint before any modal.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    if (widget.fromCheckout &&
+        _tipSettings.enabled &&
+        !_postDeliverySheetShown) {
+      _postDeliverySheetShown = true;
+      await showPostDeliveryTipSheet(
+        context: context,
+        order: order,
+        settings: _tipSettings,
+      );
+      if (!mounted) return;
+    }
+
+    final uid = OrderReviewService.currentUserId() ?? order.legacy.uuid;
+    if (uid.isEmpty) return;
+
+    final svc = await OrderReviewService.instance();
+    if (!mounted) return;
+    await svc.maybePromptForOrder(
+      context: context,
+      orderId: order.id,
+      userId: uid,
+      delay: true,
+      forceOnDeliveredScreen: true,
+    );
   }
 
   Future<void> _runReorder(LiveOrder order) async {
@@ -152,7 +189,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             'Track order',
             style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
           ),
-          backgroundColor: Colors.white,
+          backgroundColor: AppSurface.of(context).card,
           foregroundColor: Colors.black,
           elevation: 0.5,
           leading: BackButton(onPressed: _onBack),
@@ -208,18 +245,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             final rider = riderAsync.value;
             final isDelivered = order.isDelivered;
 
-            if (isDelivered &&
-                widget.fromCheckout &&
-                !_postDeliverySheetShown &&
-                _tipSettings.enabled) {
-              _postDeliverySheetShown = true;
+            // Delivered → tip (optional) → experience review (once per order).
+            if (isDelivered && !_experienceReviewScheduled) {
+              _experienceReviewScheduled = true;
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted) return;
-                showPostDeliveryTipSheet(
-                  context: context,
-                  order: order,
-                  settings: _tipSettings,
-                );
+                unawaited(_schedulePostDeliveryFlow(order));
               });
             }
 

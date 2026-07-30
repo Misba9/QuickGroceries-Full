@@ -4,11 +4,11 @@ import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart' as legacy;
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/category/widgets/category_sidebar_tile.dart';
-import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
@@ -69,7 +69,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppSurface.background,
+      backgroundColor: AppSurface.of(context).background,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -114,7 +114,7 @@ class _Header extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 6, 12, 0),
+            padding: EdgeInsets.fromLTRB(8, 6, 12, 0),
             child: Row(
               children: [
                 IconButton(
@@ -131,7 +131,7 @@ class _Header extends StatelessWidget {
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.2,
-                      color: AppSurface.text,
+                      color: AppSurface.of(context).text,
                     ),
                   ),
                 ),
@@ -176,7 +176,7 @@ class _Body extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _Sidebar(onSubcategoryTap: onSubcategoryTap),
-            const VerticalDivider(width: 1, color: AppSurface.border),
+            VerticalDivider(width: 1, color: AppSurface.of(context).border),
             Expanded(
               child: _ProductPane(
                 loadKey: p.loadGeneration,
@@ -205,7 +205,7 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 84,
-      color: const Color(0xFFFAFAFB),
+      color: Color(0xFFFAFAFB),
       child: legacy.Consumer<CategoryService>(
         builder: (context, p, _) {
           if (p.isProductsLoading && p.subCategories.isEmpty) {
@@ -223,16 +223,16 @@ class _Sidebar extends StatelessWidget {
                       width: 52,
                       height: 52,
                       decoration: BoxDecoration(
-                        color: AppSurface.subtle,
+                        color: AppSurface.of(context).subtle,
                         borderRadius: BorderRadius.circular(AppRadii.md),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     Container(
                       width: 50,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: AppSurface.subtle,
+                        color: AppSurface.of(context).subtle,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -288,7 +288,7 @@ class _ProductPane extends StatelessWidget {
     if (isLoading) {
       child = Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-        child: HomeShimmer.exploreGrid(count: 6),
+        child: SkeletonProductGrid(count: 6, childAspectRatio: 0.68),
       );
     } else if (hasError) {
       child = _LoadError(message: errorMessage);
@@ -351,7 +351,7 @@ class _LoadError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -363,7 +363,7 @@ class _LoadError extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: AppSurface.text,
+                color: AppSurface.of(context).text,
               ),
             ),
           ],
@@ -380,7 +380,7 @@ class _Empty extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -394,16 +394,16 @@ class _Empty extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppSurface.text,
+                color: AppSurface.of(context).text,
               ),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text(
               'Try a different category or search term.',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 12,
-                color: AppSurface.textMuted,
+                color: AppSurface.of(context).textMuted,
               ),
             ),
           ],

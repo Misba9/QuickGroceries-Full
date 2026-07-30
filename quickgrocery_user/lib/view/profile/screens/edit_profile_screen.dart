@@ -103,7 +103,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(20),
         children: [
           Center(
             child: GestureDetector(
@@ -112,7 +112,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 children: [
                   CircleAvatar(
                     radius: 52,
-                    backgroundColor: AppSurface.subtle,
+                    backgroundColor: AppSurface.of(context).subtle,
                     backgroundImage: _pickedImage != null
                         ? FileImage(_pickedImage!)
                         : (imageUrl.isNotEmpty

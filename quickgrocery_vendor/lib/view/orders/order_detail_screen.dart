@@ -685,6 +685,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         value: '₹${bill.tax.toStringAsFixed(2)}',
                       ),
                     ],
+                    if (bill.codConvenienceFee > 0) ...[
+                      AppSpacing.h10,
+                      _SummaryRow(
+                        label: bill.codFeeDescription.isNotEmpty
+                            ? bill.codFeeDescription
+                            : 'COD Convenience Fee',
+                        value:
+                            '₹${bill.codConvenienceFee.toStringAsFixed(2)}',
+                      ),
+                    ],
                     if (bill.deliveryPartnerTip > 0) ...[
                       AppSpacing.h10,
                       _SummaryRow(

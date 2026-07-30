@@ -262,7 +262,7 @@ class _DeliveryTipTrackingCardState extends State<DeliveryTipTrackingCard> {
         .toList();
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -300,18 +300,18 @@ class _DeliveryTipTrackingCardState extends State<DeliveryTipTrackingCard> {
                 : 'Add a tip to appreciate your delivery partner',
             style: GoogleFonts.poppins(
               fontSize: 13,
-              color: AppSurface.textSecondary,
+              color: AppSurface.of(context).textSecondary,
             ),
           ),
           if (_loading) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             const LinearProgressIndicator(minHeight: 2),
             const SizedBox(height: 4),
             Text(
               'Updating tip…',
               style: GoogleFonts.poppins(
                 fontSize: 12,
-                color: AppSurface.textSecondary,
+                color: AppSurface.of(context).textSecondary,
               ),
             ),
           ] else ...[

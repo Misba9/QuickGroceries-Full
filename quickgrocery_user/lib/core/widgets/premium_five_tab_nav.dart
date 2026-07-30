@@ -33,21 +33,22 @@ class PremiumFiveTabNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final badge = offersBadgeCount ?? 0;
+    final surface = AppSurface.of(context);
     return Material(
-      color: Colors.white,
+      color: surface.card,
       elevation: 0,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface.card,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
+              color: Colors.black.withValues(alpha: context.isDarkTheme ? 0.35 : 0.07),
               blurRadius: 28,
               offset: const Offset(0, -8),
             ),
           ],
           border: Border(
-            top: BorderSide(color: AppSurface.border, width: 0.6),
+            top: BorderSide(color: surface.border, width: 0.6),
           ),
         ),
         child: SafeArea(
@@ -147,8 +148,10 @@ class _SideTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     final activeColor = AppColor.primary;
-    final iconColor = selected ? activeColor : Colors.grey.shade500;
+    final iconColor =
+        selected ? activeColor : surface.iconInactive;
 
     return InkResponse(
       radius: 40,
@@ -160,7 +163,7 @@ class _SideTab extends StatelessWidget {
             duration: AppMotion.short,
             opacity: selected ? 1 : 0,
             child: Padding(
-              padding: const EdgeInsets.only(top: 2),
+              padding: EdgeInsets.only(top: 2),
               child: Align(
                 alignment: indicatorLeft
                     ? Alignment.topLeft
@@ -216,7 +219,7 @@ class _SideTab extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                     color:
-                        selected ? AppSurface.textPrimary : AppSurface.textMuted,
+                        selected ? AppSurface.of(context).textPrimary : AppSurface.of(context).textMuted,
                   ),
                 ),
               ],
@@ -290,7 +293,7 @@ class _OffersFabState extends State<_OffersFab>
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.12),
                     blurRadius: 16,
-                    offset: const Offset(0, 8),
+                    offset: Offset(0, 8),
                   ),
                 ],
                 border: Border.all(color: Colors.white, width: 3),
@@ -309,7 +312,7 @@ class _OffersFabState extends State<_OffersFab>
                   constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                   padding: const EdgeInsets.symmetric(horizontal: 5),
                   decoration: BoxDecoration(
-                    color: AppSurface.danger,
+                    color: AppSurface.of(context).danger,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Colors.white, width: 1.5),
                   ),

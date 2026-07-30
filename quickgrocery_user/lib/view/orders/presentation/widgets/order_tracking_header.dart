@@ -22,14 +22,14 @@ class OrderTrackingHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFmt = DateFormat('EEE, d MMM · hh:mm a');
+    final dateFmt = DateFormat('dd MMM yyyy, hh:mm a');
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
         boxShadow: AppShadow.dim,
       ),
       child: Column(
@@ -47,17 +47,17 @@ class OrderTrackingHeader extends StatelessWidget {
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppSurface.textMuted,
+                        color: AppSurface.of(context).textMuted,
                         letterSpacing: 0.3,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       showSuccess ? 'Delivered!' : order.status.displayName,
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w800,
                         fontSize: 22,
-                        color: AppSurface.text,
+                        color: AppSurface.of(context).text,
                         height: 1.15,
                       ),
                     ),
@@ -75,7 +75,7 @@ class OrderTrackingHeader extends StatelessWidget {
             label: 'Placed on',
             value: order.createdAt.millisecondsSinceEpoch == 0
                 ? '—'
-                : dateFmt.format(order.createdAt),
+                : dateFmt.format(order.createdAt.toLocal()),
           ),
           const SizedBox(height: 8),
           _InfoRow(
@@ -124,17 +124,17 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: AppSurface.textMuted),
-        const SizedBox(width: 8),
+        Icon(icon, size: 16, color: AppSurface.of(context).textMuted),
+        SizedBox(width: 8),
         Text(
           label,
           style: GoogleFonts.poppins(
             fontSize: 12.5,
-            color: AppSurface.textMuted,
+            color: AppSurface.of(context).textMuted,
             fontWeight: FontWeight.w500,
           ),
         ),
-        const Spacer(),
+        Spacer(),
         Flexible(
           child: Text(
             value,
@@ -143,7 +143,7 @@ class _InfoRow extends StatelessWidget {
                 GoogleFonts.poppins(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
-                  color: AppSurface.text,
+                  color: AppSurface.of(context).text,
                 ),
           ),
         ),

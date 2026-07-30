@@ -11,5 +11,6 @@ CustomerSegment segmentForRoute(String route) =>
 
 void syncCustomerServiceForRoute(BuildContext context, String route) {
   if (!isCustomersRoute(route)) return;
+  if (route == AdminRoutes.paymentRestrictions) return;
   context.read<CustomerAdminService>().setSegment(segmentForRoute(route));
 }

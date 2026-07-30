@@ -17,10 +17,10 @@ import 'package:quickgrocery/l10n/app_localizations.dart';
 // Provider symbols remain unambiguous everywhere else in the app.
 import 'package:flutter_riverpod/flutter_riverpod.dart'
     show ProviderScope, ConsumerWidget, WidgetRef;
-import 'package:quickgrocery/core/design/app_theme.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/locale_provider.dart';
 import 'package:quickgrocery/core/localization/app_locales.dart';
+import 'package:quickgrocery/core/theme/theme.dart';
 import 'package:quickgrocery/core/startup/app_startup_log.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 import 'package:quickgrocery/core/navigation/app_route_observer.dart';
@@ -180,6 +180,16 @@ Future<void> _bootstrap() async {
     final prefs = await SharedPreferences.getInstance();
     AppStartupLog.milestone('Preferences loaded');
 
+    // Initialize local notifications before first paint so cold-start
+    // getNotificationAppLaunchDetails can enqueue before home consumes pending.
+    if (!kIsWeb) {
+      try {
+        await FcmPushInitializer.ensureInitialized();
+      } catch (e) {
+        if (kDebugMode) debugPrint('[FCM] early init skipped: $e');
+      }
+    }
+
     unawaited(handleReferralAfterInstall());
     AppStartupLog.log('runApp');
     runApp(
@@ -238,6 +248,7 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locale = ref.watch(localeProvider);
+    final themeOption = ref.watch(themeModeProvider);
 
     return MultiProvider(
       providers: [
@@ -269,14 +280,24 @@ class MyApp extends ConsumerWidget {
         debugShowCheckedModeBanner: false,
         title: 'QuickGrocery',
         theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
+        themeMode: themeOption.materialThemeMode,
+        themeAnimationDuration: AppTheme.animationDuration,
+        themeAnimationCurve: Curves.easeInOut,
         scaffoldMessengerKey: AppSnackBar.messengerKey,
         builder: (context, child) {
-          return Directionality(
-            textDirection: AppLocales.isRtl(locale)
-                ? ui.TextDirection.rtl
-                : ui.TextDirection.ltr,
-            child: GlobalCartOverlay(
-              child: child ?? const SizedBox.shrink(),
+          ThemeSystemUi.apply(context);
+          return AnimatedTheme(
+            data: Theme.of(context),
+            duration: AppTheme.animationDuration,
+            curve: Curves.easeInOut,
+            child: Directionality(
+              textDirection: AppLocales.isRtl(locale)
+                  ? ui.TextDirection.rtl
+                  : ui.TextDirection.ltr,
+              child: GlobalCartOverlay(
+                child: child ?? const SizedBox.shrink(),
+              ),
             ),
           );
         },

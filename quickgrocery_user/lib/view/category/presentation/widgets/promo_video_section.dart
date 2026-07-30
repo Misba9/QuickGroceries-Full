@@ -4,17 +4,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
-import 'package:provider/provider.dart' as legacy;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
-import 'package:quickgrocery/models/product.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
+import 'package:quickgrocery/core/navigation/product_navigation.dart';
 import 'package:quickgrocery/models/promo_model.dart';
 import 'package:quickgrocery/view/category/presentation/providers/categories_discovery_providers.dart';
 import 'package:quickgrocery/view/category/screens/category_screen.dart';
-import 'package:quickgrocery/view/category/services/category_service.dart';
-import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 
 /// Promo video / GIF / Lottie / image rail for the Categories discovery
 /// page. Streams admin-controlled `promos/` documents and renders each
@@ -198,32 +196,27 @@ class AnimatedOfferBanner extends StatelessWidget {
 
   Future<void> _handleTap(BuildContext context) async {
     HapticFeedback.selectionClick();
-    switch (promo.redirectType.toLowerCase()) {
+    switch (ProductNavigation.normalizeRedirectType(promo.redirectType)) {
       case 'category':
+        final categoryId = promo.redirectId.trim();
+        if (categoryId.isEmpty) {
+          AppSnackBar.error('Category unavailable', context: context);
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => CategoryScreen(category: promo.redirectId),
+            builder: (_) => CategoryScreen(category: categoryId),
           ),
         );
         break;
 
       case 'product':
-        final cartService = legacy.Provider.of<CategoryService>(
-          context,
-          listen: false,
-        );
-        final ProductModel? product = cartService.allProducts
-            .where((p) => p.id == promo.redirectId)
-            .cast<ProductModel?>()
-            .firstWhere((p) => p != null, orElse: () => null);
-        if (product != null && context.mounted) {
-          Navigator.push(context, AppPageRoutes.product(product));
-        }
+        await ProductNavigation.openProductById(context, promo.redirectId);
         break;
 
       case 'url':
-        final uri = Uri.tryParse(promo.redirectId);
+        final uri = Uri.tryParse(promo.redirectId.trim());
         if (uri != null) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         }
@@ -334,11 +327,11 @@ class _PromoSkeleton extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.zero,
         itemCount: 3,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => SizedBox(width: 12),
         itemBuilder: (_, __) => Container(
           width: 280,
           decoration: BoxDecoration(
-            color: AppSurface.subtle,
+            color: AppSurface.of(context).subtle,
             borderRadius: AppRadii.all(AppRadii.lg),
           ),
         ),

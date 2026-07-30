@@ -97,7 +97,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final showEmpty = !cart.isHydrating && cart.isEmpty;
 
     return Scaffold(
-      backgroundColor: AppSurface.background,
+      backgroundColor: AppSurface.of(context).background,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         bottom: false,
@@ -190,14 +190,14 @@ class _CartBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      color: AppSurface.success,
+      color: AppSurface.of(context).success,
       onRefresh: () async {
         await addressService.getAddress();
       },
       child: CustomScrollView(
         keyboardDismissBehavior:
             ScrollViewKeyboardDismissBehavior.onDrag,
-        physics: const AlwaysScrollableScrollPhysics(
+        physics: AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
         slivers: [
@@ -226,12 +226,12 @@ class _CartBody extends StatelessWidget {
               ),
             ),
           if (zoneAsync.isLoading)
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(14, 8, 14, 0),
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
                 child: LinearProgressIndicator(
                   minHeight: 2,
-                  backgroundColor: AppSurface.subtle,
+                  backgroundColor: AppSurface.of(context).subtle,
                 ),
               ),
             ),
@@ -256,7 +256,7 @@ class _CartBody extends StatelessWidget {
             ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 18, 14, 8),
+              padding: EdgeInsets.fromLTRB(14, 18, 14, 8),
               child: Row(
                 children: [
                   Text(
@@ -264,17 +264,17 @@ class _CartBody extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w800,
-                      color: AppSurface.text,
+                      color: AppSurface.of(context).text,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 7,
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppSurface.subtle,
+                      color: AppSurface.of(context).subtle,
                       borderRadius: BorderRadius.circular(99),
                     ),
                     child: Text(
@@ -282,24 +282,24 @@ class _CartBody extends StatelessWidget {
                       style: GoogleFonts.poppins(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: AppSurface.textSecondary,
+                        color: AppSurface.of(context).textSecondary,
                       ),
                     ),
                   ),
-                  const Spacer(),
+                  Spacer(),
                   TextButton.icon(
                     onPressed: () => _confirmClear(context),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.delete_sweep_outlined,
                       size: 18,
-                      color: AppSurface.danger,
+                      color: AppSurface.of(context).danger,
                     ),
                     label: Text(
                       'Clear all',
                       style: GoogleFonts.poppins(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
-                        color: AppSurface.danger,
+                        color: AppSurface.of(context).danger,
                       ),
                     ),
                     style: TextButton.styleFrom(
@@ -381,14 +381,14 @@ class _CartBody extends StatelessWidget {
               'Clear cart?',
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w800,
-                color: AppSurface.text,
+                color: AppSurface.of(context).text,
               ),
             ),
             content: Text(
               'This will remove all items from your bag. Are you sure?',
               style: GoogleFonts.poppins(
                 fontSize: 13,
-                color: AppSurface.textSecondary,
+                color: AppSurface.of(context).textSecondary,
                 height: 1.4,
               ),
             ),
@@ -399,7 +399,7 @@ class _CartBody extends StatelessWidget {
                   'Cancel',
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w700,
-                    color: AppSurface.textSecondary,
+                    color: AppSurface.of(context).textSecondary,
                   ),
                 ),
               ),
@@ -409,7 +409,7 @@ class _CartBody extends StatelessWidget {
                   'Clear',
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w800,
-                    color: AppSurface.danger,
+                    color: AppSurface.of(context).danger,
                   ),
                 ),
               ),
@@ -435,27 +435,27 @@ class _InlineError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      padding: EdgeInsets.fromLTRB(12, 10, 8, 10),
       decoration: BoxDecoration(
-        color: AppSurface.danger.withValues(alpha: 0.08),
+        color: AppSurface.of(context).danger.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppRadii.sm),
         border: Border.all(
-          color: AppSurface.danger.withValues(alpha: 0.30),
+          color: AppSurface.of(context).danger.withValues(alpha: 0.30),
         ),
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.error_outline_rounded,
-            color: AppSurface.danger,
+            color: AppSurface.of(context).danger,
             size: 18,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
               style: GoogleFonts.poppins(
-                color: AppSurface.danger,
+                color: AppSurface.of(context).danger,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
                 height: 1.3,
@@ -472,7 +472,7 @@ class _InlineError extends StatelessWidget {
               child: Text(
                 'Retry',
                 style: GoogleFonts.poppins(
-                  color: AppSurface.danger,
+                  color: AppSurface.of(context).danger,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -505,7 +505,7 @@ class _YouMightAlsoLikeRail extends StatelessWidget {
         }
 
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: EdgeInsets.symmetric(vertical: 4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -513,18 +513,18 @@ class _YouMightAlsoLikeRail extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.auto_awesome_rounded,
                       size: 18,
-                      color: AppSurface.text,
+                      color: AppSurface.of(context).text,
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Text(
                       context.l10n.you_might_also_like,
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: AppSurface.text,
+                        color: AppSurface.of(context).text,
                       ),
                     ),
                   ],
@@ -565,23 +565,23 @@ class _UnavailableCartBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppSurface.danger.withValues(alpha: 0.08),
+        color: AppSurface.of(context).danger.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.danger.withValues(alpha: 0.25)),
+        border: Border.all(color: AppSurface.of(context).danger.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: AppSurface.danger, size: 22),
-          const SizedBox(width: 10),
+          Icon(Icons.warning_amber_rounded, color: AppSurface.of(context).danger, size: 22),
+          SizedBox(width: 10),
           Expanded(
             child: Text(
               'Some items are unavailable. Remove them to continue checkout.',
               style: GoogleFonts.poppins(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: AppSurface.danger,
+                color: AppSurface.of(context).danger,
               ),
             ),
           ),
@@ -591,7 +591,7 @@ class _UnavailableCartBanner extends StatelessWidget {
               'Remove',
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w700,
-                color: AppSurface.danger,
+                color: AppSurface.of(context).danger,
               ),
             ),
           ),

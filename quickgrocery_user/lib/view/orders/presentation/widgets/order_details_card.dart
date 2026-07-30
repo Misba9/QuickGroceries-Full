@@ -41,11 +41,11 @@ class OrderDetailsCard extends StatelessWidget {
     final productDiscount = (mrpTotal - bill.subtotal).clamp(0.0, double.infinity);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,7 +57,7 @@ class OrderDetailsCard extends StatelessWidget {
               fontSize: 16,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           ...order.legacy.products.map(
             (p) => Padding(
               padding: const EdgeInsets.only(bottom: 14),
@@ -70,18 +70,18 @@ class OrderDetailsCard extends StatelessWidget {
             _BillLine(
               label: 'Product Discount',
               value: -productDiscount,
-              valueColor: AppSurface.success,
+              valueColor: AppSurface.of(context).success,
             ),
           _BillLine(
             label: 'Item Total',
             value: bill.subtotal,
-            valueColor: AppSurface.text,
+            valueColor: AppSurface.of(context).text,
           ),
           if (bill.couponDiscount > 0)
             _BillLine(
               label: 'Coupon discount',
               value: -bill.couponDiscount,
-              valueColor: AppSurface.success,
+              valueColor: AppSurface.of(context).success,
             ),
           if (bill.deliveryFee > 0)
             _BillLine(label: 'Delivery Fee', value: bill.deliveryFee),
@@ -91,6 +91,13 @@ class OrderDetailsCard extends StatelessWidget {
           if (bill.platformFee > 0)
             _BillLine(label: 'Platform Fee', value: bill.platformFee),
           if (bill.tax > 0) _BillLine(label: 'Tax', value: bill.tax),
+          if (bill.codConvenienceFee > 0)
+            _BillLine(
+              label: bill.codFeeDescription.isNotEmpty
+                  ? bill.codFeeDescription
+                  : 'COD Convenience Fee',
+              value: bill.codConvenienceFee,
+            ),
           if (bill.deliveryPartnerTip > 0)
             _BillLine(
               label: 'Delivery Partner Tip',
@@ -137,23 +144,23 @@ class _BillLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final prefix = value < 0 ? '- ₹' : '₹';
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
           Text(
             label,
             style: GoogleFonts.poppins(
               fontSize: 12.5,
-              color: AppSurface.textMuted,
+              color: AppSurface.of(context).textMuted,
             ),
           ),
-          const Spacer(),
+          Spacer(),
           Text(
             '$prefix${value.abs().toStringAsFixed(0)}',
             style: GoogleFonts.poppins(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: valueColor ?? AppSurface.text,
+              color: valueColor ?? AppSurface.of(context).text,
             ),
           ),
         ],

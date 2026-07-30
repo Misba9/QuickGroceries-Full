@@ -218,6 +218,14 @@ class InvoiceTemplateWidget extends StatelessWidget {
       if (b.handlingCharge > 0)
         _money('Handling Charge', b.handlingCharge, scale),
       if (b.tax > 0) _money('Tax', b.tax, scale),
+      if (b.codConvenienceFee > 0)
+        _money(
+          b.codFeeDescription.isNotEmpty
+              ? b.codFeeDescription
+              : 'COD Convenience Fee',
+          b.codConvenienceFee,
+          scale,
+        ),
       if (b.deliveryPartnerTip > 0)
         _money('Delivery Partner Tip', b.deliveryPartnerTip, scale),
     ];

@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
@@ -282,7 +283,7 @@ class _ActionButton extends StatelessWidget {
               label: Text(label),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(52),
-                backgroundColor: Colors.white,
+                backgroundColor: AppSurface.of(context).card,
                 foregroundColor: Colors.black87,
               ),
             )

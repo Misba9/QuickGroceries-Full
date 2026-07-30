@@ -26,7 +26,7 @@ class PremiumEmptyCart extends StatelessWidget {
     ).clamp(140.0, 220.0);
     return Center(
       child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
+        physics: BouncingScrollPhysics(),
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -44,17 +44,17 @@ class PremiumEmptyCart extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: AppSurface.text,
+                color: AppSurface.of(context).text,
               ),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text(
               'Looks like you haven\'t added anything yet.\n'
               'Start exploring fresh groceries!',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 13,
-                color: AppSurface.textMuted,
+                color: AppSurface.of(context).textMuted,
                 height: 1.4,
               ),
             ),

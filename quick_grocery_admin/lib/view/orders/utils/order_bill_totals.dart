@@ -14,6 +14,8 @@ class OrderBillTotals {
     this.platformFee = 0,
     this.tax = 0,
     this.deliveryPartnerTip = 0,
+    this.codConvenienceFee = 0,
+    this.codFeeDescription = 'COD Convenience Fee',
     required this.grandTotal,
   });
 
@@ -26,6 +28,8 @@ class OrderBillTotals {
   final double platformFee;
   final double tax;
   final double deliveryPartnerTip;
+  final double codConvenienceFee;
+  final String codFeeDescription;
   final double grandTotal;
 
   double get discount => couponDiscount;
@@ -38,6 +42,7 @@ class OrderBillTotals {
             handlingCharge +
             platformFee +
             deliveryPartnerTip +
+            codConvenienceFee +
             tax,
       );
 
@@ -59,6 +64,8 @@ class OrderBillTotals {
     final platform = n(m['platformFee']);
     final taxAmt = n(m['tax']);
     final tip = n(m['deliveryPartnerTip'] ?? m['tipAmount']);
+    final codFee = n(m['codConvenienceFee'] ?? m['codFee']);
+    final codDesc = (m['codFeeDescription'] ?? '').toString().trim();
 
     if (grand <= 0 && subtotal > 0) {
       grand = OrderBillTotals(
@@ -69,6 +76,7 @@ class OrderBillTotals {
         handlingCharge: handling,
         platformFee: platform,
         deliveryPartnerTip: tip,
+        codConvenienceFee: codFee,
         tax: taxAmt,
         grandTotal: 0,
       ).computeGrandTotal();
@@ -83,6 +91,9 @@ class OrderBillTotals {
       handlingCharge: handling,
       platformFee: platform,
       deliveryPartnerTip: tip,
+      codConvenienceFee: codFee,
+      codFeeDescription:
+          codDesc.isEmpty ? 'COD Convenience Fee' : codDesc,
       tax: taxAmt,
       grandTotal: grand,
     );
@@ -111,6 +122,7 @@ class OrderBillTotals {
                 handlingCharge: fromBill.handlingCharge,
                 platformFee: fromBill.platformFee,
                 deliveryPartnerTip: fromBill.deliveryPartnerTip,
+                codConvenienceFee: fromBill.codConvenienceFee,
                 tax: fromBill.tax,
                 grandTotal: 0,
               ).computeGrandTotal();
@@ -123,6 +135,8 @@ class OrderBillTotals {
           handlingCharge: fromBill.handlingCharge,
           platformFee: fromBill.platformFee,
           deliveryPartnerTip: fromBill.deliveryPartnerTip,
+          codConvenienceFee: fromBill.codConvenienceFee,
+          codFeeDescription: fromBill.codFeeDescription,
           tax: fromBill.tax,
           grandTotal: grand,
         );

@@ -1,3 +1,5 @@
+import 'package:quick_grocery_receipt/quick_grocery_receipt.dart';
+
 import '../models/order_model.dart';
 import 'vendor_order_utils.dart';
 
@@ -5,11 +7,12 @@ import 'vendor_order_utils.dart';
 abstract final class VendorOrderDisplay {
   /// Best-effort order placement time in the device local timezone.
   static DateTime? placedAt(OrderModel order) {
-    final fromField = order.createdAt;
-    if (fromField != null) return fromField.toLocal();
-
-    final parsed = VendorOrderUtils.parseCreatedDate(order);
-    return parsed?.toLocal();
+    return OrderDateTimeFormat.resolve(
+      createdAt: order.createdAt,
+      createdDate: order.createdDate.isNotEmpty
+          ? order.createdDate
+          : VendorOrderUtils.parseCreatedDate(order)?.toIso8601String(),
+    )?.toLocal();
   }
 
   static String formatPlacedAt(OrderModel order) {
@@ -18,7 +21,7 @@ abstract final class VendorOrderDisplay {
       final raw = order.createdDate.trim();
       return raw.isEmpty ? '—' : raw;
     }
-    return _formatLocal(dt);
+    return OrderDateTimeFormat.format(dt);
   }
 
   static String formatTimestamp(String raw) {
@@ -26,7 +29,7 @@ abstract final class VendorOrderDisplay {
     if (trimmed.isEmpty) return '';
     final parsed = DateTime.tryParse(trimmed);
     if (parsed == null) return trimmed;
-    return _formatLocal(parsed.toLocal());
+    return OrderDateTimeFormat.format(parsed);
   }
 
   static String formatPhone(String phone) {
@@ -37,13 +40,5 @@ abstract final class VendorOrderDisplay {
       return '+${digits.substring(0, 2)} ${digits.substring(2)}';
     }
     return phone.trim();
-  }
-
-  static String _formatLocal(DateTime dt) {
-    final d = dt.day.toString().padLeft(2, '0');
-    final m = dt.month.toString().padLeft(2, '0');
-    final h = dt.hour.toString().padLeft(2, '0');
-    final min = dt.minute.toString().padLeft(2, '0');
-    return '$d/$m/${dt.year} $h:$min';
   }
 }

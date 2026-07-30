@@ -54,19 +54,19 @@ class _DeliveryInstructionsFieldState extends State<DeliveryInstructionsField> {
   InputDecoration _decoration(String hint) => InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.poppins(
-          color: AppSurface.textMuted,
+          color: AppSurface.of(context).textMuted,
           fontSize: 13,
         ),
         filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.all(14),
+        fillColor: AppSurface.of(context).card,
+        contentPadding: EdgeInsets.all(14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.sm),
-          borderSide: const BorderSide(color: AppSurface.border),
+          borderSide: BorderSide(color: AppSurface.of(context).border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.sm),
-          borderSide: const BorderSide(color: AppSurface.border),
+          borderSide: BorderSide(color: AppSurface.of(context).border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.sm),
@@ -81,33 +81,33 @@ class _DeliveryInstructionsFieldState extends State<DeliveryInstructionsField> {
       children: [
         Row(
           children: [
-            Icon(Icons.notes_rounded, size: 18, color: AppSurface.text),
-            const SizedBox(width: 8),
+            Icon(Icons.notes_rounded, size: 18, color: AppSurface.of(context).text),
+            SizedBox(width: 8),
             Text(
               'Delivery instructions',
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w800,
                 fontSize: 15,
-                color: AppSurface.text,
+                color: AppSurface.of(context).text,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         TextField(
           controller: _gateCode,
           onChanged: (_) => _emit(),
-          style: GoogleFonts.poppins(fontSize: 13.5, color: AppSurface.text),
+          style: GoogleFonts.poppins(fontSize: 13.5, color: AppSurface.of(context).text),
           decoration: _decoration('Gate code'),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         TextField(
           controller: _landmark,
           onChanged: (_) => _emit(),
-          style: GoogleFonts.poppins(fontSize: 13.5, color: AppSurface.text),
+          style: GoogleFonts.poppins(fontSize: 13.5, color: AppSurface.of(context).text),
           decoration: _decoration('Landmark'),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           dense: true,
@@ -119,7 +119,7 @@ class _DeliveryInstructionsFieldState extends State<DeliveryInstructionsField> {
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w600,
               fontSize: 13.5,
-              color: AppSurface.text,
+              color: AppSurface.of(context).text,
             ),
           ),
           onChanged: (v) => widget.onChanged(
@@ -130,7 +130,7 @@ class _DeliveryInstructionsFieldState extends State<DeliveryInstructionsField> {
           controller: _notes,
           onChanged: (_) => _emit(),
           maxLines: 2,
-          style: GoogleFonts.poppins(fontSize: 13.5, color: AppSurface.text),
+          style: GoogleFonts.poppins(fontSize: 13.5, color: AppSurface.of(context).text),
           decoration: _decoration('Notes (ring bell, call on arrival…)'),
         ),
       ],

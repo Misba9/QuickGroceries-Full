@@ -28,6 +28,9 @@ class ProductModel {
   final bool isDeleted;
   final bool isAvailable;
   final String? stockStatus;
+  final String sku;
+  final String barcode;
+  final String brand;
 
   ProductModel({
     required this.id,
@@ -56,6 +59,9 @@ class ProductModel {
     this.isDeleted = false,
     this.isAvailable = true,
     this.stockStatus,
+    this.sku = '',
+    this.barcode = '',
+    this.brand = '',
   });
 
   bool get isOutOfStock =>
@@ -142,6 +148,12 @@ class ProductModel {
           ? data['isAvailable'] as bool
           : (int.tryParse(data['stock']?.toString() ?? '') ?? 0) > 0,
       stockStatus: data['stockStatus']?.toString(),
+      sku: (data['sku'] ?? data['SKU'] ?? data['productSku'] ?? '')
+          .toString(),
+      barcode: (data['barcode'] ?? data['barCode'] ?? data['ean'] ?? '')
+          .toString(),
+      brand: (data['brand'] ?? data['brandName'] ?? data['brand_name'] ?? '')
+          .toString(),
     );
   }
 

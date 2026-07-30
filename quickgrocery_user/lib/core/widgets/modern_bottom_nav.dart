@@ -56,11 +56,11 @@ class _ModernBottomNavState extends State<ModernBottomNav> {
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 24,
-              offset: const Offset(0, -6),
+              offset: Offset(0, -6),
             ),
           ],
           border: Border(
-            top: BorderSide(color: AppSurface.border, width: 0.6),
+            top: BorderSide(color: AppSurface.of(context).border, width: 0.6),
           ),
         ),
         padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
@@ -138,7 +138,7 @@ class _NavTab extends StatelessWidget {
       radius: 38,
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: EdgeInsets.symmetric(vertical: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -184,7 +184,7 @@ class _NavTab extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 10.5,
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                color: selected ? AppSurface.textPrimary : AppSurface.textMuted,
+                color: selected ? AppSurface.of(context).textPrimary : AppSurface.of(context).textMuted,
               ),
             ),
           ],
@@ -204,10 +204,10 @@ class _Badge extends StatelessWidget {
       duration: AppMotion.short,
       child: Container(
         key: ValueKey(count),
-        constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+        constraints: BoxConstraints(minWidth: 18, minHeight: 18),
         padding: const EdgeInsets.symmetric(horizontal: 5),
         decoration: BoxDecoration(
-          color: AppSurface.danger,
+          color: AppSurface.of(context).danger,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: Colors.white, width: 1.5),
         ),

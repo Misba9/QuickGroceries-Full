@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:quick_grocery_delivery/core/navigation/root_back_handler.dart';
+import 'package:quick_grocery_delivery/core/delivery_notification_router.dart';
 import 'package:quick_grocery_delivery/core/delivery_push_initializer.dart';
-import 'package:quick_grocery_delivery/features/notifications/delivery_notification_center_screen.dart';
 import 'package:quick_grocery_delivery/constants/app_spacing.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/features/account/account_screen.dart';
@@ -35,14 +35,27 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    DeliveryPushInitializer.onAssignmentPush = _onAssignmentPush;
-    DeliveryPushInitializer.onCancellationPush = _onCancellationPush;
+    // Foreground receive still uses sound callbacks; taps go through the router.
+    DeliveryPushInitializer.onAssignmentPush = _onAssignmentPushForeground;
+    DeliveryPushInitializer.onCancellationPush = _onCancellationBanner;
+
+    DeliveryNotificationRouter.register(
+      onSelectTab: (index) {
+        if (!mounted) return;
+        setState(() => _selectIndex = index);
+      },
+      onCancellationBanner: _onCancellationBanner,
+    );
 
     final orders = Provider.of<OrderService>(context, listen: false);
     orders.getDeliveryBoy().then((_) => orders.startRealtimeOrders());
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeliveryNotificationRouter.consumePending();
+    });
   }
 
-  void _onCancellationPush(Map<String, dynamic> data) {
+  void _onCancellationBanner(Map<String, dynamic> data) {
     if (!mounted) return;
     final orderId = data['orderId']?.toString() ?? '';
     ScaffoldMessenger.of(context).showMaterialBanner(
@@ -66,7 +79,8 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<OrderService>().startRealtimeOrders();
   }
 
-  void _onAssignmentPush(Map<String, dynamic> data) {
+  /// Foreground push arrival (not a tap) — refresh offers + light tab switch.
+  void _onAssignmentPushForeground(Map<String, dynamic> data) {
     if (!mounted) return;
     final type = data['type']?.toString() ?? '';
     if (type == 'delivery_assigned' || type == 'driver_assigned') {
@@ -79,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     DeliveryPushInitializer.onAssignmentPush = null;
     DeliveryPushInitializer.onCancellationPush = null;
+    DeliveryNotificationRouter.unregister();
     super.dispose();
   }
 

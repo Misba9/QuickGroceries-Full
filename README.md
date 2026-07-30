@@ -55,3 +55,12 @@ firebase deploy --only firestore:indexes --project quikgroceries
 - Login: `firebase login`
 
 Per-app details: see each app’s `README.md`.
+
+## Mobile features (Flutter)
+
+| Feature | Docs |
+|---------|------|
+| **Rate Your Order** (User) | `quickgrocery_user/lib/core/review/README.md` |
+| **In-App Updates** (User / Vendor / Delivery) | `*/lib/core/update/README.md` |
+
+Remote Config JSON keys: `user_app_update`, `vendor_app_update`, `delivery_app_update`.

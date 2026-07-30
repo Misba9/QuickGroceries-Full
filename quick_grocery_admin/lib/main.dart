@@ -20,6 +20,7 @@ import 'package:quick_grocery_admin/view/push_notifications/services/notificatio
 import 'package:quick_grocery_admin/view/app_content_management/services/app_content_management_service.dart';
 import 'package:quick_grocery_admin/view/support_settings/services/support_settings_service.dart';
 import 'package:quick_grocery_admin/view/payment_settings/services/payment_settings_service.dart';
+import 'package:quick_grocery_admin/view/payment_settings/services/cod_convenience_fee_admin_service.dart';
 import 'package:quick_grocery_admin/view/maintenance/services/maintenance_management_service.dart';
 import 'package:quick_grocery_admin/view/operations/services/admin_notification_service.dart';
 import 'package:quick_grocery_admin/view/operations/services/ops_dashboard_service.dart';
@@ -73,6 +74,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (context) => PaymentSettingsService(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => CodConvenienceFeeAdminService(),
         ),
         ChangeNotifierProvider(
           create: (context) => MaintenanceManagementService(),

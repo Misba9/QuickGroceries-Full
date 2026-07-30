@@ -89,7 +89,7 @@ class _MainCategoryViewScreenState
         ).onSelectedChange(0);
       },
       child: Scaffold(
-        backgroundColor: AppSurface.background,
+        backgroundColor: AppSurface.of(context).background,
         body: SafeArea(
           top: false,
           bottom: false,
@@ -219,7 +219,7 @@ class _Greeting extends ConsumerWidget {
             boxShadow: AppShadow.primaryGlow,
           ),
           alignment: Alignment.center,
-          child: const Icon(
+          child: Icon(
             Icons.shopping_basket_rounded,
             color: Colors.white,
             size: 20,
@@ -237,19 +237,19 @@ class _Greeting extends ConsumerWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
-                  color: AppSurface.textMuted,
+                  color: AppSurface.of(context).textMuted,
                   height: 1.1,
                 ),
               ),
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.location_on_rounded,
                     size: 14,
-                    color: AppSurface.text,
+                    color: AppSurface.of(context).text,
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Flexible(
                     child: Text(
                       addressService.address.isEmpty ||
@@ -261,7 +261,7 @@ class _Greeting extends ConsumerWidget {
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: AppSurface.text,
+                        color: AppSurface.of(context).text,
                         height: 1.1,
                       ),
                     ),
@@ -273,7 +273,7 @@ class _Greeting extends ConsumerWidget {
         ),
         if (categoryCount > 0)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: AppColor.primary.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -286,7 +286,7 @@ class _Greeting extends ConsumerWidget {
               style: GoogleFonts.poppins(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w700,
-                color: AppSurface.text,
+                color: AppSurface.of(context).text,
                 letterSpacing: 0.2,
               ),
             ),

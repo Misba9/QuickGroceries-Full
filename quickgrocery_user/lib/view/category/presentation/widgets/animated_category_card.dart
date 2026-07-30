@@ -140,16 +140,16 @@ class _Tile extends StatelessWidget {
                             colors: [
                               AppColor.primary.withValues(alpha: 0.16),
                               Colors.white,
-                              AppSurface.subtle.withValues(alpha: 0.85),
+                              AppSurface.of(context).subtle.withValues(alpha: 0.85),
                             ],
                           ),
                           borderRadius: AppRadii.all(AppRadii.lg),
                           border: Border.all(
-                            color: AppSurface.border.withValues(alpha: 0.8),
+                            color: AppSurface.of(context).border.withValues(alpha: 0.8),
                           ),
                           boxShadow: AppShadow.card,
                         ),
-                        padding: const EdgeInsets.all(10),
+                        padding: EdgeInsets.all(10),
                         child: CachedImage(
                           url: category.image,
                           fit: BoxFit.contain,
@@ -167,7 +167,7 @@ class _Tile extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: AppSurface.danger,
+                              color: AppSurface.of(context).danger,
                               borderRadius: BorderRadius.circular(8),
                               boxShadow: AppShadow.dim,
                             ),
@@ -188,7 +188,7 @@ class _Tile extends StatelessWidget {
             },
           ),
         ),
-        const SizedBox(height: CategoryGridLayout.tileImageGap),
+        SizedBox(height: CategoryGridLayout.tileImageGap),
         Flexible(
           fit: FlexFit.loose,
           child: Column(
@@ -203,12 +203,12 @@ class _Tile extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: CategoryGridLayout.nameFontSize,
                   fontWeight: FontWeight.w600,
-                  color: AppSurface.textPrimary,
+                  color: AppSurface.of(context).textPrimary,
                   height: CategoryGridLayout.nameLineHeight,
                 ),
               ),
               if (count != null && count > 0) ...[
-                const SizedBox(height: CategoryGridLayout.countTopGap),
+                SizedBox(height: CategoryGridLayout.countTopGap),
                 Text(
                   context.l10n.items_in_category(count),
                   maxLines: 1,
@@ -217,7 +217,7 @@ class _Tile extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: CategoryGridLayout.countFontSize,
                     fontWeight: FontWeight.w600,
-                    color: AppSurface.textMuted,
+                    color: AppSurface.of(context).textMuted,
                     height: CategoryGridLayout.countLineHeight,
                   ),
                 ),

@@ -62,6 +62,7 @@ class OrderPlacementClient {
         'mobile': resolvedMobile,
         'address': address.address,
         'area': address.area,
+        'city': address.city,
         'type': address.type,
       },
       'currentLocation': currentAddressString,

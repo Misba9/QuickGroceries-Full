@@ -90,11 +90,11 @@ class _CardSurface extends StatelessWidget {
     final hasSlash = lineMrp > lineTotal + 0.5;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
         boxShadow: AppShadow.dim,
       ),
       clipBehavior: Clip.antiAlias,
@@ -103,7 +103,7 @@ class _CardSurface extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -128,7 +128,7 @@ class _CardSurface extends StatelessWidget {
                               style: GoogleFonts.poppins(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w700,
-                                color: AppSurface.text,
+                                color: AppSurface.of(context).text,
                                 height: 1.25,
                               ),
                             ),
@@ -136,7 +136,7 @@ class _CardSurface extends StatelessWidget {
                           _RemoveButton(onTap: onRemove),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      SizedBox(height: 6),
                       if (item.unitPerItem.isNotEmpty)
                         _UnitChip(text: item.unitPerItem),
                       if (outOfStock) ...[
@@ -158,7 +158,7 @@ class _CardSurface extends StatelessWidget {
                                   style: GoogleFonts.poppins(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
-                                    color: AppSurface.text,
+                                    color: AppSurface.of(context).text,
                                     height: 1.1,
                                   ),
                                 ),
@@ -167,7 +167,7 @@ class _CardSurface extends StatelessWidget {
                                     '₹${_money(lineMrp)}',
                                     style: GoogleFonts.poppins(
                                       fontSize: 11.5,
-                                      color: AppSurface.textMuted,
+                                      color: AppSurface.of(context).textMuted,
                                       decoration: TextDecoration.lineThrough,
                                       height: 1.1,
                                     ),
@@ -229,7 +229,7 @@ class _ItemImage extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             ColoredBox(
-              color: AppSurface.subtle,
+              color: AppSurface.of(context).subtle,
               child: CachedImage(url: url, fit: BoxFit.cover),
             ),
             if (outOfStock)
@@ -250,9 +250,9 @@ class _UnitChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppSurface.subtle,
+        color: AppSurface.of(context).subtle,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
@@ -260,7 +260,7 @@ class _UnitChip extends StatelessWidget {
         style: GoogleFonts.poppins(
           fontSize: 10.5,
           fontWeight: FontWeight.w700,
-          color: AppSurface.textSecondary,
+          color: AppSurface.of(context).textSecondary,
           letterSpacing: 0.2,
           height: 1.2,
         ),
@@ -273,9 +273,9 @@ class _OutOfStockChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppSurface.danger.withValues(alpha: 0.10),
+        color: AppSurface.of(context).danger.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
@@ -283,7 +283,7 @@ class _OutOfStockChip extends StatelessWidget {
         style: GoogleFonts.poppins(
           fontSize: 10.5,
           fontWeight: FontWeight.w700,
-          color: AppSurface.danger,
+          color: AppSurface.of(context).danger,
           letterSpacing: 0.3,
           height: 1.2,
         ),
@@ -299,9 +299,9 @@ class _SaveBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppSurface.success.withValues(alpha: 0.12),
+        color: AppSurface.of(context).success.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
@@ -309,7 +309,7 @@ class _SaveBadge extends StatelessWidget {
         style: GoogleFonts.poppins(
           fontSize: 10.5,
           fontWeight: FontWeight.w700,
-          color: AppSurface.success,
+          color: AppSurface.of(context).success,
           height: 1.1,
         ),
       ),
@@ -332,11 +332,11 @@ class _RemoveButton extends StatelessWidget {
         onTap();
       },
       child: Padding(
-        padding: const EdgeInsets.only(left: 6, top: 2, bottom: 2),
+        padding: EdgeInsets.only(left: 6, top: 2, bottom: 2),
         child: Icon(
           Icons.delete_outline_rounded,
           size: 20,
-          color: AppSurface.textMuted,
+          color: AppSurface.of(context).textMuted,
         ),
       ),
     );
@@ -349,12 +349,12 @@ class _DismissBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppSurface.danger.withValues(alpha: 0.85),
-            AppSurface.danger,
+            AppSurface.of(context).danger.withValues(alpha: 0.85),
+            AppSurface.of(context).danger,
           ],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,

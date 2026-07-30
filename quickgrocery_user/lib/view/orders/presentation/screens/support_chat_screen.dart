@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:quickgrocery/constants/app_color.dart';
@@ -56,7 +57,7 @@ class _SupportChatScreenState extends ConsumerState<SupportChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Order support'),
-        backgroundColor: Colors.white,
+        backgroundColor: AppSurface.of(context).card,
         foregroundColor: Colors.black,
         elevation: 0.5,
       ),
@@ -203,7 +204,7 @@ class _Composer extends StatelessWidget {
                 decoration: InputDecoration(
                   hintText: 'Type your message…',
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppSurface.of(context).card,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(color: Colors.grey.shade300),

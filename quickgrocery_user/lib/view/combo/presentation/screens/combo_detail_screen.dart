@@ -104,17 +104,17 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
     final fmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
 
     return Scaffold(
-      backgroundColor: AppSurface.background,
+      backgroundColor: AppSurface.of(context).background,
       appBar: AppBar(
         title: Text(
           'Combo details',
           style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: AppSurface.background,
+        backgroundColor: AppSurface.of(context).background,
         surfaceTintColor: Colors.transparent,
       ),
       body: _loading
-          ? const _ComboDetailLoadingBody()
+          ? _ComboDetailLoadingBody()
           : _error != null
               ? Center(child: Text(_error!))
               : CustomScrollView(
@@ -129,7 +129,7 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                             child: combo.image.isNotEmpty
                                 ? CachedImage(url: combo.image, fit: BoxFit.cover)
                                 : Container(
-                                    color: AppSurface.subtle,
+                                    color: AppSurface.of(context).subtle,
                                     child: const Icon(Icons.shopping_basket, size: 64),
                                   ),
                           ),
@@ -138,7 +138,7 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: EdgeInsets.symmetric(horizontal: 16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -154,17 +154,17 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                               Text(
                                 combo.subtitle,
                                 style: GoogleFonts.poppins(
-                                  color: AppSurface.textSecondary,
+                                  color: AppSurface.of(context).textSecondary,
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
                             Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(AppRadii.md),
-                                border: Border.all(color: AppSurface.border),
+                                border: Border.all(color: AppSurface.of(context).border),
                               ),
                               child: Row(
                                 children: [
@@ -175,7 +175,7 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                                         'Combo price',
                                         style: GoogleFonts.poppins(
                                           fontSize: 12,
-                                          color: AppSurface.textMuted,
+                                          color: AppSurface.of(context).textMuted,
                                         ),
                                       ),
                                       Text(
@@ -187,15 +187,15 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                                       ),
                                     ],
                                   ),
-                                  const Spacer(),
+                                  Spacer(),
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Text(
                                         fmt.format(combo.originalTotalPrice * _qty),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           decoration: TextDecoration.lineThrough,
-                                          color: AppSurface.textMuted,
+                                          color: AppSurface.of(context).textMuted,
                                         ),
                                       ),
                                       Text(
@@ -362,7 +362,7 @@ class _QtyStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
         borderRadius: BorderRadius.circular(AppRadii.md),
         color: Colors.white,
       ),

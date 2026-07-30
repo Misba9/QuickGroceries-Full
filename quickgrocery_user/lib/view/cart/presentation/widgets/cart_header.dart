@@ -37,7 +37,7 @@ class CartHeader extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 6, 12, 12),
+          padding: EdgeInsets.fromLTRB(8, 6, 12, 12),
           child: Row(
             children: [
               _RoundIconButton(
@@ -56,7 +56,7 @@ class CartHeader extends StatelessWidget {
                       style: GoogleFonts.poppins(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
-                        color: AppSurface.text,
+                        color: AppSurface.of(context).text,
                         letterSpacing: -0.3,
                         height: 1.15,
                       ),
@@ -69,7 +69,7 @@ class CartHeader extends StatelessWidget {
                         opacity: anim,
                         child: SlideTransition(
                           position: Tween<Offset>(
-                            begin: const Offset(0, 0.25),
+                            begin: Offset(0, 0.25),
                             end: Offset.zero,
                           ).animate(anim),
                           child: child,
@@ -81,7 +81,7 @@ class CartHeader extends StatelessWidget {
                         style: GoogleFonts.poppins(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
-                          color: AppSurface.textSecondary,
+                          color: AppSurface.of(context).textSecondary,
                           height: 1.25,
                         ),
                       ),
@@ -136,11 +136,11 @@ class _RoundIconButton extends StatelessWidget {
             width: 40,
             height: 40,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppSurface.subtle,
+              color: AppSurface.of(context).subtle,
             ),
-            child: Icon(icon, size: 20, color: AppSurface.text),
+            child: Icon(icon, size: 20, color: AppSurface.of(context).text),
           ),
         ),
       ),

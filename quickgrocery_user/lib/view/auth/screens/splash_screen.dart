@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery/view/auth/screens/login_screen.dart';
 import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
@@ -11,8 +12,9 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
+    final surface = AppSurface.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: surface.scaffold,
       body: SafeArea(
         child: KeyboardSafeBody(
           padding: const EdgeInsets.all(15),
@@ -35,8 +37,9 @@ class SplashScreen extends StatelessWidget {
                   maxHeight: size.width / 1.4,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: surface.card,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: surface.border),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -45,9 +48,10 @@ class SplashScreen extends StatelessWidget {
                     Text(
                       context.l10n.buy_groceries_easily,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: surface.textPrimary,
                       ),
                     ),
                     AppSpacing.h20,

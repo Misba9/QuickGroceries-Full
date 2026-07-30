@@ -103,13 +103,13 @@ class _AppSearchBarState extends State<AppSearchBar> {
         borderRadius: AppRadii.all(AppRadii.pill),
         onTap: widget.live ? null : widget.onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18),
+          padding: EdgeInsets.symmetric(horizontal: 18),
           height: 52,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: AppRadii.all(AppRadii.pill),
             border: Border.all(
-              color: AppSurface.border.withValues(alpha: 0.65),
+              color: AppSurface.of(context).border.withValues(alpha: 0.65),
             ),
             boxShadow: AppShadow.raised,
           ),
@@ -117,13 +117,13 @@ class _AppSearchBarState extends State<AppSearchBar> {
             children: [
               Icon(Icons.search_rounded,
                   color: AppColor.primary.withValues(alpha: 0.85), size: 22),
-              const SizedBox(width: 14),
+              SizedBox(width: 14),
               Expanded(child: _buildField()),
               if (widget.live && widget.controller != null &&
                   widget.controller!.text.isNotEmpty)
                 IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      color: AppSurface.textMuted, size: 18),
+                  icon: Icon(Icons.close_rounded,
+                      color: AppSurface.of(context).textMuted, size: 18),
                   onPressed: () {
                     widget.controller?.clear();
                     widget.onChanged?.call('');
@@ -157,7 +157,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
         style: GoogleFonts.poppins(
           fontSize: 13.5,
           fontWeight: FontWeight.w500,
-          color: AppSurface.textPrimary,
+          color: AppSurface.of(context).textPrimary,
         ),
         decoration: InputDecoration(
           isCollapsed: true,
@@ -166,7 +166,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
               widget.hints.isEmpty ? 'Search products...' : widget.hints.first,
           hintStyle: GoogleFonts.poppins(
             fontSize: 13.5,
-            color: AppSurface.textMuted,
+            color: AppSurface.of(context).textMuted,
           ),
         ),
       );
@@ -197,7 +197,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
         style: GoogleFonts.poppins(
           fontSize: 13.5,
           fontWeight: FontWeight.w500,
-          color: AppSurface.textMuted,
+          color: AppSurface.of(context).textMuted,
         ),
       ),
     );
@@ -220,13 +220,13 @@ class _MicButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: active
               ? AppColor.primary.withValues(alpha: 0.16)
-              : AppSurface.subtle,
+              : AppSurface.of(context).subtle,
           shape: BoxShape.circle,
         ),
         child: Icon(
           active ? Icons.mic_rounded : Icons.mic_rounded,
           size: 18,
-          color: active ? AppColor.primary : AppSurface.textPrimary,
+          color: active ? AppColor.primary : AppSurface.of(context).textPrimary,
         ),
       ),
     );

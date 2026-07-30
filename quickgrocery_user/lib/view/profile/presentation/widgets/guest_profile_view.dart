@@ -24,7 +24,7 @@ class GuestProfileView extends ConsumerWidget {
             .onSelectedChange(0);
       },
       child: Scaffold(
-        backgroundColor: AppSurface.background,
+        backgroundColor: AppSurface.of(context).background,
         body: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
@@ -52,7 +52,7 @@ class GuestProfileView extends ConsumerWidget {
                   children: [
                     CircleAvatar(
                       radius: 42,
-                      backgroundColor: Colors.white.withValues(alpha: 0.9),
+                      backgroundColor: AppSurface.of(context).card.withValues(alpha: 0.9),
                       child: Icon(
                         Icons.person_outline_rounded,
                         size: 44,
@@ -108,6 +108,8 @@ class GuestProfileView extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
+                  const ProfileAppearanceSection(),
+                  const SizedBox(height: 16),
                   const ProfileLanguageSection(),
                   const SizedBox(height: 16),
                   const ProfileSupportSection(),

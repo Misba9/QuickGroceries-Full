@@ -106,18 +106,18 @@ class _FreeDeliveryDisabledVariant extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      padding: EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
         boxShadow: AppShadow.dim,
       ),
       child: Text(
         'Free delivery is currently disabled by admin'
         '${threshold > 0 ? ' (threshold ₹${threshold.toStringAsFixed(0)})' : ''}',
         style: GoogleFonts.poppins(
-          color: AppSurface.textSecondary,
+          color: AppSurface.of(context).textSecondary,
           fontWeight: FontWeight.w600,
           fontSize: 12.5,
         ),
@@ -192,11 +192,11 @@ class _AlmostThereVariant extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      padding: EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
         boxShadow: AppShadow.dim,
       ),
       child: Column(
@@ -207,20 +207,20 @@ class _AlmostThereVariant extends StatelessWidget {
             children: [
               _IconBubble(
                 icon: Icons.local_shipping_outlined,
-                background: AppSurface.success.withValues(alpha: 0.12),
-                foreground: AppSurface.success,
+                background: AppSurface.of(context).success.withValues(alpha: 0.12),
+                foreground: AppSurface.of(context).success,
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: RichText(
                   text: TextSpan(
                     style: GoogleFonts.poppins(
-                      color: AppSurface.text,
+                      color: AppSurface.of(context).text,
                       fontSize: 13,
                       height: 1.3,
                     ),
                     children: [
-                      const TextSpan(text: 'Add '),
+                      TextSpan(text: 'Add '),
                       TextSpan(
                         text: '₹${remaining.toStringAsFixed(0)}',
                         style: const TextStyle(fontWeight: FontWeight.w800),
@@ -232,7 +232,7 @@ class _AlmostThereVariant extends StatelessWidget {
                         text: 'FREE delivery',
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w800,
-                          color: AppSurface.success,
+                          color: AppSurface.of(context).success,
                         ),
                       ),
                     ],
@@ -241,7 +241,7 @@ class _AlmostThereVariant extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
             child: TweenAnimationBuilder<double>(
@@ -251,8 +251,8 @@ class _AlmostThereVariant extends StatelessWidget {
               builder: (context, v, _) => LinearProgressIndicator(
                 value: v,
                 minHeight: 6,
-                backgroundColor: AppSurface.subtle,
-                valueColor: const AlwaysStoppedAnimation(AppSurface.success),
+                backgroundColor: AppSurface.of(context).subtle,
+                valueColor: AlwaysStoppedAnimation(AppSurface.of(context).success),
               ),
             ),
           ),

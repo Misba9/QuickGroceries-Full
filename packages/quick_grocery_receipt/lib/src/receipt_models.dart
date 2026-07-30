@@ -110,6 +110,8 @@ class ReceiptBill {
     this.platformFee = 0,
     this.tax = 0,
     this.deliveryPartnerTip = 0,
+    this.codConvenienceFee = 0,
+    this.codFeeDescription = 'COD Convenience Fee',
     required this.grandTotal,
   });
 
@@ -122,6 +124,8 @@ class ReceiptBill {
   final double platformFee;
   final double tax;
   final double deliveryPartnerTip;
+  final double codConvenienceFee;
+  final String codFeeDescription;
   final double grandTotal;
 
   double get mrpTotal => subtotal + itemSavings;

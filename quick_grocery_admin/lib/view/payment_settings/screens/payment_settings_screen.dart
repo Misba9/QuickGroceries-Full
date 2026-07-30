@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:quick_grocery_admin/core/responsive/admin_responsive.dart';
 import 'package:quick_grocery_admin/style/app_color.dart';
 import 'package:quick_grocery_admin/utils/app_spacing.dart';
+import 'package:quick_grocery_admin/view/payment_settings/services/cod_convenience_fee_admin_service.dart';
 import 'package:quick_grocery_admin/view/payment_settings/services/payment_settings_service.dart';
-/// **Settings → Payment Settings** — merchant UPI & COD collection for riders.
+
+/// **Settings → Payment Settings** — merchant UPI, COD collection & COD fee.
 class PaymentSettingsScreen extends StatefulWidget {
   const PaymentSettingsScreen({super.key});
 
@@ -20,12 +22,15 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<PaymentSettingsService>().ensureDocument();
+      context.read<CodConvenienceFeeAdminService>().ensureDocument();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final service = context.watch<PaymentSettingsService>();
+    final codFee = context.watch<CodConvenienceFeeAdminService>();
+    final loading = service.loading || codFee.loading;
 
     return ColoredBox(
       color: const Color(0xFFFFFAF0),
@@ -37,7 +42,7 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
             children: [
               AppSpacing.h20,
               Expanded(
-                child: service.loading
+                child: loading
                     ? const Center(child: CircularProgressIndicator())
                     : SingleChildScrollView(
                         padding: EdgeInsets.all(pad),
@@ -65,8 +70,9 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Saved to Firestore at app_settings/payment. '
-                                  'Delivery partners use this for UPI QR and COD collection.',
+                                  'Merchant UPI/COD collection for riders, and '
+                                  'customer-facing COD Convenience Fee at checkout. '
+                                  'Fee changes apply instantly — no app restart.',
                                   style: GoogleFonts.poppins(
                                     fontSize: 13,
                                     color: Colors.grey.shade600,
@@ -76,6 +82,10 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
                                 if (service.error != null) ...[
                                   const SizedBox(height: 12),
                                   _ErrorBanner(text: service.error!),
+                                ],
+                                if (codFee.error != null) ...[
+                                  const SizedBox(height: 12),
+                                  _ErrorBanner(text: codFee.error!),
                                 ],
                                 SizedBox(height: pad),
                                 _SectionCard(
@@ -138,6 +148,140 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
                                     ],
                                   ),
                                 ),
+                                const SizedBox(height: 16),
+                                _SectionCard(
+                                  title: 'COD Convenience Fee',
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Text(
+                                        'Charged when the customer selects Cash on Delivery. '
+                                        'Currently applied to all users. '
+                                        'Audience targeting (users / cities / vendors / categories) can be added later.',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12.5,
+                                          color: Colors.grey.shade600,
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SwitchListTile(
+                                        contentPadding: EdgeInsets.zero,
+                                        title: const Text(
+                                          'Enable COD Convenience Fee',
+                                        ),
+                                        subtitle: const Text(
+                                          'Show and charge fee on COD checkout',
+                                        ),
+                                        value: codFee.enabled,
+                                        activeThumbColor: AppColor.primary,
+                                        onChanged: codFee.setEnabled,
+                                      ),
+                                      _Field(
+                                        label: 'Default COD fee (₹)',
+                                        controller: codFee.amountController,
+                                        keyboard: const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                        hint: '10',
+                                      ),
+                                      _Field(
+                                        label: 'Minimum order amount (₹)',
+                                        controller: codFee.minOrderController,
+                                        keyboard: const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                        hint: '0 = no minimum',
+                                      ),
+                                      _Field(
+                                        label: 'Maximum order amount (₹, optional)',
+                                        controller: codFee.maxOrderController,
+                                        keyboard: const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                        hint: '0 = no maximum',
+                                      ),
+                                      _Field(
+                                        label: 'Free COD above order value (₹)',
+                                        controller: codFee.freeAboveController,
+                                        keyboard: const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                        hint: '0 = disabled',
+                                      ),
+                                      _Field(
+                                        label: 'Customer-facing description',
+                                        controller: codFee.descriptionController,
+                                        hint:
+                                            'Convenience Fee for Cash on Delivery',
+                                      ),
+                                      if (codFee.settings.updatedByName.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 4),
+                                          child: Text(
+                                            'Last updated by ${codFee.settings.updatedByName}',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 11.5,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ),
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: OutlinedButton(
+                                          onPressed: codFee.saving
+                                              ? null
+                                              : () async {
+                                                  final messenger =
+                                                      ScaffoldMessenger.of(
+                                                    context,
+                                                  );
+                                                  final ok = await codFee.save();
+                                                  if (!mounted) return;
+                                                  messenger.showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        ok
+                                                            ? 'COD Convenience Fee saved'
+                                                            : (codFee.error ??
+                                                                'Could not save COD fee'),
+                                                      ),
+                                                      backgroundColor: ok
+                                                          ? Colors.green
+                                                          : Colors.red,
+                                                    ),
+                                                  );
+                                                },
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: AppColor.primary,
+                                            side: BorderSide(
+                                              color: AppColor.primary,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 14,
+                                            ),
+                                          ),
+                                          child: codFee.saving
+                                              ? const SizedBox(
+                                                  height: 20,
+                                                  width: 20,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                  ),
+                                                )
+                                              : Text(
+                                                  'Save COD Convenience Fee',
+                                                  style: GoogleFonts.poppins(
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                                 const SizedBox(height: 24),
                                 SizedBox(
                                   width: double.infinity,
@@ -178,7 +322,7 @@ class _PaymentSettingsScreenState extends State<PaymentSettingsScreen> {
                                             ),
                                           )
                                         : Text(
-                                            'Save payment settings',
+                                            'Save merchant & collection settings',
                                             style: GoogleFonts.poppins(
                                               fontWeight: FontWeight.w700,
                                             ),

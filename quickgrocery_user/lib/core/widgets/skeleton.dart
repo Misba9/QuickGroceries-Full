@@ -35,15 +35,16 @@ class Skeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Shimmer.fromColors(
-      baseColor: Colors.grey.shade200,
-      highlightColor: Colors.grey.shade100,
+      baseColor: surface.shimmerBase,
+      highlightColor: surface.shimmerHighlight,
       period: const Duration(milliseconds: 1100),
       child: Container(
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: Colors.grey.shade200,
+          color: surface.shimmerBase,
           borderRadius: BorderRadius.circular(radius),
         ),
       ),
@@ -68,14 +69,14 @@ class SkeletonRail extends StatelessWidget {
         physics: kHorizontalProductRailPhysics,
         padding: EdgeInsets.zero,
         itemCount: count,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (_, __) => SizedBox(width: 10),
         itemBuilder: (_, __) => Container(
           width: itemWidth,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppSurface.of(context).card,
             borderRadius: AppRadii.all(AppRadii.md),
-            border: Border.all(color: AppSurface.border),
+            border: Border.all(color: AppSurface.of(context).border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,7 +121,7 @@ class SkeletonGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return GridView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: NeverScrollableScrollPhysics(),
       itemCount: count,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
@@ -130,11 +131,11 @@ class SkeletonGrid extends StatelessWidget {
       ),
       itemBuilder: (_, __) => Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: AppRadii.all(AppRadii.md),
-          border: Border.all(color: AppSurface.border),
-        ),
+          decoration: BoxDecoration(
+            color: AppSurface.of(context).card,
+            borderRadius: AppRadii.all(AppRadii.md),
+            border: Border.all(color: AppSurface.of(context).border),
+          ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.max,

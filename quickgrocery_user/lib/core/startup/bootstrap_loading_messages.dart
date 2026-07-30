@@ -4,10 +4,15 @@ abstract final class BootstrapLoadingMessages {
 
   static const rotating = [
     'Getting your groceries ready...',
-    'Loading fresh products...',
-    'Preparing today\'s offers...',
-    'Finding the best deals for you...',
-    'Almost there...',
+    'Loading Fresh Vegetables...',
+    'Picking the freshest fruits...',
+    'Preparing Dairy Products...',
+    'Getting today\'s offers...',
+    'Finding the best deals...',
+    'Collecting groceries...',
+    'Almost ready...',
+    'Sorting products...',
+    'Checking nearby vendors...',
   ];
 
   static const restoringSession = 'Restoring your session...';

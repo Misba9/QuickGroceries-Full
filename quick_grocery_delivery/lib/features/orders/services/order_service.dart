@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:quick_grocery_delivery/features/orders/screens/delivery_details_screen.dart';
 import 'package:quick_grocery_delivery/features/orders/widgets/confirm_delivery_dialog.dart';
 import 'package:quick_grocery_delivery/services/delivery_ops_api.dart';
 import 'package:quick_grocery_delivery/services/delivery_trip_tracker.dart';
 import 'package:quick_grocery_delivery/utils/delivery_route_utils.dart';
 import 'package:quick_grocery_delivery/core/delivery_push_initializer.dart';
+import 'package:quick_grocery_delivery/core/fcm_bootstrap.dart';
 import 'package:quick_grocery_delivery/core/order_lifecycle.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/models/delivery_boy_model.dart';
@@ -45,24 +45,15 @@ class OrderService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Keeps rider FCM topic + single token in sync (no duplicate writers).
   Future<void> updateAdminFcmToken() async {
     try {
       final pref = await SharedPreferences.getInstance();
-      String uid = pref.getString('deliveryBoyId') ?? "";
-      String? token = await FirebaseMessaging.instance.getToken();
-
-      if (token != null) {
-        await FirebaseFirestore.instance
-            .collection('delivery_boys')
-            .doc(uid)
-            .set({'fcm_token': token}, SetOptions(merge: true));
-
-        print('FCM token updated successfully: $token');
-      } else {
-        print('Failed to get FCM token.');
-      }
+      final uid = pref.getString('deliveryBoyId') ?? '';
+      if (uid.isEmpty) return;
+      await DeliveryFcmBootstrap.configureForRider(uid);
     } catch (e) {
-      print('Error updating FCM token: $e');
+      if (kDebugMode) debugPrint('[OrderService] FCM token sync failed: $e');
     }
   }
 

@@ -6,13 +6,12 @@ import 'package:video_player/video_player.dart';
 
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
+import 'package:quickgrocery/core/navigation/product_navigation.dart';
 import 'package:quickgrocery/models/banner_model.dart';
-import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/category/screens/category_screen.dart';
-import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
-import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 
 const double _kBannerAspect = 16 / 7;
 const double _kViewportFraction = 0.926; // ~slidesPerView 1.08
@@ -116,7 +115,7 @@ class _BannerSlide extends StatelessWidget {
     final radius = BorderRadius.circular(AppRadii.banner);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _kSlideGap / 2),
+      padding: EdgeInsets.symmetric(horizontal: _kSlideGap / 2),
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: radius,
@@ -127,7 +126,7 @@ class _BannerSlide extends StatelessWidget {
           child: AspectRatio(
             aspectRatio: _kBannerAspect,
             child: Material(
-              color: AppSurface.subtle,
+              color: AppSurface.of(context).subtle,
               child: InkWell(
                 onTap: banner.hasRedirect ? () => _handleTap(context) : null,
                 child: Stack(
@@ -156,37 +155,32 @@ class _BannerSlide extends StatelessWidget {
   }
 
   Future<void> _handleTap(BuildContext context) async {
-    switch (banner.redirectType) {
+    switch (ProductNavigation.normalizeRedirectType(banner.redirectType)) {
       case 'offers_page':
         legacy.Provider.of<HomeProvider>(context, listen: false)
             .onSelectedChange(2);
         break;
 
       case 'category':
+        final categoryId = banner.redirectId.trim();
+        if (categoryId.isEmpty) {
+          AppSnackBar.error('Category unavailable', context: context);
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => CategoryScreen(category: banner.redirectId),
+            builder: (_) => CategoryScreen(category: categoryId),
           ),
         );
         break;
 
       case 'product':
-        final cartService = legacy.Provider.of<CategoryService>(
-          context,
-          listen: false,
-        );
-        final ProductModel? product = cartService.allProducts
-            .where((p) => p.id == banner.redirectId)
-            .cast<ProductModel?>()
-            .firstWhere((p) => p != null, orElse: () => null);
-        if (product != null && context.mounted) {
-          Navigator.push(context, AppPageRoutes.product(product));
-        }
+        await ProductNavigation.openProductById(context, banner.redirectId);
         break;
 
       case 'url':
-        final uri = Uri.tryParse(banner.redirectId);
+        final uri = Uri.tryParse(banner.redirectId.trim());
         if (uri != null) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         }
@@ -336,7 +330,7 @@ class _BannerMediaSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppSurface.subtle,
+      color: AppSurface.of(context).subtle,
       child: Center(
         child: SizedBox(
           width: 28,

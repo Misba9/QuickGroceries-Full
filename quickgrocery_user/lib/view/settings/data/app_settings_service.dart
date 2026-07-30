@@ -99,7 +99,73 @@ class AppSettingsService {
       isDeliveryChargesEnabled: resolveDeliveryChargesEnabled(
         base.isDeliveryChargesEnabled,
       ),
+      codFeeEnabled: main.containsKey('codFeeEnabled')
+          ? main['codFeeEnabled'] == true
+          : base.codFeeEnabled,
+      codFeeAmount: _resolveDouble(
+        main,
+        'codFeeAmount',
+        base.codFeeAmount,
+      ),
+      codFeeMinimumOrderAmount: _resolveDouble(
+        main,
+        'codFeeMinimumOrderAmount',
+        base.codFeeMinimumOrderAmount,
+      ),
+      codFeeMaximumOrderAmount: _resolveDouble(
+        main,
+        'codFeeMaximumOrderAmount',
+        base.codFeeMaximumOrderAmount,
+      ),
+      freeCodAboveAmount: _resolveDouble(
+        main,
+        'freeCodAboveAmount',
+        base.freeCodAboveAmount,
+      ),
+      codFeeDescription: main['codFeeDescription'] is String &&
+              (main['codFeeDescription'] as String).trim().isNotEmpty
+          ? (main['codFeeDescription'] as String).trim()
+          : base.codFeeDescription,
+      codFeeApplicableTo: main['codFeeApplicableTo'] is String &&
+              (main['codFeeApplicableTo'] as String).trim().isNotEmpty
+          ? (main['codFeeApplicableTo'] as String).trim()
+          : base.codFeeApplicableTo,
+      codFeeApplicableUsers: _resolveStringList(
+        main['codFeeApplicableUsers'],
+        base.codFeeApplicableUsers,
+      ),
+      codFeeApplicableCities: _resolveStringList(
+        main['codFeeApplicableCities'],
+        base.codFeeApplicableCities,
+      ),
+      codFeeApplicableVendors: _resolveStringList(
+        main['codFeeApplicableVendors'],
+        base.codFeeApplicableVendors,
+      ),
+      codFeeApplicableCategories: _resolveStringList(
+        main['codFeeApplicableCategories'],
+        base.codFeeApplicableCategories,
+      ),
       settingsUpdatedAt: updatedAt ?? base.settingsUpdatedAt,
     );
+  }
+
+  static double _resolveDouble(
+    Map<String, dynamic> main,
+    String key,
+    double current,
+  ) {
+    if (!main.containsKey(key)) return current;
+    final v = main[key];
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '') ?? current;
+  }
+
+  static List<String> _resolveStringList(dynamic raw, List<String> current) {
+    if (raw is! List) return current;
+    return raw
+        .map((e) => e.toString().trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
 }

@@ -20,7 +20,7 @@ class OrderCardModern extends StatelessWidget {
     final products = order.legacy.products;
     final dateLabel = order.createdAt.millisecondsSinceEpoch == 0
         ? ''
-        : DateFormat('d MMM, hh:mm a').format(order.createdAt);
+        : DateFormat('dd MMM yyyy, hh:mm a').format(order.createdAt.toLocal());
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),

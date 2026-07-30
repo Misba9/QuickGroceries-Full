@@ -54,6 +54,11 @@ class ProductSettingsService {
   }) async {
     final doc = await _db.collection('products').doc(productId).get();
     final data = doc.data() ?? {};
+    if (data['admin_settings_locked'] == true) {
+      throw StateError(
+        'This promotion is managed by the administrator.',
+      );
+    }
     final stock = int.tryParse(data['stock']?.toString() ?? '') ?? 0;
     final patch = settings.toFirestorePatch(
       existingSpecialCat: existingSpecialCat ?? data['special_cat']?.toString(),

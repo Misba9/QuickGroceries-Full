@@ -50,6 +50,8 @@ class ReceiptOrderMapper {
         platformFee: bill.platformFee,
         tax: bill.tax,
         deliveryPartnerTip: bill.deliveryPartnerTip,
+        codConvenienceFee: bill.codConvenienceFee,
+        codFeeDescription: bill.codFeeDescription,
         grandTotal: bill.grandTotal,
       ),
       paymentMethod: order.isPaid ? 'Online (Paid)' : 'Cash on Delivery',

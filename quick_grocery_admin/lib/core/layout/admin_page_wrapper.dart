@@ -234,5 +234,6 @@ abstract final class AdminFlexRoutes {
     AdminRoutes.platformFee,
     AdminRoutes.maintenance,
     AdminRoutes.referEarn,
+    AdminRoutes.productPromotions,
   };
 }

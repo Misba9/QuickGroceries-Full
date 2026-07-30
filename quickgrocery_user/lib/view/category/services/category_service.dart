@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/catalog/product_search.dart';
 import 'package:quickgrocery/core/inventory/inventory_limits.dart';
 import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/models/product.dart';
@@ -29,6 +31,7 @@ class CategoryService extends ChangeNotifier {
   List<ProductModel> filteredProducts = [];
   String _searchQuery = '';
   List<ProductModel> allProducts = [];
+  Timer? _searchDebounce;
 
   CategoryProductsState _productsState = CategoryProductsState.idle;
   CategoryProductsState get productsState => _productsState;
@@ -93,14 +96,35 @@ class CategoryService extends ChangeNotifier {
     if (_productsState == CategoryProductsState.loading) {
       return;
     }
+    _searchDebounce?.cancel();
+    final trimmed = query.trim();
+    // Empty query clears immediately; typing is debounced.
+    if (trimmed.isEmpty) {
+      _applyProductSearch('');
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 280), () {
+      _applyProductSearch(trimmed);
+    });
+  }
+
+  void _applyProductSearch(String query) {
     _searchQuery = query;
     if (query.isEmpty) {
       filteredProducts = List<ProductModel>.from(_products);
     } else {
       filteredProducts = _products
           .where(
-            (product) =>
-                product.name.toLowerCase().contains(query.toLowerCase()),
+            (product) => productMatchesSearchQuery(
+              query,
+              name: product.name,
+              category: product.category,
+              subcategory: product.subcategory,
+              brand: product.brand,
+              sku: product.sku,
+              barcode: product.barcode,
+              description: product.description,
+            ),
           )
           .toList();
     }
@@ -108,6 +132,7 @@ class CategoryService extends ChangeNotifier {
   }
 
   void clearProductSearch() {
+    _searchDebounce?.cancel();
     _searchQuery = '';
     if (_products.isNotEmpty) {
       filteredProducts = List<ProductModel>.from(_products);
@@ -397,26 +422,13 @@ class CategoryService extends ChangeNotifier {
             ),
           )
           .where((p) => p.isAvailable)
-          .toList();
+          .toList()
+        ..sort((a, b) {
+          if (a.pinToTop == b.pinToTop) return 0;
+          return a.pinToTop ? -1 : 1;
+        });
 
       filteredProducts = List<ProductModel>.from(_products);
-      _productsState = CategoryProductsState.ready;
-      _productsError = null;
-      log("Found ${_products.length} products for subcategory $subcategory");
-      notifyListeners();
-    } catch (e, stackTrace) {
-      if (generation != _loadGeneration || _selectedCategory != subcategory) {
-        return;
-      }
-      log("Error getting products: $e");
-      log("Stack trace: $stackTrace");
-      _productsState = CategoryProductsState.error;
-      _productsError = 'Could not load products';
-      notifyListeners();
-    }
-  }
-
-  Future<void> _fetchProductsForMainCategory(
     String mainCategory,
     int generation,
   ) async {
@@ -458,7 +470,11 @@ class CategoryService extends ChangeNotifier {
             ),
           )
           .where((p) => p.isAvailable)
-          .toList();
+          .toList()
+        ..sort((a, b) {
+          if (a.pinToTop == b.pinToTop) return 0;
+          return a.pinToTop ? -1 : 1;
+        });
 
       filteredProducts = List<ProductModel>.from(_products);
       _productsState = CategoryProductsState.ready;

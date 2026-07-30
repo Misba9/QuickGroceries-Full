@@ -71,7 +71,7 @@ class _StoryOrb extends StatelessWidget {
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(3),
+              padding: EdgeInsets.all(3),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: AppGradients.brand(),
@@ -79,7 +79,7 @@ class _StoryOrb extends StatelessWidget {
               ),
               child: CircleAvatar(
                 radius: 30,
-                backgroundColor: AppSurface.subtle,
+                backgroundColor: AppSurface.of(context).subtle,
                 child: ClipOval(
                   child: imageUrl.isEmpty
                       ? Icon(Icons.card_giftcard_rounded,
@@ -93,7 +93,7 @@ class _StoryOrb extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text(
               label,
               maxLines: 1,
@@ -102,7 +102,7 @@ class _StoryOrb extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: AppSurface.textSecondary,
+                color: AppSurface.of(context).textSecondary,
               ),
             ),
           ],

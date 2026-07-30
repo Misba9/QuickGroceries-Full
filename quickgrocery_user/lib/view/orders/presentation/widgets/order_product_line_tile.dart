@@ -34,21 +34,21 @@ class OrderProductLineTile extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
         Text(
           orderLineQtyDetail(product),
           style: GoogleFonts.poppins(
             fontSize: 12,
-            color: AppSurface.textSecondary,
+            color: AppSurface.of(context).textSecondary,
           ),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         if (pricing.hasDiscount)
           Text(
             '₹$mrpLineFmt',
             style: GoogleFonts.poppins(
               fontSize: 11.5,
-              color: AppSurface.textMuted,
+              color: AppSurface.of(context).textMuted,
               decoration: TextDecoration.lineThrough,
             ),
           ),
@@ -56,7 +56,7 @@ class OrderProductLineTile extends StatelessWidget {
           '₹$paidLineFmt',
           style: GoogleFonts.poppins(
             fontSize: compact ? 13 : 14,
-            color: AppSurface.text,
+            color: AppSurface.of(context).text,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -64,7 +64,7 @@ class OrderProductLineTile extends StatelessWidget {
           '${pricing.quantity} × ₹$paidUnitFmt',
           style: GoogleFonts.poppins(
             fontSize: 11.5,
-            color: AppSurface.textMuted,
+            color: AppSurface.of(context).textMuted,
             fontWeight: FontWeight.w500,
           ),
         ),

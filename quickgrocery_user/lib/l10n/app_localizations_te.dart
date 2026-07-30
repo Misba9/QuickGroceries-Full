@@ -1470,4 +1470,21 @@ class AppLocalizationsTe extends AppLocalizations {
   @override
   String get partner_with_us_subtitle =>
       'Join Quick Groceries as a store or delivery partner';
+
+  @override
+  String get appearance => 'రూపం';
+
+  @override
+  String get theme_light => 'లైట్';
+
+  @override
+  String get theme_dark => 'డార్క్';
+
+  @override
+  String get theme_system => 'సిస్టమ్ డిఫాల్ట్';
+
+  @override
+  String theme_active_mode(String mode) {
+    return 'ప్రస్తుతం $mode';
+  }
 }

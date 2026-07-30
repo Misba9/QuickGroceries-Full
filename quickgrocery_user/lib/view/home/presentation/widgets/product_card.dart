@@ -17,7 +17,7 @@ import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
-import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/navigation/product_navigation.dart';
 
 /// Modern, Zepto/Blinkit-style product card used by every home rail and
 /// the explore grid. Bridges the new dynamic homepage with the legacy
@@ -79,10 +79,10 @@ class HomeProductCard extends ConsumerWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(_radius),
               onTap: () async {
-                HapticFeedback.selectionClick();
-                await Navigator.push(
+                await ProductNavigation.openProduct(
                   context,
-                  AppPageRoutes.product(product, heroTag: heroTag),
+                  product,
+                  heroTag: heroTag,
                 );
                 onAfterProductDetailClosed?.call();
               },
@@ -90,7 +90,7 @@ class HomeProductCard extends ConsumerWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(_radius),
                   border: Border.all(
-                    color: AppSurface.border.withValues(alpha: 0.55),
+                    color: AppSurface.of(context).border.withValues(alpha: 0.55),
                   ),
                 ),
                 padding: const EdgeInsets.all(_cardPadding),
@@ -207,7 +207,7 @@ class _ProductDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 6),
+      padding: EdgeInsets.only(top: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -219,19 +219,19 @@ class _ProductDetails extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: AppSurface.textPrimary,
+              color: AppSurface.of(context).textPrimary,
               height: 1.2,
             ),
           ),
           if (weightLabel.isNotEmpty) ...[
-            const SizedBox(height: 2),
+            SizedBox(height: 2),
             Text(
               weightLabel,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
                 fontSize: 10.5,
-                color: AppSurface.textSecondary,
+                color: AppSurface.of(context).textSecondary,
                 fontWeight: FontWeight.w500,
                 height: 1.15,
               ),
@@ -329,7 +329,7 @@ class _ImageWithDiscount extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           ColoredBox(
-            color: AppSurface.subtle.withValues(alpha: 0.45),
+            color: AppSurface.of(context).subtle.withValues(alpha: 0.45),
             child: Padding(
               padding: const EdgeInsets.all(4),
               child: Center(child: image),
@@ -339,13 +339,17 @@ class _ImageWithDiscount extends StatelessWidget {
             Positioned(
               top: 6,
               left: 6,
-              child: DiscountBadge(percent: product.discountPercent),
+              child: IgnorePointer(
+                child: DiscountBadge(percent: product.discountPercent),
+              ),
             ),
           Positioned(
             left: 4,
             bottom: 4,
             right: 4,
-            child: ProductBadgesRow(product: product, maxBadges: 2),
+            child: IgnorePointer(
+              child: ProductBadgesRow(product: product, maxBadges: 2),
+            ),
           ),
         ],
       ),
@@ -422,7 +426,7 @@ class _PriceBlock extends StatelessWidget {
           style: GoogleFonts.poppins(
             fontSize: 13.5,
             fontWeight: FontWeight.w700,
-            color: AppSurface.textPrimary,
+            color: AppSurface.of(context).textPrimary,
             height: 1.1,
           ),
         ),
@@ -433,7 +437,7 @@ class _PriceBlock extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
               fontSize: 10.5,
-              color: AppSurface.textSecondary,
+              color: AppSurface.of(context).textSecondary,
               decoration: TextDecoration.lineThrough,
               height: 1.1,
             ),

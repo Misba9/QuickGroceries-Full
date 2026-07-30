@@ -105,7 +105,7 @@ class _CheckoutCouponSectionState extends ConsumerState<CheckoutCouponSection> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
         boxShadow: AppShadow.dim,
       ),
       child: Padding(
@@ -137,7 +137,7 @@ class _CheckoutCouponSectionState extends ConsumerState<CheckoutCouponSection> {
                   ref.read(cartProvider.notifier).removeCoupon();
                 },
               ),
-              const SizedBox(height: 14),
+              SizedBox(height: 14),
             ] else ...[
               Row(
                 children: [
@@ -150,12 +150,12 @@ class _CheckoutCouponSectionState extends ConsumerState<CheckoutCouponSection> {
                         hintText: 'Enter Coupon Code',
                         isDense: true,
                         filled: true,
-                        fillColor: AppSurface.subtle,
+                        fillColor: AppSurface.of(context).subtle,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide.none,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
+                        contentPadding: EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 12,
                         ),
@@ -215,10 +215,10 @@ class _CheckoutCouponSectionState extends ConsumerState<CheckoutCouponSection> {
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
-                    color: AppSurface.textSecondary,
+                    color: AppSurface.of(context).textSecondary,
                   ),
                 ),
-                const Spacer(),
+                Spacer(),
                 TextButton(
                   onPressed: _openAllCoupons,
                   style: TextButton.styleFrom(
@@ -244,7 +244,7 @@ class _CheckoutCouponSectionState extends ConsumerState<CheckoutCouponSection> {
                     'No coupons available right now',
                     style: GoogleFonts.poppins(
                       fontSize: 12,
-                      color: AppSurface.textMuted,
+                      color: AppSurface.of(context).textMuted,
                     ),
                   );
                 }
@@ -468,13 +468,13 @@ class _AvailableCouponTile extends StatelessWidget {
     final disabled = !eligible || applying || isApplied;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isApplied ? const Color(0xFFE8F5E9) : AppSurface.subtle,
+        color: isApplied ? const Color(0xFFE8F5E9) : AppSurface.of(context).subtle,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isApplied ? const Color(0xFFA5D6A7) : AppSurface.border,
+          color: isApplied ? Color(0xFFA5D6A7) : AppSurface.of(context).border,
         ),
       ),
       child: Row(
@@ -492,12 +492,12 @@ class _AvailableCouponTile extends StatelessWidget {
                     letterSpacing: 0.3,
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2),
                 Text(
                   coupon.displaySubtitle,
                   style: GoogleFonts.poppins(
                     fontSize: 11.5,
-                    color: AppSurface.textSecondary,
+                    color: AppSurface.of(context).textSecondary,
                     height: 1.3,
                   ),
                 ),

@@ -13,6 +13,7 @@ import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/locale_provider.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/core/theme/theme.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/auth/auth_session_manager.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
@@ -33,6 +34,7 @@ import 'package:quickgrocery/view/profile/presentation/utils/profile_url_opener.
 import 'package:quickgrocery/view/support/models/support_settings.dart';
 import 'package:quickgrocery/view/support/presentation/providers/support_settings_provider.dart';
 import 'package:quickgrocery/view/support/services/support_action_launcher.dart';
+import 'package:quickgrocery/view/ai_chat/ai_chat_entry.dart';
 import 'package:quickgrocery/view/refer/screens/refer_screen.dart';
 import 'package:quickgrocery/view/wishlist/screens/wishlist_screen.dart';
 
@@ -120,7 +122,7 @@ class ProfileHeaderSection extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: completion / 100,
                   minHeight: 6,
-                  backgroundColor: Colors.white.withValues(alpha: 0.35),
+                  backgroundColor: AppSurface.of(context).card.withValues(alpha: 0.35),
                   color: Colors.black87,
                 ),
               ),
@@ -194,7 +196,7 @@ class _ProfileAvatar extends StatelessWidget {
       ),
       child: CircleAvatar(
         radius: 46,
-        backgroundColor: Colors.white,
+        backgroundColor: AppSurface.of(context).card,
         backgroundImage:
             imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
         child: imageUrl.isEmpty
@@ -324,10 +326,10 @@ class _QuickActionCard extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadii.lg),
-            border: Border.all(color: AppSurface.border),
+            border: Border.all(color: AppSurface.of(context).border),
             boxShadow: AppShadow.card,
           ),
-          padding: const EdgeInsets.all(14),
+          padding: EdgeInsets.all(14),
           child: SizedBox(
             height: 88,
             child: Column(
@@ -351,7 +353,7 @@ class _QuickActionCard extends StatelessWidget {
                       label,
                       style: GoogleFonts.poppins(
                         fontSize: 11.5,
-                        color: AppSurface.textMuted,
+                        color: AppSurface.of(context).textMuted,
                         fontWeight: FontWeight.w500,
                       ),
                       maxLines: 1,
@@ -634,7 +636,7 @@ class _ProfileSavedCouponsSectionState
                   ? null
                   : () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const CouponScreen()),
+                        MaterialPageRoute(builder: (_) => CouponScreen()),
                       ),
             ),
           ),
@@ -648,14 +650,14 @@ class _ProfileSavedCouponsSectionState
               ),
               error: (_, __) => Text(
                 context.l10n.could_not_load_coupons,
-                style: GoogleFonts.poppins(color: AppSurface.textMuted),
+                style: GoogleFonts.poppins(color: AppSurface.of(context).textMuted),
               ),
               data: (coupons) {
                 if (coupons.isEmpty) {
                   return Text(
                     context.l10n.no_saved_coupons,
                     style: GoogleFonts.poppins(
-                      color: AppSurface.textMuted,
+                      color: AppSurface.of(context).textMuted,
                       fontSize: 13,
                     ),
                   );
@@ -715,12 +717,12 @@ class _SavedCouponCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColor.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -741,9 +743,9 @@ class _SavedCouponCard extends StatelessWidget {
                           letterSpacing: 0.5,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Icon(Icons.copy_rounded,
-                          size: 16, color: AppSurface.textMuted),
+                          size: 16, color: AppSurface.of(context).textMuted),
                     ],
                   ),
                 ),
@@ -751,7 +753,7 @@ class _SavedCouponCard extends StatelessWidget {
               if (coupon.isFirstOrderOffer)
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.deepOrange,
                     borderRadius: BorderRadius.circular(6),
@@ -781,7 +783,7 @@ class _SavedCouponCard extends StatelessWidget {
               _minOrderText,
               style: GoogleFonts.poppins(
                 fontSize: 12,
-                color: AppSurface.textMuted,
+                color: AppSurface.of(context).textMuted,
               ),
             ),
           ],
@@ -790,7 +792,7 @@ class _SavedCouponCard extends StatelessWidget {
               _maxDiscountText,
               style: GoogleFonts.poppins(
                 fontSize: 12,
-                color: AppSurface.textMuted,
+                color: AppSurface.of(context).textMuted,
               ),
             ),
           const SizedBox(height: 10),
@@ -847,7 +849,7 @@ class ProfileAddressesSection extends ConsumerWidget {
           ),
           ProfileCard(
             child: addressesAsync.when(
-              loading: () => const Center(
+              loading: () => Center(
                 child: Padding(
                   padding: EdgeInsets.all(12),
                   child: CircularProgressIndicator(strokeWidth: 2),
@@ -855,7 +857,7 @@ class ProfileAddressesSection extends ConsumerWidget {
               ),
               error: (_, __) => Text(
                 'Could not load addresses',
-                style: GoogleFonts.poppins(color: AppSurface.textMuted),
+                style: GoogleFonts.poppins(color: AppSurface.of(context).textMuted),
               ),
               data: (addresses) {
                 if (addresses.isEmpty) {
@@ -1145,6 +1147,126 @@ class _ProfileNotificationsSectionState
   }
 }
 
+// ─── Appearance ───────────────────────────────────────────────────────────
+
+class ProfileAppearanceSection extends ConsumerWidget {
+  const ProfileAppearanceSection({super.key, this.animationIndex = 9});
+
+  final int animationIndex;
+
+  String _activeLabel(BuildContext context, AppThemeModeOption option) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final resolved = isDark
+        ? context.l10n.theme_dark
+        : context.l10n.theme_light;
+    return context.l10n.theme_active_mode(resolved);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final option = ref.watch(themeModeProvider);
+    final controller = ref.read(themeModeProvider.notifier);
+    final surface = AppSurface.of(context);
+
+    final choices = <(AppThemeModeOption, String, IconData)>[
+      (AppThemeModeOption.light, context.l10n.theme_light, Icons.light_mode_rounded),
+      (AppThemeModeOption.dark, context.l10n.theme_dark, Icons.dark_mode_rounded),
+      (AppThemeModeOption.system, context.l10n.theme_system, Icons.brightness_auto_rounded),
+    ];
+
+    return FadeInUp(
+      duration: Duration(milliseconds: 380 + animationIndex * 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ProfileSectionTitle(title: context.l10n.appearance),
+          ProfileCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _activeLabel(context, option),
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: surface.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...choices.map((choice) {
+                  final (mode, label, icon) = choice;
+                  final selected = option == mode;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Material(
+                      color: selected
+                          ? AppColor.primary.withValues(alpha: 0.14)
+                          : surface.subtle,
+                      borderRadius: BorderRadius.circular(14),
+                      child: InkWell(
+                        onTap: () => controller.setOption(mode),
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: selected
+                                  ? AppColor.primary
+                                  : surface.border,
+                              width: selected ? 2 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                icon,
+                                size: 20,
+                                color: selected
+                                    ? AppColor.primary
+                                    : surface.iconActive,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  label,
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: selected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    fontSize: 14,
+                                    color: surface.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                selected
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                size: 20,
+                                color: selected
+                                    ? AppColor.primary
+                                    : surface.iconInactive,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Language ─────────────────────────────────────────────────────────────
 
 class ProfileLanguageSection extends StatelessWidget {
@@ -1177,7 +1299,7 @@ class ProfileLanguageSection extends StatelessWidget {
                       child: Material(
                         color: isSelected
                             ? AppColor.primary.withValues(alpha: 0.15)
-                            : AppSurface.subtle,
+                            : AppSurface.of(context).subtle,
                         borderRadius: BorderRadius.circular(14),
                         child: InkWell(
                           onTap: () => controller.setLocale(
@@ -1188,7 +1310,7 @@ class ProfileLanguageSection extends StatelessWidget {
                           ),
                           borderRadius: BorderRadius.circular(14),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
+                            padding: EdgeInsets.symmetric(
                               horizontal: 14,
                               vertical: 10,
                             ),
@@ -1197,7 +1319,7 @@ class ProfileLanguageSection extends StatelessWidget {
                               border: Border.all(
                                 color: isSelected
                                     ? AppColor.primary
-                                    : AppSurface.border,
+                                    : AppSurface.of(context).border,
                                 width: isSelected ? 2 : 1,
                               ),
                             ),
@@ -1209,7 +1331,7 @@ class ProfileLanguageSection extends StatelessWidget {
                                     : FontWeight.w500,
                                 color: isSelected
                                     ? AppColor.primary
-                                    : AppSurface.text,
+                                    : AppSurface.of(context).text,
                                 fontSize: 13,
                               ),
                             ),
@@ -1249,6 +1371,12 @@ class ProfileSupportSection extends ConsumerWidget {
           ProfileCard(
             child: Column(
               children: [
+                ProfileListTile(
+                  icon: Icons.smart_toy_outlined,
+                  title: 'Grocery Assistant',
+                  subtitle: 'Ask about products, offers & orders',
+                  onTap: () => openAiAssistant(context),
+                ),
                 if (settings.hasPhone)
                   ProfileListTile(
                     icon: Icons.call_outlined,
@@ -1276,14 +1404,14 @@ class ProfileSupportSection extends ConsumerWidget {
                     ),
                   ),
                 if (settings.hasMessage) ...[
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                     child: Text(
                       settings.message,
                       style: GoogleFonts.poppins(
                         fontSize: 12,
-                        color: AppSurface.textMuted,
+                        color: AppSurface.of(context).textMuted,
                         height: 1.35,
                       ),
                     ),

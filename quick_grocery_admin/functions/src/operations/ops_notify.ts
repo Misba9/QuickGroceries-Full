@@ -608,12 +608,18 @@ export async function notifyVendor(
     message: body,
     deepLink: orderId ? `/orders/${orderId}` : "",
     redirectType: "order",
+    targetScreen: vendorTargetScreen(opts.type),
+    notificationType: opts.type,
+    status: opts.type,
     soundType: "orders",
     eventId,
   });
 
+  // Topic only — never also sendPushToToken for the same vendor (that produced
+  // identical dual tray notifications: one via topic, one via device token).
+  // claimNotificationEvent inside sendPushToTopic makes CF retries idempotent.
   const topic = vendorTopic(vendorId);
-  await sendPushToTopic({
+  const fcmMessageId = await sendPushToTopic({
     topic,
     title,
     body,
@@ -630,10 +636,11 @@ export async function notifyVendor(
     title,
     body,
     channel: "fcm+firestore",
+    metadata: { eventId, topic, fcmMessageId: fcmMessageId || "" },
   });
   console.log(
     `[NOTIFY:END] notifyVendor vendorId=${vendorId} type=${opts.type} ` +
-      `orderId=${orderId} eventId=${eventId}`,
+      `orderId=${orderId} eventId=${eventId} fcmMessageId=${fcmMessageId || "skipped"}`,
   );
 }
 
@@ -646,33 +653,50 @@ export async function notifyDeliveryRider(
     metadata?: Record<string, unknown>;
   }
 ): Promise<void> {
+  if (!riderId) return;
+
   const orderId = str(opts.metadata?.orderId);
   const notifType = str(opts.type || "delivery_assigned");
   const title = opts.title;
   const body = opts.message;
+  const eventId = buildEventId(orderId, notifType, `rider:${riderId}`);
+
+  console.log(
+    `[NOTIFY:START] notifyDeliveryRider riderId=${riderId} type=${notifType} ` +
+      `orderId=${orderId} eventId=${eventId}`,
+  );
 
   await db.collection("delivery_boys").doc(riderId).collection("notifications").add({
     title,
     body,
     type: notifType,
     orderId,
+    eventId,
     read: false,
     source: "cloud_function",
     createdAt: FieldValue.serverTimestamp(),
   });
 
-  const eventId = buildEventId(orderId, notifType, `rider:${riderId}`);
   const data = buildDataPayload({
     type: notifType,
     orderId,
     title,
     message: body,
+    deepLink: orderId ? `/orders/${orderId}` : "",
     redirectType: "delivery_app",
+    targetScreen: deliveryTargetScreen(notifType),
+    notificationType: notifType,
+    status: notifType,
     soundType: notifType === "order_cancelled" ? "orders" : "delivery",
     eventId,
   });
+
+  // Topic only — never also sendPushToToken for the same rider (that produced
+  // identical dual tray notifications: one via topic, one via device token).
+  // Combined with client OS+local double-display that yielded 4 identical trays.
+  // claimNotificationEvent inside sendPushToTopic makes CF retries idempotent.
   const topic = deliveryTopic(riderId);
-  await sendPushToTopic({
+  const fcmMessageId = await sendPushToTopic({
     topic,
     title,
     body,
@@ -689,7 +713,12 @@ export async function notifyDeliveryRider(
     title,
     body,
     channel: "fcm+firestore",
+    metadata: { eventId, topic, fcmMessageId: fcmMessageId || "" },
   });
+  console.log(
+    `[NOTIFY:END] notifyDeliveryRider riderId=${riderId} type=${notifType} ` +
+      `orderId=${orderId} eventId=${eventId} fcmMessageId=${fcmMessageId || "skipped"}`,
+  );
 }
 
 /** Maps ops notification `type` to client `targetScreen` for deep linking. */
@@ -725,6 +754,44 @@ export function customerTargetScreen(type: string): string {
       return "refund_details";
     default:
       return "order_tracking";
+  }
+}
+
+/** Vendor app deep-link target for ops notification types. */
+export function vendorTargetScreen(type: string): string {
+  const t = str(type).toLowerCase();
+  switch (t) {
+    case "low_stock":
+    case "stock_low":
+    case "out_of_stock":
+      return "products_tab";
+    case "new_order":
+    case "order_cancelled":
+    case "order_delivered":
+    case "driver_assigned":
+    case "payment_released":
+    case "payment_received":
+    default:
+      return "order_detail";
+  }
+}
+
+/** Delivery app deep-link target for ops notification types. */
+export function deliveryTargetScreen(type: string): string {
+  const t = str(type).toLowerCase();
+  switch (t) {
+    case "delivery_assigned":
+    case "driver_assigned":
+      return "assignment";
+    case "order_cancelled":
+    case "cancelled":
+      return "cancellation";
+    case "delivery_tip":
+      return "wallet_tab";
+    case "delivery_completed":
+    case "order_delivered":
+    default:
+      return "order_detail";
   }
 }
 

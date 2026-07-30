@@ -20,7 +20,7 @@ class EmptyAddressWidget extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, c) {
         return SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: c.maxHeight),
@@ -59,18 +59,18 @@ class EmptyAddressWidget extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       fontSize: 19,
                       fontWeight: FontWeight.w800,
-                      color: AppSurface.text,
+                      color: AppSurface.of(context).text,
                       letterSpacing: -0.3,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   Text(
                     context.l10n.empty_checkout_address_subtitle,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 13.5,
                       height: 1.45,
-                      color: AppSurface.textMuted,
+                      color: AppSurface.of(context).textMuted,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

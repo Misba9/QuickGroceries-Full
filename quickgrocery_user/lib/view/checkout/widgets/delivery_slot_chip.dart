@@ -35,7 +35,7 @@ class DeliverySlotChip extends StatelessWidget {
           },
           borderRadius: BorderRadius.circular(AppRadii.md),
           child: Ink(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadii.md),
               gradient: selected && isExpress ? AppGradients.flashSale : null,
@@ -47,7 +47,7 @@ class DeliverySlotChip extends StatelessWidget {
               border: Border.all(
                 color: selected
                     ? (isExpress ? Colors.transparent : AppColor.primary)
-                    : AppSurface.border,
+                    : AppSurface.of(context).border,
                 width: selected ? 1.5 : 1,
               ),
               boxShadow: selected ? AppShadow.dim : null,
@@ -59,7 +59,7 @@ class DeliverySlotChip extends StatelessWidget {
                   Icon(
                     Icons.bolt_rounded,
                     size: 16,
-                    color: selected ? Colors.white : const Color(0xFFE17500),
+                    color: selected ? Colors.white : Color(0xFFE17500),
                   ),
                   const SizedBox(width: 4),
                 ],
@@ -69,8 +69,8 @@ class DeliverySlotChip extends StatelessWidget {
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: selected
-                        ? (isExpress ? Colors.white : AppSurface.text)
-                        : AppSurface.textSecondary,
+                        ? (isExpress ? Colors.white : AppSurface.of(context).text)
+                        : AppSurface.of(context).textSecondary,
                   ),
                 ),
               ],

@@ -106,7 +106,7 @@ class _CheckoutTipSectionState extends State<CheckoutTipSection> {
     return FadeInUp(
       duration: AppMotion.medium,
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(AppRadii.md),
@@ -147,7 +147,7 @@ class _CheckoutTipSectionState extends State<CheckoutTipSection> {
               '100% of your tip goes directly to the delivery partner.',
               style: GoogleFonts.poppins(
                 fontSize: 11.5,
-                color: AppSurface.textSecondary,
+                color: AppSurface.of(context).textSecondary,
                 height: 1.35,
               ),
             ),
@@ -220,19 +220,19 @@ class _TipChip extends StatelessWidget {
       child: Material(
         color: selected
             ? AppColor.primary.withValues(alpha: 0.2)
-            : AppSurface.subtle,
+            : AppSurface.of(context).subtle,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: selected
                     ? AppColor.primary
-                    : AppSurface.border,
+                    : AppSurface.of(context).border,
                 width: selected ? 1.5 : 1,
               ),
             ),
@@ -241,7 +241,7 @@ class _TipChip extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
-                color: selected ? AppSurface.text : AppSurface.textSecondary,
+                color: selected ? AppSurface.of(context).text : AppSurface.of(context).textSecondary,
               ),
             ),
           ),

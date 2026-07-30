@@ -11,6 +11,7 @@ import 'package:quick_grocery_admin/view/add_banner.dart';
 import 'package:quick_grocery_admin/view/app_content_management/screens/app_content_management_screen.dart';
 import 'package:quick_grocery_admin/view/combo_offers/screens/combo_offers_screen.dart';
 import 'package:quick_grocery_admin/view/coupons/screens/coupon_management_screen.dart';
+import 'package:quick_grocery_admin/view/product_promotions/screens/product_promotions_screen.dart';
 import 'package:quick_grocery_admin/view/refer_earn/screens/refer_earn_management_screen.dart';
 import 'package:quick_grocery_admin/view/delivery_tips/screens/delivery_tips_management_screen.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/screens/add_delivery_boy.dart';
@@ -125,6 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
       slot(AdminRoutes.addBanner, const AddBannerScreen()),
       slot(AdminRoutes.addCoupon, const CouponManagementScreen()),
       slot(AdminRoutes.comboOffers, const ComboOffersScreen()),
+      slot(AdminRoutes.productPromotions, const ProductPromotionsScreen()),
       slot(AdminRoutes.referEarn, const ReferEarnManagementScreen()),
       slot(AdminRoutes.deliveryTips, const DeliveryTipsManagementScreen()),
       slot(AdminRoutes.platformFee, PlatformFeeScreen()),

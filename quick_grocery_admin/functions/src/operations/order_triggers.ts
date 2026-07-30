@@ -243,7 +243,11 @@ export const onOrderCreated = onDocumentCreated(
       },
     });
 
+    // One notifyVendor per distinct vendorId (Set) — never topic+token dual send.
     for (const vendorId of vIds) {
+      console.log(
+        `[ORDER:CREATED] notifyVendor once vendorId=${vendorId} orderId=${orderId}`,
+      );
       await notifyVendor(vendorId, {
         title: "🛒 New Order",
         message: `New order from ${customer} — accept within 2 min`,

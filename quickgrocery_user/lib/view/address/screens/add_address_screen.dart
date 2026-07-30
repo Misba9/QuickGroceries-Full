@@ -49,7 +49,7 @@ class _AddAdressScreenState extends State<AddAdressScreen> {
     final isEdit = widget.editing != null;
 
     return Scaffold(
-      backgroundColor: AppSurface.background,
+      backgroundColor: AppSurface.of(context).background,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         bottom: false,
@@ -61,7 +61,7 @@ class _AddAdressScreenState extends State<AddAdressScreen> {
             ),
             Expanded(
               child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
+                physics: BouncingScrollPhysics(),
                 padding: EdgeInsets.fromLTRB(
                   16,
                   16,
@@ -85,10 +85,10 @@ class _AddAdressScreenState extends State<AddAdressScreen> {
                         textInputAction: TextInputAction.next,
                         prefixIcon: Icon(
                           Icons.person_outline_rounded,
-                          color: AppSurface.textMuted,
+                          color: AppSurface.of(context).textMuted,
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      SizedBox(height: 14),
                       PremiumTextField(
                         label: context.l10n.mobile_number,
                         controller: provider.mobileController,
@@ -101,10 +101,10 @@ class _AddAdressScreenState extends State<AddAdressScreen> {
                         ],
                         prefixIcon: Icon(
                           Icons.call_outlined,
-                          color: AppSurface.textMuted,
+                          color: AppSurface.of(context).textMuted,
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      SizedBox(height: 14),
                       PremiumTextField(
                         label: context.l10n.house_no_building,
                         controller: provider.addressController,
@@ -112,10 +112,10 @@ class _AddAdressScreenState extends State<AddAdressScreen> {
                         textInputAction: TextInputAction.next,
                         prefixIcon: Icon(
                           Icons.home_outlined,
-                          color: AppSurface.textMuted,
+                          color: AppSurface.of(context).textMuted,
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      SizedBox(height: 14),
                       PremiumTextField(
                         label: context.l10n.road_name_area,
                         controller: provider.areaController,
@@ -123,16 +123,16 @@ class _AddAdressScreenState extends State<AddAdressScreen> {
                         textInputAction: TextInputAction.done,
                         prefixIcon: Icon(
                           Icons.add_road_outlined,
-                          color: AppSurface.textMuted,
+                          color: AppSurface.of(context).textMuted,
                         ),
                       ),
-                      const SizedBox(height: 22),
+                      SizedBox(height: 22),
                       Text(
                         'Save as',
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w800,
                           fontSize: 14,
-                          color: AppSurface.text,
+                          color: AppSurface.of(context).text,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -192,7 +192,7 @@ class _Header extends StatelessWidget {
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.3,
-                color: AppSurface.text,
+                color: AppSurface.of(context).text,
               ),
             ),
           ),
@@ -206,11 +206,11 @@ class _LocationHelpers extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
         boxShadow: AppShadow.dim,
       ),
       child: Row(
@@ -326,14 +326,14 @@ class _TypeSelector extends StatelessWidget {
                   },
                   borderRadius: BorderRadius.circular(AppRadii.md),
                   child: Ink(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
                       color: isSel
                           ? AppColor.primary.withValues(alpha: 0.14)
                           : Colors.white,
                       borderRadius: BorderRadius.circular(AppRadii.md),
                       border: Border.all(
-                        color: isSel ? AppColor.primary : AppSurface.border,
+                        color: isSel ? AppColor.primary : AppSurface.of(context).border,
                         width: isSel ? 1.5 : 1,
                       ),
                       boxShadow: isSel ? AppShadow.dim : null,
@@ -344,15 +344,15 @@ class _TypeSelector extends StatelessWidget {
                         Icon(
                           opt.icon,
                           size: 20,
-                          color: isSel ? AppColor.primary : AppSurface.textSecondary,
+                          color: isSel ? AppColor.primary : AppSurface.of(context).textSecondary,
                         ),
-                        const SizedBox(height: 6),
+                        SizedBox(height: 6),
                         Text(
                           _labelFor(context, opt.value),
                           style: GoogleFonts.poppins(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w800,
-                            color: isSel ? AppSurface.text : AppSurface.textSecondary,
+                            color: isSel ? AppSurface.of(context).text : AppSurface.of(context).textSecondary,
                             letterSpacing: 0.4,
                           ),
                         ),
@@ -410,7 +410,7 @@ class PrimaryTextField extends StatelessWidget {
           title,
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w600,
-            color: AppSurface.textSecondary,
+            color: AppSurface.of(context).textSecondary,
           ),
         ),
         const SizedBox(height: 8),

@@ -29,6 +29,9 @@ class ProductModel {
   final bool isMostSelling;
   final List<dynamic> images; // list of image URLs
   final List<dynamic> videos; // list of video URLs
+  final String sku;
+  final String barcode;
+  final String brand;
 
   ProductModel({
     required this.id,
@@ -59,6 +62,9 @@ class ProductModel {
     required this.isTodaysBest,
     required this.images,
     required this.videos,
+    this.sku = '',
+    this.barcode = '',
+    this.brand = '',
   });
 
   static bool _readActiveFlag(Map<String, dynamic> data) {
@@ -110,6 +116,11 @@ class ProductModel {
       isTodaysBest: data['is_todays_best'] ?? false,
       images: data['images'] ?? [],
       videos: data['videos'] ?? [],
+      sku: (data['sku'] ?? data['SKU'] ?? data['productSku'] ?? '').toString(),
+      barcode:
+          (data['barcode'] ?? data['barCode'] ?? data['ean'] ?? '').toString(),
+      brand: (data['brand'] ?? data['brandName'] ?? data['brand_name'] ?? '')
+          .toString(),
     );
   }
 

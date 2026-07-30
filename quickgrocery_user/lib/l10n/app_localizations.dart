@@ -2849,6 +2849,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Join Quick Groceries as a store or delivery partner'**
   String get partner_with_us_subtitle;
+
+  /// No description provided for @appearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearance;
+
+  /// No description provided for @theme_light.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get theme_light;
+
+  /// No description provided for @theme_dark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get theme_dark;
+
+  /// No description provided for @theme_system.
+  ///
+  /// In en, this message translates to:
+  /// **'System Default'**
+  String get theme_system;
+
+  /// No description provided for @theme_active_mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently using {mode}'**
+  String theme_active_mode(String mode);
 }
 
 class _AppLocalizationsDelegate

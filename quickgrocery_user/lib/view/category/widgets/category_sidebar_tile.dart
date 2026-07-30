@@ -36,7 +36,7 @@ class CategorySidebarTile extends StatelessWidget {
       curve: AppMotion.emphasized,
       decoration: BoxDecoration(
         color: isSelected ? tint.withValues(alpha: 0.06) : Colors.transparent,
-        borderRadius: const BorderRadius.horizontal(
+        borderRadius: BorderRadius.horizontal(
           right: Radius.circular(14),
         ),
       ),
@@ -78,7 +78,7 @@ class CategorySidebarTile extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? Colors.white
-                            : AppSurface.subtle,
+                            : AppSurface.of(context).subtle,
                         borderRadius: BorderRadius.circular(AppRadii.md),
                         border: Border.all(
                           color: isSelected
@@ -88,7 +88,7 @@ class CategorySidebarTile extends StatelessWidget {
                         ),
                         boxShadow: isSelected ? AppShadow.dim : null,
                       ),
-                      padding: const EdgeInsets.all(6),
+                      padding: EdgeInsets.all(6),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(AppRadii.sm),
                         child: CachedImage(
@@ -108,8 +108,8 @@ class CategorySidebarTile extends StatelessWidget {
                         fontWeight:
                             isSelected ? FontWeight.w700 : FontWeight.w500,
                         color: isSelected
-                            ? AppSurface.text
-                            : AppSurface.textSecondary,
+                            ? AppSurface.of(context).text
+                            : AppSurface.of(context).textSecondary,
                         height: 1.2,
                       ),
                     ),

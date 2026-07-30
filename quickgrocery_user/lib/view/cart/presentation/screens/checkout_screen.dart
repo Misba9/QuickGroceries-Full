@@ -17,11 +17,13 @@ import 'package:quickgrocery/core/delivery/delivery_zone_lookup.dart';
 import 'package:quickgrocery/core/availability/availability_service.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/models/address_model.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/user/checkout_preferences_store.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/domain/cart_models.dart';
+import 'package:quickgrocery/view/cart/domain/cod_fee_calculator.dart';
 import 'package:quickgrocery/view/cart/domain/pricing_calculator.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/checkout_controller.dart';
@@ -47,6 +49,8 @@ import 'package:quickgrocery/view/payment/domain/razorpay_payment_result.dart';
 import 'package:quickgrocery/view/payment/services/payment_service.dart';
 import 'package:quickgrocery/view/app_content/presentation/providers/app_content_extensions.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/core/user/cod_eligibility.dart';
+import 'package:quickgrocery/view/profile/presentation/providers/profile_providers.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -82,16 +86,46 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
-  BillBreakdown _bill(CartState cart, double zoneCharge, {double tip = 0}) {
+  BillBreakdown _bill(
+    CartState cart,
+    double zoneCharge, {
+    double tip = 0,
+    PaymentMethod paymentMethod = PaymentMethod.cod,
+    AddressModel? address,
+  }) {
     final deliveryInt = zoneCharge > 0
         ? zoneCharge.round()
         : cart.pricing.standardDeliveryCharge;
-    return _calc.compute(
+    final base = _calc.compute(
       items: cart.items,
       config: cart.pricing,
       coupon: cart.coupon,
       deliveryChargeOverride: deliveryInt,
     ).withDeliveryTip(tip);
+
+    final taxable =
+        (base.subtotal - base.couponDiscount).clamp(0.0, double.infinity);
+    final fee = const CodFeeCalculator().compute(
+      config: cart.pricing,
+      paymentMethod: paymentMethod,
+      orderAmountAfterCoupon: taxable,
+      userId: FirebaseAuth.instance.currentUser?.uid,
+      city: address?.city,
+      vendorIds: cart.items
+          .map((e) => e.vendorId)
+          .where((e) => e.isNotEmpty)
+          .toSet()
+          .toList(),
+      categories: cart.items
+          .map((e) => e.category)
+          .where((e) => e.isNotEmpty)
+          .toSet()
+          .toList(),
+    );
+    return base.withCodConvenienceFee(
+      fee: fee,
+      description: cart.pricing.codFeeDescription,
+    );
   }
 
   Future<void> _openAddAddress({AddressModel? edit}) async {
@@ -137,7 +171,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       final zoneCharge = availability.deliveryCharge;
       final tip = ref.read(checkoutControllerProvider).deliveryTipAmount;
-      final bill = _bill(cart, zoneCharge, tip: tip);
+      final bill = _bill(
+        cart,
+        zoneCharge,
+        tip: tip,
+        paymentMethod: paymentMethod,
+        address: address,
+      );
+
+      if (paymentMethod == PaymentMethod.cod) {
+        final profile = ref.read(customerProfileStreamProvider).valueOrNull;
+        final eligibility =
+            profile?.codEligibility ?? CodEligibility.allowed;
+        if (!eligibility.isCodAllowed) {
+          throw StateError(eligibility.blockedMessage);
+        }
+      }
 
       if (kDebugMode) {
         debugPrint(
@@ -512,6 +561,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final checkout = ref.watch(checkoutControllerProvider);
     final checkoutNotifier = ref.read(checkoutControllerProvider.notifier);
 
+    if (cart.isHydrating && cart.isEmpty) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: const SafeArea(child: SkeletonCheckout()),
+      );
+    }
+
     final slots = ref.watch(deliverySlotsProvider);
 
     final addressService = legacy_provider.Provider.of<AddressService>(context);
@@ -550,7 +606,29 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final readable = addressService.address;
     final zoneAsync = ref.watch(zoneDeliveryProvider(pin));
     final zoneCharge = zoneAsync.value ?? 0;
-    final bill = _bill(cart, zoneCharge, tip: checkout.deliveryTipAmount);
+    final profileAsync = ref.watch(customerProfileStreamProvider);
+    final codEligibility =
+        profileAsync.valueOrNull?.codEligibility ?? CodEligibility.allowed;
+    // Auto-switch off COD when restriction appears (realtime Firestore update).
+    if (!codEligibility.isCodAllowed &&
+        checkout.paymentMethod == PaymentMethod.cod) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final c = ref.read(checkoutControllerProvider);
+        if (c.paymentMethod == PaymentMethod.cod) {
+          ref
+              .read(checkoutControllerProvider.notifier)
+              .selectPaymentMethod(PaymentMethod.upi);
+        }
+      });
+    }
+    final bill = _bill(
+      cart,
+      zoneCharge,
+      tip: checkout.deliveryTipAmount,
+      paymentMethod: checkout.paymentMethod,
+      address: selectedAddr,
+    );
 
     final hasAddr = addresses.isNotEmpty && selectedAddr != null;
     final oos = cart.items.any((e) => e.isUnavailable);
@@ -581,7 +659,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       child: Stack(
         children: [
           Scaffold(
-      backgroundColor: AppSurface.background,
+      backgroundColor: AppSurface.of(context).background,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         bottom: false,
@@ -631,7 +709,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             ),
                           ),
                           SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(14, 16, 14, 0),
+                            padding: EdgeInsets.fromLTRB(14, 16, 14, 0),
                             sliver: SliverToBoxAdapter(
                               child: FadeInDown(
                                 duration: const Duration(milliseconds: 320),
@@ -683,6 +761,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             sliver: SliverToBoxAdapter(
                               child: PaymentMethodSelector(
                                 selected: checkout.paymentMethod,
+                                codEligibility: codEligibility,
                                 onChanged: checkout.isPlacingOrder
                                     ? (_) {}
                                     : checkoutNotifier.selectPaymentMethod,
@@ -690,12 +769,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             ),
                           ),
                           if (zoneAsync.isLoading && zoneCharge == 0)
-                            const SliverToBoxAdapter(
+                            SliverToBoxAdapter(
                               child: Padding(
-                                padding: EdgeInsets.fromLTRB(14, 12, 14, 0),
+                                padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
                                 child: LinearProgressIndicator(
                                   minHeight: 2,
-                                  backgroundColor: AppSurface.subtle,
+                                  backgroundColor: AppSurface.of(context).subtle,
                                 ),
                               ),
                             ),
@@ -816,7 +895,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   color: Colors.black.withValues(alpha: 0.08),
                   child: Center(
                     child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 32),
+                      margin: EdgeInsets.symmetric(horizontal: 32),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 16,
@@ -841,7 +920,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13.5,
-                                color: AppSurface.text,
+                                color: AppSurface.of(context).text,
                               ),
                             ),
                           ),
@@ -874,17 +953,17 @@ class _CheckoutDeliveryInfo extends StatelessWidget {
         ? 'Free delivery above ₹${pricing.freeDeliveryThreshold}'
         : 'Delivery fee ₹${bill.deliveryFee.toStringAsFixed(0)} applies';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppRadii.sm),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
       ),
       child: Text(
         msg,
         style: GoogleFonts.poppins(
           fontWeight: FontWeight.w600,
-          color: AppSurface.textSecondary,
+          color: AppSurface.of(context).textSecondary,
         ),
       ),
     );
@@ -926,7 +1005,7 @@ class _CheckoutHeader extends StatelessWidget {
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.3,
-                color: AppSurface.text,
+                color: AppSurface.of(context).text,
               ),
             ),
           ),
@@ -958,8 +1037,8 @@ class _DeliverToSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(Icons.location_on_rounded, size: 18, color: AppSurface.text),
-            const SizedBox(width: 8),
+            Icon(Icons.location_on_rounded, size: 18, color: AppSurface.of(context).text),
+            SizedBox(width: 8),
             Expanded(
               child: Text(
                 'Deliver to',
@@ -968,7 +1047,7 @@ class _DeliverToSection extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
-                  color: AppSurface.text,
+                  color: AppSurface.of(context).text,
                 ),
               ),
             ),
@@ -1013,7 +1092,7 @@ class _DeliveryEtaCard extends ConsumerWidget {
     final deliveryEta = ref.appContent.deliveryTimeText;
     return _MiniCard(
       icon: Icons.schedule_rounded,
-      iconColor: AppSurface.success,
+      iconColor: AppSurface.of(context).success,
       title: context.l10n.delivery_eta_title,
       subtitle: slot != null ? '$deliveryEta · ${slot!.label}' : deliveryEta,
     );
@@ -1036,18 +1115,18 @@ class _MiniCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
         boxShadow: AppShadow.dim,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: 18, color: iconColor),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(
             title,
             maxLines: 2,
@@ -1055,10 +1134,10 @@ class _MiniCard extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w800,
               fontSize: 12.5,
-              color: AppSurface.text,
+              color: AppSurface.of(context).text,
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             subtitle,
             maxLines: 3,
@@ -1066,7 +1145,7 @@ class _MiniCard extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 11.5,
               height: 1.35,
-              color: AppSurface.textSecondary,
+              color: AppSurface.of(context).textSecondary,
             ),
           ),
         ],

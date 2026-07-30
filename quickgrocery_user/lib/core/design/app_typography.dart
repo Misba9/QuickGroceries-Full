@@ -1,26 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'app_tokens.dart';
+import 'package:quickgrocery/core/theme/theme_extensions.dart';
 
 /// Typography scale used app-wide.
 ///
-/// Built on top of `google_fonts.poppins`. The scale matches modern
-/// 2026 mobile UI guidance (smaller, denser titles + better tracking).
+/// Built on top of `google_fonts.poppins`. Colors come from [AppPalette]
+/// so Dynamic Type + theme switching stay consistent.
 class AppTypography {
   AppTypography._();
 
-  static TextTheme textTheme() {
-    final base = ThemeData.light().textTheme.apply(
-          fontFamily: GoogleFonts.poppins().fontFamily,
-        );
+  static TextTheme textTheme({AppPalette palette = AppPalette.light}) {
+    final isDark = identical(palette, AppPalette.dark);
+    final base = ThemeData(
+      brightness: isDark ? Brightness.dark : Brightness.light,
+    ).textTheme.apply(
+      fontFamily: GoogleFonts.poppins().fontFamily,
+    );
 
-    TextStyle make(double size, FontWeight weight, {double? height, Color? color, double? letter}) {
+    TextStyle make(
+      double size,
+      FontWeight weight, {
+      double? height,
+      Color? color,
+      double? letter,
+    }) {
       return GoogleFonts.poppins(
         fontSize: size,
         fontWeight: weight,
         height: height,
-        color: color ?? AppSurface.textPrimary,
+        color: color ?? palette.textPrimary,
         letterSpacing: letter,
       );
     }
@@ -37,9 +46,9 @@ class AppTypography {
       titleSmall: make(13, FontWeight.w700, height: 1.35),
       bodyLarge: make(14, FontWeight.w500, height: 1.45),
       bodyMedium: make(13, FontWeight.w500, height: 1.45,
-          color: AppSurface.textSecondary),
+          color: palette.textSecondary),
       bodySmall: make(12, FontWeight.w500, height: 1.4,
-          color: AppSurface.textMuted),
+          color: palette.textMuted),
       labelLarge: make(13, FontWeight.w700, letter: 0.2),
       labelMedium: make(12, FontWeight.w700, letter: 0.2),
       labelSmall: make(11, FontWeight.w700, letter: 0.4),

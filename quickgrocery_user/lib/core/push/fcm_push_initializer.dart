@@ -86,6 +86,22 @@ class FcmPushInitializer {
     }
 
     _initialized = true;
+
+    // Cold start from data-only local tray — FCM getInitialMessage is empty.
+    try {
+      final launch = await _plugin.getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp == true) {
+        final p = launch!.notificationResponse?.payload;
+        if (p != null && p.isNotEmpty) {
+          final map = jsonDecode(p) as Map<String, dynamic>;
+          enqueuePushNavigation(map);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[UserNotify] launch details skipped: $e');
+      }
+    }
   }
 
   static void _onNotificationTap(NotificationResponse response) {

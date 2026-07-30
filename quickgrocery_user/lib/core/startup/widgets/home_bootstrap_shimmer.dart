@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
-import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
+
+import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Full home skeleton shown while [AppBootstrapController] finishes loading.
 class HomeBootstrapShimmer extends StatelessWidget {
@@ -9,76 +10,32 @@ class HomeBootstrapShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: CustomScrollView(
-          physics: const NeverScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: HomeShimmer.deliveryHeader(),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                child: HomeShimmer.searchBar(),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: HomeShimmer.banner(),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-                child: HomeShimmer.categoriesRail(),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                child: HomeShimmer.horizontalProducts(count: 4),
-              ),
-            ),
-          ],
-        ),
+      backgroundColor: AppSurface.of(context).scaffold,
+      body: const SafeArea(
+        child: SkeletonHome(showCategoryHero: true),
       ),
-      bottomNavigationBar: _ShimmerTabBar(),
+      bottomNavigationBar: const _TabBarSkeleton(),
     );
   }
 }
 
-class _ShimmerTabBar extends StatelessWidget {
+class _TabBarSkeleton extends StatelessWidget {
+  const _TabBarSkeleton();
+
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Material(
-      color: Colors.white,
+      color: surface.card,
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          height: 64,
-          child: Shimmer.fromColors(
-            baseColor: Colors.grey.shade200,
-            highlightColor: Colors.grey.shade100,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(5, (_) {
-                  return Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  );
-                }),
-              ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(
+              5,
+              (_) => const ShimmerBox(width: 28, height: 28, radius: 8),
             ),
           ),
         ),

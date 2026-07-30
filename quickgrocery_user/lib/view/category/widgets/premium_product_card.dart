@@ -62,7 +62,7 @@ class PremiumProductCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(AppRadii.md),
-            border: Border.all(color: AppSurface.border),
+            border: Border.all(color: AppSurface.of(context).border),
             boxShadow: AppShadow.dim,
           ),
           child: Padding(
@@ -100,7 +100,7 @@ class PremiumProductCard extends StatelessWidget {
                       )
                     else
                       AspectRatio(aspectRatio: 1, child: image),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     if (product.unitPerItem.isNotEmpty)
                       _UnitChip(text: product.unitPerItem),
                     const SizedBox(height: 4),
@@ -111,7 +111,7 @@ class PremiumProductCard extends StatelessWidget {
                       style: GoogleFonts.poppins(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
-                        color: AppSurface.text,
+                        color: AppSurface.of(context).text,
                         height: 1.2,
                       ),
                     ),
@@ -190,7 +190,7 @@ class _ImageSurface extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           ColoredBox(
-            color: AppSurface.subtle,
+            color: AppSurface.of(context).subtle,
             child: Padding(
               padding: const EdgeInsets.all(4),
               child: Center(child: image),
@@ -217,9 +217,9 @@ class _UnitChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppSurface.subtle,
+        color: AppSurface.of(context).subtle,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -229,7 +229,7 @@ class _UnitChip extends StatelessWidget {
         style: GoogleFonts.poppins(
           fontSize: 9.5,
           fontWeight: FontWeight.w700,
-          color: AppSurface.textSecondary,
+          color: AppSurface.of(context).textSecondary,
           letterSpacing: 0.2,
           height: 1.2,
         ),
@@ -250,7 +250,7 @@ class _RatingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(Icons.star_rounded, size: 12, color: Color(0xFFF5A623)),
+        Icon(Icons.star_rounded, size: 12, color: Color(0xFFF5A623)),
         const SizedBox(width: 2),
         Flexible(
           child: Text(
@@ -260,13 +260,13 @@ class _RatingRow extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: AppSurface.textSecondary,
+              color: AppSurface.of(context).textSecondary,
               height: 1.2,
             ),
           ),
         ),
         if (reviews > 0) ...[
-          const SizedBox(width: 3),
+          SizedBox(width: 3),
           Flexible(
             child: Text(
               '($reviews)',
@@ -275,7 +275,7 @@ class _RatingRow extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 9.5,
                 fontWeight: FontWeight.w500,
-                color: AppSurface.textMuted,
+                color: AppSurface.of(context).textMuted,
                 height: 1.2,
               ),
             ),
@@ -308,7 +308,7 @@ class _PriceColumn extends StatelessWidget {
           style: GoogleFonts.poppins(
             fontSize: 14,
             fontWeight: FontWeight.w800,
-            color: AppSurface.text,
+            color: AppSurface.of(context).text,
             height: 1.1,
           ),
         ),
@@ -320,7 +320,7 @@ class _PriceColumn extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: AppSurface.textMuted,
+              color: AppSurface.of(context).textMuted,
               decoration: TextDecoration.lineThrough,
               height: 1.2,
             ),

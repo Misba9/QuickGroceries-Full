@@ -60,12 +60,12 @@ class PremiumCheckoutBar extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border(top: BorderSide(color: AppSurface.border, width: 1)),
+          border: Border(top: BorderSide(color: AppSurface.of(context).border, width: 1)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 18,
-              offset: const Offset(0, -6),
+              offset: Offset(0, -6),
             ),
           ],
         ),
@@ -103,7 +103,7 @@ class PremiumCheckoutBar extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.poppins(
-                                color: AppSurface.textSecondary,
+                                color: AppSurface.of(context).textSecondary,
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
                                 height: 1.2,
@@ -115,7 +115,7 @@ class PremiumCheckoutBar extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.poppins(
-                                  color: AppSurface.success,
+                                  color: AppSurface.of(context).success,
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w700,
                                   height: 1.2,
@@ -176,7 +176,7 @@ class _Helper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isError ? AppSurface.danger : AppSurface.textSecondary;
+    final color = isError ? AppSurface.of(context).danger : AppSurface.of(context).textSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -222,7 +222,7 @@ class _AnimatedTotal extends StatelessWidget {
       switchOutCurve: AppMotion.standard,
       transitionBuilder: (child, anim) => SlideTransition(
         position: Tween<Offset>(
-          begin: const Offset(0, 0.25),
+          begin: Offset(0, 0.25),
           end: Offset.zero,
         ).animate(anim),
         child: FadeTransition(opacity: anim, child: child),
@@ -235,7 +235,7 @@ class _AnimatedTotal extends StatelessWidget {
         style: GoogleFonts.poppins(
           fontWeight: FontWeight.w900,
           fontSize: 19,
-          color: AppSurface.text,
+          color: AppSurface.of(context).text,
           letterSpacing: -0.4,
           height: 1.1,
         ),

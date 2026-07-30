@@ -75,10 +75,10 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
     final pageTitle = widget.title ?? 'Quick Groceries';
 
     return Scaffold(
-      backgroundColor: AppSurface.background,
+      backgroundColor: AppSurface.of(context).background,
       appBar: AppBar(
         backgroundColor: AppColor.primary,
-        foregroundColor: AppSurface.text,
+        foregroundColor: AppSurface.of(context).text,
         title: Text(
           pageTitle,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),

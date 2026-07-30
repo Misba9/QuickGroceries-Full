@@ -6,6 +6,7 @@ import 'package:provider/provider.dart' as legacy_provider;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/auth/guest_auth_guard.dart';
 import 'package:quickgrocery/core/auth/guest_session_provider.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
 import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
@@ -119,7 +120,7 @@ class _OrdersTabBody extends ConsumerWidget {
         await Future.delayed(const Duration(milliseconds: 250));
       },
       child: asyncOrders.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonOrder(),
         error: (e, _) => ListView(
           children: [
             const SizedBox(height: 80),

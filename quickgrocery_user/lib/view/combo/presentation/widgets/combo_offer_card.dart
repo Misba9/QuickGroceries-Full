@@ -38,14 +38,14 @@ class ComboOfferCard extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadii.lg),
-            border: Border.all(color: AppSurface.border),
+            border: Border.all(color: AppSurface.of(context).border),
             boxShadow: AppShadow.card,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(
+                borderRadius: BorderRadius.vertical(
                   top: Radius.circular(AppRadii.lg),
                 ),
                 child: AspectRatio(
@@ -116,11 +116,11 @@ class ComboOfferCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
                           fontSize: 12,
-                          color: AppSurface.textSecondary,
+                          color: AppSurface.of(context).textSecondary,
                         ),
                       ),
                     ],
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8),
                     _IncludedPreview(combo: combo),
                     if (combo.vendorName.isNotEmpty) ...[
                       const SizedBox(height: 6),
@@ -128,29 +128,29 @@ class ComboOfferCard extends StatelessWidget {
                         combo.vendorName,
                         style: GoogleFonts.poppins(
                           fontSize: 11,
-                          color: AppSurface.textMuted,
+                          color: AppSurface.of(context).textMuted,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     Row(
                       children: [
                         Text(
                           fmt.format(combo.originalTotalPrice),
                           style: GoogleFonts.poppins(
                             fontSize: 13,
-                            color: AppSurface.textMuted,
+                            color: AppSurface.of(context).textMuted,
                             decoration: TextDecoration.lineThrough,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Text(
                           fmt.format(combo.comboPrice),
                           style: GoogleFonts.poppins(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: AppSurface.textPrimary,
+                            color: AppSurface.of(context).textPrimary,
                           ),
                         ),
                         const Spacer(),
@@ -240,7 +240,7 @@ class _ProductCollage extends StatelessWidget {
         .toList();
     if (imgs.isEmpty) {
       return Container(
-        color: AppSurface.subtle,
+        color: AppSurface.of(context).subtle,
         child: const Icon(Icons.shopping_basket_outlined, size: 48),
       );
     }
@@ -275,7 +275,7 @@ class _IncludedPreview extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
       style: GoogleFonts.poppins(
         fontSize: 11.5,
-        color: AppSurface.textSecondary,
+        color: AppSurface.of(context).textSecondary,
         height: 1.3,
       ),
     );

@@ -126,9 +126,9 @@ class _CenterNotificationTile extends ConsumerWidget {
               Container(
                 width: 8,
                 height: 8,
-                margin: const EdgeInsets.only(right: 8),
-                decoration: const BoxDecoration(
-                  color: AppSurface.danger,
+                margin: EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: AppSurface.of(context).danger,
                   shape: BoxShape.circle,
                 ),
               ),

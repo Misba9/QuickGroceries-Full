@@ -611,5 +611,17 @@
         "type": "String"
       }
     }
+  },
+  "appearance": "Appearance",
+  "theme_light": "Light",
+  "theme_dark": "Dark",
+  "theme_system": "System Default",
+  "theme_active_mode": "Currently using {mode}",
+  "@theme_active_mode": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
   }
 }

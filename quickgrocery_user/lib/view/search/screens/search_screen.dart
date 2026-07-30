@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/user/search_history_store.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
@@ -33,9 +34,6 @@ class _SearchScreenState extends State<SearchScreen> {
     Provider.of<SearchService>(context, listen: false).fetchProducts();
     _loadSearchHistory();
     _initializeSpeech();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
-    });
   }
 
   Future<void> _loadSearchHistory() async {
@@ -157,7 +155,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   gutter: gutter,
                   searchBar: AppSearchBar(
                     live: true,
-                    autofocus: true,
+                    autofocus: false,
                     focusNode: _focusNode,
                     controller: _searchController,
                     hints: [context.l10n.search],
@@ -202,7 +200,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 if (provider.filteredProductsList == null)
                   const SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(child: CircularProgressIndicator()),
+                    child: SkeletonSearchFill(),
                   )
                 else if (provider.filteredProductsList!.isEmpty)
                   SliverFillRemaining(

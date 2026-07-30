@@ -611,5 +611,17 @@
   },
   "partner_with_us": "Partner with us",
   "become_store_partner": "Become a store partner",
-  "partner_with_us_subtitle": "Join Quick Groceries as a store or delivery partner"
+  "partner_with_us_subtitle": "Join Quick Groceries as a store or delivery partner",
+  "appearance": "ظاہری شکل",
+  "theme_light": "لائٹ",
+  "theme_dark": "ڈارک",
+  "theme_system": "سسٹم ڈیفالٹ",
+  "theme_active_mode": "فی الحال {mode}",
+  "@theme_active_mode": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -1465,4 +1465,21 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get partner_with_us_subtitle =>
       'Join Quick Groceries as a store or delivery partner';
+
+  @override
+  String get appearance => 'Appearance';
+
+  @override
+  String get theme_light => 'Light';
+
+  @override
+  String get theme_dark => 'Dark';
+
+  @override
+  String get theme_system => 'System Default';
+
+  @override
+  String theme_active_mode(String mode) {
+    return 'Currently using $mode';
+  }
 }

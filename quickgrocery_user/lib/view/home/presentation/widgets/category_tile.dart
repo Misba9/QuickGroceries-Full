@@ -57,7 +57,7 @@ class CategoryTile extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: AppRadii.all(AppRadii.md),
-                          border: Border.all(color: AppSurface.border),
+                          border: Border.all(color: AppSurface.of(context).border),
                           boxShadow: AppShadow.dim,
                         ),
                         padding: const EdgeInsets.all(8),
@@ -73,7 +73,7 @@ class CategoryTile extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox(height: CategoryGridLayout.homeImageGap),
+            SizedBox(height: CategoryGridLayout.homeImageGap),
             Flexible(
               fit: FlexFit.loose,
               child: Text(
@@ -84,7 +84,7 @@ class CategoryTile extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: CategoryGridLayout.nameFontSize,
                   fontWeight: FontWeight.w600,
-                  color: AppSurface.textPrimary,
+                  color: AppSurface.of(context).textPrimary,
                   height: CategoryGridLayout.nameLineHeight,
                 ),
               ),

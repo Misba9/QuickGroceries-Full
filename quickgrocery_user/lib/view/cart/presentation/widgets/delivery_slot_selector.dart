@@ -27,14 +27,14 @@ class DeliverySlotSelector extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(Icons.schedule_rounded, size: 18, color: AppSurface.text),
-            const SizedBox(width: 8),
+            Icon(Icons.schedule_rounded, size: 18, color: AppSurface.of(context).text),
+            SizedBox(width: 8),
             Text(
               'Delivery slot',
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w800,
                 fontSize: 15,
-                color: AppSurface.text,
+                color: AppSurface.of(context).text,
               ),
             ),
           ],

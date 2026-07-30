@@ -43,7 +43,7 @@ class PremiumTextField extends StatelessWidget {
       style: GoogleFonts.poppins(
         fontSize: 14,
         fontWeight: FontWeight.w500,
-        color: AppSurface.text,
+        color: AppSurface.of(context).text,
       ),
       decoration: InputDecoration(
         labelText: label,
@@ -51,31 +51,31 @@ class PremiumTextField extends StatelessWidget {
         labelStyle: GoogleFonts.poppins(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: AppSurface.textSecondary,
+          color: AppSurface.of(context).textSecondary,
         ),
         prefixIcon: prefixIcon,
         filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        fillColor: AppSurface.of(context).card,
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.sm),
-          borderSide: const BorderSide(color: AppSurface.border),
+          borderSide: BorderSide(color: AppSurface.of(context).border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.sm),
-          borderSide: const BorderSide(color: AppSurface.border),
+          borderSide: BorderSide(color: AppSurface.of(context).border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.sm),
-          borderSide: const BorderSide(color: AppColor.primary, width: 1.5),
+          borderSide: BorderSide(color: AppColor.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.sm),
-          borderSide: BorderSide(color: AppSurface.danger.withValues(alpha: 0.8)),
+          borderSide: BorderSide(color: AppSurface.of(context).danger.withValues(alpha: 0.8)),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.sm),
-          borderSide: const BorderSide(color: AppSurface.danger, width: 1.5),
+          borderSide: BorderSide(color: AppSurface.of(context).danger, width: 1.5),
         ),
       ),
     );

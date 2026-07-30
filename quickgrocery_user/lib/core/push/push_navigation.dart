@@ -330,13 +330,10 @@ Future<void> handlePushNavigation(Map<String, dynamic> raw) async {
       await _openOrderTracking(ctx, orderId);
       return;
     case 'payment_retry':
+      // Prefer the order screen when we have an orderId (payment failure on an order).
       if (orderId.isNotEmpty) {
-        final exists = await _orderExists(orderId);
-        if (!ctx.mounted) return;
-        if (!exists) {
-          await _showOrderNotFound(ctx);
-          return;
-        }
+        await _openOrderTracking(ctx, orderId);
+        return;
       }
       home.onSelectedChange(AppRoutes.ordersTabIndex);
       if (!ctx.mounted) return;

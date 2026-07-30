@@ -37,7 +37,7 @@ class AppButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disabled = onPressed == null || isLoading;
-    final colors = _resolveColors(disabled);
+    final colors = _resolveColors(context, disabled);
     final padding = _resolvePadding();
     final textStyle = GoogleFonts.poppins(
       fontSize: _resolveFontSize(),
@@ -121,11 +121,12 @@ class AppButton extends StatelessWidget {
     }
   }
 
-  _BtnColors _resolveColors(bool disabled) {
+  _BtnColors _resolveColors(BuildContext context, bool disabled) {
+    final surface = AppSurface.of(context);
     if (disabled) {
       return _BtnColors(
-        background: AppSurface.subtle,
-        foreground: AppSurface.textMuted,
+        background: surface.subtle,
+        foreground: surface.textMuted,
         border: null,
       );
     }
@@ -138,19 +139,19 @@ class AppButton extends StatelessWidget {
         );
       case AppButtonVariant.secondary:
         return _BtnColors(
-          background: Colors.white,
-          foreground: AppSurface.textPrimary,
-          border: AppSurface.border,
+          background: surface.card,
+          foreground: surface.textPrimary,
+          border: surface.border,
         );
       case AppButtonVariant.ghost:
         return _BtnColors(
           background: Colors.transparent,
-          foreground: AppSurface.textPrimary,
+          foreground: surface.textPrimary,
           border: null,
         );
       case AppButtonVariant.danger:
         return _BtnColors(
-          background: AppSurface.danger,
+          background: surface.danger,
           foreground: Colors.white,
           border: null,
         );

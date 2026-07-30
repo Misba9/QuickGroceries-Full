@@ -52,7 +52,7 @@ class _PremiumBillCardState extends State<PremiumBillCard> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
         boxShadow: AppShadow.dim,
       ),
       clipBehavior: Clip.antiAlias,
@@ -66,7 +66,7 @@ class _PremiumBillCardState extends State<PremiumBillCard> {
             child: InkWell(
               onTap: () => setState(() => _expanded = !_expanded),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                padding: EdgeInsets.fromLTRB(14, 14, 14, 14),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -75,16 +75,16 @@ class _PremiumBillCardState extends State<PremiumBillCard> {
                       height: 32,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: AppSurface.subtle,
+                        color: AppSurface.of(context).subtle,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.receipt_long_rounded,
                         size: 18,
-                        color: AppSurface.textSecondary,
+                        color: AppSurface.of(context).textSecondary,
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,10 +94,10 @@ class _PremiumBillCardState extends State<PremiumBillCard> {
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.w800,
                               fontSize: 14.5,
-                              color: AppSurface.text,
+                              color: AppSurface.of(context).text,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Row(
                             children: [
                               Icon(
@@ -116,7 +116,7 @@ class _PremiumBillCardState extends State<PremiumBillCard> {
                                   style: GoogleFonts.poppins(
                                     fontSize: 10.5,
                                     fontWeight: FontWeight.w500,
-                                    color: AppSurface.textSecondary,
+                                    color: AppSurface.of(context).textSecondary,
                                   ),
                                 ),
                               ),
@@ -129,9 +129,9 @@ class _PremiumBillCardState extends State<PremiumBillCard> {
                       turns: _expanded ? 0.5 : 0,
                       duration: AppMotion.short,
                       curve: AppMotion.emphasized,
-                      child: const Icon(
+                      child: Icon(
                         Icons.keyboard_arrow_down_rounded,
-                        color: AppSurface.textSecondary,
+                        color: AppSurface.of(context).textSecondary,
                       ),
                     ),
                   ],
@@ -149,7 +149,7 @@ class _PremiumBillCardState extends State<PremiumBillCard> {
                     pricing: pricing,
                     couponLabel: widget.couponLabel,
                   )
-                : const SizedBox.shrink(),
+                : SizedBox.shrink(),
           ),
           _Divider(),
           Padding(
@@ -161,7 +161,7 @@ class _PremiumBillCardState extends State<PremiumBillCard> {
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w800,
                     fontSize: 14.5,
-                    color: AppSurface.text,
+                    color: AppSurface.of(context).text,
                   ),
                 ),
                 const Spacer(),
@@ -192,7 +192,7 @@ class _AnimatedTotal extends StatelessWidget {
         style: GoogleFonts.poppins(
           fontWeight: FontWeight.w900,
           fontSize: 18,
-          color: AppSurface.text,
+          color: AppSurface.of(context).text,
           letterSpacing: -0.3,
         ),
       ),
@@ -210,23 +210,23 @@ class _SavingsStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: AppSurface.success.withValues(alpha: 0.10),
+        color: AppSurface.of(context).success.withValues(alpha: 0.10),
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.savings_rounded,
             size: 16,
-            color: AppSurface.success,
+            color: AppSurface.of(context).success,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Text(
             'You save ',
             style: GoogleFonts.poppins(
               fontSize: 12,
-              color: AppSurface.success,
+              color: AppSurface.of(context).success,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -234,7 +234,7 @@ class _SavingsStrip extends StatelessWidget {
             '₹${amount.toStringAsFixed(0)}',
             style: GoogleFonts.poppins(
               fontSize: 12.5,
-              color: AppSurface.success,
+              color: AppSurface.of(context).success,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -242,7 +242,7 @@ class _SavingsStrip extends StatelessWidget {
             ' on this order',
             style: GoogleFonts.poppins(
               fontSize: 12,
-              color: AppSurface.success,
+              color: AppSurface.of(context).success,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -276,13 +276,13 @@ class _Breakdown extends StatelessWidget {
         _RowSpec(
           label: 'You saved on MRP',
           value: '₹${bill.itemSavings.toStringAsFixed(0)}',
-          accent: AppSurface.success,
+          accent: AppSurface.of(context).success,
         ),
       if (bill.couponDiscount > 0.25)
         _RowSpec(
           label: couponLabel ?? 'Coupon Discount',
           value: '-₹${bill.couponDiscount.toStringAsFixed(0)}',
-          accent: AppSurface.success,
+          accent: AppSurface.of(context).success,
         ),
       _RowSpec(
         label: 'Delivery fee',
@@ -296,7 +296,7 @@ class _Breakdown extends StatelessWidget {
         sub: bill.isFreeDelivery
             ? 'Free above ₹${pricing.freeDeliveryThreshold}'
             : null,
-        accent: bill.isFreeDelivery ? AppSurface.success : null,
+        accent: bill.isFreeDelivery ? AppSurface.of(context).success : null,
       ),
       if (bill.surgeFee > 0.05)
         _RowSpec(
@@ -317,6 +317,13 @@ class _Breakdown extends StatelessWidget {
         _RowSpec(
           label: 'Tax (${pricing.taxPercent.toStringAsFixed(1)}%)',
           value: '₹${bill.tax.toStringAsFixed(0)}',
+        ),
+      if (bill.codConvenienceFee > 0.05)
+        _RowSpec(
+          label: bill.codFeeDescription.isNotEmpty
+              ? bill.codFeeDescription
+              : 'COD Convenience Fee',
+          value: '₹${bill.codConvenienceFee.toStringAsFixed(0)}',
         ),
       if (bill.deliveryPartnerTip > 0.05)
         _RowSpec(
@@ -361,18 +368,18 @@ class _BillRow extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
-                  color: AppSurface.textSecondary,
+                  color: AppSurface.of(context).textSecondary,
                   height: 1.3,
                 ),
               ),
               if ((spec.sub ?? '').isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 1),
+                  padding: EdgeInsets.only(top: 1),
                   child: Text(
                     spec.sub!,
                     style: GoogleFonts.poppins(
                       fontSize: 10.5,
-                      color: AppSurface.textMuted,
+                      color: AppSurface.of(context).textMuted,
                       height: 1.3,
                     ),
                   ),
@@ -385,19 +392,19 @@ class _BillRow extends StatelessWidget {
             spec.valueStrikeText!,
             style: GoogleFonts.poppins(
               fontSize: 11.5,
-              color: AppSurface.textMuted,
+              color: AppSurface.of(context).textMuted,
               decoration: TextDecoration.lineThrough,
               height: 1.3,
             ),
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: 6),
         ],
         Text(
           spec.value,
           style: GoogleFonts.poppins(
             fontSize: 13,
             fontWeight: FontWeight.w800,
-            color: spec.accent ?? AppSurface.text,
+            color: spec.accent ?? AppSurface.of(context).text,
             height: 1.3,
           ),
         ),
@@ -411,8 +418,8 @@ class _Divider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 14),
-      color: AppSurface.border,
+      margin: EdgeInsets.symmetric(horizontal: 14),
+      color: AppSurface.of(context).border,
     );
   }
 }

@@ -83,10 +83,11 @@ class AdminSidebar extends StatelessWidget {
     ),
     _SectionDef(
       icon: 'assets/icons/coupon.svg',
-      title: 'Coupon',
+      title: 'Marketing',
       routes: [
         AdminRoutes.addCoupon,
         AdminRoutes.comboOffers,
+        AdminRoutes.productPromotions,
         AdminRoutes.referEarn,
         AdminRoutes.deliveryTips,
       ],

@@ -79,7 +79,7 @@ class _ComboSkeleton extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: EdgeInsets.only(bottom: 8),
             child: Text(
               'Combo offers',
               style: GoogleFonts.poppins(
@@ -91,7 +91,7 @@ class _ComboSkeleton extends StatelessWidget {
           Container(
             height: 320,
             decoration: BoxDecoration(
-              color: AppSurface.subtle,
+              color: AppSurface.of(context).subtle,
               borderRadius: BorderRadius.circular(AppRadii.lg),
             ),
           ),

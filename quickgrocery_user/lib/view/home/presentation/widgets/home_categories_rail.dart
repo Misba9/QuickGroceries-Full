@@ -115,12 +115,12 @@ class _CategoryRailCard extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.white,
-                    AppSurface.subtle.withValues(alpha: 0.35),
+                    AppSurface.of(context).subtle.withValues(alpha: 0.35),
                   ],
                 ),
-                border: Border.all(color: AppSurface.border),
+                border: Border.all(color: AppSurface.of(context).border),
               ),
-              padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+              padding: EdgeInsets.fromLTRB(8, 10, 8, 8),
               child: Column(
                 children: [
                   Expanded(
@@ -129,10 +129,10 @@ class _CategoryRailCard extends StatelessWidget {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: AppSurface.border.withValues(alpha: 0.5),
+                          color: AppSurface.of(context).border.withValues(alpha: 0.5),
                         ),
                       ),
-                      padding: const EdgeInsets.all(8),
+                      padding: EdgeInsets.all(8),
                       child: CachedImage(
                         url: category.image,
                         fit: BoxFit.contain,
@@ -151,7 +151,7 @@ class _CategoryRailCard extends StatelessWidget {
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
                       height: 1.15,
-                      color: AppSurface.textPrimary,
+                      color: AppSurface.of(context).textPrimary,
                     ),
                   ),
                 ],

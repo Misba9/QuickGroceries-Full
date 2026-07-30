@@ -23,7 +23,10 @@ class ReceiptOrderMapper {
     return ReceiptOrderData(
       orderId: order.id,
       invoiceNumber: _invoiceId(order.id),
-      createdAt: DateTime.tryParse(order.createdDate) ?? order.createdAt,
+      createdAt: OrderDateTimeFormat.resolve(
+        createdAt: order.createdAt,
+        createdDate: order.createdDate,
+      ),
       customerName: order.customerName,
       phone: phone ?? order.phone,
       address: order.address,
@@ -47,6 +50,8 @@ class ReceiptOrderMapper {
         platformFee: bill.platformFee,
         tax: bill.tax,
         deliveryPartnerTip: bill.deliveryPartnerTip,
+        codConvenienceFee: bill.codConvenienceFee,
+        codFeeDescription: bill.codFeeDescription,
         grandTotal: bill.grandTotal,
       ),
       paymentMethod: order.isPaid ? 'Online (Paid)' : 'Cash on Delivery',

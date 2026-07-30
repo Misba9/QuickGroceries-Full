@@ -18,7 +18,7 @@ import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
-import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/navigation/product_navigation.dart';
 
 /// "Recently ordered" rail — surfaces unique items from the user's
 /// past orders so reordering staples is one tap away.
@@ -138,15 +138,15 @@ class _RecentTile extends StatelessWidget {
         elevation: 0,
         child: InkWell(
           borderRadius: AppRadii.all(AppRadii.md),
-          onTap: () {
+          onTap: () async {
             if (canonical == null) return;
-            Navigator.push(context, AppPageRoutes.product(canonical));
+            await ProductNavigation.openProduct(context, canonical);
           },
           child: Container(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
               borderRadius: AppRadii.all(AppRadii.md),
-              border: Border.all(color: AppSurface.border),
+              border: Border.all(color: AppSurface.of(context).border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,7 +173,7 @@ class _RecentTile extends StatelessWidget {
                     },
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Text(
                   item.product.name,
                   maxLines: 1,
@@ -181,7 +181,7 @@ class _RecentTile extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: AppSurface.textPrimary,
+                    color: AppSurface.of(context).textPrimary,
                     height: 1.2,
                   ),
                 ),
@@ -242,12 +242,12 @@ class _ReorderButton extends ConsumerWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: !canAdd
-                ? AppSurface.subtle
+                ? AppSurface.of(context).subtle
                 : AppColor.primary.withValues(alpha: 0.12),
             borderRadius: AppRadii.all(AppRadii.sm),
             border: Border.all(
               color: !canAdd
-                  ? AppSurface.border
+                  ? AppSurface.of(context).border
                   : AppColor.primary,
               width: 1,
             ),
@@ -260,7 +260,7 @@ class _ReorderButton extends ConsumerWidget {
             style: GoogleFonts.poppins(
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
-              color: !canAdd ? AppSurface.textMuted : AppColor.primary,
+              color: !canAdd ? AppSurface.of(context).textMuted : AppColor.primary,
               letterSpacing: 0.4,
             ),
           ),

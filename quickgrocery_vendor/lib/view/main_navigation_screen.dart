@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/navigation/root_back_handler.dart';
+import '../core/vendor_notification_router.dart';
 import '../core/vendor_order_notification_controller.dart';
 import '../models/vendor_model.dart';
 import '../style/app_color.dart';
@@ -32,12 +33,48 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void initState() {
     super.initState();
     _currentVendor = widget.vendor;
+    _registerPushNav();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      VendorNotificationRouter.consumePending();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant MainNavigationScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.vendor.id != widget.vendor.id) {
+      _registerPushNav();
+    }
+  }
+
+  @override
+  void dispose() {
+    VendorNotificationRouter.unregister();
+    super.dispose();
+  }
+
+  void _registerPushNav() {
+    final v = _currentVendor ?? widget.vendor;
+    VendorNotificationRouter.register(
+      vendor: v,
+      onSelectTab: (index) {
+        if (!mounted) return;
+        setState(() => _currentIndex = index);
+      },
+    );
   }
 
   void _updateVendor(VendorModel updatedVendor) {
     setState(() {
       _currentVendor = updatedVendor;
     });
+    VendorNotificationRouter.register(
+      vendor: updatedVendor,
+      onSelectTab: (index) {
+        if (!mounted) return;
+        setState(() => _currentIndex = index);
+      },
+    );
   }
 
   Widget _buildBottomNavBar() {

@@ -16,14 +16,9 @@ import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 
 /// Curated "Flash Sale" rail.
 ///
-/// Composes a list from the trending + featured streams the homepage
-/// already subscribes to (no extra Firestore reads), keeps anything
-/// with a 25%+ discount and renders a high-energy countdown header.
-///
-/// The countdown is purely UX — it ticks down to the next 4-hour
-/// boundary so the timer feels alive without requiring an admin schema
-/// change. Once a `flashSaleEndsAt` field exists on documents, swap
-/// [_endTime] for the document field.
+/// Prefer products flagged `is_flash_sale`. Countdown uses the nearest
+/// live [ProductModel.flashSaleEnd]; falls back to a 4-hour boundary only
+/// when no admin end times are set.
 class FlashSaleSection extends ConsumerStatefulWidget {
   const FlashSaleSection({
     super.key,

@@ -1,14 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../models/product_model.dart';
 import '../../models/vendor_model.dart';
 import '../../services/product_service.dart';
 import '../../style/app_color.dart';
 import '../../utils/app_spacing.dart';
+import '../../utils/product_search.dart';
 import '../combo/combo_offers_screen.dart';
 import '../reviews/vendor_reviews_screen.dart';
 import 'add_edit_product_screen.dart';
 
-class ProductsScreen extends StatelessWidget {
+/// Vendor inventory list with local, debounced product search.
+///
+/// Kept alive under [IndexedStack] so search query + scroll survive tab switches
+/// and push/pop to product edit screens.
+class ProductsScreen extends StatefulWidget {
   final VendorModel vendor;
   final Widget? bottomNavigationBar;
 
@@ -19,8 +26,102 @@ class ProductsScreen extends StatelessWidget {
   });
 
   @override
+  State<ProductsScreen> createState() => _ProductsScreenState();
+}
+
+class _ProductsScreenState extends State<ProductsScreen>
+    with AutomaticKeepAliveClientMixin {
+  final ProductService _productService = ProductService();
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+  final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<String> _queryNotifier = ValueNotifier<String>('');
+  final ValueNotifier<bool> _hasTextNotifier = ValueNotifier<bool>(false);
+
+  Timer? _debounce;
+  List<ProductModel> _cachedAll = const [];
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onControllerTick);
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.removeListener(_onControllerTick);
+    _searchController.dispose();
+    _searchFocus.dispose();
+    _scrollController.dispose();
+    _queryNotifier.dispose();
+    _hasTextNotifier.dispose();
+    super.dispose();
+  }
+
+  void _onControllerTick() {
+    final hasText = _searchController.text.isNotEmpty;
+    if (_hasTextNotifier.value != hasText) {
+      _hasTextNotifier.value = hasText;
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 280), () {
+      if (!mounted) return;
+      _queryNotifier.value = value.trim();
+    });
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _searchController.clear();
+    _queryNotifier.value = '';
+    _hasTextNotifier.value = false;
+    _searchFocus.unfocus();
+    FocusScope.of(context).unfocus();
+  }
+
+  List<ProductModel> _filter(List<ProductModel> products, String query) {
+    if (query.isEmpty) return products;
+    return products
+        .where(
+          (p) => productMatchesSearchQuery(
+            query,
+            name: p.name,
+            category: p.category,
+            subcategory: p.subcategory ?? '',
+            brand: p.brand,
+            sku: p.sku,
+            barcode: p.barcode,
+            description: p.description,
+            shopName: p.shopName,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<void> _openProduct(ProductModel? product) async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddEditProductScreen(
+          vendor: widget.vendor,
+          product: product,
+        ),
+      ),
+    );
+    // Stay on this State — query, results, and scroll are preserved.
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final productService = ProductService();
+    super.build(context);
+    final vendor = widget.vendor;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -42,7 +143,8 @@ class ProductsScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => VendorReviewsScreen(vendorId: vendor.id),
+                  builder: (context) =>
+                      VendorReviewsScreen(vendorId: vendor.id),
                 ),
               );
             },
@@ -54,7 +156,8 @@ class ProductsScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => VendorComboOffersScreen(vendor: vendor),
+                  builder: (context) =>
+                      VendorComboOffersScreen(vendor: vendor),
                 ),
               );
             },
@@ -62,120 +165,209 @@ class ProductsScreen extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AddEditProductScreen(
-                    vendor: vendor,
-                  ),
-                ),
-              );
-            },
+            onPressed: () => _openProduct(null),
             tooltip: 'Add Product',
           ),
         ],
       ),
-      body: StreamBuilder<List<ProductModel>>(
-        stream: productService.getVendorProducts(vendor.id),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red[300],
-                  ),
-                  AppSpacing.h20,
-                  Text(
-                    'Error loading products',
-                    style: TextStyle(
-                      fontSize: 18,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _hasTextNotifier,
+              builder: (context, hasText, _) {
+                return TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocus,
+                  autofocus: false,
+                  onChanged: _onSearchChanged,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => _searchFocus.unfocus(),
+                  decoration: InputDecoration(
+                    hintText: 'Search products...',
+                    hintStyle: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 14,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search,
                       color: Colors.grey[700],
                     ),
-                  ),
-                  AppSpacing.h10,
-                  Text(
-                    snapshot.error.toString(),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
+                    suffixIcon: hasText
+                        ? IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: _clearSearch,
+                            tooltip: 'Clear search',
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final products = snapshot.data ?? [];
-
-          if (products.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.inventory_2_outlined,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
-                  AppSpacing.h20,
-                  Text(
-                    'No products yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.w500,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
                     ),
-                  ),
-                  AppSpacing.h10,
-                  Text(
-                    'Tap the + button to add your first product',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-              return _ProductCard(
-                product: product,
-                vendor: vendor,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddEditProductScreen(
-                        vendor: vendor,
-                        product: product,
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: AppColor.primary,
+                        width: 1.5,
                       ),
                     ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<List<ProductModel>>(
+              stream: _productService.getVendorProducts(vendor.id),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    _cachedAll.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError && _cachedAll.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red[300],
+                        ),
+                        AppSpacing.h20,
+                        Text(
+                          'Error loading products',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        AppSpacing.h10,
+                        Text(
+                          snapshot.error.toString(),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   );
-                },
-              );
-            },
-          );
-        },
+                }
+
+                if (snapshot.hasData) {
+                  _cachedAll = snapshot.data ?? const [];
+                }
+                final all = _cachedAll;
+
+                if (all.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.inventory_2_outlined,
+                          size: 80,
+                          color: Colors.grey[400],
+                        ),
+                        AppSpacing.h20,
+                        Text(
+                          'No products yet',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        AppSpacing.h10,
+                        Text(
+                          'Tap the + button to add your first product',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ValueListenableBuilder<String>(
+                  valueListenable: _queryNotifier,
+                  builder: (context, query, _) {
+                    final products = _filter(all, query);
+
+                    if (products.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.search_off,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              AppSpacing.h20,
+                              Text(
+                                'No products found',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              AppSpacing.h10,
+                              Text(
+                                'Try searching with another keyword.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                      itemCount: products.length,
+                      itemBuilder: (context, index) {
+                        final product = products[index];
+                        return _ProductCard(
+                          product: product,
+                          vendor: vendor,
+                          highlightQuery: query,
+                          onTap: () => _openProduct(product),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
-      bottomNavigationBar: bottomNavigationBar,
+      bottomNavigationBar: widget.bottomNavigationBar,
     );
   }
 }
@@ -183,17 +375,28 @@ class ProductsScreen extends StatelessWidget {
 class _ProductCard extends StatelessWidget {
   final ProductModel product;
   final VendorModel vendor;
+  final String highlightQuery;
   final VoidCallback onTap;
 
   const _ProductCard({
     required this.product,
     required this.vendor,
+    required this.highlightQuery,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final productService = ProductService();
+    const nameStyle = TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.bold,
+      color: Colors.black87,
+    );
+    final highlightStyle = nameStyle.copyWith(
+      color: AppColor.primary,
+      backgroundColor: AppColor.primary.withValues(alpha: 0.18),
+    );
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -208,7 +411,6 @@ class _ProductCard extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              // Product Image
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: product.image.isNotEmpty
@@ -240,18 +442,25 @@ class _ProductCard extends StatelessWidget {
                       ),
               ),
               AppSpacing.w15,
-
-              // Product Details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      product.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                    Text.rich(
+                      TextSpan(
+                        children: splitHighlightedSegments(
+                          product.name,
+                          highlightQuery,
+                        )
+                            .map(
+                              (seg) => TextSpan(
+                                text: seg.text,
+                                style: seg.highlight
+                                    ? highlightStyle
+                                    : nameStyle,
+                              ),
+                            )
+                            .toList(growable: false),
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -264,6 +473,21 @@ class _ProductCard extends StatelessWidget {
                         color: Colors.grey[600],
                       ),
                     ),
+                    if (product.sku.isNotEmpty || product.brand.isNotEmpty) ...[
+                      AppSpacing.h5,
+                      Text(
+                        [
+                          if (product.brand.isNotEmpty) product.brand,
+                          if (product.sku.isNotEmpty) 'SKU: ${product.sku}',
+                        ].join(' · '),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[500],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                     AppSpacing.h5,
                     Row(
                       children: [
@@ -329,8 +553,9 @@ class _ProductCard extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w500,
-                                color:
-                                    product.isActive ? Colors.green : Colors.red,
+                                color: product.isActive
+                                    ? Colors.green
+                                    : Colors.red,
                               ),
                             ),
                           ),
@@ -347,8 +572,6 @@ class _ProductCard extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // Actions
               PopupMenuButton<String>(
                 onSelected: (value) async {
                   if (value == 'toggle') {
@@ -462,4 +685,3 @@ class _ProductCard extends StatelessWidget {
     );
   }
 }
-

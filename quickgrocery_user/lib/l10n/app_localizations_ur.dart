@@ -1463,4 +1463,21 @@ class AppLocalizationsUr extends AppLocalizations {
   @override
   String get partner_with_us_subtitle =>
       'Join Quick Groceries as a store or delivery partner';
+
+  @override
+  String get appearance => 'ظاہری شکل';
+
+  @override
+  String get theme_light => 'لائٹ';
+
+  @override
+  String get theme_dark => 'ڈارک';
+
+  @override
+  String get theme_system => 'سسٹم ڈیفالٹ';
+
+  @override
+  String theme_active_mode(String mode) {
+    return 'فی الحال $mode';
+  }
 }

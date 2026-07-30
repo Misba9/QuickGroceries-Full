@@ -8,6 +8,7 @@ import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/core/widgets/home_section_error_card.dart';
@@ -326,7 +327,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         appContentAsync.isLoading && !appContentAsync.hasValue;
 
     return Scaffold(
-      backgroundColor: AppSurface.background,
+      backgroundColor: AppSurface.of(context).background,
       // Top inset comes from LandingScreen's SafeArea only.
       body: SafeArea(
         top: false,
@@ -477,11 +478,11 @@ class _DeliveryPromoStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final message = DeliveryPricingPolicy.homePromoLine(pricing);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: Colors.white,
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
       ),
       child: Text(
         message,
@@ -668,53 +669,15 @@ class _OfflineView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppSurface.of(context).scaffold,
       body: SafeArea(
         top: false,
         bottom: false,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.wifi_off, size: 80, color: Colors.grey[400]),
-                const SizedBox(height: 24),
-                Text(
-                  'No Internet connection',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Please check your internet connection and try again',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: onRetry,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColor.primary,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
-                    ),
-                  ),
-                  child: const Text(
-                    'Retry',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        child: OfflineLoadingView(
+          onRetry: onRetry,
+          title: 'No Internet connection',
+          subtitle:
+              'Please check your internet connection and try again. We\'ll reload the freshest groceries.',
         ),
       ),
     );

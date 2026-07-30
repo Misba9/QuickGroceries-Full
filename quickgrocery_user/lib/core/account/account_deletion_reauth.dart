@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pinput/pinput.dart';
@@ -29,7 +30,7 @@ Future<bool> showAccountDeletionReauthSheet(BuildContext context) async {
     isDismissible: false,
     enableDrag: false,
     useRootNavigator: true,
-    backgroundColor: Colors.white,
+    backgroundColor: AppSurface.of(context).card,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),

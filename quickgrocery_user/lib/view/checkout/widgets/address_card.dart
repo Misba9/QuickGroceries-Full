@@ -42,12 +42,12 @@ class CheckoutAddressCard extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(AppRadii.md),
             border: Border.all(
-              color: selected ? AppColor.primary : AppSurface.border,
+              color: selected ? AppColor.primary : AppSurface.of(context).border,
               width: selected ? 2 : 1,
             ),
             boxShadow: AppShadow.dim,
           ),
-          padding: const EdgeInsets.all(14),
+          padding: EdgeInsets.all(14),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -65,7 +65,7 @@ class CheckoutAddressCard extends StatelessWidget {
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
-                              color: AppSurface.text,
+                              color: AppSurface.of(context).text,
                               height: 1.2,
                             ),
                           ),
@@ -78,16 +78,16 @@ class CheckoutAddressCard extends StatelessWidget {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     Text(
                       '${address.address}, ${address.area}',
                       style: GoogleFonts.poppins(
                         fontSize: 12.5,
                         height: 1.35,
-                        color: AppSurface.textSecondary,
+                        color: AppSurface.of(context).textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     if (address.mobile.trim().isNotEmpty ||
                         AddressModel.localMobileDigits(
                           FirebaseAuth.instance.currentUser?.phoneNumber,
@@ -101,7 +101,7 @@ class CheckoutAddressCard extends StatelessWidget {
                         style: GoogleFonts.poppins(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: AppSurface.textMuted,
+                          color: AppSurface.of(context).textMuted,
                         ),
                       ),
                   ],
@@ -125,7 +125,7 @@ class CheckoutAddressCard extends StatelessWidget {
                         icon: Icon(
                           Icons.edit_outlined,
                           size: 20,
-                          color: AppSurface.textMuted,
+                          color: AppSurface.of(context).textMuted,
                         ),
                       ),
                     if (onDelete != null)
@@ -142,7 +142,7 @@ class CheckoutAddressCard extends StatelessWidget {
                         icon: Icon(
                           Icons.delete_outline_rounded,
                           size: 20,
-                          color: AppSurface.danger,
+                          color: AppSurface.of(context).danger,
                         ),
                       ),
                   ],
@@ -236,7 +236,7 @@ class SavedAddressCard extends StatelessWidget {
                 onPressed: () => Navigator.pop(ctx, true),
                 child: Text(
                   context.l10n.delete,
-                  style: const TextStyle(color: AppSurface.danger),
+                  style: TextStyle(color: AppSurface.of(context).danger),
                 ),
               ),
             ],
@@ -253,12 +253,12 @@ class SavedAddressCard extends StatelessWidget {
       confirmDismiss: (_) => _confirmDelete(context),
       onDismissed: (_) => onDelete(),
       background: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              AppSurface.danger.withValues(alpha: 0.85),
-              AppSurface.danger,
+              AppSurface.of(context).danger.withValues(alpha: 0.85),
+              AppSurface.of(context).danger,
             ],
           ),
           borderRadius: BorderRadius.circular(AppRadii.md),

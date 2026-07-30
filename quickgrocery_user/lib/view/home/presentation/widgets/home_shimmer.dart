@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/view/category/presentation/utils/category_grid_layout.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
-import 'package:shimmer/shimmer.dart';
 
 /// Shimmer building blocks scoped to the homepage. Centralizes the shimmer
 /// look so all sections animate in sync.
@@ -10,18 +10,7 @@ class HomeShimmer {
   const HomeShimmer._();
 
   static Widget _box({double? width, double? height, double radius = 8}) {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey.shade200,
-      highlightColor: Colors.grey.shade100,
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(radius),
-        ),
-      ),
-    );
+    return ShimmerBox(width: width, height: height, radius: radius);
   }
 
   static Widget categoriesGrid({int count = 8, int crossAxisCount = 4}) {
@@ -212,32 +201,34 @@ class HomeShimmer {
 
   /// Placeholder while the Firestore admin gate connects (landing tab shell).
   static Widget landingTabShell() {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _box(height: 26, width: 140, radius: 10),
-              const SizedBox(height: 18),
-              Expanded(
-                flex: 3,
-                child: _box(radius: 18),
-              ),
-              const SizedBox(height: 14),
-              Expanded(
-                flex: 2,
-                child: Row(
-                  children: [
-                    Expanded(child: _box(radius: 14)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _box(radius: 14)),
-                  ],
+    return Builder(
+      builder: (context) => Scaffold(
+        backgroundColor: AppSurface.of(context).scaffold,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _box(height: 26, width: 140, radius: 10),
+                const SizedBox(height: 18),
+                Expanded(
+                  flex: 3,
+                  child: _box(radius: 18),
                 ),
-              ),
-            ],
+                const SizedBox(height: 14),
+                Expanded(
+                  flex: 2,
+                  child: Row(
+                    children: [
+                      Expanded(child: _box(radius: 14)),
+                      const SizedBox(width: 12),
+                      Expanded(child: _box(radius: 14)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

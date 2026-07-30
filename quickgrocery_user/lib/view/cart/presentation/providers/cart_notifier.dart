@@ -715,7 +715,9 @@ class CartNotifier extends Notifier<CartState> {
       if (line.stock != items[i].stock ||
           line.itemCount != items[i].itemCount ||
           line.isAvailable != items[i].isAvailable ||
-          line.maxOrder != items[i].maxOrder) {
+          line.maxOrder != items[i].maxOrder ||
+          line.price != items[i].price ||
+          line.slashedPrice != items[i].slashedPrice) {
         items[i] = line;
         changed = true;
       }

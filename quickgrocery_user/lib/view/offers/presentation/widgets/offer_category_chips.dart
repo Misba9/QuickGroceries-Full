@@ -80,11 +80,11 @@ class _Chip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.md),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadii.md),
             border: Border.all(
-              color: active ? AppColor.primary : AppSurface.border,
+              color: active ? AppColor.primary : AppSurface.of(context).border,
               width: active ? 1.5 : 1,
             ),
           ),
@@ -94,9 +94,9 @@ class _Chip extends StatelessWidget {
               Icon(
                 category.icon,
                 size: 18,
-                color: active ? const Color(0xFF1A1A1A) : AppSurface.textSecondary,
+                color: active ? Color(0xFF1A1A1A) : AppSurface.of(context).textSecondary,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Text(
                 category.label,
                 style: GoogleFonts.poppins(
@@ -104,7 +104,7 @@ class _Chip extends StatelessWidget {
                   fontSize: 13,
                   color: active
                       ? const Color(0xFF1A1A1A)
-                      : AppSurface.textPrimary,
+                      : AppSurface.of(context).textPrimary,
                 ),
               ),
             ],

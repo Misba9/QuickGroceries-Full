@@ -108,3 +108,27 @@ flutter run --release
 ```
 
 Typical improvement on a warm device with cache: first UI in ~1–2s instead of waiting on APNs (~6s) + full `products` collection + image precache.
+
+## Rate Your Order
+
+After delivery, the app asks customers to rate their experience (once per order).
+
+- **4–5 stars** → native Play In-App Review / iOS `SKStoreReviewController` (max once / 30 days)
+- **1–3 stars** → private feedback via Cloud Function `submitOrderExperienceReview`
+- **Later** → remind after 3 days · **No Thanks** → never again for that order
+
+Docs: [`lib/core/review/README.md`](lib/core/review/README.md)
+
+Deploy the callable after pulling this change:
+
+```bash
+cd ../quick_grocery_admin/functions
+firebase deploy --only functions:submitOrderExperienceReview
+```
+
+## In-App Updates
+
+Remote Config parameter **`user_app_update`** (JSON). Docs:
+[`lib/core/update/README.md`](lib/core/update/README.md)
+
+Vendor / Delivery use `vendor_app_update` / `delivery_app_update`.
