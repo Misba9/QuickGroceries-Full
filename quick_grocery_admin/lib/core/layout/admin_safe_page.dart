@@ -43,6 +43,11 @@ class AdminSafePage extends StatelessWidget {
 }
 
 /// Fills viewport height — child may use [Column] + [Expanded] + [ListView].
+///
+/// Must NOT nest another [LayoutBuilder] here: [AdminPageSlot] already sizes the
+/// pane with a tight [SizedBox]. A second [LayoutBuilder] on Flutter Web causes
+/// `!_debugDoingThisLayout` / "RenderBox has no size" when children rebuild
+/// (e.g. [StreamBuilder]).
 class AdminFlexPage extends StatelessWidget {
   const AdminFlexPage({
     super.key,
@@ -61,20 +66,9 @@ class AdminFlexPage extends StatelessWidget {
       debugPrint('AdminFlexPage: $debugLabel');
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth.isFinite ? constraints.maxWidth : 1200.0;
-        final h = constraints.maxHeight.isFinite ? constraints.maxHeight : 600.0;
-
-        return SizedBox(
-          width: w,
-          height: h,
-          child: Padding(
-            padding: padding,
-            child: child,
-          ),
-        );
-      },
+    return Padding(
+      padding: padding,
+      child: child,
     );
   }
 }

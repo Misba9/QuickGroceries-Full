@@ -17,11 +17,43 @@ class _AiChatInboxScreenState extends State<AiChatInboxScreen> {
   final _service = AiChatAdminService();
   final _search = TextEditingController();
   AiChatSession? _selected;
+  List<AiChatSession>? _callableSessions;
+  bool _refreshing = false;
 
   @override
   void dispose() {
     _search.dispose();
     super.dispose();
+  }
+
+  Future<void> _refreshFromServer() async {
+    setState(() => _refreshing = true);
+    try {
+      final items = await _service.listSessionsViaCallable();
+      if (!mounted) return;
+      setState(() {
+        _callableSessions = items;
+        _refreshing = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            items.isEmpty
+                ? 'Still empty — send a chat from the User App first'
+                : 'Loaded ${items.length} chat(s)',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _refreshing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Refresh failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -77,20 +109,50 @@ class _AiChatInboxScreenState extends State<AiChatInboxScreen> {
                   child: StreamBuilder<List<AiChatSession>>(
                     stream: _service.watchSessions(),
                     builder: (context, snap) {
-                      if (snap.hasError) {
+                      if (snap.hasError && _callableSessions == null) {
                         return Center(
-                          child: Text(
-                            'Could not load chats.\n${snap.error}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.red),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Could not load chats.\n${snap.error}',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                                const SizedBox(height: 16),
+                                OutlinedButton.icon(
+                                  onPressed:
+                                      _refreshing ? null : _refreshFromServer,
+                                  icon: _refreshing
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.refresh),
+                                  label: const Text('Refresh from server'),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       }
-                      if (!snap.hasData) {
+                      if (!snap.hasData && _callableSessions == null) {
                         return const Center(child: CircularProgressIndicator());
                       }
+
+                      // Prefer live Firestore; fall back to last callable refresh.
+                      final live = snap.data ?? const <AiChatSession>[];
+                      final source = live.isNotEmpty
+                          ? live
+                          : (_callableSessions ?? live);
+
                       final q = _search.text.trim().toLowerCase();
-                      final sessions = snap.data!.where((s) {
+                      final sessions = source.where((s) {
                         if (q.isEmpty) return true;
                         return s.displayName.toLowerCase().contains(q) ||
                             s.customerPhone.toLowerCase().contains(q) ||
@@ -99,10 +161,57 @@ class _AiChatInboxScreenState extends State<AiChatInboxScreen> {
                       }).toList();
 
                       if (sessions.isEmpty) {
-                        return const Center(
-                          child: Text(
-                            'No AI chats yet.\nWhen customers message the assistant, sessions show up here.',
-                            textAlign: TextAlign.center,
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.forum_outlined,
+                                  size: 48,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  q.isEmpty
+                                      ? 'No AI chats yet'
+                                      : 'No chats match your search',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  q.isEmpty
+                                      ? 'Open the User App → AI assistant, send a message,\nthen refresh here. Only chats after the latest\nfunction deploy appear in this inbox.'
+                                      : 'Try a different name, phone, or message.',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 13,
+                                    height: 1.4,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                OutlinedButton.icon(
+                                  onPressed:
+                                      _refreshing ? null : _refreshFromServer,
+                                  icon: _refreshing
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.refresh),
+                                  label: const Text('Refresh from server'),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       }

@@ -88,6 +88,8 @@ class AdminSidebar extends StatelessWidget {
         AdminRoutes.addCoupon,
         AdminRoutes.comboOffers,
         AdminRoutes.productPromotions,
+        AdminRoutes.searchAnalytics,
+        AdminRoutes.appHeatmap,
         AdminRoutes.referEarn,
         AdminRoutes.deliveryTips,
       ],

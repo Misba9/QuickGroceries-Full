@@ -65,7 +65,7 @@ class _ScrollableCustomerTable extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final minTableWidth = math.max(constraints.maxWidth, 980.0);
+        final minTableWidth = math.max(constraints.maxWidth, 1180.0);
         final table = DataTable(
           sortColumnIndex: _sortColumnIndex(svc.sortField),
           sortAscending: svc.sortAscending,
@@ -80,6 +80,8 @@ class _ScrollableCustomerTable extends StatelessWidget {
             _sortColumn(svc, CustomerSortField.name),
             const DataColumn(label: Text('Phone', style: _h)),
             const DataColumn(label: Text('Email', style: _h)),
+            const DataColumn(label: Text('Platform', style: _h)),
+            const DataColumn(label: Text('App version', style: _h)),
             _sortColumn(svc, CustomerSortField.orders),
             _sortColumn(svc, CustomerSortField.spend),
             _sortColumn(svc, CustomerSortField.lastActive),
@@ -182,6 +184,13 @@ class _ScrollableCustomerTable extends StatelessWidget {
             maxLines: 1,
           ),
         ),
+        DataCell(_platformBadge(c.deviceType)),
+        DataCell(
+          AdminSelectableText(
+            c.appVersion.isEmpty ? '—' : c.appVersion,
+            maxLines: 1,
+          ),
+        ),
         DataCell(Text('${e.stats.totalOrders}')),
         DataCell(Text(currency.format(e.stats.totalSpend))),
         DataCell(Text(_lastActive(last, c.isOnline))),
@@ -208,12 +217,66 @@ class _ScrollableCustomerTable extends StatelessWidget {
       case CustomerSortField.name:
         return 0;
       case CustomerSortField.orders:
-        return 3;
-      case CustomerSortField.spend:
-        return 4;
-      case CustomerSortField.lastActive:
         return 5;
+      case CustomerSortField.spend:
+        return 6;
+      case CustomerSortField.lastActive:
+        return 7;
     }
+  }
+
+  static String _platformLabel(String raw) {
+    final s = raw.trim().toLowerCase();
+    if (s.isEmpty) return '—';
+    if (s.contains('android')) return 'Android';
+    if (s == 'ios' || s.contains('iphone') || s.contains('ipad')) return 'iOS';
+    if (s.contains('web')) return 'Web';
+    if (s.contains('mac')) return 'macOS';
+    if (s.contains('windows')) return 'Windows';
+    if (s.contains('linux')) return 'Linux';
+    return raw;
+  }
+
+  static Widget _platformBadge(String raw) {
+    final label = _platformLabel(raw);
+    if (label == '—') {
+      return const Text('—', style: TextStyle(color: Colors.black45));
+    }
+    final isAndroid = label == 'Android';
+    final isIos = label == 'iOS';
+    final color = isAndroid
+        ? const Color(0xFF16A34A)
+        : isIos
+            ? const Color(0xFF2563EB)
+            : const Color(0xFF64748B);
+    final icon = isAndroid
+        ? Icons.android
+        : isIos
+            ? Icons.phone_iphone
+            : Icons.devices;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   static String _lastActive(DateTime? dt, bool online) {

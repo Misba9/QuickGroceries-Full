@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:quickgrocery/core/auth/auth_user_provider.dart';
 import 'package:quickgrocery/core/firestore/firestore_retry.dart';
 import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
@@ -172,12 +173,27 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
     final uid = _lastUid ?? FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     try {
+      String appVersion = '';
+      String appBuild = '';
+      try {
+        final info = await PackageInfo.fromPlatform();
+        appVersion = info.version;
+        appBuild = info.buildNumber;
+      } catch (_) {}
+      final versionLabel = appBuild.isEmpty
+          ? appVersion
+          : (appVersion.isEmpty ? appBuild : '$appVersion+$appBuild');
       await withFirestoreRetry(
         () => FirebaseFirestore.instance.collection('customers').doc(uid).set(
           {
             'fcmToken': token,
             'fcm_token': token,
             'fcmPlatform': defaultTargetPlatform.name,
+            'device_type': defaultTargetPlatform.name,
+            if (versionLabel.isNotEmpty) ...{
+              'app_version': versionLabel,
+              'appVersion': versionLabel,
+            },
             'fcmUpdatedAt': FieldValue.serverTimestamp(),
             'fcmTopics': FieldValue.arrayUnion(FcmBootstrap.defaultTopics),
           },

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/analytics/search_analytics_logger.dart';
 import 'package:quickgrocery/core/catalog/product_search.dart';
 import 'package:quickgrocery/core/startup/startup_isolate_parse.dart';
 import 'package:quickgrocery/models/product.dart';
@@ -58,6 +59,7 @@ class SearchService extends ChangeNotifier {
     });
   }
 
+  /// Live typing filter (debounced). Logs after pause with rate-limit.
   void searchProducts(String query) {
     _debounce?.cancel();
     final trimmed = query.trim();
@@ -66,11 +68,23 @@ class SearchService extends ChangeNotifier {
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 280), () {
-      _applySearch(trimmed);
+      _applySearch(trimmed, logSource: 'live', forceLog: false);
     });
   }
 
-  void _applySearch(String query) {
+  /// Committed search (keyboard submit, voice, recent chip). Always logged.
+  void commitSearch(String query, {String source = 'typed'}) {
+    _debounce?.cancel();
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+    _applySearch(trimmed, logSource: source, forceLog: true);
+  }
+
+  void _applySearch(
+    String query, {
+    String? logSource,
+    bool forceLog = false,
+  }) {
     _lastQuery = query;
     if (query.isEmpty) {
       filteredProductsList = productsList;
@@ -91,6 +105,22 @@ class SearchService extends ChangeNotifier {
           .toList();
     }
     notifyListeners();
+
+    if (logSource != null && query.trim().length >= 2) {
+      final results = filteredProductsList ?? const <ProductModel>[];
+      unawaited(
+        SearchAnalyticsLogger.log(
+          query: query,
+          resultCount: results.length,
+          source: logSource,
+          topResultIds: results.map((p) => p.id).where((id) => id.isNotEmpty).toList(),
+          topResultNames:
+              results.map((p) => p.name).where((n) => n.isNotEmpty).toList(),
+          catalogSampleSize: productsList?.length ?? 0,
+          force: forceLog,
+        ),
+      );
+    }
   }
 
   String get lastQuery => _lastQuery;

@@ -4,6 +4,7 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
+import 'package:quickgrocery/core/analytics/app_heatmap_tracker.dart';
 import 'package:quickgrocery/core/firebase/firebase_app_check_bootstrap.dart';
 import 'package:quickgrocery/core/firebase/firebase_phone_auth_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
@@ -193,6 +194,7 @@ abstract final class PostHomeStartup {
   static Future<void> _runAnalytics() async {
     try {
       await FirebaseAnalytics.instance.logAppOpen();
+      AppHeatmapTracker.start();
     } catch (e) {
       if (kDebugMode) debugPrint('[PostHomeStartup] Analytics: $e');
     }

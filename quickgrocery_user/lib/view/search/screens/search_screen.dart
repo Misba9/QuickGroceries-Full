@@ -41,10 +41,11 @@ class _SearchScreenState extends State<SearchScreen> {
     if (mounted) setState(() => _searchHistory = history);
   }
 
-  void _runSearch(String query) {
+  void _runSearch(String query, {String source = 'typed'}) {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return;
-    Provider.of<SearchService>(context, listen: false).searchProducts(trimmed);
+    Provider.of<SearchService>(context, listen: false)
+        .commitSearch(trimmed, source: source);
     SearchHistoryStore.add(trimmed).then((_) => _loadSearchHistory());
   }
 
@@ -115,7 +116,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 _isListening = false;
               });
               _searchController.text = result.recognizedWords;
-              _runSearch(result.recognizedWords);
+              _runSearch(result.recognizedWords, source: 'voice');
             }
           }
         },
@@ -187,7 +188,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                     label: Text(q),
                                     onPressed: () {
                                       _searchController.text = q;
-                                      _runSearch(q);
+                                      _runSearch(q, source: 'recent_chip');
                                     },
                                   ),
                                 )

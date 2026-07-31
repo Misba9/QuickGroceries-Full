@@ -12,6 +12,8 @@ import 'package:quick_grocery_admin/view/app_content_management/screens/app_cont
 import 'package:quick_grocery_admin/view/combo_offers/screens/combo_offers_screen.dart';
 import 'package:quick_grocery_admin/view/coupons/screens/coupon_management_screen.dart';
 import 'package:quick_grocery_admin/view/product_promotions/screens/product_promotions_screen.dart';
+import 'package:quick_grocery_admin/view/search_analytics/screens/search_analytics_screen.dart';
+import 'package:quick_grocery_admin/view/app_heatmap/screens/app_heatmap_screen.dart';
 import 'package:quick_grocery_admin/view/refer_earn/screens/refer_earn_management_screen.dart';
 import 'package:quick_grocery_admin/view/delivery_tips/screens/delivery_tips_management_screen.dart';
 import 'package:quick_grocery_admin/view/delivery_boy/screens/add_delivery_boy.dart';
@@ -95,50 +97,46 @@ class _HomeScreenState extends State<HomeScreen> {
     await AdminSidebarPrefs.saveCollapsed(next);
   }
 
+  /// Screen bodies only — [AdminPageSlot] is wrapped in [_activePage] so
+  /// [AdminFlexRoutes] changes apply without a full app restart.
   List<Widget> _buildPages() {
-    Widget slot(String route, Widget child) => AdminPageSlot(
-          key: PageStorageKey<String>(route),
-          route: route,
-          flexLayout: AdminFlexRoutes.routes.contains(route),
-          child: child,
-        );
-
     return [
-      slot(AdminRoutes.dashboard, const DashboardScreen()),
-      for (final r in AdminRoutes.customerRoutes)
-        slot(r, customerPageForRoute(r)),
-      slot(AdminRoutes.vendorAdd, VendorAddScreen()),
-      slot(AdminRoutes.vendorList, VendorListScreen()),
-      slot(AdminRoutes.vendorRequests, const VendorRequestsScreen()),
-      slot(AdminRoutes.ordersOverview, const OrdersOverviewScreen()),
-      slot(AdminRoutes.newOrders, const NewOrdersScreen()),
-      slot(AdminRoutes.manageOrders, const ManageOrdersScreen()),
-      slot(AdminRoutes.refundRequests, const RefundRequestsScreen()),
-      slot(AdminRoutes.addDeliveryBoy, AddDeliveryScreen()),
-      slot(AdminRoutes.deliveryBoyList, DeliveryBoysScreen()),
-      slot(AdminRoutes.deliveryZones, DeliveryLocationListScreen()),
-      slot(AdminRoutes.deliverySettings, DeliverySettingsScreen()),
-      slot(AdminRoutes.productList, ProductListScreen()),
-      slot(AdminRoutes.addCategory, AddCategoryScreen()),
-      slot(AdminRoutes.addSubcategory, AddSubCategoryScreen()),
-      slot(AdminRoutes.addProducts, ProductAddScreen()),
-      slot(AdminRoutes.reviewManagement, const ReviewManagementScreen()),
-      slot(AdminRoutes.reviewAnalytics, const ReviewAnalyticsScreen()),
-      slot(AdminRoutes.addBanner, const AddBannerScreen()),
-      slot(AdminRoutes.addCoupon, const CouponManagementScreen()),
-      slot(AdminRoutes.comboOffers, const ComboOffersScreen()),
-      slot(AdminRoutes.productPromotions, const ProductPromotionsScreen()),
-      slot(AdminRoutes.referEarn, const ReferEarnManagementScreen()),
-      slot(AdminRoutes.deliveryTips, const DeliveryTipsManagementScreen()),
-      slot(AdminRoutes.platformFee, PlatformFeeScreen()),
-      slot(AdminRoutes.pushNotifications, const PushNotificationsScreen()),
-      slot(AdminRoutes.notificationTemplates, const NotificationTemplatesScreen()),
-      slot(AdminRoutes.notificationHistory, const NotificationHistoryScreen()),
-      slot(AdminRoutes.appContent, const AppContentManagementScreen()),
-      slot(AdminRoutes.supportSettings, const SupportSettingsScreen()),
-      slot(AdminRoutes.aiChatInbox, const AiChatInboxScreen()),
-      slot(AdminRoutes.paymentSettings, const PaymentSettingsScreen()),
-      slot(AdminRoutes.maintenance, const MaintenanceManagementScreen()),
+      const DashboardScreen(),
+      for (final r in AdminRoutes.customerRoutes) customerPageForRoute(r),
+      VendorAddScreen(),
+      VendorListScreen(),
+      const VendorRequestsScreen(),
+      const OrdersOverviewScreen(),
+      const NewOrdersScreen(),
+      const ManageOrdersScreen(),
+      const RefundRequestsScreen(),
+      AddDeliveryScreen(),
+      DeliveryBoysScreen(),
+      DeliveryLocationListScreen(),
+      DeliverySettingsScreen(),
+      ProductListScreen(),
+      AddCategoryScreen(),
+      AddSubCategoryScreen(),
+      ProductAddScreen(),
+      const ReviewManagementScreen(),
+      const ReviewAnalyticsScreen(),
+      const AddBannerScreen(),
+      const CouponManagementScreen(),
+      const ComboOffersScreen(),
+      const ProductPromotionsScreen(),
+      const SearchAnalyticsScreen(),
+      const AppHeatmapScreen(),
+      const ReferEarnManagementScreen(),
+      const DeliveryTipsManagementScreen(),
+      PlatformFeeScreen(),
+      const PushNotificationsScreen(),
+      const NotificationTemplatesScreen(),
+      const NotificationHistoryScreen(),
+      const AppContentManagementScreen(),
+      const SupportSettingsScreen(),
+      const AiChatInboxScreen(),
+      const PaymentSettingsScreen(),
+      const MaintenanceManagementScreen(),
     ];
   }
 
@@ -146,7 +144,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _activePage() {
     final i = _selectedIndex;
-    return _pageCache.putIfAbsent(i, () => _pages[i]);
+    final route = AdminRoutes.all[i];
+    final body = _pageCache.putIfAbsent(i, () => _pages[i]);
+    return AdminPageSlot(
+      key: PageStorageKey<String>(route),
+      route: route,
+      flexLayout: AdminFlexRoutes.routes.contains(route),
+      child: body,
+    );
   }
 
   void _navigateTo(String route, {bool closeDrawer = false}) {

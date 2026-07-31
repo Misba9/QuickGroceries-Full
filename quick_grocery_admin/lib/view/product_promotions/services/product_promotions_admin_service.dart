@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:quick_grocery_admin/model/product_model.dart';
+import 'package:quick_grocery_admin/model/vendor_model.dart';
 import 'package:quick_grocery_admin/view/product_promotions/models/product_promotion_model.dart';
 
 /// Admin service for product promotions — callables + live Firestore streams.
@@ -14,27 +15,51 @@ class ProductPromotionsAdminService {
   final FirebaseFirestore _db;
   final FirebaseFunctions _fn;
 
-  Stream<List<ProductPromotionModel>> watchPromotions({String? productId}) {
+  Stream<List<ProductPromotionModel>> watchPromotions({
+    String? productId,
+    String? vendorId,
+  }) {
     Query<Map<String, dynamic>> q = _db.collection('product_promotions');
     if (productId != null && productId.isNotEmpty) {
       q = q.where('productId', isEqualTo: productId);
     }
     return q.snapshots().map((snap) {
-      final list = snap.docs
+      var list = snap.docs
           .map((d) => ProductPromotionModel.fromMap(d.data(), d.id))
           .toList();
+      if (vendorId != null && vendorId.isNotEmpty) {
+        list = list.where((p) => p.vendorId == vendorId).toList();
+      }
       list.sort((a, b) => b.priority.compareTo(a.priority));
       return list;
     });
   }
 
-  Stream<List<ProductModel>> watchProducts() {
+  Stream<List<ProductModel>> watchProducts({String? vendorId}) {
     return _db.collection('products').snapshots().map((snap) {
       final list = snap.docs
           .map((d) => ProductModel.fromFirestore(d.data(), d.id))
           .where((p) => !p.isDeleted)
+          .where(
+            (p) =>
+                vendorId == null ||
+                vendorId.isEmpty ||
+                p.vendorId == vendorId,
+          )
           .toList();
       list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      return list;
+    });
+  }
+
+  Stream<List<VendorModel>> watchVendors() {
+    return _db.collection('vendors').snapshots().map((snap) {
+      final list = snap.docs
+          .map((d) => VendorModel.fromFirestore(d.data(), d.id))
+          .toList();
+      list.sort(
+        (a, b) => a.shopName.toLowerCase().compareTo(b.shopName.toLowerCase()),
+      );
       return list;
     });
   }

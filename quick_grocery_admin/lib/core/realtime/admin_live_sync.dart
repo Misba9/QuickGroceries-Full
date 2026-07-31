@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-/// Connection + sync metadata for a Firestore listener.
+/// Snapshot of a realtime Firestore listener for admin chrome.
 class AdminLiveSyncState {
   const AdminLiveSyncState({
     this.isLoading = true,
@@ -64,16 +64,21 @@ class AdminLiveSyncState {
   }
 }
 
-/// Live badge + last sync time for admin realtime pages.
+/// Compact live-sync status chip used on list/management screens.
+///
+/// Uses a finite [SizedBox] width so an inner [Expanded] never sees unbounded
+/// horizontal constraints (which crashes Flutter Web layout).
 class AdminLiveSyncBar extends StatelessWidget {
   const AdminLiveSyncBar({
     super.key,
     required this.state,
     this.label = 'Catalog',
+    this.maxWidth = 320,
   });
 
   final AdminLiveSyncState state;
   final String label;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -98,83 +103,98 @@ class AdminLiveSyncBar extends StatelessWidget {
                     ? 'Cached'
                     : 'Syncing';
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: statusColor.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            state.hasError
-                ? Icons.cloud_off_rounded
-                : state.isLive
-                    ? Icons.sensors_rounded
-                    : Icons.cloud_queue_rounded,
-            size: 18,
-            color: statusColor,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+    return SizedBox(
+      width: maxWidth,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: statusColor.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: statusColor.withValues(alpha: 0.25)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              Icon(
+                state.hasError
+                    ? Icons.cloud_off_rounded
+                    : state.isLive
+                        ? Icons.sensors_rounded
+                        : Icons.cloud_queue_rounded,
+                size: 18,
+                color: statusColor,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusColor,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        statusText,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                    Row(
+                      children: [
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: statusColor,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            child: Text(
+                              statusText,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade800,
+                            ),
+                          ),
+                        ),
+                        if (state.pendingWrites) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            'Saving…',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 2),
                     Text(
-                      label,
+                      state.hasError
+                          ? (state.errorMessage ?? 'Listener failed')
+                          : 'Last sync $timeLabel',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade800,
+                        fontSize: 11,
+                        color: Colors.grey.shade700,
                       ),
                     ),
-                    if (state.pendingWrites) ...[
-                      const SizedBox(width: 6),
-                      Text(
-                        'Saving…',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  state.hasError
-                      ? (state.errorMessage ?? 'Listener failed')
-                      : 'Last sync $timeLabel',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -5,12 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quickgrocery/core/startup/shared_preferences_provider.dart';
 import 'package:quickgrocery/view/ai_chat/data/ai_chat_api.dart';
 import 'package:quickgrocery/view/ai_chat/data/ai_chat_local_store.dart';
+import 'package:quickgrocery/view/ai_chat/data/ai_chat_remote_store.dart';
 import 'package:quickgrocery/view/ai_chat/models/ai_chat_models.dart';
 
 final aiChatApiProvider = Provider<AiChatApi>((ref) => AiChatApi());
 
 final aiChatLocalStoreProvider = Provider<AiChatLocalStore>((ref) {
   return AiChatLocalStore(ref.watch(sharedPreferencesProvider));
+});
+
+final aiChatRemoteStoreProvider = Provider<AiChatRemoteStore>((ref) {
+  return AiChatRemoteStore();
 });
 
 class AiChatState {
@@ -49,6 +54,7 @@ class AiChatController extends Notifier<AiChatState> {
 
   AiChatApi get _api => ref.read(aiChatApiProvider);
   AiChatLocalStore get _store => ref.read(aiChatLocalStoreProvider);
+  AiChatRemoteStore get _remote => ref.read(aiChatRemoteStoreProvider);
 
   @override
   AiChatState build() {
@@ -142,6 +148,18 @@ class AiChatController extends Notifier<AiChatState> {
         isTyping: false,
       );
       await _persist();
+      // Mirror to Firestore so Admin → AI Chat Inbox shows this session.
+      // Cloud Function also persists; this is a best-effort backup.
+      await _remote.persistTurn(
+        sessionId: state.sessionId,
+        userMessage: text,
+        reply: res.reply,
+        productIds: res.productIds,
+        quickReplies: res.quickReplies,
+        intent: res.intent,
+        source: res.source,
+        latencyMs: res.latencyMs,
+      );
     } on AiChatApiException catch (e) {
       final err = AiChatMessage(
         id: _newId(),

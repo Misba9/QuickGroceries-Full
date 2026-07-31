@@ -231,10 +231,13 @@ abstract final class AdminFlexRoutes {
     AdminRoutes.notificationHistory,
     AdminRoutes.appContent,
     AdminRoutes.supportSettings,
+    AdminRoutes.paymentSettings,
     AdminRoutes.aiChatInbox,
     AdminRoutes.platformFee,
     AdminRoutes.maintenance,
     AdminRoutes.referEarn,
     AdminRoutes.productPromotions,
+    AdminRoutes.searchAnalytics,
+    AdminRoutes.appHeatmap,
   };
 }

@@ -7,7 +7,6 @@ abstract final class AdminRoutes {
   static const customersActive = 'Active Users';
   static const customersBlocked = 'Blocked Users';
   static const customersNew = 'New Users';
-  static const paymentRestrictions = 'Payment Restrictions';
 
   /// Legacy alias
   static const userList = customersAll;
@@ -17,7 +16,6 @@ abstract final class AdminRoutes {
     customersActive,
     customersBlocked,
     customersNew,
-    paymentRestrictions,
   ];
 
   static const vendorAdd = 'Vendor Add';
@@ -44,6 +42,8 @@ abstract final class AdminRoutes {
   static const addCoupon = 'Add Coupon';
   static const comboOffers = 'Combo Offers';
   static const productPromotions = 'Product Promotions';
+  static const searchAnalytics = 'Search Analytics';
+  static const appHeatmap = 'App Heatmap';
   static const referEarn = 'Refer & Earn';
   static const deliveryTips = 'Delivery Tips';
   static const platformFee = 'Platform Fee & Charges';
@@ -80,6 +80,8 @@ abstract final class AdminRoutes {
     addCoupon,
     comboOffers,
     productPromotions,
+    searchAnalytics,
+    appHeatmap,
     referEarn,
     deliveryTips,
     platformFee,

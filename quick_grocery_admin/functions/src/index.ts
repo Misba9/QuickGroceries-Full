@@ -167,3 +167,7 @@ export { promotionExpiryCleanup } from "./promotions/promotion_cleanup";
 
 /** Grocery AI shopping assistant (Gemini + catalog grounding). */
 export { aiGroceryAssistant } from "./ai/ai_assistant_callable";
+export {
+  listAiChatSessionsCallable,
+  listAiChatMessagesCallable,
+} from "./ai/ai_chat_admin_callables";

@@ -49,19 +49,19 @@ class CodPaymentRestriction {
   bool get isRestrictedNow => badge != CodRestrictionBadge.enabled;
 
   factory CodPaymentRestriction.fromMap(Map<String, dynamic>? raw) {
-    if (raw == null || raw.isEmpty) return enabled;
+    if (raw == null || raw.isEmpty) return CodPaymentRestriction.enabled;
     final type = _parseType(raw['codRestrictionType'] ?? raw['cod_restriction_type']);
-    var enabled = true;
+    var isEnabled = true;
     if (raw['codEnabled'] is bool) {
-      enabled = raw['codEnabled'] as bool;
+      isEnabled = raw['codEnabled'] as bool;
     } else if (type == CodRestrictionType.temporary ||
         type == CodRestrictionType.permanent) {
-      enabled = false;
+      isEnabled = false;
     } else if (raw['codDisabled'] == true) {
-      enabled = false;
+      isEnabled = false;
     }
     return CodPaymentRestriction(
-      codEnabled: enabled,
+      codEnabled: isEnabled,
       codRestrictionType: type,
       codRestrictionReason:
           (raw['codRestrictionReason'] ?? raw['cod_restriction_reason'] ?? '')

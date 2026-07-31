@@ -10,6 +10,7 @@ import '../../utils/product_search.dart';
 import '../combo/combo_offers_screen.dart';
 import '../reviews/vendor_reviews_screen.dart';
 import 'add_edit_product_screen.dart';
+import 'manage_categories_screen.dart';
 
 /// Vendor inventory list with local, debounced product search.
 ///
@@ -137,6 +138,18 @@ class _ProductsScreenState extends State<ProductsScreen>
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.category_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ManageCategoriesScreen(),
+                ),
+              );
+            },
+            tooltip: 'Categories',
+          ),
           IconButton(
             icon: const Icon(Icons.rate_review_outlined),
             onPressed: () {

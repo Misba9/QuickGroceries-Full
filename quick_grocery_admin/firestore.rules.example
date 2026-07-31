@@ -36,18 +36,58 @@
 //   allow write: if isNotificationAdmin();
 // }
 //
-// // User-app AI grocery assistant transcripts (written by Cloud Functions only).
+// // User-app AI grocery assistant transcripts.
+// // Written by Cloud Functions (Admin SDK) and optionally by the signed-in user.
 // match /ai_chat_sessions/{sessionId} {
 //   allow read: if isNotificationAdmin();
-//   allow write: if false;
+//   allow create, update: if request.auth != null
+//     && sessionId.matches('^' + request.auth.uid + '_.*');
+//   allow delete: if false;
 //   match /messages/{messageId} {
 //     allow read: if isNotificationAdmin();
-//     allow write: if false;
+//     allow create: if request.auth != null
+//       && request.resource.data.uid == request.auth.uid;
+//     allow update, delete: if false;
 //   }
 // }
 //
 // match /users/{uid}/ai_chats/{sessionId} {
 //   allow read: if isNotificationAdmin() ||
 //     (request.auth != null && request.auth.uid == uid);
-//   allow write: if false;
+//   allow write: if false; // Cloud Functions only
+// }
+//
+// // User-app screen heatmap telemetry for admin App Heatmap.
+// match /app_screen_views/{id} {
+//   allow read: if isNotificationAdmin();
+//   allow create: if request.auth != null
+//     && request.resource.data.keys().hasAll(['screen', 'createdAt'])
+//     && request.resource.data.screen is string
+//     && (
+//       !('userId' in request.resource.data)
+//       || request.resource.data.userId == ''
+//       || request.resource.data.userId == request.auth.uid
+//     );
+//   allow update, delete: if false;
+// }
+// match /app_screen_stats/{id} {
+//   allow read: if isNotificationAdmin();
+//   allow create, update: if request.auth != null;
+//   allow delete: if false;
+// }
+//
+// // User-app product search telemetry for admin Search Analytics.
+// match /search_logs/{id} {
+//   allow read: if isNotificationAdmin();
+//   allow create: if request.auth != null
+//     && request.resource.data.keys().hasAll(['query', 'createdAt'])
+//     && request.resource.data.query is string
+//     && request.resource.data.query.size() >= 2
+//     && request.resource.data.query.size() <= 120
+//     && (
+//       !('userId' in request.resource.data)
+//       || request.resource.data.userId == ''
+//       || request.resource.data.userId == request.auth.uid
+//     );
+//   allow update, delete: if false;
 // }
