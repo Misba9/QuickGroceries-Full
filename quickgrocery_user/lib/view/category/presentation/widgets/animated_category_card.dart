@@ -139,7 +139,7 @@ class _Tile extends StatelessWidget {
                             end: Alignment.bottomRight,
                             colors: [
                               AppColor.primary.withValues(alpha: 0.16),
-                              Colors.white,
+                              AppSurface.of(context).card,
                               AppSurface.of(context).subtle.withValues(alpha: 0.85),
                             ],
                           ),
@@ -176,7 +176,7 @@ class _Tile extends StatelessWidget {
                               style: GoogleFonts.poppins(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w800,
-                                color: Colors.white,
+                                color: AppSurface.of(context).onDanger,
                               ),
                             ),
                           ),
@@ -332,9 +332,9 @@ class _TrendingHero extends StatelessWidget {
                   right: 14,
                   bottom: 46,
                   child: Material(
-                    color: Colors.white,
+                    color: AppSurface.of(context).card,
                     elevation: 6,
-                    shadowColor: Colors.black26,
+                    shadowColor: AppSurface.of(context).shadow,
                     borderRadius: AppRadii.all(AppRadii.md),
                     child: SizedBox(
                       width: 78,
@@ -415,7 +415,7 @@ class _TrendingHero extends StatelessWidget {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.94),
+                          color: AppSurface.of(context).card.withValues(alpha: 0.94),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Row(

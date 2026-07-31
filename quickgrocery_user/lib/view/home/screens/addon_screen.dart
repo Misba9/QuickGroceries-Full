@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
@@ -37,10 +38,11 @@ class _AddonSelectorState extends State<AddonSelector> {
       minChildSize: 0.4,
       maxChildSize: 0.9,
       builder: (context, scrollController) {
+        final surface = AppSurface.of(context);
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          decoration: BoxDecoration(
+            color: surface.card,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
           ),
           child: Column(
             children: [
@@ -64,24 +66,29 @@ class _AddonSelectorState extends State<AddonSelector> {
                     Expanded(
                       child: Text(
                         widget.product.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
+                          color: surface.textPrimary,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              Divider(color: Colors.grey.shade200),
+              Divider(color: surface.border),
 
               Align(
                 alignment: Alignment.topLeft,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12.0),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
                   child: Text(
                     "Choose your add-ons",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: surface.textPrimary,
+                    ),
                   ),
                 ),
               ),
@@ -113,28 +120,30 @@ class _AddonSelectorState extends State<AddonSelector> {
                               children: [
                                 Text(
                                   addon.name,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
+                                    color: surface.textPrimary,
                                   ),
                                 ),
                                 Row(
                                   children: [
                                     Text(
                                       "₹${addon.price.toStringAsFixed(2)}",
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500,
+                                        color: surface.textPrimary,
                                       ),
                                     ),
                                     const SizedBox(width: 6),
                                     if (addon.slashedPrice > addon.price)
                                       Text(
                                         "₹${addon.slashedPrice.toStringAsFixed(2)}",
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           decoration:
                                               TextDecoration.lineThrough,
                                           fontSize: 13,
-                                          color: Colors.grey,
+                                          color: surface.textMuted,
                                         ),
                                       ),
                                   ],

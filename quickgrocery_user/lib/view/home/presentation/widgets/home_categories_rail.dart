@@ -11,10 +11,11 @@ import 'package:quickgrocery/view/app_content/models/app_content_config.dart';
 import 'package:quickgrocery/view/app_content/presentation/providers/app_content_providers.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
-import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/home_section_slot.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_status_views.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Horizontal category chips — Blinkit-style rail.
@@ -31,7 +32,44 @@ class HomeCategoriesRail extends ConsumerWidget {
     final contentLoading =
         appContentAsync.isLoading && !appContentAsync.hasValue;
 
-    if (!appContent.showShopCategory) return const SizedBox.shrink();
+    if (!appContent.showShopCategory && !contentLoading) {
+      return const SizedBox.shrink();
+    }
+
+    final loading = async.isLoading && !async.hasValue;
+    final Widget body;
+    if (async.hasError && !async.hasValue) {
+      body = HomeErrorView(
+        message: 'Couldn\'t load categories',
+        onRetry: () => ref.invalidate(categoriesStreamProvider),
+      );
+    } else {
+      final categories = async.asData?.value ?? const <CategoryModel>[];
+      if (categories.isEmpty && !loading) {
+        body = const HomeEmptyView(
+          message: 'No categories available yet.',
+          icon: Icons.category_outlined,
+        );
+      } else {
+        body = SizedBox(
+          height: 128,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.zero,
+            itemCount: categories.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) {
+              final c = categories[i];
+              return _CategoryRailCard(
+                key: ValueKey('cat-${c.id.isNotEmpty ? c.id : c.name}'),
+                category: c,
+              );
+            },
+          ),
+        );
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,31 +83,11 @@ class HomeCategoriesRail extends ConsumerWidget {
             listen: false,
           ).onSelectedChange(1),
         ),
-        async.when(
-          loading: () => HomeShimmer.categoriesRail(),
-          error: (e, _) => HomeErrorView(
-            message: 'Couldn\'t load categories',
-            onRetry: () => ref.invalidate(categoriesStreamProvider),
-          ),
-          data: (List<CategoryModel> categories) {
-            if (categories.isEmpty) {
-              return const HomeEmptyView(
-                message: 'No categories available yet.',
-                icon: Icons.category_outlined,
-              );
-            }
-            return SizedBox(
-              height: 128,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.zero,
-                itemCount: categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (_, i) => _CategoryRailCard(category: categories[i]),
-              ),
-            );
-          },
+        HomeSectionSlot(
+          loading: loading,
+          shimmer: AppLoading.categoryRail,
+          minHeight: 128,
+          child: body,
         ),
       ],
     );
@@ -77,7 +95,7 @@ class HomeCategoriesRail extends ConsumerWidget {
 }
 
 class _CategoryRailCard extends StatelessWidget {
-  const _CategoryRailCard({required this.category});
+  const _CategoryRailCard({super.key, required this.category});
 
   final CategoryModel category;
 
@@ -90,10 +108,10 @@ class _CategoryRailCard extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: radius,
-          boxShadow: AppShadow.card,
+          boxShadow: AppShadow.cardOf(context),
         ),
         child: Material(
-          color: Colors.white,
+          color: AppSurface.of(context).card,
           borderRadius: radius,
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -114,7 +132,7 @@ class _CategoryRailCard extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.white,
+                    AppSurface.of(context).card,
                     AppSurface.of(context).subtle.withValues(alpha: 0.35),
                   ],
                 ),
@@ -126,7 +144,7 @@ class _CategoryRailCard extends StatelessWidget {
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppSurface.of(context).card,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: AppSurface.of(context).border.withValues(alpha: 0.5),

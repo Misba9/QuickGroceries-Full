@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart' as legacy;
 
-import 'package:quickgrocery/core/navigation/app_page_routes.dart';
-import 'package:quickgrocery/view/ai_chat/presentation/screens/ai_chat_screen.dart';
+import 'package:quickgrocery/core/navigation/app_route_names.dart';
+import 'package:quickgrocery/view/home/provider/home_provider.dart';
 
-/// Opens the grocery AI assistant screen.
-Future<void> openAiAssistant(BuildContext context) {
-  return Navigator.of(context).push(
-    AppPageRoutes.material(
-      name: 'ai_chat',
-      builder: (_) => const AiChatScreen(),
-    ),
-  );
+/// Opens the grocery AI assistant (bottom nav tab).
+Future<void> openAiAssistant(BuildContext context) async {
+  legacy.Provider.of<HomeProvider>(context, listen: false)
+      .onSelectedChange(AppRoutes.aiChatTabIndex);
 }

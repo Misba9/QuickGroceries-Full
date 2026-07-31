@@ -108,7 +108,7 @@ class _FreeDeliveryDisabledVariant extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSurface.of(context).card,
         borderRadius: BorderRadius.circular(AppRadii.md),
         border: Border.all(color: AppSurface.of(context).border),
         boxShadow: AppShadow.dim,
@@ -194,7 +194,7 @@ class _AlmostThereVariant extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSurface.of(context).card,
         borderRadius: BorderRadius.circular(AppRadii.md),
         border: Border.all(color: AppSurface.of(context).border),
         boxShadow: AppShadow.dim,

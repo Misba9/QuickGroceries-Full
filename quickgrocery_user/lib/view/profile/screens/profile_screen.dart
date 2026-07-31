@@ -13,6 +13,7 @@ import 'package:quickgrocery/view/profile/presentation/widgets/profile_section_s
 import 'package:quickgrocery/view/profile/presentation/widgets/guest_profile_view.dart';
 import 'package:quickgrocery/view/profile/presentation/widgets/profile_sections.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Premium Blinkit/Zepto-style account dashboard.
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -87,7 +88,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Scaffold(
         backgroundColor: AppSurface.of(context).background,
         body: profileAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => AppLoading.center,
           error: (e, _) => Center(child: Text('Error: $e')),
           data: (profile) {
             final resolved = _resolveProfile(profile);
@@ -150,6 +151,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           builder: () => const ProfileNotificationsSection(),
                         ),
                         const SizedBox(height: 16),
+                        ProfileSectionGuard(
+                          section: 'App Update',
+                          builder: () => const ProfileAppUpdateSection(),
+                        ),
                         ProfileSectionGuard(
                           section: 'Appearance',
                           builder: () => const ProfileAppearanceSection(),

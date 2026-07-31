@@ -28,10 +28,10 @@ class ComboOfferCard extends StatelessWidget {
     final w = MediaQuery.sizeOf(context).width;
 
     return Material(
-      color: Colors.white,
+      color: AppSurface.of(context).card,
       borderRadius: BorderRadius.circular(AppRadii.lg),
       elevation: 0,
-      shadowColor: Colors.black12,
+      shadowColor: AppSurface.of(context).shadow,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.lg),
@@ -39,7 +39,7 @@ class ComboOfferCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadii.lg),
             border: Border.all(color: AppSurface.of(context).border),
-            boxShadow: AppShadow.card,
+            boxShadow: AppShadow.cardOf(context),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

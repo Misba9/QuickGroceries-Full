@@ -11,6 +11,7 @@ import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/models/rating_model.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/product_view/data/review_api_client.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 class WriteReviewScreen extends StatefulWidget {
   const WriteReviewScreen({
@@ -224,11 +225,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
               minimumSize: const Size.fromHeight(48),
             ),
             child: _submitting
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? const SizedBox(width: 22, height: 22, child: AppLoading.micro)
                 : Text(widget.isEdit ? 'Save changes' : 'Submit review'),
           ),
         ],

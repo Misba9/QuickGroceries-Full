@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:quickgrocery/core/design/responsive.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
-import 'package:quickgrocery/core/widgets/skeleton.dart';
-import 'package:quickgrocery/core/widgets/staggered_fade_in.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/home_section_slot.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
@@ -77,47 +77,51 @@ class RecommendationsSection extends ConsumerWidget {
     add(trendingList);
 
     final title = sectionTitle ?? context.l10n.picked_for_you;
+    final loading = out.isEmpty &&
+        ((featured.isLoading && !featured.hasValue) ||
+            (trending.isLoading && !trending.hasValue));
 
-    if (out.isEmpty && (featured.isLoading || trending.isLoading)) {
-      return Padding(
+    return HomeSectionSlot(
+      loading: loading,
+      hideWhenEmpty: true,
+      isEmpty: out.isEmpty,
+      minHeight: 240,
+      shimmer: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(title: title),
+            AppLoading.productRail,
+          ],
+        ),
+      ),
+      child: Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(title: title),
             Builder(
-              builder: (context) => SkeletonRail(
-                count: 4,
-                height: Responsive.horizontalProductRailHeight(context),
-              ),
+              builder: (context) {
+                final h = Responsive.horizontalProductRailHeight(context);
+                return HorizontalProductRail(
+                  height: h,
+                  itemExtent: HomeProductCard.railExtent,
+                  itemCount: out.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  itemBuilder: (_, i) {
+                    final p = out[i];
+                    return HomeProductCard(
+                      key: ValueKey('rec-${p.id}'),
+                      product: p,
+                    );
+                  },
+                );
+              },
             ),
           ],
         ),
-      );
-    }
-    if (out.isEmpty) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionHeader(title: title),
-          Builder(
-            builder: (context) {
-              final h = Responsive.horizontalProductRailHeight(context);
-              return HorizontalProductRail(
-                height: h,
-                itemCount: out.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (_, i) => StaggeredFadeIn(
-                  index: i,
-                  child: HomeProductCard(product: out[i]),
-                ),
-              );
-            },
-          ),
-        ],
       ),
     );
   }

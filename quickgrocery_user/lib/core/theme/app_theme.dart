@@ -13,7 +13,7 @@ import 'package:quickgrocery/core/theme/theme_system_ui.dart';
 class AppTheme {
   AppTheme._();
 
-  static const Duration animationDuration = Duration(milliseconds: 250);
+  static const Duration animationDuration = Duration(milliseconds: 300);
 
   static ThemeData light() => _build(
         brightness: Brightness.light,

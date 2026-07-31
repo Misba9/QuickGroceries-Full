@@ -110,7 +110,7 @@ abstract final class AuthSessionManager {
         'FirebaseAuth.currentUser must be null after signOut',
       );
 
-      AuthSessionLog.navigationToLogin();
+      AuthSessionLog.navigationToHome();
       AuthSessionLog.logoutCompleted();
     } catch (e, st) {
       AuthSessionLog.exception('signOut', e, st);

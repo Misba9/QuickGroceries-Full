@@ -20,8 +20,14 @@ abstract final class AppRoutes {
   /// [HomeProvider.pages] index for the profile tab.
   static const profileTabIndex = 4;
 
-  /// [HomeProvider.pages] index for the orders tab.
-  static const ordersTabIndex = 3;
+  /// [HomeProvider.pages] index for the grocery AI assistant tab.
+  static const aiChatTabIndex = 3;
+
+  /// Pushed full-screen orders list (no longer a bottom tab).
+  static const ordersList = '/orders-list';
+
+  @Deprecated('Orders is no longer a tab — use [aiChatTabIndex] or push orders list')
+  static const ordersTabIndex = aiChatTabIndex;
 
   /// Screens where the floating cart bar must never appear.
   static const hiddenFromFloatingCart = {
@@ -38,6 +44,7 @@ abstract final class AppRoutes {
     login,
     otp,
     splash,
+    ordersList,
   };
 
   /// Pushed screens with a fixed bottom action bar — pill sits above it.

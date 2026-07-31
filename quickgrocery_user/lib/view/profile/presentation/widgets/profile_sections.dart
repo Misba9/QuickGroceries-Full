@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:animate_do/animate_do.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +20,8 @@ import 'package:quickgrocery/core/theme/theme.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/auth/auth_session_manager.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
+import 'package:quickgrocery/core/update/app_update_config.dart';
+import 'package:quickgrocery/core/update/update_service.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/orders/domain/order_models.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
@@ -37,6 +42,7 @@ import 'package:quickgrocery/view/support/services/support_action_launcher.dart'
 import 'package:quickgrocery/view/ai_chat/ai_chat_entry.dart';
 import 'package:quickgrocery/view/refer/screens/refer_screen.dart';
 import 'package:quickgrocery/view/wishlist/screens/wishlist_screen.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 // ─── Header ───────────────────────────────────────────────────────────────
 
@@ -294,8 +300,7 @@ class ProfileQuickActions extends ConsumerWidget {
   }
 
   void _goOrders(BuildContext context) {
-    legacy.Provider.of<HomeProvider>(context, listen: false)
-        .onSelectedChange(3);
+    Navigator.push(context, AppPageRoutes.ordersList());
   }
 }
 
@@ -314,10 +319,11 @@ class _QuickActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Material(
-      color: Colors.white,
+      color: surface.card,
       elevation: 0,
-      shadowColor: Colors.black12,
+      shadowColor: surface.shadow,
       borderRadius: BorderRadius.circular(AppRadii.lg),
       child: InkWell(
         onTap: onTap,
@@ -326,8 +332,8 @@ class _QuickActionCard extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadii.lg),
-            border: Border.all(color: AppSurface.of(context).border),
-            boxShadow: AppShadow.card,
+            border: Border.all(color: surface.border),
+            boxShadow: AppShadow.cardOf(context),
           ),
           padding: EdgeInsets.all(14),
           child: SizedBox(
@@ -345,6 +351,7 @@ class _QuickActionCard extends StatelessWidget {
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w800,
                         fontSize: 16,
+                        color: surface.text,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -353,7 +360,7 @@ class _QuickActionCard extends StatelessWidget {
                       label,
                       style: GoogleFonts.poppins(
                         fontSize: 11.5,
-                        color: AppSurface.of(context).textMuted,
+                        color: surface.textMuted,
                         fontWeight: FontWeight.w500,
                       ),
                       maxLines: 1,
@@ -528,9 +535,8 @@ class ProfileOrdersSection extends ConsumerWidget {
           ProfileSectionTitle(
             title: context.l10n.my_orders,
             actionLabel: context.l10n.view_all_arrow,
-            onAction: () => legacy.Provider.of<HomeProvider>(context,
-                    listen: false)
-                .onSelectedChange(3),
+            onAction: () =>
+                Navigator.push(context, AppPageRoutes.ordersList()),
           ),
           ProfileCard(
             child: Column(
@@ -538,30 +544,26 @@ class ProfileOrdersSection extends ConsumerWidget {
                 ProfileListTile(
                   icon: Icons.hourglass_top_rounded,
                   title: '${context.l10n.pending_orders} (${counts.pending})',
-                  onTap: () => legacy.Provider.of<HomeProvider>(context,
-                          listen: false)
-                      .onSelectedChange(3),
+                  onTap: () =>
+                      Navigator.push(context, AppPageRoutes.ordersList()),
                 ),
                 ProfileListTile(
                   icon: Icons.check_circle_outline_rounded,
                   title: '${context.l10n.delivered_orders} (${counts.delivered})',
-                  onTap: () => legacy.Provider.of<HomeProvider>(context,
-                          listen: false)
-                      .onSelectedChange(3),
+                  onTap: () =>
+                      Navigator.push(context, AppPageRoutes.ordersList()),
                 ),
                 ProfileListTile(
                   icon: Icons.cancel_outlined,
                   title: '${context.l10n.cancelled_orders} (${counts.cancelled})',
-                  onTap: () => legacy.Provider.of<HomeProvider>(context,
-                          listen: false)
-                      .onSelectedChange(3),
+                  onTap: () =>
+                      Navigator.push(context, AppPageRoutes.ordersList()),
                 ),
                 ProfileListTile(
                   icon: Icons.undo_rounded,
                   title: '${context.l10n.returned_orders} (${counts.returned})',
-                  onTap: () => legacy.Provider.of<HomeProvider>(context,
-                          listen: false)
-                      .onSelectedChange(3),
+                  onTap: () =>
+                      Navigator.push(context, AppPageRoutes.ordersList()),
                 ),
               ],
             ),
@@ -645,7 +647,7 @@ class _ProfileSavedCouponsSectionState
               loading: () => const Center(
                 child: Padding(
                   padding: EdgeInsets.all(16),
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: AppLoading.micro,
                 ),
               ),
               error: (_, __) => Text(
@@ -812,7 +814,7 @@ class _SavedCouponCard extends StatelessWidget {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: AppLoading.micro,
                     )
                   : Text(
                       context.l10n.apply,
@@ -852,7 +854,7 @@ class ProfileAddressesSection extends ConsumerWidget {
               loading: () => Center(
                 child: Padding(
                   padding: EdgeInsets.all(12),
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: AppLoading.micro,
                 ),
               ),
               error: (_, __) => Text(
@@ -1142,6 +1144,152 @@ class _ProfileNotificationsSectionState
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── App Update (store listing) ───────────────────────────────────────────
+
+class ProfileAppUpdateSection extends StatefulWidget {
+  const ProfileAppUpdateSection({super.key, this.animationIndex = 8});
+
+  final int animationIndex;
+
+  @override
+  State<ProfileAppUpdateSection> createState() =>
+      _ProfileAppUpdateSectionState();
+}
+
+class _ProfileAppUpdateSectionState extends State<ProfileAppUpdateSection> {
+  final _service = AppUpdateService();
+  UpdateDecision? _decision;
+  bool _opening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    final decision = await _service.checkAvailability();
+    if (!mounted) return;
+    setState(() => _decision = decision);
+  }
+
+  Future<void> _openStore() async {
+    if (_opening) return;
+    setState(() => _opening = true);
+    HapticFeedback.selectionClick();
+    final ok = await _service.openStoreListing();
+    if (!mounted) return;
+    setState(() => _opening = false);
+    if (!ok) {
+      AppSnackBar.info(
+        defaultTargetPlatform == TargetPlatform.iOS
+            ? 'Could not open the App Store. Try again later.'
+            : 'Could not open the Play Store. Try again later.',
+        context: context,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final decision = _decision;
+    if (decision == null) return const SizedBox.shrink();
+
+    final surface = AppSurface.of(context);
+    final latest = decision.config.latestVersion.trim();
+    final versionLabel = latest.isEmpty
+        ? null
+        : (latest.startsWith('v') || latest.startsWith('V')
+            ? latest
+            : 'v$latest');
+
+    return FadeInUp(
+      duration: Duration(milliseconds: 380 + widget.animationIndex * 40),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Material(
+        color: surface.card,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        child: InkWell(
+          onTap: _opening ? null : _openStore,
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+              border: Border.all(color: surface.border.withValues(alpha: 0.7)),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColor.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.sync_rounded,
+                    color: AppColor.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'App Update Available',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: surface.text,
+                    ),
+                  ),
+                ),
+                if (versionLabel != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: surface.subtle,
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
+                    ),
+                    child: Text(
+                      versionLabel,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: surface.textMuted,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (_opening)
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: AppLoading.spinner(
+                      size: 18,
+                      color: surface.textMuted,
+                    ),
+                  )
+                else
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: surface.textMuted,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
       ),
     );
   }
@@ -1595,7 +1743,14 @@ class ProfileDeleteAccountSection extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const CircularProgressIndicator(),
+                const SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.8,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 Material(
                   color: Colors.black87,
@@ -1665,7 +1820,16 @@ class ProfileDeleteAccountSection extends ConsumerWidget {
             child: Dialog(
               backgroundColor: Colors.transparent,
               elevation: 0,
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(
+                child: SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.8,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+              ),
             ),
           ),
         );
@@ -1674,11 +1838,17 @@ class ProfileDeleteAccountSection extends ConsumerWidget {
 
       if (!context.mounted) return;
       final successMessage = l10n.delete_account_success;
+
+      try {
+        legacy.Provider.of<HomeProvider>(context, listen: false)
+            .onSelectedChange(0);
+      } catch (_) {}
+
       await AuthSessionManager.finalizeAfterAccountDeletion(
         context: context,
         ref: ref,
       );
-      loadingStillOpen = false;
+      dismissLoadingIfNeeded();
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final ctx = rootNavigatorKey.currentContext;
@@ -1756,6 +1926,12 @@ class ProfileLogoutSection extends ConsumerWidget {
     );
     if (ok != true || !context.mounted) return;
 
+    // Switch to Home tab immediately so guest landing feels like a fresh visit.
+    try {
+      legacy.Provider.of<HomeProvider>(context, listen: false)
+          .onSelectedChange(0);
+    } catch (_) {}
+
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -1765,14 +1941,22 @@ class ProfileLogoutSection extends ConsumerWidget {
         child: Dialog(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          child: Center(child: CircularProgressIndicator()),
+          child: Center(
+            child: SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.8,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+          ),
         ),
       ),
     );
 
-    // AuthSessionManager.popUntil(isFirst) already dismisses this dialog.
-    // An unconditional finally-pop removed the MaterialApp root route on iOS
-    // (child == null → SizedBox.shrink → black screen).
+    // AuthSessionManager.popUntil(isFirst) dismisses this dialog.
+    // Never pop the root route — that blacks out MaterialApp.
     var loadingStillOpen = true;
     void dismissLoadingIfNeeded() {
       if (!loadingStillOpen || !context.mounted) return;
@@ -1785,6 +1969,7 @@ class ProfileLogoutSection extends ConsumerWidget {
 
     try {
       await AuthSessionManager.signOutFromContext(context: context, ref: ref);
+      // popUntil(isFirst) already cleared overlays; don't pop again.
       loadingStillOpen = false;
     } catch (e) {
       dismissLoadingIfNeeded();

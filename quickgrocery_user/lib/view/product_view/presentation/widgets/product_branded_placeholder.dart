@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 
 /// Branded placeholder when a product image is missing or fails to load.
 class ProductBrandedPlaceholder extends StatelessWidget {
@@ -17,6 +18,7 @@ class ProductBrandedPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       width: width,
       height: height,
@@ -26,7 +28,7 @@ class ProductBrandedPlaceholder extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             AppColor.primary.withValues(alpha: 0.12),
-            Colors.grey.shade100,
+            surface.subtle,
           ],
         ),
       ),
@@ -53,7 +55,7 @@ class ProductBrandedPlaceholder extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: Colors.black54,
+                color: surface.textSecondary,
               ),
             ),
             const SizedBox(height: 4),
@@ -61,7 +63,7 @@ class ProductBrandedPlaceholder extends StatelessWidget {
               'Image coming soon',
               style: GoogleFonts.poppins(
                 fontSize: 11,
-                color: Colors.black38,
+                color: surface.textMuted,
               ),
             ),
           ],

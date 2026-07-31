@@ -35,3 +35,19 @@
 //   allow read: if true;
 //   allow write: if isNotificationAdmin();
 // }
+//
+// // User-app AI grocery assistant transcripts (written by Cloud Functions only).
+// match /ai_chat_sessions/{sessionId} {
+//   allow read: if isNotificationAdmin();
+//   allow write: if false;
+//   match /messages/{messageId} {
+//     allow read: if isNotificationAdmin();
+//     allow write: if false;
+//   }
+// }
+//
+// match /users/{uid}/ai_chats/{sessionId} {
+//   allow read: if isNotificationAdmin() ||
+//     (request.auth != null && request.auth.uid == uid);
+//   allow write: if false;
+// }

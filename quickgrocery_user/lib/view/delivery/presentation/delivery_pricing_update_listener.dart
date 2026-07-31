@@ -4,10 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
+import 'package:quickgrocery/core/startup/post_home_startup.dart';
 import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
 
 /// Shows a lightweight in-app “notification” (SnackBar) when admin changes
 /// delivery settings in Firestore — no app restart required.
+///
+/// Listening starts only after [PostHomeStartup.homeVisible] so Home paints
+/// without an optional pricing listener on the critical path.
 class DeliveryPricingUpdateListener extends ConsumerStatefulWidget {
   const DeliveryPricingUpdateListener({super.key, required this.child});
 
@@ -23,30 +27,52 @@ class _DeliveryPricingUpdateListenerState
   String? _lastSignature;
 
   @override
+  void initState() {
+    super.initState();
+    PostHomeStartup.homeVisible.addListener(_onHomeVisible);
+  }
+
+  @override
+  void dispose() {
+    PostHomeStartup.homeVisible.removeListener(_onHomeVisible);
+    super.dispose();
+  }
+
+  void _onHomeVisible() {
+    if (PostHomeStartup.homeVisible.value && mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    ref.listen(pricingConfigProvider, (prev, next) {
-      next.whenData((config) {
-        final sig = DeliveryPricingPolicy.signature(config);
-        if (_lastSignature == null) {
+    if (PostHomeStartup.homeVisible.value) {
+      ref.listen(pricingConfigProvider, (prev, next) {
+        next.whenData((config) {
+          final sig = DeliveryPricingPolicy.signature(config);
+          if (_lastSignature == null) {
+            _lastSignature = sig;
+            return;
+          }
+          if (_lastSignature == sig) return;
           _lastSignature = sig;
-          return;
-        }
-        if (_lastSignature == sig) return;
-        _lastSignature = sig;
 
-        if (kDebugMode) {
-          debugPrint('[DeliveryPricingUpdateListener] pricing changed → $sig');
-        }
+          if (kDebugMode) {
+            debugPrint(
+              '[DeliveryPricingUpdateListener] pricing changed → $sig',
+            );
+          }
 
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!context.mounted) return;
-          AppSnackBar.info(
-            DeliveryPricingPolicy.snackbarOnRemoteChange(config),
-            context: context,
-          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
+            AppSnackBar.info(
+              DeliveryPricingPolicy.snackbarOnRemoteChange(config),
+              context: context,
+            );
+          });
         });
       });
-    });
+    }
 
     return widget.child;
   }

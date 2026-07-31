@@ -89,12 +89,13 @@ class _CardSurface extends StatelessWidget {
     final lineMrp = item.lineSlashedTotal;
     final hasSlash = lineMrp > lineTotal + 0.5;
 
+    final surface = AppSurface.of(context);
     return Container(
       margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.of(context).border),
+        border: Border.all(color: surface.border),
         boxShadow: AppShadow.dim,
       ),
       clipBehavior: Clip.antiAlias,

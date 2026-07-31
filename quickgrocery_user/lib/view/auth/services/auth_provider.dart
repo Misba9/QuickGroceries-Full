@@ -12,8 +12,11 @@ import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/firebase/firebase_auth_readiness.dart';
-import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
 import 'package:quickgrocery/core/firebase/firebase_phone_auth_logger.dart';
+import 'package:quickgrocery/core/firebase/phone_auth_debug_test_numbers.dart';
+import 'package:quickgrocery/core/firebase/phone_auth_network.dart';
+import 'package:quickgrocery/core/firebase/phone_auth_request_guard.dart';
+import 'package:quickgrocery/core/firebase/phone_auth_user_messages.dart';
 import 'package:quickgrocery/core/auth/auth_session_log.dart';
 import 'package:quickgrocery/core/auth/auth_session_manager.dart';
 import 'package:quickgrocery/core/auth/auth_sign_in_coordinator.dart';
@@ -30,6 +33,7 @@ class AuthService extends ChangeNotifier {
   bool _isVisible = false;
   File? image;
   final UserProfileRepository _profileRepo = UserProfileRepository();
+  final PhoneAuthRequestGuard _otpGuard = PhoneAuthRequestGuard();
 
   bool get isVisible => _isVisible;
   String _verificationId = '';
@@ -37,6 +41,14 @@ class AuthService extends ChangeNotifier {
   bool _phoneVerificationSettled = false;
   bool isLoading = false;
   String? phoneAuthError;
+  PhoneAuthUserMessage? phoneAuthErrorInfo;
+  bool phoneAuthNeedsRetry = false;
+
+  /// Remaining OTP cooldown seconds (login Continue + resend).
+  int otpCooldownSeconds = 0;
+  Timer? _cooldownTicker;
+  bool _guardRestored = false;
+
   TextEditingController nameController = TextEditingController();
   TextEditingController emailController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
@@ -48,6 +60,11 @@ class AuthService extends ChangeNotifier {
 
   final ReferEarnService _referEarnService = ReferEarnService();
   String? _pendingReferralCode;
+
+  bool get isOtpCooldownActive => otpCooldownSeconds > 0;
+
+  bool get canRequestOtp =>
+      !isLoading && !_otpGuard.isRequestInFlight && !isOtpCooldownActive;
 
   void setGender(String gender) async {
     selectedGender = gender;
@@ -166,6 +183,7 @@ class AuthService extends ChangeNotifier {
     _verificationId = '';
     _resendToken = null;
     isLoading = false;
+    _otpGuard.endRequest();
   }
 
   /// Clears OTP / profile form state so the next account starts fresh.
@@ -175,6 +193,11 @@ class AuthService extends ChangeNotifier {
     _resendToken = null;
     isLoading = false;
     phoneAuthError = null;
+    phoneAuthErrorInfo = null;
+    phoneAuthNeedsRetry = false;
+    _otpGuard.endRequest();
+    _stopCooldownTicker();
+    otpCooldownSeconds = 0;
     mobileController.clear();
     opController.clear();
     nameController.clear();
@@ -219,31 +242,121 @@ class AuthService extends ChangeNotifier {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  void clearPhoneAuthError() {
-    phoneAuthError = null;
+  Future<void> ensurePhoneAuthGuardReady() async {
+    if (_guardRestored) {
+      _syncCooldownFromGuard();
+      return;
+    }
+    await _otpGuard.restore();
+    _guardRestored = true;
+    _syncCooldownFromGuard();
+  }
+
+  void _syncCooldownFromGuard() {
+    final remaining = _otpGuard.cooldownRemainingSeconds;
+    if (remaining <= 0) {
+      otpCooldownSeconds = 0;
+      _stopCooldownTicker();
+      return;
+    }
+    otpCooldownSeconds = remaining;
+    _ensureCooldownTicker();
     notifyListeners();
   }
 
-  void _setPhoneAuthError(String message) {
-    phoneAuthError = message;
-    FirebaseAuthReadiness.log('error: $message');
+  void _ensureCooldownTicker() {
+    if (_cooldownTicker?.isActive ?? false) return;
+    _cooldownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      final remaining = _otpGuard.cooldownRemainingSeconds;
+      if (remaining <= 0) {
+        otpCooldownSeconds = 0;
+        _stopCooldownTicker();
+        notifyListeners();
+        return;
+      }
+      if (otpCooldownSeconds != remaining) {
+        otpCooldownSeconds = remaining;
+        notifyListeners();
+      }
+    });
+  }
+
+  void _stopCooldownTicker() {
+    _cooldownTicker?.cancel();
+    _cooldownTicker = null;
+  }
+
+  Future<void> _beginCooldown(Duration duration) async {
+    await _otpGuard.startCooldown(duration: duration);
+    _syncCooldownFromGuard();
+  }
+
+  void clearPhoneAuthError() {
+    phoneAuthError = null;
+    phoneAuthErrorInfo = null;
+    phoneAuthNeedsRetry = false;
+    notifyListeners();
+  }
+
+  void _setPhoneAuthError(
+    PhoneAuthUserMessage info, {
+    bool needsRetry = false,
+  }) {
+    phoneAuthErrorInfo = info;
+    phoneAuthError = info.display;
+    phoneAuthNeedsRetry = needsRetry;
+    FirebasePhoneAuthLogger.error(
+      'user_error code=${info.code} title=${info.title} message=${info.message}',
+    );
     notifyListeners();
   }
 
   Future<void> verifyPhoneNumber(BuildContext context) async {
-    if (isLoading) return;
+    await ensurePhoneAuthGuardReady();
+
+    if (!canRequestOtp) {
+      if (isLoading || _otpGuard.isRequestInFlight) {
+        FirebasePhoneAuthLogger.warn(
+          'verifyPhoneNumber ignored — request already in flight',
+        );
+        return;
+      }
+      if (isOtpCooldownActive) {
+        _setPhoneAuthError(PhoneAuthUserMessages.cooldownActive);
+        return;
+      }
+      return;
+    }
 
     AuthSessionManager.prepareNewLogin();
-    AuthSessionLog.newLoginStarted(
-      phone: FirebaseAuthReadiness.normalizePhoneNumber(mobileController.text),
-    );
     clearPhoneAuthError();
 
     final phoneNumber = FirebaseAuthReadiness.normalizePhoneNumber(
       mobileController.text,
     );
+    AuthSessionLog.newLoginStarted(phone: phoneNumber);
+
     if (phoneNumber == null) {
-      _setPhoneAuthError('Please enter a valid 10-digit mobile number.');
+      _setPhoneAuthError(PhoneAuthUserMessages.invalidLocalPhone);
+      return;
+    }
+
+    FirebasePhoneAuthLogger.info(
+      'verification_started phone=$phoneNumber debugTest='
+      '${PhoneAuthDebugTestNumbers.isTestNumber(phoneNumber)}',
+    );
+
+    if (!await PhoneAuthNetwork.hasConnection()) {
+      _setPhoneAuthError(PhoneAuthUserMessages.noInternet, needsRetry: true);
+      return;
+    }
+
+    final block = _otpGuard.blockReason(phoneE164: phoneNumber);
+    if (block != null) {
+      FirebasePhoneAuthLogger.warn('verifyPhoneNumber blocked reason=$block');
+      if (block == 'cooldown') {
+        _setPhoneAuthError(PhoneAuthUserMessages.cooldownActive);
+      }
       return;
     }
 
@@ -252,7 +365,14 @@ class AuthService extends ChangeNotifier {
       FirebasePhoneAuthLogger.error(
         'verifyPhoneNumber blocked by ensurePhoneAuthReady: $readinessError',
       );
-      _setPhoneAuthError(readinessError);
+      _setPhoneAuthError(
+        PhoneAuthUserMessage(
+          title: 'Phone Login Unavailable',
+          message: readinessError,
+          code: 'readiness',
+        ),
+        needsRetry: true,
+      );
       return;
     }
 
@@ -263,6 +383,7 @@ class AuthService extends ChangeNotifier {
       phoneNumber: phoneNumber,
     );
 
+    if (!context.mounted) return;
     await _startPhoneVerification(
       context: context,
       phoneNumber: phoneNumber,
@@ -278,20 +399,23 @@ class AuthService extends ChangeNotifier {
   }) async {
     _phoneVerificationSettled = false;
     isLoading = true;
+    phoneAuthNeedsRetry = false;
     notifyListeners();
 
-    FirebaseAuthReadiness.log(
-      'verifyPhoneNumber start phone=$phoneNumber resend=${forceResendingToken != null}',
+    await _otpGuard.beginRequest(phoneNumber);
+
+    FirebasePhoneAuthLogger.info(
+      'verifyPhoneNumber start phone=$phoneNumber '
+      'resend=${forceResendingToken != null}',
     );
 
     Timer? watchdog;
     watchdog = Timer(const Duration(seconds: 90), () {
       if (!isLoading) return;
-      FirebaseAuthReadiness.log('watchdog timeout — resetting loading state');
+      FirebasePhoneAuthLogger.warn('watchdog timeout — resetting loading state');
       isLoading = false;
-      _setPhoneAuthError(
-        'Phone verification timed out. Check network and iOS Firebase setup, then try again.',
-      );
+      _otpGuard.endRequest();
+      _setPhoneAuthError(PhoneAuthUserMessages.timedOut, needsRetry: true);
     });
 
     try {
@@ -304,24 +428,34 @@ class AuthService extends ChangeNotifier {
         timeout: const Duration(seconds: 60),
         verificationCompleted: (PhoneAuthCredential credential) async {
           if (_phoneVerificationSettled) return;
-          FirebaseAuthReadiness.log('verificationCompleted (auto)');
+          FirebasePhoneAuthLogger.info('verification_completed (auto-retrieval)');
           watchdog?.cancel();
           var succeeded = false;
           try {
             final cred = await _auth.signInWithCredential(credential);
             final user = cred.user;
             if (user != null) {
-              FirebaseAuthReadiness.log('auto sign-in succeeded uid=${user.uid}');
+              FirebasePhoneAuthLogger.info(
+                'otp_verified (auto) uid=${user.uid}',
+              );
               PhoneAuthFlowLog.otpVerificationSuccess(uid: user.uid);
               await _finishPhoneSignIn(user);
               succeeded = true;
             }
           } catch (e, st) {
-            FirebaseAuthReadiness.log('auto sign-in failed: $e');
+            FirebasePhoneAuthLogger.error(
+              'auto sign-in failed: $e',
+              error: e,
+              stackTrace: st,
+            );
             PhoneAuthFlowLog.otpVerificationFailed(error: e, stack: st);
             log('Auto phone sign-in failed', error: e, stackTrace: st);
+            if (e is FirebaseAuthException) {
+              _setPhoneAuthError(PhoneAuthUserMessages.fromException(e));
+            }
           } finally {
             isLoading = false;
+            _otpGuard.endRequest();
             if (!succeeded) notifyListeners();
           }
         },
@@ -329,6 +463,7 @@ class AuthService extends ChangeNotifier {
           if (_phoneVerificationSettled) return;
           watchdog?.cancel();
           isLoading = false;
+          _otpGuard.endRequest();
           FirebasePhoneAuthLogger.logAuthException(
             'verificationFailed',
             e,
@@ -338,26 +473,48 @@ class AuthService extends ChangeNotifier {
             phase: 'verificationFailed',
             phoneNumber: phoneNumber,
           );
-          final message = await _phoneAuthErrorMessage(e);
-          _setPhoneAuthError(message);
-          log('verificationFailed: ${e.code} ${e.message}', error: e, stackTrace: StackTrace.current);
-          // Login screen already shows [phoneAuthError] banner — avoid duplicate snackbar.
-          if (context.mounted && navigateToOtpOnCodeSent) {
-            AppSnackBar.error(message, context: context);
+
+          final info = PhoneAuthUserMessages.fromException(e);
+          final needsRetry = e.code == 'network-request-failed' ||
+              e.code == 'captcha-check-failed' ||
+              e.code == 'internal-error';
+
+          if (e.code == 'too-many-requests' || e.code == 'quota-exceeded') {
+            await _beginCooldown(
+              PhoneAuthRequestGuard.tooManyRequestsCooldown,
+            );
+          }
+
+          _setPhoneAuthError(info, needsRetry: needsRetry);
+          log(
+            'verificationFailed: ${e.code} ${e.message}',
+            error: e,
+            stackTrace: StackTrace.current,
+          );
+
+          // OTP screen has no error banner — surface via snackbar on resend.
+          if (context.mounted && !navigateToOtpOnCodeSent) {
+            AppSnackBar.error(info.display, context: context);
           }
         },
-        codeSent: (String verificationId, int? resendToken) {
+        codeSent: (String verificationId, int? resendToken) async {
           if (_phoneVerificationSettled) return;
           watchdog?.cancel();
           _verificationId = verificationId;
           _resendToken = resendToken;
           opController.clear();
           isLoading = false;
-          clearPhoneAuthError();
+          _otpGuard.endRequest();
+          phoneAuthError = null;
+          phoneAuthErrorInfo = null;
+          phoneAuthNeedsRetry = false;
+
           FirebasePhoneAuthLogger.info(
-            'codeSent verificationId=${verificationId.substring(0, 8)}… '
+            'otp_sent verificationId=${verificationId.substring(0, 8)}… '
             'phone=$phoneNumber resendToken=${resendToken != null}',
           );
+
+          await _beginCooldown(PhoneAuthRequestGuard.cooldownDuration);
           notifyListeners();
 
           if (!context.mounted) return;
@@ -375,8 +532,12 @@ class AuthService extends ChangeNotifier {
         codeAutoRetrievalTimeout: (String verificationId) {
           if (_phoneVerificationSettled) return;
           _verificationId = verificationId;
-          FirebaseAuthReadiness.log('codeAutoRetrievalTimeout');
+          FirebasePhoneAuthLogger.info(
+            'codeAutoRetrievalTimeout '
+            'verificationId=${verificationId.substring(0, 8)}…',
+          );
           isLoading = false;
+          _otpGuard.endRequest();
           notifyListeners();
         },
       );
@@ -391,11 +552,20 @@ class AuthService extends ChangeNotifier {
     } catch (e, st) {
       watchdog.cancel();
       isLoading = false;
+      _otpGuard.endRequest();
       if (e is FirebaseAuthException) {
         FirebasePhoneAuthLogger.logAuthException(
           'verifyPhoneNumber catch',
           e,
           stackTrace: st,
+        );
+        final info = PhoneAuthUserMessages.fromException(e);
+        if (e.code == 'too-many-requests' || e.code == 'quota-exceeded') {
+          await _beginCooldown(PhoneAuthRequestGuard.tooManyRequestsCooldown);
+        }
+        _setPhoneAuthError(
+          info,
+          needsRetry: e.code == 'network-request-failed',
         );
       } else {
         FirebasePhoneAuthLogger.error(
@@ -403,50 +573,39 @@ class AuthService extends ChangeNotifier {
           error: e,
           stackTrace: st,
         );
-      }
-      final message = e is FirebaseAuthException
-          ? await _phoneAuthErrorMessage(e)
-          : 'Phone verification failed: $e';
-      if (e is FirebaseAuthException) {
-        FirebaseAuthReadiness.log(
-          'verifyPhoneNumber exception: ${FirebaseConfigAudit.formatAuthException(e)}',
+        _setPhoneAuthError(
+          PhoneAuthUserMessage(
+            title: 'Sign-In Failed',
+            message: 'Phone verification failed. Please try again.',
+            code: 'unknown',
+          ),
+          needsRetry: true,
         );
       }
-      _setPhoneAuthError(message);
       log('verifyPhoneNumber threw', error: e, stackTrace: st);
-      if (context.mounted) {
-        AppSnackBar.error(message, context: context);
-      }
-    }
-  }
-
-  Future<String> _phoneAuthErrorMessage(FirebaseAuthException e) async {
-    switch (e.code) {
-      case 'invalid-phone-number':
-        return 'Invalid phone number. Use a valid 10-digit Indian mobile number.';
-      case 'too-many-requests':
-        return 'Too many attempts. Please wait a few minutes and try again.';
-      case 'quota-exceeded':
-        return 'SMS quota exceeded. Try again later or contact support.';
-      case 'missing-client-identifier':
-      case 'app-not-authorized':
-      case 'invalid-app-credential':
-      case 'invalid-cert-hash':
-      case 'captcha-check-failed':
-      case 'internal-error':
-        return FirebaseConfigAudit.messageForAuthException(e);
-      default:
-        return FirebaseConfigAudit.formatAuthException(e);
     }
   }
 
   /// Returns `true` if sign-in succeeded and navigation was performed.
   /// Returns `false` for an invalid OTP (caller should shake UI / show error).
   Future<bool> signInWithOTP(String smsCode, BuildContext context) async {
+    if (isLoading) {
+      FirebasePhoneAuthLogger.warn('signInWithOTP ignored — already loading');
+      return false;
+    }
+
     if (_verificationId.isEmpty) {
       if (context.mounted) {
+        final info = PhoneAuthUserMessages.otpSessionExpired;
+        AppSnackBar.error(info.display, context: context);
+      }
+      return false;
+    }
+
+    if (!await PhoneAuthNetwork.hasConnection()) {
+      if (context.mounted) {
         AppSnackBar.error(
-          'OTP session expired. Go back and request a new code.',
+          PhoneAuthUserMessages.noInternet.display,
           context: context,
         );
       }
@@ -463,6 +622,7 @@ class AuthService extends ChangeNotifier {
             ? _verificationId.substring(0, 8)
             : _verificationId,
       );
+      FirebasePhoneAuthLogger.info('otp_verify_started');
 
       final PhoneAuthCredential credential = PhoneAuthProvider.credential(
         verificationId: _verificationId,
@@ -476,19 +636,26 @@ class AuthService extends ChangeNotifier {
             onTimeout: () {
               throw FirebaseAuthException(
                 code: 'network-request-failed',
-                message: 'Sign-in timed out. Check your connection and try again.',
+                message:
+                    'Sign-in timed out. Check your connection and try again.',
               );
             },
           );
 
       final user = userCredential.user;
       if (user != null) {
+        FirebasePhoneAuthLogger.info('otp_verified uid=${user.uid}');
         PhoneAuthFlowLog.otpVerificationSuccess(uid: user.uid);
         await _finishPhoneSignIn(user);
         succeeded = true;
         return true;
       }
     } on FirebaseAuthException catch (e, st) {
+      FirebasePhoneAuthLogger.logAuthException(
+        'signInWithOTP',
+        e,
+        stackTrace: st,
+      );
       PhoneAuthFlowLog.otpVerificationFailed(error: e, stack: st);
       final code = e.code;
       if (code == 'invalid-verification-code' ||
@@ -497,12 +664,17 @@ class AuthService extends ChangeNotifier {
         return false;
       }
       if (context.mounted) {
-        final message = await _phoneAuthErrorMessage(e);
+        final message = PhoneAuthUserMessages.fromException(e).display;
         AppSnackBar.error(message, context: context);
       }
       return false;
     } catch (e, st) {
       PhoneAuthFlowLog.otpVerificationFailed(error: e, stack: st);
+      FirebasePhoneAuthLogger.error(
+        'signInWithOTP unexpected: $e',
+        error: e,
+        stackTrace: st,
+      );
       if (context.mounted) {
         AppSnackBar.error(
           context.l10n.unexpectedError(e.toString()),
@@ -519,13 +691,33 @@ class AuthService extends ChangeNotifier {
 
   /// Resend OTP using Firebase [forceResendingToken] when available.
   Future<void> resendOtp(BuildContext context) async {
-    if (isLoading) return;
+    await ensurePhoneAuthGuardReady();
+
+    if (!canRequestOtp) {
+      FirebasePhoneAuthLogger.warn(
+        'resendOtp ignored loading=$isLoading cooldown=$otpCooldownSeconds',
+      );
+      return;
+    }
 
     final phoneNumber = FirebaseAuthReadiness.normalizePhoneNumber(
       mobileController.text,
     );
     if (phoneNumber == null) return;
 
+    if (!await PhoneAuthNetwork.hasConnection()) {
+      if (context.mounted) {
+        AppSnackBar.error(
+          PhoneAuthUserMessages.noInternet.display,
+          context: context,
+        );
+      }
+      return;
+    }
+
+    FirebasePhoneAuthLogger.info('otp_resend_started phone=$phoneNumber');
+
+    if (!context.mounted) return;
     await _startPhoneVerification(
       context: context,
       phoneNumber: phoneNumber,

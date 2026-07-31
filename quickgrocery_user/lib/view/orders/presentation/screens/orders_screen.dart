@@ -6,6 +6,7 @@ import 'package:provider/provider.dart' as legacy_provider;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/auth/guest_auth_guard.dart';
 import 'package:quickgrocery/core/auth/guest_session_provider.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
@@ -18,7 +19,10 @@ import 'package:quickgrocery/core/localization/l10n_extension.dart';
 /// Class name kept as `OrdersScreeen` (the legacy mis-spelling) so all
 /// existing navigation calls in the codebase keep working unchanged.
 class OrdersScreeen extends ConsumerStatefulWidget {
-  const OrdersScreeen({super.key});
+  const OrdersScreeen({super.key, this.asPushedRoute = false});
+
+  /// When true, shows a back button and pops the route (orders is not a tab).
+  final bool asPushedRoute;
 
   @override
   ConsumerState<OrdersScreeen> createState() => _OrdersScreenState();
@@ -37,6 +41,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreeen>
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
+
     if (ref.watch(isGuestModeProvider)) {
       return _GuestOrdersPlaceholder(
         onLogin: () => GuestAuthGuard.requireAuth(context, ref),
@@ -44,14 +50,18 @@ class _OrdersScreenState extends ConsumerState<OrdersScreeen>
     }
 
     return PopScope(
-      canPop: false,
+      canPop: widget.asPushedRoute,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
+        if (widget.asPushedRoute) {
+          Navigator.of(context).maybePop();
+          return;
+        }
         legacy_provider.Provider.of<HomeProvider>(context, listen: false)
             .onSelectedChange(0);
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF6F7FB),
+        backgroundColor: surface.scaffold,
         body: SafeArea(
           top: false,
           bottom: false,
@@ -59,15 +69,28 @@ class _OrdersScreenState extends ConsumerState<OrdersScreeen>
             children: [
               const SizedBox(height: 8),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
                   children: [
-                    Text(
-                      context.l10n.orders,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
+                    if (widget.asPushedRoute)
+                      IconButton(
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 20,
+                          color: surface.textPrimary,
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        context.l10n.orders,
+                        style: TextStyle(
+                          color: surface.textPrimary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ],
@@ -78,8 +101,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreeen>
                 controller: _tabs,
                 indicatorColor: AppColor.primary,
                 indicatorWeight: 3,
-                labelColor: Colors.black,
-                unselectedLabelColor: Colors.grey.shade500,
+                labelColor: surface.textPrimary,
+                unselectedLabelColor: surface.textMuted,
                 labelStyle: const TextStyle(fontWeight: FontWeight.w800),
                 tabs: [
                   Tab(text: context.l10n.processing),
@@ -120,7 +143,12 @@ class _OrdersTabBody extends ConsumerWidget {
         await Future.delayed(const Duration(milliseconds: 250));
       },
       child: asyncOrders.when(
-        loading: () => const SkeletonOrder(),
+        loading: () => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 280, child: AppLoading.center),
+          ],
+        ),
         error: (e, _) => ListView(
           children: [
             const SizedBox(height: 80),
@@ -200,6 +228,8 @@ class _GuestOrdersPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -208,7 +238,7 @@ class _GuestOrdersPlaceholder extends StatelessWidget {
             .onSelectedChange(0);
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF6F7FB),
+        backgroundColor: surface.scaffold,
         body: SafeArea(
           top: false,
           bottom: false,
@@ -234,9 +264,10 @@ class _GuestOrdersPlaceholder extends StatelessWidget {
                 Text(
                   context.l10n.guestOrdersTitle,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
+                    color: surface.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -245,7 +276,7 @@ class _GuestOrdersPlaceholder extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey.shade600,
+                    color: surface.textSecondary,
                     height: 1.4,
                   ),
                 ),
@@ -257,6 +288,7 @@ class _GuestOrdersPlaceholder extends StatelessWidget {
                     onPressed: onLogin,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColor.primary,
+                      foregroundColor: Colors.black,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),

@@ -52,6 +52,7 @@ abstract final class AdminRoutes {
   static const notificationHistory = 'Notification History';
   static const appContent = 'App Content';
   static const supportSettings = 'Support Settings';
+  static const aiChatInbox = 'AI Chat Inbox';
   static const paymentSettings = 'Payment Settings';
   static const maintenance = 'Maintenance & Availability';
 
@@ -87,6 +88,7 @@ abstract final class AdminRoutes {
     notificationHistory,
     appContent,
     supportSettings,
+    aiChatInbox,
     paymentSettings,
     maintenance,
   ];

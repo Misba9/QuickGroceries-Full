@@ -138,9 +138,10 @@ class _ShareChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     final w = (MediaQuery.sizeOf(context).width - 52) / 3;
     return Material(
-      color: Colors.white,
+      color: surface.card,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -150,8 +151,8 @@ class _ShareChip extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppSurface.of(context).border),
-            boxShadow: AppShadow.card,
+            border: Border.all(color: surface.border),
+            boxShadow: AppShadow.cardOf(context),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -164,6 +165,7 @@ class _ShareChip extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w600,
                   fontSize: 11.5,
+                  color: surface.text,
                 ),
               ),
             ],

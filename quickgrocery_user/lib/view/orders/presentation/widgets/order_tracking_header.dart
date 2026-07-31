@@ -27,7 +27,7 @@ class OrderTrackingHeader extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSurface.of(context).card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppSurface.of(context).border),
         boxShadow: AppShadow.dim,

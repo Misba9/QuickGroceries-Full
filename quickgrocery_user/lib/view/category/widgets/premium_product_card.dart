@@ -50,19 +50,20 @@ class PremiumProductCard extends StatelessWidget {
     final outOfStock = product.isOutOfStock;
     final maxQty = product.effectiveMaxQuantity;
 
+    final surface = AppSurface.of(context);
     return Opacity(
       opacity: outOfStock ? 0.55 : 1,
       child: Material(
-      color: Colors.white,
+      color: surface.card,
       borderRadius: BorderRadius.circular(AppRadii.md),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadii.md),
         onTap: onTap,
         child: Ink(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: surface.card,
             borderRadius: BorderRadius.circular(AppRadii.md),
-            border: Border.all(color: AppSurface.of(context).border),
+            border: Border.all(color: surface.border),
             boxShadow: AppShadow.dim,
           ),
           child: Padding(
@@ -336,10 +337,11 @@ class _PriceColumn extends StatelessWidget {
 class _OutOfStockPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
+        color: surface.subtle,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -347,7 +349,7 @@ class _OutOfStockPill extends StatelessWidget {
         style: GoogleFonts.poppins(
           fontSize: 10,
           fontWeight: FontWeight.w800,
-          color: Colors.grey.shade600,
+          color: surface.textMuted,
         ),
       ),
     );

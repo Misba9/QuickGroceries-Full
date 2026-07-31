@@ -19,7 +19,7 @@ import 'package:quickgrocery/core/inventory/inventory_limit_messages.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/cart_header.dart';
-import 'package:quickgrocery/view/cart/presentation/widgets/cart_shimmer.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/free_delivery_banner.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/premium_bill_card.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/premium_cart_item_card.dart';
@@ -38,7 +38,7 @@ import 'package:quickgrocery/core/localization/l10n_extension.dart';
 /// Scaffold
 ///  ├ body: SafeArea(bottom: false) → Column
 ///  │   ├ CartHeader
-///  │   └ Expanded(CustomScrollView / empty / shimmer)
+///  │   └ Expanded(CustomScrollView / empty / category loader)
 ///  └ bottomNavigationBar: PremiumCheckoutBar (when cart non-empty)
 /// ```
 ///
@@ -93,7 +93,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final zoneCharge = zoneAsync.value ?? 0;
     final bill = _bill(cart, zoneCharge);
 
-    final showShimmer = cart.isHydrating && cart.isEmpty;
+    final showLoader = cart.isHydrating && cart.isEmpty;
     final showEmpty = !cart.isHydrating && cart.isEmpty;
 
     return Scaffold(
@@ -112,8 +112,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
             ),
             Expanded(
-              child: showShimmer
-                  ? const CartShimmer()
+              child: showLoader
+                  ? AppLoading.center
                   : showEmpty
                       ? PremiumEmptyCart(
                           onBrowse: () => Navigator.maybePop(context),
@@ -226,12 +226,12 @@ class _CartBody extends StatelessWidget {
               ),
             ),
           if (zoneAsync.isLoading)
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
-                child: LinearProgressIndicator(
-                  minHeight: 2,
-                  backgroundColor: AppSurface.of(context).subtle,
+                padding: EdgeInsets.fromLTRB(14, 8, 14, 0),
+                child: SizedBox(
+                  height: 28,
+                  child: AppLoading.micro,
                 ),
               ),
             ),

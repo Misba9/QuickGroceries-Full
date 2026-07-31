@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Shown when bootstrap fails with no cached fallback data.
 class BootstrapErrorScreen extends StatelessWidget {
@@ -76,11 +77,7 @@ class BootstrapErrorScreen extends StatelessWidget {
                     ),
                   ),
                   child: isRetrying
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                        )
+                      ? const SizedBox(width: 22, height: 22, child: AppLoading.micro)
                       : Text(
                           'Try again',
                           style: GoogleFonts.poppins(

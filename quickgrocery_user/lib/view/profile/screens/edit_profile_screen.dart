@@ -12,6 +12,7 @@ import 'package:quickgrocery/view/auth/services/auth_provider.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/profile/domain/profile_models.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Edit name, email, and profile photo.
 class EditProfileScreen extends StatefulWidget {
@@ -172,11 +173,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
             child: _saving
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? const SizedBox(width: 22, height: 22, child: AppLoading.micro)
                 : Text(
                     'Save changes',
                     style: GoogleFonts.poppins(fontWeight: FontWeight.w800),

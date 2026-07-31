@@ -9,6 +9,7 @@ import 'package:video_player/video_player.dart';
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/navigation/product_navigation.dart';
 import 'package:quickgrocery/models/promo_model.dart';
 import 'package:quickgrocery/view/category/presentation/providers/categories_discovery_providers.dart';
@@ -34,7 +35,7 @@ class PromoVideoSection extends ConsumerWidget {
     final promos = async.value ?? const <PromoModel>[];
 
     if (async.isLoading && promos.isEmpty) {
-      return const _PromoSkeleton();
+      return AppLoading.section;
     }
     if (promos.isEmpty) return const SizedBox.shrink();
 
@@ -311,30 +312,6 @@ class _PromoVideoWidgetState extends State<PromoVideoWidget> {
         width: _controller!.value.size.width,
         height: _controller!.value.size.height,
         child: VideoPlayer(_controller!),
-      ),
-    );
-  }
-}
-
-class _PromoSkeleton extends StatelessWidget {
-  const _PromoSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 170,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.zero,
-        itemCount: 3,
-        separatorBuilder: (_, __) => SizedBox(width: 12),
-        itemBuilder: (_, __) => Container(
-          width: 280,
-          decoration: BoxDecoration(
-            color: AppSurface.of(context).subtle,
-            borderRadius: AppRadii.all(AppRadii.lg),
-          ),
-        ),
       ),
     );
   }

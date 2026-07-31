@@ -99,7 +99,9 @@ class _FallbackBannerSliderState extends State<FallbackBannerSlider> {
                       height: 6,
                       width: active ? 22 : 6,
                       decoration: BoxDecoration(
-                        color: active ? AppColor.primary : Colors.grey.shade300,
+                        color: active
+                            ? AppColor.primary
+                            : AppSurface.of(context).border,
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),

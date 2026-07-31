@@ -14,6 +14,7 @@ import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart
 import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.dart';
 import 'package:quickgrocery/view/coupons/coupon_screen.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Inline checkout coupon hub — manual code, list, best offer, applied state.
 class CheckoutCouponSection extends ConsumerStatefulWidget {
@@ -101,11 +102,12 @@ class _CheckoutCouponSectionState extends ConsumerState<CheckoutCouponSection> {
     final applied = cart.coupon;
     final saved = cart.bill.couponDiscount;
 
+    final surface = AppSurface.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.of(context).border),
+        border: Border.all(color: surface.border),
         boxShadow: AppShadow.dim,
       ),
       child: Padding(
@@ -181,14 +183,7 @@ class _CheckoutCouponSectionState extends ConsumerState<CheckoutCouponSection> {
                       ),
                     ),
                     child: _applying
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
+                        ? const SizedBox(width: 18, height: 18, child: AppLoading.micro)
                         : Text(
                             'Apply',
                             style: GoogleFonts.poppins(
@@ -281,11 +276,7 @@ class _CheckoutCouponSectionState extends ConsumerState<CheckoutCouponSection> {
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Center(
-                  child: SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                  child: SizedBox(width: 22, height: 22, child: AppLoading.micro),
                 ),
               ),
               error: (_, __) => Text(

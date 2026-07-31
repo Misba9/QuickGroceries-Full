@@ -31,8 +31,8 @@ class CartHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: AppShadow.dim,
+        color: AppSurface.of(context).card,
+        boxShadow: AppShadow.cardOf(context),
       ),
       child: SafeArea(
         bottom: false,

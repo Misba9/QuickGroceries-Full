@@ -12,6 +12,7 @@ import 'package:quickgrocery/core/account/account_deletion_exception.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery/view/auth/widgets/pinput_sms_retriever.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Phone OTP reauthentication required before [User.delete] after
 /// `requires-recent-login`.
@@ -282,7 +283,7 @@ class _AccountDeletionReauthSheetState
                 if (_sending && !_codeSent)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: Center(child: AppLoading.micro),
                   )
                 else ...[
                   Directionality(
@@ -332,7 +333,10 @@ class _AccountDeletionReauthSheetState
                   ],
                   const SizedBox(height: 16),
                   if (_verifying)
-                    const Center(child: CircularProgressIndicator())
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Center(child: AppLoading.micro),
+                    )
                   else
                     Row(
                       children: [

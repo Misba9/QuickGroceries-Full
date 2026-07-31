@@ -28,6 +28,7 @@ import 'package:quickgrocery/view/combo/presentation/providers/combo_providers.d
 import 'package:quickgrocery/view/combo/presentation/widgets/combo_offers_section.dart';
 import 'package:quickgrocery/view/offers/presentation/widgets/offer_category_chips.dart';
 import 'package:quickgrocery/view/offers/presentation/widgets/offer_promo_video_card.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Dedicated Offers hub — hero video carousel, stories, flash deals,
 /// coupons, and curated product rails (Blinkit / Zepto style).
@@ -366,14 +367,9 @@ class _OffersHeroCarousel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading && banners.isEmpty) {
-      return SizedBox(
+      return const SizedBox(
         height: 200,
-        child: Center(
-          child: CircularProgressIndicator(
-            color: AppColor.primary,
-            strokeWidth: 2,
-          ),
-        ),
+        child: BannerSectionShimmer(),
       );
     }
 
@@ -495,7 +491,7 @@ class _CouponStrip extends StatelessWidget {
               child: SizedBox(
                 width: 22,
                 height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: AppLoading.micro,
               ),
             ),
           ),

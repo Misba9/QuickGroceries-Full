@@ -7,8 +7,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/firebase/firebase_bootstrap.dart';
+import 'package:quickgrocery/core/loading/loading_constants.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_shell.dart';
-import 'package:quickgrocery/core/startup/deferred_startup.dart';
 import 'package:quickgrocery/core/startup/shared_preferences_provider.dart';
 import 'package:quickgrocery/core/widgets/startup_failure_screen.dart';
 import 'package:quickgrocery/l10n/app_localizations.dart';
@@ -165,7 +165,7 @@ Future<void> _bootstrap() async {
 
   try {
     // Critical path only: Firebase + prefs → first Flutter frame.
-    // App Check / Phone Auth / FCM topics run in [DeferredStartup].
+    // App Check / Phone Auth / FCM topics run in [PostHomeStartup] after Home.
     await initializeFirebaseWithRetry();
     AppStartupLog.milestone('Firebase initialized');
     await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
@@ -179,6 +179,9 @@ Future<void> _bootstrap() async {
 
     final prefs = await SharedPreferences.getInstance();
     AppStartupLog.milestone('Preferences loaded');
+
+    // Logo decode overlaps first Flutter frames — do not block runApp.
+    unawaited(_precacheLaunchLogo());
 
     // Initialize local notifications before first paint so cold-start
     // getNotificationAppLaunchDetails can enqueue before home consumes pending.
@@ -200,7 +203,8 @@ Future<void> _bootstrap() async {
         child: const MyApp(),
       ),
     );
-    DeferredStartup.scheduleAfterFirstFrame();
+    // Non-critical work (FCM topics, App Check, backfill) starts after Home
+    // paints — see [PostHomeStartup.scheduleAfterHomeVisible].
   } catch (e, st) {
     try {
       await FirebaseCrashlytics.instance.recordError(e, st, fatal: true);
@@ -240,6 +244,31 @@ Future<void> main() async {
       },
     ),
   );
+}
+
+/// Warm the brand logo into [ImageCache] without stalling [runApp].
+Future<void> _precacheLaunchLogo() async {
+  try {
+    final provider = const AssetImage(LoadingConstants.logoAsset);
+    final stream = provider.resolve(ImageConfiguration.empty);
+    final done = Completer<void>();
+    late final ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (info, _) {
+        if (!done.isCompleted) done.complete();
+        stream.removeListener(listener);
+      },
+      onError: (Object _, StackTrace? __) {
+        if (!done.isCompleted) done.complete();
+        stream.removeListener(listener);
+      },
+    );
+    stream.addListener(listener);
+    await done.future.timeout(
+      const Duration(milliseconds: 200),
+      onTimeout: () {},
+    );
+  } catch (_) {}
 }
 
 class MyApp extends ConsumerWidget {

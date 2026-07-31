@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/order/order_line_display.dart';
 import 'package:quickgrocery/models/order_model.dart';
 import 'package:quickgrocery/view/orders/services/order_service.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class CancelledTab extends StatelessWidget {
@@ -62,13 +64,14 @@ class CancelledCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       padding: const EdgeInsets.all(10),
       margin: const EdgeInsets.all(10),
       height: height * .15,
       width: width,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -84,19 +87,13 @@ class CancelledCard extends StatelessWidget {
                   image,
                   alignment: Alignment.topCenter,
                   errorBuilder: (context, error, stackTrace) {
-                    return LottieBuilder.asset(
-                      'assets/lottie/load.json',
-                      fit: BoxFit.cover,
-                    );
+                    return AppLoading.center;
                   },
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) {
                       return child;
                     } else {
-                      return LottieBuilder.asset(
-                        'assets/lottie/load.json',
-                        fit: BoxFit.cover,
-                      );
+                      return AppLoading.center;
                     }
                   },
                   fit: BoxFit.cover,
@@ -108,22 +105,22 @@ class CancelledCard extends StatelessWidget {
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(
-                      color: Colors.black,
+                    style: TextStyle(
+                      color: surface.textPrimary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
                     "Qty: $hotel",
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(color: surface.textMuted, fontSize: 12),
                   ),
                   SizedBox(height: height * .03),
                   Row(
                     children: [
                       Text(
                         '₹$price',
-                        style: const TextStyle(
-                          color: Colors.black,
+                        style: TextStyle(
+                          color: surface.textPrimary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -133,12 +130,12 @@ class CancelledCard extends StatelessWidget {
                         height: width * .08,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          color: const Color(0xFFF8D6D3),
+                          color: surface.danger.withValues(alpha: 0.18),
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text(
                             'Cancelled',
-                            style: TextStyle(fontSize: 12, color: Colors.red),
+                            style: TextStyle(fontSize: 12, color: surface.danger),
                           ),
                         ),
                       ),
@@ -161,6 +158,7 @@ class CancelledOrderListWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     if (orders.isEmpty) {
       return Center(child: Text(context.l10n.noOrdersFoundPeriod));
     }
@@ -179,7 +177,7 @@ class CancelledOrderListWidget extends StatelessWidget {
         totalAmount += order.deliveryCharge;
 
         return Card(
-          color: Colors.white,
+          color: surface.card,
           margin: const EdgeInsets.all(12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           child: Padding(
@@ -214,7 +212,7 @@ class CancelledOrderListWidget extends StatelessWidget {
                       (index) => Container(
                         width: 10,
                         height: 1,
-                        color: Colors.grey.shade300,
+                        color: surface.border,
                       ),
                     ),
                   ),

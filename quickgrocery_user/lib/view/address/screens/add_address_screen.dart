@@ -172,7 +172,7 @@ class _Header extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(6, 8, 14, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSurface.of(context).card,
         boxShadow: AppShadow.dim,
       ),
       child: Row(
@@ -208,7 +208,7 @@ class _LocationHelpers extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSurface.of(context).card,
         borderRadius: BorderRadius.circular(AppRadii.md),
         border: Border.all(color: AppSurface.of(context).border),
         boxShadow: AppShadow.dim,
@@ -330,7 +330,7 @@ class _TypeSelector extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isSel
                           ? AppColor.primary.withValues(alpha: 0.14)
-                          : Colors.white,
+                          : AppSurface.of(context).card,
                       borderRadius: BorderRadius.circular(AppRadii.md),
                       border: Border.all(
                         color: isSel ? AppColor.primary : AppSurface.of(context).border,

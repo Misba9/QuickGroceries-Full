@@ -21,8 +21,10 @@ final onlineDriversCountProvider = StreamProvider<int>((ref) {
 });
 
 /// Combined effective status — refreshes with Firestore + driver count.
+///
+/// Reuses [maintenanceConfigStreamProvider] / [onlineDriversCountProvider]
+/// so Landing does not open a second pair of Firestore listeners.
 final maintenanceStatusProvider = StreamProvider<MaintenanceStatus>((ref) {
-  final repo = ref.watch(maintenanceRepositoryProvider);
   final controller = StreamController<MaintenanceStatus>();
 
   MaintenanceConfig? lastConfig;
@@ -39,21 +41,31 @@ final maintenanceStatusProvider = StreamProvider<MaintenanceStatus>((ref) {
     );
   }
 
-  final sub1 = repo.watchConfig().listen((c) {
-    lastConfig = c;
-    emitStatus();
-  });
-  final sub2 = repo.watchOnlineDriversCount().listen((n) {
-    lastDrivers = n;
-    emitStatus();
-  });
+  ref.listen<AsyncValue<MaintenanceConfig>>(
+    maintenanceConfigStreamProvider,
+    (_, next) {
+      next.whenData((c) {
+        lastConfig = c;
+        emitStatus();
+      });
+    },
+    fireImmediately: true,
+  );
+  ref.listen<AsyncValue<int>>(
+    onlineDriversCountProvider,
+    (_, next) {
+      next.whenData((n) {
+        lastDrivers = n;
+        emitStatus();
+      });
+    },
+    fireImmediately: true,
+  );
 
   // Tick every second for countdown + schedule boundaries.
   final timer = Timer.periodic(const Duration(seconds: 1), (_) => emitStatus());
 
   ref.onDispose(() {
-    sub1.cancel();
-    sub2.cancel();
     timer.cancel();
     controller.close();
   });

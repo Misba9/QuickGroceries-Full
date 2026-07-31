@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/models/combo_offer_model.dart';
 import 'package:quickgrocery/view/combo/presentation/providers/combo_providers.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
@@ -19,7 +18,7 @@ class ComboOffersSection extends ConsumerWidget {
 
     return async.when(
       skipLoadingOnReload: false,
-      loading: () => const _ComboSkeleton(),
+      loading: () => AppLoading.section,
       error: (_, __) => const SizedBox.shrink(),
       data: (combos) {
         if (combos.isEmpty) return const SizedBox.shrink();
@@ -66,36 +65,6 @@ class ComboOffersSection extends ConsumerWidget {
   }) {
     Navigator.of(context).push(
       AppPageRoutes.comboDetail(combo: combo, addToCartOnLoad: addOnOpen),
-    );
-  }
-}
-
-class _ComboSkeleton extends StatelessWidget {
-  const _ComboSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: Text(
-              'Combo offers',
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w800,
-                fontSize: 18,
-              ),
-            ),
-          ),
-          Container(
-            height: 320,
-            decoration: BoxDecoration(
-              color: AppSurface.of(context).subtle,
-              borderRadius: BorderRadius.circular(AppRadii.lg),
-            ),
-          ),
-        ],
     );
   }
 }

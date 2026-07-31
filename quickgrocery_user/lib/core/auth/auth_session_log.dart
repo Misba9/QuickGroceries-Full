@@ -48,11 +48,15 @@ abstract final class AuthSessionLog {
     );
   }
 
-  static void navigationToLogin() {
+  static void navigationToHome() {
     _log(
-      'navigation_to_login',
+      'navigation_to_home',
       'popUntil first — AppBootstrapShell → guest LandingScreen',
     );
+  }
+
+  static void navigationToLogin() {
+    navigationToHome();
   }
 
   static void logoutCompleted() {

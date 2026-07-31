@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 class PrimaryButton extends StatelessWidget {
   const PrimaryButton({
@@ -15,6 +16,7 @@ class PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
+    final enabled = !isLoading && onTap != null;
     return SizedBox(
       width: width / 1,
       height: 55,
@@ -23,20 +25,13 @@ class PrimaryButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(
               12,
-            ), // Adjust the radius as needed
+            ),
           ),
           backgroundColor: AppColor.primary,
         ),
-        onPressed: isLoading ? null : onTap,
+        onPressed: enabled ? onTap : null,
         child: isLoading
-            ? const SizedBox(
-                width: 30,
-                height: 30,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
+            ? AppLoading.spinner(size: 22, color: Colors.white)
             : Text(
                 label,
                 style: const TextStyle(fontSize: 16, color: Colors.white),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/rating_model.dart';
 import 'package:quickgrocery/view/product_view/domain/rating_repository.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
@@ -21,11 +22,13 @@ class ReviewSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final q = qualityScore ?? summary.qualityScorePercent;
+    final surface = AppSurface.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: surface.border),
       ),
       padding: const EdgeInsets.all(14),
       child: Row(
@@ -38,7 +41,7 @@ class ReviewSummaryCard extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 30,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+                  color: surface.text,
                   height: 1.0,
                 ),
               ),
@@ -59,13 +62,18 @@ class ReviewSummaryCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 '${summary.total} ${context.l10n.reviews}',
-                style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey.shade600),
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  color: surface.textMuted,
+                ),
               ),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.green.shade50,
+                  color: isDark
+                      ? Colors.green.withValues(alpha: 0.2)
+                      : Colors.green.shade50,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -73,7 +81,7 @@ class ReviewSummaryCard extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: Colors.green.shade800,
+                    color: isDark ? Colors.green.shade300 : Colors.green.shade800,
                   ),
                 ),
               ),
@@ -126,7 +134,7 @@ class _DistributionRow extends StatelessWidget {
             child: LinearProgressIndicator(
               value: ratio,
               minHeight: 6,
-              backgroundColor: Colors.grey.shade200,
+              backgroundColor: AppSurface.of(context).subtle,
               valueColor: const AlwaysStoppedAnimation(AppColor.primary),
             ),
           ),
@@ -134,7 +142,13 @@ class _DistributionRow extends StatelessWidget {
         const SizedBox(width: 6),
         SizedBox(
           width: 26,
-          child: Text('$count', style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
+          child: Text(
+            '$count',
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              color: AppSurface.of(context).textMuted,
+            ),
+          ),
         ),
       ],
     );
@@ -159,14 +173,22 @@ class ProductReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: rating.isFeatured ? Colors.amber.shade50 : Colors.white,
+        color: rating.isFeatured
+            ? (isDark
+                ? Colors.amber.withValues(alpha: 0.12)
+                : Colors.amber.shade50)
+            : surface.card,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: rating.isFeatured ? Colors.amber.shade200 : Colors.grey.shade200,
+          color: rating.isFeatured
+              ? (isDark ? Colors.amber.shade700 : Colors.amber.shade200)
+              : surface.border,
         ),
       ),
       child: Column(
@@ -254,7 +276,7 @@ class ProductReviewCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: AppSurface.of(context).subtle,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -262,9 +284,19 @@ class ProductReviewCard extends StatelessWidget {
                 children: [
                   Text(
                     'Seller reply',
-                    style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w700),
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppSurface.of(context).text,
+                    ),
                   ),
-                  Text(rating.vendorReply.text, style: GoogleFonts.poppins(fontSize: 12)),
+                  Text(
+                    rating.vendorReply.text,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: AppSurface.of(context).textSecondary,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -274,7 +306,10 @@ class ProductReviewCard extends StatelessWidget {
             children: [
               Text(
                 DateFormat('MMM d, y').format(rating.createdAt.toDate()),
-                style: GoogleFonts.poppins(fontSize: 10.5, color: Colors.grey.shade500),
+                style: GoogleFonts.poppins(
+                  fontSize: 10.5,
+                  color: AppSurface.of(context).textMuted,
+                ),
               ),
               const Spacer(),
               if (onEdit != null)

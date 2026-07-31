@@ -6,7 +6,7 @@ import 'package:quickgrocery/core/widgets/global_floating_cart_widget.dart';
 import '../design/app_tokens.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
-/// Bottom navigation: Home, Categories, **Offers FAB**, Orders, Profile.
+/// Bottom navigation: Home, Categories, **Offers FAB**, Ask AI, Profile.
 class PremiumFiveTabNav extends StatelessWidget {
   const PremiumFiveTabNav({
     super.key,
@@ -87,9 +87,9 @@ class PremiumFiveTabNav extends StatelessWidget {
                       const SizedBox(width: 76),
                       Expanded(
                         child: _SideTab(
-                          label: context.l10n.nav_orders,
-                          icon: Icons.receipt_long_outlined,
-                          activeIcon: Icons.receipt_long_rounded,
+                          label: context.l10n.nav_ai,
+                          icon: Icons.smart_toy_outlined,
+                          activeIcon: Icons.smart_toy_rounded,
                           selected: currentIndex == 3,
                           onTap: () => onTap(3),
                           indicatorCenter: true,
@@ -296,7 +296,7 @@ class _OffersFabState extends State<_OffersFab>
                     offset: Offset(0, 8),
                   ),
                 ],
-                border: Border.all(color: Colors.white, width: 3),
+                border: Border.all(color: AppSurface.of(context).card, width: 3),
               ),
               child: Icon(
                 Icons.card_giftcard_rounded,
@@ -314,7 +314,10 @@ class _OffersFabState extends State<_OffersFab>
                   decoration: BoxDecoration(
                     color: AppSurface.of(context).danger,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white, width: 1.5),
+                    border: Border.all(
+                      color: AppSurface.of(context).card,
+                      width: 1.5,
+                    ),
                   ),
                   alignment: Alignment.center,
                   child: Text(
@@ -322,7 +325,7 @@ class _OffersFabState extends State<_OffersFab>
                     style: GoogleFonts.poppins(
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: AppSurface.of(context).onDanger,
                     ),
                   ),
                 ),

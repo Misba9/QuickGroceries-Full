@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dash/flutter_dash.dart';
 import 'package:intl/intl.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 
 import '../../domain/order_models.dart';
 
@@ -12,12 +13,13 @@ class OrderTimelineWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: surface.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -41,11 +43,13 @@ class _TimelineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     final color = entry.done
-        ? (entry.active ? AppColor.primary : Colors.green.shade600)
-        : Colors.grey.shade300;
+        ? (entry.active ? AppColor.primary : surface.success)
+        : surface.border;
     final icon = entry.done ? Icons.check_rounded : Icons.circle;
-    final iconColor = entry.done ? Colors.white : Colors.grey.shade500;
+    final iconColor =
+        entry.done ? Colors.white : surface.iconInactive;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,8 +83,9 @@ class _TimelineRow extends StatelessWidget {
                   length: 36,
                   dashLength: 6,
                   dashThickness: 2,
-                  dashColor:
-                      entry.done ? Colors.green.shade300 : Colors.grey.shade300,
+                  dashColor: entry.done
+                      ? surface.success.withValues(alpha: 0.45)
+                      : surface.border,
                 ),
               ),
           ],
@@ -100,7 +105,9 @@ class _TimelineRow extends StatelessWidget {
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 14,
-                          color: entry.done ? Colors.black : Colors.grey.shade600,
+                          color: entry.done
+                              ? surface.textPrimary
+                              : surface.textSecondary,
                         ),
                       ),
                     ),
@@ -108,7 +115,7 @@ class _TimelineRow extends StatelessWidget {
                       Text(
                         DateFormat('hh:mm a').format(entry.at!),
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color: surface.textMuted,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -119,7 +126,7 @@ class _TimelineRow extends StatelessWidget {
                 Text(
                   entry.subtitle,
                   style: TextStyle(
-                    color: Colors.grey.shade600,
+                    color: surface.textSecondary,
                     fontSize: 12,
                   ),
                 ),

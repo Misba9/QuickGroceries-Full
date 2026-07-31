@@ -94,7 +94,7 @@ class _Chip extends StatelessWidget {
               Icon(
                 category.icon,
                 size: 18,
-                color: active ? Color(0xFF1A1A1A) : AppSurface.of(context).textSecondary,
+                color: active ? AppSurface.of(context).textPrimary : AppSurface.of(context).textSecondary,
               ),
               SizedBox(width: 8),
               Text(
@@ -103,8 +103,8 @@ class _Chip extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
                   color: active
-                      ? const Color(0xFF1A1A1A)
-                      : AppSurface.of(context).textPrimary,
+                      ? AppSurface.of(context).textPrimary
+                      : AppSurface.of(context).textSecondary,
                 ),
               ),
             ],

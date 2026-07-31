@@ -77,7 +77,7 @@ class CategorySidebarTile extends StatelessWidget {
                       width: 52,
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? Colors.white
+                            ? AppSurface.of(context).card
                             : AppSurface.of(context).subtle,
                         borderRadius: BorderRadius.circular(AppRadii.md),
                         border: Border.all(

@@ -44,35 +44,41 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
 });
 
 // ── Stream providers consumed by the homepage ─────────────────────────────
+// Bootstrap seed is [ref.read] once — watching the snapshot would dispose and
+// re-subscribe every time bootstrap replaces the snapshot instance.
 final categoriesStreamProvider =
     StreamProvider.autoDispose<List<CategoryModel>>((ref) async* {
-      final seed = ref.watch(homeBootstrapSnapshotProvider).categories;
+      final seed = ref.read(homeBootstrapSnapshotProvider).categories;
       if (seed.isNotEmpty) yield seed;
       yield* ref.watch(categoryRepositoryProvider).watchActiveCategories();
     });
 
 final bannersStreamProvider =
     StreamProvider.autoDispose<List<BannerModel>>((ref) async* {
-      final seed = ref.watch(homeBootstrapSnapshotProvider).banners;
+      final seed = ref.read(homeBootstrapSnapshotProvider).banners;
       if (seed.isNotEmpty) yield seed;
       yield* ref.watch(bannerRepositoryProvider).watchActiveBanners();
     });
 
 final trendingProductsStreamProvider =
-    StreamProvider.autoDispose<List<ProductModel>>((ref) {
-      return ref.watch(productRepositoryProvider).watchTrending(limit: 12);
+    StreamProvider.autoDispose<List<ProductModel>>((ref) async* {
+      final seed = ref.read(homeBootstrapSnapshotProvider).trending;
+      if (seed.isNotEmpty) yield seed;
+      yield* ref.watch(productRepositoryProvider).watchTrending(limit: 12);
     });
 
 final featuredProductsStreamProvider =
     StreamProvider.autoDispose<List<ProductModel>>((ref) async* {
-      final seed = ref.watch(homeBootstrapSnapshotProvider).featured;
+      final seed = ref.read(homeBootstrapSnapshotProvider).featured;
       if (seed.isNotEmpty) yield seed;
       yield* ref.watch(productRepositoryProvider).watchFeatured(limit: 12);
     });
 
 final flashSaleProductsStreamProvider =
-    StreamProvider.autoDispose<List<ProductModel>>((ref) {
-      return ref.watch(productRepositoryProvider).watchFlashSale(limit: 16);
+    StreamProvider.autoDispose<List<ProductModel>>((ref) async* {
+      final seed = ref.read(homeBootstrapSnapshotProvider).flashSale;
+      if (seed.isNotEmpty) yield seed;
+      yield* ref.watch(productRepositoryProvider).watchFlashSale(limit: 16);
     });
 
 /// Family stream for the legacy `special_cat` rails so a single provider

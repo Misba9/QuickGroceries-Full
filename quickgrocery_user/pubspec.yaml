@@ -57,7 +57,6 @@ dependencies:
   url_launcher: ^6.3.1
   webview_flutter: ^4.10.0
   shared_preferences: ^2.3.2
-  shimmer: ^3.0.0
   flutter_svg: ^2.2.2
   image_picker: ^1.1.2
   firebase_storage: ^12.4.4

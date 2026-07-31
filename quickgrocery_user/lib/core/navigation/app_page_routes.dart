@@ -11,6 +11,7 @@ import 'package:quickgrocery/view/combo/presentation/screens/combo_detail_screen
 import 'package:quickgrocery/view/home/screens/location_selector.dart';
 import 'package:quickgrocery/view/notifications/notification_center_screen.dart';
 import 'package:quickgrocery/view/orders/presentation/screens/order_tracking_screen.dart';
+import 'package:quickgrocery/view/orders/presentation/screens/orders_screen.dart';
 import 'package:quickgrocery/view/payment/screens/payment_screen.dart';
 import 'package:quickgrocery/view/product_view/screens/product_view_screen.dart';
 import 'package:quickgrocery/view/search/screens/search_screen.dart';
@@ -94,5 +95,10 @@ abstract final class AppPageRoutes {
       material(
         name: '${AppRoutes.orderTracking}/$orderId',
         builder: (_) => OrderTrackingScreen(orderId: orderId),
+      );
+
+  static MaterialPageRoute<void> ordersList() => material(
+        name: AppRoutes.ordersList,
+        builder: (_) => const OrdersScreeen(asPushedRoute: true),
       );
 }

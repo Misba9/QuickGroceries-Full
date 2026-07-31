@@ -12,6 +12,7 @@ import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/view/category/screens/category_screen.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 const double _kBannerAspect = 16 / 7;
 const double _kViewportFraction = 0.926; // ~slidesPerView 1.08
@@ -307,7 +308,7 @@ class _BannerVideoPlayerState extends State<_BannerVideoPlayer> {
   @override
   Widget build(BuildContext context) {
     if (!_initialized || _controller == null) {
-      return const _BannerMediaSkeleton();
+      return const _BannerMediaPlaceholder();
     }
     return SizedBox.expand(
       child: FittedBox(
@@ -323,22 +324,19 @@ class _BannerVideoPlayerState extends State<_BannerVideoPlayer> {
   }
 }
 
-/// Shimmer placeholder while banner media loads.
-class _BannerMediaSkeleton extends StatelessWidget {
-  const _BannerMediaSkeleton();
+/// Neutral placeholder while banner media loads.
+class _BannerMediaPlaceholder extends StatelessWidget {
+  const _BannerMediaPlaceholder();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ColoredBox(
       color: AppSurface.of(context).subtle,
-      child: Center(
+      child: const Center(
         child: SizedBox(
           width: 28,
           height: 28,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Colors.grey.shade400,
-          ),
+          child: AppLoading.micro,
         ),
       ),
     );

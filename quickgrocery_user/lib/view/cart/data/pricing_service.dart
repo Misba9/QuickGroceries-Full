@@ -25,8 +25,12 @@ class PricingService {
   static const _platformDocId = 'r6ArqhMeZYDJnpFo6EJP';
   static const _deliverySettingsDocId = 'default';
 
-  /// Swallows per-document stream errors so [Rx.merge] never tears down the
-  /// whole pricing stream (which would surface as [AsyncError] on the home page).
+  /// One shared listen pipeline per service instance (avoids N×7 doc listeners).
+  Stream<PricingConfig>? _sharedWatch;
+
+  /// Swallows per-document stream errors so [Rx.combineLatestList] never tears
+  /// down the whole pricing stream (which would surface as [AsyncError] on the
+  /// home page).
   Stream<DocumentSnapshot<Map<String, dynamic>>> _guardDoc(
     Stream<DocumentSnapshot<Map<String, dynamic>>> raw,
   ) {
@@ -83,14 +87,26 @@ class PricingService {
       _firestore.doc('app_settings/cod_convenience_fee').get(),
     ]);
 
-    final standardDoc = results[0].data() ?? const {};
-    final minOrderDoc = results[1].data() ?? const {};
-    final platformDoc = results[2].data() ?? const {};
-    final appConfig = results[3].data() ?? const {};
-    final deliverySettings = results[4].data() ?? const {};
-    final mainSettings = results[5].data() ?? const {};
-    final codFeeDoc = results[6].data() ?? const {};
+    return _buildConfig(
+      standardDoc: results[0].data() ?? const {},
+      minOrderDoc: results[1].data() ?? const {},
+      platformDoc: results[2].data() ?? const {},
+      appConfig: results[3].data() ?? const {},
+      deliverySettings: results[4].data() ?? const {},
+      mainSettings: results[5].data() ?? const {},
+      codFeeDoc: results[6].data() ?? const {},
+    );
+  }
 
+  PricingConfig _buildConfig({
+    required Map<String, dynamic> standardDoc,
+    required Map<String, dynamic> minOrderDoc,
+    required Map<String, dynamic> platformDoc,
+    required Map<String, dynamic> appConfig,
+    required Map<String, dynamic> deliverySettings,
+    required Map<String, dynamic> mainSettings,
+    required Map<String, dynamic> codFeeDoc,
+  }) {
     final standard = (standardDoc['amount'] as num?)?.toInt() ?? 0;
     final minOrder = (minOrderDoc['amount'] as num?)?.toInt() ?? 100;
     final platformFee = (platformDoc['amount'] as num?)?.toInt() ?? 0;
@@ -198,11 +214,24 @@ class PricingService {
   }
 
   /// Emits a new [PricingConfig] whenever any backing document changes.
-  Stream<PricingConfig> watch() async* {
-    var lastKnown = await fetch();
-    yield lastKnown;
+  ///
+  /// Uses a single [Rx.combineLatestList] over the seven docs (parse in-memory)
+  /// instead of an initial GET batch plus a full re-fetch on every snapshot.
+  Stream<PricingConfig> watch() {
+    return _sharedWatch ??= _createWatch().shareReplay(maxSize: 1);
+  }
 
+  Stream<PricingConfig> _createWatch() {
     final paths = <Stream<DocumentSnapshot<Map<String, dynamic>>>>[
+      _guardDoc(
+        _firestore.collection('delivery_charge').doc(_standardDocId).snapshots(),
+      ),
+      _guardDoc(
+        _firestore.collection('delivery_charge').doc(_minOrderDocId).snapshots(),
+      ),
+      _guardDoc(
+        _firestore.collection('delivery_charge').doc(_platformDocId).snapshots(),
+      ),
       _guardDoc(_firestore.collection('app_config').doc('pricing').snapshots()),
       _guardDoc(
         _firestore
@@ -217,25 +246,23 @@ class PricingService {
             .snapshots(),
       ),
       _guardDoc(
-        _firestore.collection('delivery_charge').doc(_platformDocId).snapshots(),
-      ),
-      _guardDoc(
-        _firestore.collection('delivery_charge').doc(_standardDocId).snapshots(),
-      ),
-      _guardDoc(
-        _firestore.collection('delivery_charge').doc(_minOrderDocId).snapshots(),
-      ),
-      _guardDoc(
         _firestore.doc('app_settings/cod_convenience_fee').snapshots(),
       ),
     ];
 
-    yield* Rx.merge(paths).asyncMap((snap) async {
+    return Rx.combineLatestList(paths).map((snaps) {
       if (kDebugMode) {
-        debugPrint('[PricingService] snapshot → ${snap.reference.path}');
+        debugPrint('[PricingService] combined snapshot (${snaps.length} docs)');
       }
-      lastKnown = await fetch();
-      return lastKnown;
+      return _buildConfig(
+        standardDoc: snaps[0].data() ?? const {},
+        minOrderDoc: snaps[1].data() ?? const {},
+        platformDoc: snaps[2].data() ?? const {},
+        appConfig: snaps[3].data() ?? const {},
+        deliverySettings: snaps[4].data() ?? const {},
+        mainSettings: snaps[5].data() ?? const {},
+        codFeeDoc: snaps[6].data() ?? const {},
+      );
     });
   }
 

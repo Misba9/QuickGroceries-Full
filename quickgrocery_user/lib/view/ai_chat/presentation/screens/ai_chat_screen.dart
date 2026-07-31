@@ -11,6 +11,7 @@ import 'package:quickgrocery/view/ai_chat/models/ai_chat_models.dart';
 import 'package:quickgrocery/view/ai_chat/presentation/providers/ai_chat_providers.dart';
 import 'package:quickgrocery/view/ai_chat/presentation/widgets/ai_chat_product_rail.dart';
 import 'package:quickgrocery/view/ai_chat/presentation/widgets/ai_typing_indicator.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Premium grocery AI assistant chat.
 class AiChatScreen extends ConsumerStatefulWidget {
@@ -74,6 +75,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     return Scaffold(
       backgroundColor: surface.scaffold,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -346,14 +348,7 @@ class _Composer extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: sending
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.2,
-                            color: Colors.black,
-                          ),
-                        )
+                      ? const SizedBox(width: 18, height: 18, child: AppLoading.micro)
                       : const Icon(Icons.send_rounded, color: Colors.black, size: 20),
                 ),
               ),

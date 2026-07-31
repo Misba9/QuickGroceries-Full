@@ -1,12 +1,13 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'theme_constants.dart';
 import 'theme_mode_option.dart';
 
 /// Persists the user's appearance preference forever.
 class ThemePreferenceService {
   ThemePreferenceService(this._prefs);
 
-  static const preferenceKey = 'theme_mode';
+  static const preferenceKey = ThemeConstants.preferenceKey;
 
   final SharedPreferences _prefs;
 

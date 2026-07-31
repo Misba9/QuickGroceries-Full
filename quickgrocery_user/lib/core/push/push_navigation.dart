@@ -252,8 +252,7 @@ void _markNavigation(String key) {
 }
 
 Future<void> _showOrderNotFound(BuildContext context) async {
-  final home = legacy.Provider.of<HomeProvider>(context, listen: false);
-  home.onSelectedChange(AppRoutes.ordersTabIndex);
+  await Navigator.of(context).push(AppPageRoutes.ordersList());
   if (!context.mounted) return;
   await showDialog<void>(
     context: context,
@@ -285,7 +284,7 @@ Future<void> _openOrderTracking(BuildContext context, String orderId) async {
   }
 
   final home = legacy.Provider.of<HomeProvider>(context, listen: false);
-  home.onSelectedChange(AppRoutes.ordersTabIndex);
+  home.onSelectedChange(0);
 
   final nav = Navigator.of(context);
   final top = appRouteObserver.topRouteName ?? '';
@@ -335,14 +334,16 @@ Future<void> handlePushNavigation(Map<String, dynamic> raw) async {
         await _openOrderTracking(ctx, orderId);
         return;
       }
-      home.onSelectedChange(AppRoutes.ordersTabIndex);
+      home.onSelectedChange(0);
       if (!ctx.mounted) return;
       if (_shouldSkipDuplicateNavigation(AppRoutes.checkout)) return;
       _markNavigation(AppRoutes.checkout);
       await Navigator.of(ctx).push(AppPageRoutes.checkout());
       return;
     case 'orders_tab':
-      home.onSelectedChange(AppRoutes.ordersTabIndex);
+      if (_shouldSkipDuplicateNavigation(AppRoutes.ordersList)) return;
+      _markNavigation(AppRoutes.ordersList);
+      await Navigator.of(ctx).push(AppPageRoutes.ordersList());
       return;
     case 'offers_page':
       home.onSelectedChange(2);

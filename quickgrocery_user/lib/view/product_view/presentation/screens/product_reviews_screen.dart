@@ -11,6 +11,7 @@ import 'package:quickgrocery/view/product_view/presentation/screens/write_review
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_review_widget.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 enum ReviewSort { latest, highest, lowest, withPhotos }
 
@@ -89,7 +90,7 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.ratingsAndReviews)),
       body: ratingsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => AppLoading.center,
         error: (_, __) => Center(child: Text(context.l10n.failedToLoadReviews)),
         data: (ratings) {
           final sorted = _sorted(ratings);

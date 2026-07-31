@@ -106,12 +106,12 @@ class _AppSearchBarState extends State<AppSearchBar> {
           padding: EdgeInsets.symmetric(horizontal: 18),
           height: 52,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppSurface.of(context).card,
             borderRadius: AppRadii.all(AppRadii.pill),
             border: Border.all(
               color: AppSurface.of(context).border.withValues(alpha: 0.65),
             ),
-            boxShadow: AppShadow.raised,
+            boxShadow: AppShadow.raisedOf(context),
           ),
           child: Row(
             children: [

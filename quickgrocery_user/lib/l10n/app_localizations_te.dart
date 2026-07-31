@@ -625,6 +625,9 @@ class AppLocalizationsTe extends AppLocalizations {
   String get nav_orders => 'ఆర్డర్లు';
 
   @override
+  String get nav_ai => 'Ask AI';
+
+  @override
   String get nav_profile => 'ప్రొఫైల్';
 
   @override

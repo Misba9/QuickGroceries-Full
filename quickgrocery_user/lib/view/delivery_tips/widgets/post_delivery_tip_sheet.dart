@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/delivery_tips/models/delivery_tip_settings.dart';
 import 'package:quickgrocery/view/delivery_tips/services/delivery_tip_service.dart';
@@ -10,6 +11,7 @@ import 'package:quickgrocery/view/orders/presentation/widgets/delivered_celebrat
 import 'package:quickgrocery/view/payment/data/razorpay_order_client.dart';
 import 'package:quickgrocery/view/payment/domain/razorpay_payment_result.dart';
 import 'package:quickgrocery/view/payment/services/payment_service.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Post-delivery feedback: rate delivery + optional extra tip.
 Future<void> showPostDeliveryTipSheet({
@@ -205,7 +207,7 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
         margin: const EdgeInsets.all(12),
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppSurface.of(context).card,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Column(
@@ -216,6 +218,7 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w800,
                 fontSize: 18,
+                color: AppSurface.of(context).text,
               ),
             ),
             const SizedBox(height: 16),
@@ -225,7 +228,7 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
               trailing: const Icon(Icons.chevron_right),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.grey.shade200),
+                side: BorderSide(color: AppSurface.of(context).border),
               ),
               onTap: () {
                 Navigator.pop(context);
@@ -254,7 +257,7 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
                 'Current Delivery Partner Tip: ₹${widget.order.deliveryPartnerTip.toStringAsFixed(0)}',
                 style: GoogleFonts.poppins(
                   fontSize: 13,
-                  color: Colors.grey.shade700,
+                  color: AppSurface.of(context).textMuted,
                 ),
               ),
             ],
@@ -286,7 +289,7 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
                     ? const SizedBox(
                         height: 22,
                         width: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: AppLoading.micro,
                       )
                     : const Text('Submit'),
               ),

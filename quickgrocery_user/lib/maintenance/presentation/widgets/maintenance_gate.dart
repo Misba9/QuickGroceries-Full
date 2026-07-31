@@ -2,10 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/widgets/firestore_connection_lost.dart';
 import 'package:quickgrocery/maintenance/presentation/providers/maintenance_providers.dart';
 import 'package:quickgrocery/maintenance/presentation/screens/maintenance_screen.dart';
-import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
 
 /// Wraps authenticated app content — shows maintenance screen when blocked.
 class MaintenanceGate extends ConsumerStatefulWidget {
@@ -32,7 +32,7 @@ class _MaintenanceGateState extends ConsumerState<MaintenanceGate> {
     final statusAsync = ref.watch(maintenanceStatusProvider);
 
     return statusAsync.when(
-      loading: () => HomeShimmer.landingTabShell(),
+      loading: () => AppLoading.fullScreen,
       error: (e, _) => FirestoreConnectionLost(
         error: e,
         onRetry: () {
@@ -50,7 +50,7 @@ class _MaintenanceGateState extends ConsumerState<MaintenanceGate> {
             stream: _legacyStoreStream(),
             builder: (context, legacySnap) {
               if (!legacySnap.hasData) {
-                return HomeShimmer.landingTabShell();
+                return AppLoading.fullScreen;
               }
               if (!legacySnap.data!.exists) {
                 return MaintenanceScreen(

@@ -1,9 +1,11 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../domain/order_models.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 class RiderCard extends StatelessWidget {
   const RiderCard({
@@ -112,33 +114,33 @@ class _NoRiderYet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: surface.border),
       ),
       child: Row(
         children: [
-          const SizedBox(
-            width: 36,
-            height: 36,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
+          const SizedBox(width: 36, height: 36, child: AppLoading.micro),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
                   'Searching for delivery partner…',
-                  style: TextStyle(fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: surface.textPrimary,
+                  ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   'We\'re finding the closest rider for your order.',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                  style: TextStyle(color: surface.textMuted, fontSize: 12),
                 ),
               ],
             ),

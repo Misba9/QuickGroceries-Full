@@ -8,6 +8,7 @@ import 'package:quickgrocery/core/navigation/app_route_names.dart';
 import 'package:quickgrocery/core/navigation/app_route_observer.dart';
 import 'package:quickgrocery/core/review/review_service.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_controller.dart';
+import 'package:quickgrocery/core/startup/post_home_startup.dart';
 import 'package:quickgrocery/realtime/providers/realtime_providers.dart';
 
 /// Listens for delivered orders + app resume and schedules the review prompt.
@@ -33,13 +34,22 @@ class _OrderReviewBootstrapState extends ConsumerState<OrderReviewBootstrap>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_tryPrompt(fromResume: false));
-    });
+    PostHomeStartup.homeVisible.addListener(_onHomeVisible);
+    if (PostHomeStartup.homeVisible.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_tryPrompt(fromResume: false));
+      });
+    }
+  }
+
+  void _onHomeVisible() {
+    if (!PostHomeStartup.homeVisible.value) return;
+    unawaited(_tryPrompt(fromResume: false));
   }
 
   @override
   void dispose() {
+    PostHomeStartup.homeVisible.removeListener(_onHomeVisible);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -47,19 +57,20 @@ class _OrderReviewBootstrapState extends ConsumerState<OrderReviewBootstrap>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
+    if (!PostHomeStartup.homeVisible.value) return;
     final now = DateTime.now();
     if (_lastResumeCheck != null &&
         now.difference(_lastResumeCheck!) < const Duration(minutes: 2)) {
       return;
     }
     _lastResumeCheck = now;
-    // Allow another attempt after resume (e.g. delivered while backgrounded).
     _attemptedThisSession = false;
     unawaited(_tryPrompt(fromResume: true));
   }
 
   Future<void> _tryPrompt({required bool fromResume}) async {
     if (!mounted || _attemptedThisSession) return;
+    if (!PostHomeStartup.homeVisible.value) return;
     if (!ref.read(appBootstrapCompleteProvider)) return;
 
     final top = appRouteObserver.topRouteName;

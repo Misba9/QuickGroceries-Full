@@ -1266,6 +1266,12 @@ abstract class AppLocalizations {
   /// **'Orders'**
   String get nav_orders;
 
+  /// No description provided for @nav_ai.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask AI'**
+  String get nav_ai;
+
   /// No description provided for @nav_profile.
   ///
   /// In en, this message translates to:

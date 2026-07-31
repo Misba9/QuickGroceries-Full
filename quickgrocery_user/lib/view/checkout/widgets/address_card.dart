@@ -39,7 +39,7 @@ class CheckoutAddressCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.md),
         child: Ink(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppSurface.of(context).card,
             borderRadius: BorderRadius.circular(AppRadii.md),
             border: Border.all(
               color: selected ? AppColor.primary : AppSurface.of(context).border,

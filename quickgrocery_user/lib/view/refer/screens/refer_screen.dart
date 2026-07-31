@@ -10,6 +10,7 @@ import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/refer/services/refer_earn_service.dart';
 import 'package:quickgrocery/view/refer/widgets/refer_share_actions.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Premium Refer & Earn experience (Zepto / Blinkit style).
 class ReferScreen extends StatefulWidget {
@@ -147,6 +148,7 @@ class _ReferScreenState extends State<ReferScreen>
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w800,
                                   fontSize: 16,
+                                  color: AppSurface.of(context).text,
                                 ),
                               ),
                             ),
@@ -366,13 +368,14 @@ class _RewardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       padding: EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppSurface.of(context).border),
-        boxShadow: AppShadow.card,
+        border: Border.all(color: surface.border),
+        boxShadow: AppShadow.cardOf(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,6 +385,7 @@ class _RewardCard extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w800,
               fontSize: 16,
+              color: surface.text,
             ),
           ),
           AppSpacing.h15,
@@ -402,13 +406,13 @@ class _RewardCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.shopping_bag_outlined,
-                  size: 18, color: AppSurface.of(context).textMuted),
+                  size: 18, color: surface.textMuted),
               SizedBox(width: 8),
               Text(
                 'Minimum order: ₹${data.minOrderValue}',
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w600,
-                  color: AppSurface.of(context).textMuted,
+                  color: surface.textMuted,
                 ),
               ),
             ],
@@ -434,6 +438,7 @@ class _RewardRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Row(
       children: [
         Container(
@@ -449,12 +454,19 @@ class _RewardRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: GoogleFonts.poppins(fontSize: 12)),
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: surface.textMuted,
+                ),
+              ),
               Text(
                 value,
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
+                  color: surface.text,
                 ),
               ),
             ],
@@ -477,7 +489,11 @@ class _StatsSection extends StatelessWidget {
       children: [
         Text(
           'Your referral stats',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w800, fontSize: 16),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: AppSurface.of(context).text,
+          ),
         ),
         AppSpacing.h10,
         GridView.count(
@@ -510,13 +526,14 @@ class _StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       padding: EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppSurface.of(context).border),
-        boxShadow: AppShadow.card,
+        border: Border.all(color: surface.border),
+        boxShadow: AppShadow.cardOf(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,13 +544,14 @@ class _StatTile extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w800,
               fontSize: 22,
+              color: surface.text,
             ),
           ),
           Text(
             label,
             style: GoogleFonts.poppins(
               fontSize: 12,
-              color: AppSurface.of(context).textMuted,
+              color: surface.textMuted,
             ),
           ),
         ],
@@ -555,7 +573,11 @@ class _HistorySection extends StatelessWidget {
       children: [
         Text(
           'Referral history',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w800, fontSize: 16),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: AppSurface.of(context).text,
+          ),
         ),
         AppSpacing.h10,
         if (history.isEmpty)
@@ -563,7 +585,7 @@ class _HistorySection extends StatelessWidget {
             width: double.infinity,
             padding: EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppSurface.of(context).card,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppSurface.of(context).border),
             ),
@@ -578,7 +600,7 @@ class _HistorySection extends StatelessWidget {
               margin: EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppSurface.of(context).card,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: AppSurface.of(context).border),
               ),
@@ -651,22 +673,33 @@ class _StatusChip extends StatelessWidget {
 
   final String label;
 
-  (Color bg, Color fg) get _colors {
+  (Color bg, Color fg) _colors(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (label.contains('Granted')) {
-      return (Colors.green.shade50, Colors.green.shade800);
+      return (
+        isDark ? Colors.green.withValues(alpha: 0.2) : Colors.green.shade50,
+        isDark ? Colors.green.shade300 : Colors.green.shade800,
+      );
     }
     if (label.contains('Completed')) {
-      return (Colors.blue.shade50, Colors.blue.shade800);
+      return (
+        isDark ? Colors.blue.withValues(alpha: 0.2) : Colors.blue.shade50,
+        isDark ? Colors.blue.shade300 : Colors.blue.shade800,
+      );
     }
     if (label.contains('Joined')) {
-      return (Colors.orange.shade50, Colors.orange.shade900);
+      return (
+        isDark ? Colors.orange.withValues(alpha: 0.2) : Colors.orange.shade50,
+        isDark ? Colors.orange.shade300 : Colors.orange.shade900,
+      );
     }
-    return (Colors.grey.shade100, Colors.grey.shade800);
+    final surface = AppSurface.of(context);
+    return (surface.subtle, surface.textSecondary);
   }
 
   @override
   Widget build(BuildContext context) {
-    final (bg, fg) = _colors;
+    final (bg, fg) = _colors(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -714,7 +747,7 @@ class _ReferLoadingState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(),
+          AppLoading.center,
           const SizedBox(height: 16),
           Text(
             'Loading referral rewards…',

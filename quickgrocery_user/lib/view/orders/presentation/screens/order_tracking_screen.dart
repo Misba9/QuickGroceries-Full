@@ -25,6 +25,7 @@ import '../widgets/order_timeline_widget.dart';
 import '../widgets/order_tracking_header.dart';
 import '../widgets/rider_card.dart';
 import 'support_chat_screen.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Modern Zepto/Blinkit-style live order tracking screen.
 ///
@@ -175,6 +176,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   @override
   Widget build(BuildContext context) {
     final orderAsync = ref.watch(orderByIdStreamProvider(widget.orderId));
+    final surface = AppSurface.of(context);
 
     return PopScope(
       canPop: !widget.fromCheckout,
@@ -183,36 +185,40 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         _onBack();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF6F7FB),
+        backgroundColor: surface.scaffold,
         appBar: AppBar(
           title: Text(
             'Track order',
             style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
           ),
-          backgroundColor: AppSurface.of(context).card,
-          foregroundColor: Colors.black,
+          backgroundColor: surface.card,
+          foregroundColor: surface.textPrimary,
           elevation: 0.5,
           leading: BackButton(onPressed: _onBack),
         ),
         body: orderAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => AppLoading.center,
           error: (e, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.cloud_off_outlined, size: 48, color: Colors.grey.shade500),
+                  Icon(Icons.cloud_off_outlined,
+                      size: 48, color: surface.iconInactive),
                   const SizedBox(height: 16),
                   Text(
                     'Could not load order details',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      color: surface.textPrimary,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Check your connection and try again.',
-                    style: GoogleFonts.poppins(color: Colors.grey.shade600),
+                    style: GoogleFonts.poppins(color: surface.textSecondary),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 20),
@@ -411,10 +417,11 @@ class _StickyActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Material(
       elevation: 8,
-      shadowColor: Colors.black26,
-      color: Colors.white,
+      shadowColor: surface.shadow,
+      color: surface.card,
       child: SafeArea(
         top: false,
         child: Padding(
@@ -432,8 +439,8 @@ class _StickyActions extends StatelessWidget {
                       icon: const Icon(Icons.call_rounded),
                       label: const Text('Call delivery partner'),
                       style: FilledButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
+                        backgroundColor: surface.textPrimary,
+                        foregroundColor: surface.card,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),

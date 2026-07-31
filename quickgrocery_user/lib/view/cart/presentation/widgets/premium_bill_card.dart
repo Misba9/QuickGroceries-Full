@@ -50,7 +50,7 @@ class _PremiumBillCardState extends State<PremiumBillCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSurface.of(context).card,
         borderRadius: BorderRadius.circular(AppRadii.md),
         border: Border.all(color: AppSurface.of(context).border),
         boxShadow: AppShadow.dim,

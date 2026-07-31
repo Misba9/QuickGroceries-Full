@@ -42,7 +42,7 @@ class DeliverySlotChip extends StatelessWidget {
               color: selected && !isExpress
                   ? AppColor.primary.withValues(alpha: 0.14)
                   : !selected
-                      ? Colors.white
+                      ? AppSurface.of(context).card
                       : null,
               border: Border.all(
                 color: selected

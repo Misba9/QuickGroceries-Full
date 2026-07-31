@@ -14,9 +14,10 @@ abstract final class LoadingAssets {
     try {
       GoogleFonts.poppins();
       await Future.wait([
-        rootBundle.load('assets/lottie/load.json'),
-        rootBundle.load('assets/lottie/burger.json'),
-        rootBundle.load('assets/images/logo.png'),
+        rootBundle.load('assets/icons/logo.png'),
+        rootBundle.load('assets/images/dairy.png'),
+        rootBundle.load('assets/images/vegitable.png'),
+        rootBundle.load('assets/images/mango.png'),
       ]);
     } catch (_) {
       // Non-fatal — loaders still work without pre-cache.

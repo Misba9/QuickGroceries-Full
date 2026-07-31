@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart' as legacy;
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/loading/loading.dart';
+import 'package:quickgrocery/core/theme/theme_system_ui.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
@@ -70,20 +72,23 @@ class _CategoryScreenState extends State<CategoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppSurface.of(context).background,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _Header(
-              category: widget.category,
-              searchController: _searchController,
-            ),
-            Expanded(
-              child: _Body(
-                onSubcategoryTap: _onSubcategoryTap,
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: ThemeSystemUi.of(context),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _Header(
+                category: widget.category,
+                searchController: _searchController,
               ),
-            ),
-          ],
+              Expanded(
+                child: _Body(
+                  onSubcategoryTap: _onSubcategoryTap,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -107,7 +112,7 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSurface.of(context).card,
         boxShadow: AppShadow.dim,
       ),
       child: Column(
@@ -205,7 +210,7 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 84,
-      color: Color(0xFFFAFAFB),
+      color: AppSurface.of(context).card,
       child: legacy.Consumer<CategoryService>(
         builder: (context, p, _) {
           if (p.isProductsLoading && p.subCategories.isEmpty) {
@@ -261,7 +266,7 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-// ── Product pane (shimmer → grid with fade) ───────────────────────────────
+// ── Product pane (category loader → grid with fade) ───────────────────────
 
 class _ProductPane extends StatelessWidget {
   const _ProductPane({
@@ -286,10 +291,7 @@ class _ProductPane extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget child;
     if (isLoading) {
-      child = Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-        child: SkeletonProductGrid(count: 6, childAspectRatio: 0.68),
-      );
+      child = AppLoading.section;
     } else if (hasError) {
       child = _LoadError(message: errorMessage);
     } else if (products.isEmpty) {

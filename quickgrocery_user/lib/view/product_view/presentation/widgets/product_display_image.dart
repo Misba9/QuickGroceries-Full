@@ -1,12 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/theme/themed_image_frame.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_branded_placeholder.dart';
 
-/// Product image with shimmer, branded fallback, and smart [BoxFit] defaults.
+/// Product image with neutral placeholder, branded fallback, and smart [BoxFit].
 class ProductDisplayImage extends StatelessWidget {
   const ProductDisplayImage({
     super.key,
@@ -54,7 +53,10 @@ class ProductDisplayImage extends StatelessWidget {
       memCacheWidth: memCacheWidth,
       fadeInDuration: const Duration(milliseconds: 280),
       fadeOutDuration: const Duration(milliseconds: 120),
-      placeholder: (_, __) => _ShimmerBox(width: width, height: height),
+      placeholder: (_, __) => ColoredBox(
+        color: surface.subtle,
+        child: SizedBox(width: width, height: height),
+      ),
       errorWidget: (_, __, ___) =>
           ProductBrandedPlaceholder(width: width, height: height),
     );
@@ -69,23 +71,6 @@ class ProductDisplayImage extends StatelessWidget {
         decoration: BoxDecoration(color: surface.subtle),
         child: SizedBox(width: width, height: height, child: image),
       ),
-    );
-  }
-}
-
-class _ShimmerBox extends StatelessWidget {
-  const _ShimmerBox({required this.width, required this.height});
-
-  final double width;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    final surface = AppSurface.of(context);
-    return Shimmer.fromColors(
-      baseColor: surface.shimmerBase,
-      highlightColor: surface.shimmerHighlight,
-      child: Container(width: width, height: height, color: surface.shimmerBase),
     );
   }
 }

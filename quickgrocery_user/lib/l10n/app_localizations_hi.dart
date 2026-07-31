@@ -624,6 +624,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get nav_orders => 'ऑर्डर';
 
   @override
+  String get nav_ai => 'Ask AI';
+
+  @override
   String get nav_profile => 'प्रोफ़ाइल';
 
   @override

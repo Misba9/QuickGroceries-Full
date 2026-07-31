@@ -30,11 +30,13 @@ class GlassCard extends StatelessWidget {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: gradient == null ? (color ?? Colors.white) : null,
+        color: gradient == null
+            ? (color ?? AppSurface.of(context).card)
+            : null,
         gradient: gradient,
         borderRadius: borderRadius ?? AppRadii.all(AppRadii.lg),
         border: border ?? Border.all(color: AppSurface.of(context).border),
-        boxShadow: elevation ? AppShadow.card : null,
+        boxShadow: elevation ? AppShadow.cardOf(context) : null,
       ),
       child: child,
     );

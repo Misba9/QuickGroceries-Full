@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/inventory/inventory_limit_messages.dart';
 import 'package:quickgrocery/models/product.dart';
@@ -135,10 +136,12 @@ class _CartActionBarState extends ConsumerState<CartActionBar> {
         MediaQuery.paddingOf(context).bottom + 12,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSurface.of(context).card,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(
+              alpha: context.isDarkTheme ? 0.35 : 0.05,
+            ),
             blurRadius: 12,
             offset: const Offset(0, -4),
           ),
@@ -308,10 +311,11 @@ class _OutOfStockButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       height: 50,
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
+        color: surface.subtle,
         borderRadius: BorderRadius.circular(12),
       ),
       alignment: Alignment.center,
@@ -321,7 +325,7 @@ class _OutOfStockButton extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: GoogleFonts.poppins(
           fontWeight: FontWeight.w700,
-          color: Colors.grey.shade700,
+          color: surface.textMuted,
           fontSize: 14,
         ),
       ),

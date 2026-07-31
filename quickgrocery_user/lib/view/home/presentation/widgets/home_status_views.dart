@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 
 /// Inline error placeholder used for failing sections (banner, trending,
 /// featured rails). Compact enough to live inside a horizontal rail.
@@ -18,20 +19,24 @@ class HomeErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
+    final isDark = context.isDarkTheme;
     return Container(
       height: height,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: surface.danger.withValues(alpha: isDark ? 0.16 : 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade100),
+        border: Border.all(
+          color: surface.danger.withValues(alpha: isDark ? 0.35 : 0.2),
+        ),
       ),
       padding: const EdgeInsets.all(16),
       alignment: Alignment.center,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline, color: Colors.red.shade400, size: 28),
+          Icon(Icons.error_outline, color: surface.danger, size: 28),
           const SizedBox(height: 6),
           Text(
             message,
@@ -40,7 +45,7 @@ class HomeErrorView extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
               fontSize: 12,
-              color: Colors.red.shade700,
+              color: isDark ? surface.textPrimary : Colors.red.shade700,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -81,11 +86,12 @@ class HomeEmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       height: height,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: surface.subtle,
         borderRadius: BorderRadius.circular(12),
       ),
       padding: const EdgeInsets.all(16),
@@ -93,14 +99,14 @@ class HomeEmptyView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.grey.shade400, size: 28),
+          Icon(icon, color: surface.iconInactive, size: 28),
           const SizedBox(height: 8),
           Text(
             message,
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               fontSize: 12,
-              color: Colors.grey.shade600,
+              color: surface.textSecondary,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -111,7 +117,7 @@ class HomeEmptyView extends StatelessWidget {
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 11,
-                color: Colors.grey.shade500,
+                color: surface.textMuted,
                 height: 1.35,
               ),
             ),

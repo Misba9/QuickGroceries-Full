@@ -8,8 +8,10 @@ Centralized Material 3 light / dark / system theming for Quick Grocery.
 |------|------|
 | `theme_mode_option.dart` | `light` / `dark` / `system` enum + persistence keys |
 | `theme_preference_service.dart` | SharedPreferences load/save |
-| `theme_controller.dart` | Riverpod `Notifier` (`themeModeProvider`) — same pattern as locale |
+| `theme_controller.dart` / `theme_provider.dart` | Riverpod `Notifier` (`themeModeProvider`) |
 | `theme_extensions.dart` | `AppPalette` ThemeExtension (semantic grocery colors) |
+| `app_colors.dart` | Brand + palette accessors |
+| `theme_constants.dart` | 300ms animation + storage key constants |
 | `app_theme.dart` | `AppTheme.light()` / `AppTheme.dark()` Material 3 theme data |
 | `theme_system_ui.dart` | Status bar + navigation bar icons/colors |
 | `themed_image_frame.dart` | Subtle border around light product art in dark mode |
@@ -24,7 +26,7 @@ Brand **primary stays amber** (`AppColor.primary`). Bright green and orange live
 theme: AppTheme.light(),
 darkTheme: AppTheme.dark(),
 themeMode: themeOption.materialThemeMode,
-themeAnimationDuration: AppTheme.animationDuration, // 250ms
+themeAnimationDuration: AppTheme.animationDuration, // 300ms
 ```
 
 Widgets rebuild through Flutter’s `Theme` InheritedWidget — not by rebuilding the whole tree from Riverpod.

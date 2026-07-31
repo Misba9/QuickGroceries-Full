@@ -20,7 +20,7 @@ import 'package:quickgrocery/models/customer_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/home/screens/home_screen.dart';
 import 'package:quickgrocery/view/offers/presentation/screens/offers_screen.dart';
-import 'package:quickgrocery/view/orders/orders_screen.dart';
+import 'package:quickgrocery/view/ai_chat/presentation/screens/ai_chat_screen.dart';
 import 'package:quickgrocery/view/profile/screens/profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -111,7 +111,7 @@ class HomeProvider extends ChangeNotifier {
     const HomeScreen(),
     const MainCategoryViewScreen(),
     const OffersScreen(),
-    const OrdersScreeen(),
+    const AiChatScreen(),
     const ProfileScreen(),
   ];
 
@@ -335,10 +335,13 @@ class HomeProvider extends ChangeNotifier {
 
   Future<void> getLocationAndAddress() async {
     try {
-      // Request location permission
-      await Geolocator.requestPermission();
+      // Only resolve GPS when already authorized — never prompt from HomeProvider.
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
 
-      // Get current position
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );

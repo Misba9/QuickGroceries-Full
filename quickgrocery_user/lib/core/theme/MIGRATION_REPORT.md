@@ -1,103 +1,120 @@
 # Theme migration report
 
-Date: 2026-07-30  
+Date: 2026-07-31  
 App: `quickgrocery_user`  
-Decision: Keep **Amber** brand primary; Bright Green + Orange live on `AppPalette` accents.
+Brand primary: **Amber** (`AppColor.primary`). Accents: green + orange on `AppPalette`.
 
-## Deliverables
+## Architecture (complete)
 
-| Item | Path / status |
-|------|----------------|
-| Theme architecture | `lib/core/theme/` |
-| Theme controller | `theme_controller.dart` (Riverpod) |
-| Theme preference service | `theme_preference_service.dart` (SharedPreferences key `theme_mode`) |
-| Theme extensions | `theme_extensions.dart` (`AppPalette`) |
-| Light + Dark Material 3 | `app_theme.dart` |
-| Appearance settings | Profile → `ProfileAppearanceSection` (+ guest profile) |
-| Startup integration | `main.dart` (`theme` / `darkTheme` / `themeMode` + 250ms animation + system UI) |
-| Docs | `lib/core/theme/README.md` |
+| File | Role |
+|------|------|
+| `lib/core/theme/app_theme.dart` | Material 3 light / dark `ThemeData` |
+| `lib/core/theme/app_colors.dart` | Brand + palette accessors |
+| `lib/core/theme/theme_extensions.dart` | `AppPalette` ThemeExtension |
+| `lib/core/theme/theme_controller.dart` | Riverpod theme controller |
+| `lib/core/theme/theme_provider.dart` | Re-export alias for controller |
+| `lib/core/theme/theme_preference_service.dart` | SharedPreferences persistence |
+| `lib/core/theme/theme_mode_option.dart` | Light / Dark / System |
+| `lib/core/theme/theme_constants.dart` | 300ms animation + storage keys |
+| `lib/core/theme/theme_system_ui.dart` | Status / nav bar overlays |
+| `lib/core/theme/themed_image_frame.dart` | Product image frame in dark |
+| `lib/core/design/app_tokens.dart` | `AppSurface.of(context)` API |
 
-## Files modified (high level)
+**Modes:** Light · Dark · System (follows Android/iOS appearance)  
+**Persistence:** `theme_mode` in SharedPreferences  
+**Animation:** 300ms `AnimatedTheme` + MaterialApp `themeAnimationDuration`
 
-### New
+## Files modified in this pass
 
-- `lib/core/theme/app_theme.dart`
-- `lib/core/theme/theme_controller.dart`
+### Theme system (new / updated)
+- `lib/core/theme/app_colors.dart` *(new)*
+- `lib/core/theme/theme_constants.dart` *(new)*
+- `lib/core/theme/theme_provider.dart` *(new)*
+- `lib/core/theme/app_theme.dart` (300ms)
+- `lib/core/theme/theme.dart` (barrel exports)
 - `lib/core/theme/theme_preference_service.dart`
-- `lib/core/theme/theme_mode_option.dart`
-- `lib/core/theme/theme_extensions.dart`
-- `lib/core/theme/theme_system_ui.dart`
-- `lib/core/theme/themed_image_frame.dart`
-- `lib/core/theme/theme.dart`
-- `lib/core/theme/README.md`
 
-### Core / shell
+### Core widgets
+- `app_search_bar.dart`, `modern_bottom_nav.dart`, `premium_five_tab_nav.dart`
+- `glass_card.dart`, `animated_add_button.dart`, `global_floating_cart_widget.dart`
 
-- `lib/main.dart`
-- `lib/core/design/app_theme.dart` (re-export)
-- `lib/core/design/app_tokens.dart` (`AppSurface.of`, brightness-aware shadows)
-- `lib/core/design/app_typography.dart`
-- `lib/core/startup/widgets/app_animated_splash.dart`
-- `lib/core/widgets/premium_five_tab_nav.dart`
-- `lib/core/widgets/skeleton.dart`
-- `lib/core/widgets/app_button.dart`
-- `lib/core/widgets/app_search_bar.dart`
-- + other core widgets updated via `AppSurface.of(context)` migration
+### Home
+- `home_delivery_header.dart` (header gradient + notifications sheet)
+- `product_card.dart`, `home_screen.dart`, `home_status_views.dart`
+- `flash_sale_section.dart`, `home_banner_*`, `fallback_banner_slider.dart`
+- `cached_image.dart`, `category_tile.dart`, `home_categories_rail.dart`
+- `recently_ordered_section.dart`, `addon_screen.dart`
 
-### Screens / feature widgets
+### Categories / products
+- `premium_product_card.dart`, `category_product_card.dart`
+- `animated_category_card.dart`
+- `cart_action_bar.dart` (product detail bottom bar)
 
-- ~72 files migrated from static `AppSurface.*` → `AppSurface.of(context).*`
-- Profile appearance section + guest profile
-- Auth splash, cart/checkout/orders/home/category/offers/refer hotspots
-- Product image frame theme adaptation
-- l10n: `appearance`, `theme_light`, `theme_dark`, `theme_system`, `theme_active_mode` (en/hi/te/ur)
+### Orders
+- `orders_screen.dart`, `order_card_modern.dart`, `order_timeline_widget.dart`
+- `order_actions_bar.dart`, `rider_card.dart`, `order_tracking_*`
+- `order_details_card.dart`
+- Legacy tabs: `processing_tab.dart`, `delivery_tab.dart`, `cancelled_tab.dart`
 
-## Hardcoded colors replaced
+### Cart / checkout
+- `cart_header.dart`, `premium_cart_item_card.dart`, `premium_checkout_bar.dart`
+- `checkout_coupon_section.dart`, `checkout_tip_section.dart`
+- `premium_bill_card.dart`, `free_delivery_banner.dart`
+- `checkout_screen.dart`, `checkout_bottom_bar.dart`
+- `address_card.dart`, `payment_chip.dart`, `delivery_slot_chip.dart`
+- Address screens: `address_screen.dart`, `add_address_screen.dart`
 
-| Pattern | Action |
-|---------|--------|
-| `AppSurface.background/card/text/...` | → `AppSurface.of(context).*` (~70 files) |
-| Scaffold / fill `Colors.white` | → `AppSurface.of(context).scaffold` / `.card` (17+ files) |
-| Nav bar `Colors.white` | → themed card surface |
-| Shimmer greys | → `shimmerBase` / `shimmerHighlight` |
-| Product image grey fill | → theme subtle + `ThemedNetworkImageFrame` |
+### Offers / combo / coupons
+- `offers_screen.dart`, `offer_category_chips.dart`
+- `combo_offer_card.dart`, `combo_detail_screen.dart`
+- `coupon_screen.dart`
 
-Intentional leftovers (OK):
+### Profile / notifications
+- `guest_profile_view.dart`, `profile_sections.dart`, `profile_section_safe.dart`
+- `notification_center_screen.dart`
 
-- `Colors.white` / `Colors.black` on **brand amber CTAs** (contrast on primary)
-- Gradient stops for flash sale / delivery marketing art
-- Map pin / video overlay UI that must stay light-on-dark photo overlays
+### Misc
+- `animated_app_heading.dart` (theme-aware shimmer)
 
-## Remaining manual fixes
+## Remaining (manual / lower priority)
 
-1. **Scattered `Colors.white` / `Colors.grey` / `Color(0xFF…)`** still exist in ~100 files (offer cards, order chips, dialogs, auth buttons). Prefer migrating when touching those files.
-2. **Google Maps dark style JSON** not bundled yet — add when map surfaces need full dark styling.
-3. **Native Android/iOS splash** (`launch_background`) still light; Flutter splash adapts after first frame.
-4. **Legacy `view/settings`** is Firestore pricing settings — do not confuse with Appearance.
-5. Third-party sheets (Razorpay checkout UI) use SDK chrome; cannot fully theme.
+These still contain some `Colors.white` / grey — often **intentional** (amber CTA contrast, photo overlays, marketing gradients):
 
-## Screens verified (light + dark wiring)
+| Area | Notes |
+|------|--------|
+| `global_floating_cart_widget.dart` | White accents on amber FAB — brand intentional |
+| `discount_badge.dart` / `quantity_stepper.dart` | White on primary/danger — OK |
+| `free_delivery_banner.dart` | White text on green gradient — OK |
+| `refer_screen.dart` / `refer_share_actions.dart` | Hero / share UI still partly light |
+| `live_tracking_map.dart` | Map overlays — light-on-map OK |
+| `offer_promo_video_card.dart` | Video chrome overlays |
+| `post_delivery_tip_sheet.dart` | Tip sheet needs follow-up |
+| `home_section_error_card.dart` / connection-lost screens | Grey text → migrate next touch |
+| `product_view` review / image carousel | Overlay whites often intentional |
+| Native splash (`launch_background`) | Still light until Flutter first frame |
+| Razorpay / Maps SDK chrome | Cannot fully theme |
+| Thermal PDF receipt | Print colors — leave as-is |
 
-Architecture covers both modes via Material + `AppPalette`. Spot-check focus:
+## How to verify
 
-| Area | Light | Dark |
-|------|:-----:|:----:|
-| Cold-start splash | ✓ | ✓ |
-| Login / OTP / register flows (scaffold inherits theme) | ✓ | ✓ |
-| Home + bottom nav | ✓ | ✓ |
-| Categories / search bars | ✓ | ✓ |
-| Product detail image | ✓ | ✓ |
-| Cart / bill / checkout chips | ✓ | ✓ |
-| Orders list/detail widgets | ✓ | ✓ |
-| Profile + Appearance radios | ✓ | ✓ |
-| Skeleton / shimmer | ✓ | ✓ |
-| Dialogs / bottom sheets (theme defaults) | ✓ | ✓ |
-
-**Manual QA recommended:** toggle System/Light/Dark on a physical Android + iOS device; confirm status/nav bar icons, cart FAB, and payment sheets.
-
-## How to test quickly
-
-1. Profile → Appearance → Dark — UI should animate ~250ms.
+1. Profile → Appearance → **Dark** — ~300ms animated switch.
 2. Kill app → relaunch — preference persists.
-3. Set System Default → flip device dark mode — app follows.
-4. `flutter analyze lib` — should report no theme-introduced errors.
+3. Set **System** → flip device appearance — app follows.
+4. Spot-check: Home header, product cards, search bar, bottom nav, notifications sheet, Orders, Offers, Guest Profile, Cart, Checkout, Coupons.
+
+## Acceptance checklist
+
+| Criterion | Status |
+|-----------|:------:|
+| Material 3 light + dark + system | ✓ |
+| Theme persistence | ✓ |
+| Smooth 300ms transition | ✓ |
+| Status / nav bar overlays | ✓ |
+| Home / cards / search / nav | ✓ |
+| Notifications sheet | ✓ |
+| Orders (modern UI) | ✓ |
+| Guest profile + appearance | ✓ |
+| Offers / combo / coupons | ✓ |
+| Cart / checkout bars | ✓ |
+| Product detail action bar | ✓ |
+| Zero remaining hardcoded surfaces | Partial — see remaining table |

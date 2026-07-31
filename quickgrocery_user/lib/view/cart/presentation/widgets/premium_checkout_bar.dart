@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// **PremiumCheckoutBar** — floating sticky checkout dock at the bottom
 /// of the cart screen.
@@ -55,11 +56,11 @@ class PremiumCheckoutBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppSurface.of(context).card,
       elevation: 0,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppSurface.of(context).card,
           border: Border(top: BorderSide(color: AppSurface.of(context).border, width: 1)),
           boxShadow: [
             BoxShadow(
@@ -285,11 +286,7 @@ class _CheckoutButton extends StatelessWidget {
                         const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
+                          child: AppLoading.micro,
                         ),
                         const SizedBox(width: 8),
                         Flexible(

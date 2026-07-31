@@ -10,10 +10,11 @@ import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
+import 'package:quickgrocery/core/startup/post_home_startup.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/core/widgets/home_section_error_card.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
-import 'package:quickgrocery/core/startup/widgets/home_bootstrap_shimmer.dart';
 import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
@@ -33,7 +34,7 @@ import 'package:quickgrocery/view/home/presentation/widgets/home_categories_rail
 import 'package:quickgrocery/view/home/presentation/widgets/home_delivery_header.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/fallback_banner_slider.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_banner_slider.dart';
-import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/home_section_slot.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/recently_ordered_section.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/recommendations_section.dart';
@@ -49,18 +50,15 @@ import 'package:quickgrocery/core/localization/l10n_extension.dart';
 /// Sections (top → bottom):
 ///   1. Pinned delivery header (premium card + actions)
 ///   2. Search bar (floating pill)
-///   3. Banner carousel (image-only slides; 16:7)
-///   4. Categories horizontal rail
-///   5. Video promo rail (admin MP4 banners)
-///   6. Flash sale (countdown rail)
-///   6. Trending Now / Featured For You (Riverpod)
-///   7. Picked for you (personalized)
-///   8. Order again (recently ordered)
-///   9. Legacy `special_cat` rails (auto-hide when empty)
-///   10. Explore (paginated grid, responsive cols)
+///   3. Banner carousel — section shimmer until ready
+///   4. Categories rail — section shimmer until ready
+///   5. Featured products — section shimmer until ready
+///   6. Offers / explore grid — section shimmer until ready
+///   7. Recommended (picked for you) — section shimmer until ready
+///   8. Flash / trending / order-again / legacy rails (secondary)
 ///
-/// The floating cart pill lives in [LandingScreen] so it persists across
-/// every bottom-nav tab.
+/// After Home opens, never restarts the startup category animation.
+/// Each section loads independently; Home stays interactive.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -73,7 +71,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _hasInternet = true;
   bool _isServiceable = true;
   bool _isCheckingServiceability = false;
-  bool _serviceabilityReady = false;
+  /// Optimistic true so Home layout paints immediately; refined in background.
+  bool _serviceabilityReady = true;
   String? _lastCheckedPinCode;
   String? _lastObservedAddressId;
   String? _lastObservedPin;
@@ -84,9 +83,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _bootstrapLegacyServices();
-    _setupConnectivityListener();
-    _checkConnectivity();
     _scrollController.addListener(_onScroll);
+    AppPermissionCoordinator.settledTick.addListener(_onPermissionsSettled);
+
+    // Connectivity + location refinement wait until Home has painted.
+    if (PostHomeStartup.homeVisible.value) {
+      _startBackgroundHomeMonitors();
+    } else {
+      PostHomeStartup.homeVisible.addListener(_onPostHomeVisible);
+    }
+  }
+
+  void _onPostHomeVisible() {
+    if (!PostHomeStartup.homeVisible.value) return;
+    PostHomeStartup.homeVisible.removeListener(_onPostHomeVisible);
+    _startBackgroundHomeMonitors();
+  }
+
+  void _startBackgroundHomeMonitors() {
+    _setupConnectivityListener();
+    unawaited(_checkConnectivity());
+    unawaited(_checkServiceability(force: true));
+  }
+
+  void _onPermissionsSettled() {
+    if (!mounted) return;
+    unawaited(_checkServiceability(force: true));
   }
 
   void _bootstrapLegacyServices() {
@@ -109,9 +131,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
       }
 
+      // Address hydrate is fine async — Home already painted optimistically.
       await addressService.getAddress();
       if (!mounted) return;
-      await _checkServiceability(force: true);
+      if (PostHomeStartup.homeVisible.value) {
+        await _checkServiceability(force: true);
+      }
     });
   }
 
@@ -121,13 +146,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     String? pin,
   }) {
     if (!mounted) return;
+    final nextPin = pin ?? addressService.pinCode;
+    final nextObservedPin = addressService.activeDeliveryPin;
+    final nextAddressId = addressService.selectedAddressId;
+    final unchanged = _isServiceable == serviceable &&
+        _serviceabilityReady &&
+        !_isCheckingServiceability &&
+        _lastCheckedPinCode == nextPin &&
+        _lastObservedPin == nextObservedPin &&
+        _lastObservedAddressId == nextAddressId;
+    _isCheckingServiceability = false;
+    _lastCheckedPinCode = nextPin;
+    _lastObservedPin = nextObservedPin;
+    _lastObservedAddressId = nextAddressId;
+    if (unchanged) return;
+    // Only rebuild when the visible branch (serviceable / ready) changes.
+    if (_isServiceable == serviceable && _serviceabilityReady) return;
     setState(() {
       _isServiceable = serviceable;
       _serviceabilityReady = true;
-      _isCheckingServiceability = false;
-      _lastCheckedPinCode = pin ?? addressService.pinCode;
-      _lastObservedPin = addressService.activeDeliveryPin;
-      _lastObservedAddressId = addressService.selectedAddressId;
     });
   }
 
@@ -206,6 +243,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           return;
         }
 
+        // Wait for post-launch permission prompts to finish before GPS.
+        if (!AppPermissionCoordinator.hasSettled) {
+          if (!mounted) return;
+          _applyServiceableState(
+            addressService,
+            serviceable: true,
+            pin: pinCode,
+          );
+          return;
+        }
+
+        if (!await AppPermissionCoordinator.isLocationGranted()) {
+          if (!mounted) return;
+          _applyServiceableState(
+            addressService,
+            serviceable: true,
+            pin: pinCode,
+          );
+          return;
+        }
+
+        if (!mounted) return;
         await addressService.getCurrentLocation(context, force: true);
         if (!mounted) return;
 
@@ -259,13 +318,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _checkConnectivity() async {
     final result = await Connectivity().checkConnectivity();
     final ok = result.any((r) => r != ConnectivityResult.none);
-    if (mounted) setState(() => _hasInternet = ok);
+    if (!mounted || ok == _hasInternet) return;
+    setState(() => _hasInternet = ok);
   }
 
   void _setupConnectivityListener() {
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
       final ok = results.any((r) => r != ConnectivityResult.none);
-      if (mounted) setState(() => _hasInternet = ok);
+      if (!mounted || ok == _hasInternet) return;
+      setState(() => _hasInternet = ok);
     });
   }
 
@@ -296,6 +357,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
+    PostHomeStartup.homeVisible.removeListener(_onPostHomeVisible);
+    AppPermissionCoordinator.settledTick.removeListener(_onPermissionsSettled);
     _connectivitySub?.cancel();
     _scrollController.dispose();
     if (mounted) {
@@ -309,23 +372,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_serviceabilityReady) {
-      return const _ServiceabilityLoading();
+    // Never block the whole Home with a full-page shimmer / category loop.
+    if (!_isServiceable && _serviceabilityReady) {
+      return const NoServiceableAreaScreen();
     }
-    if (!_isServiceable) return const NoServiceableAreaScreen();
     if (!_hasInternet) return _OfflineView(onRetry: _checkConnectivity);
 
-    final cartService = legacy.Provider.of<CategoryService>(context);
-    final hasCartItems = cartService.selectedProduct.isNotEmpty;
     final responsive = Responsive.of(context);
     final gutter = responsive.gutter();
-    final pricingAsync = ref.watch(pricingConfigProvider);
-    final pricing = pricingAsync.asData?.value;
-    final appContentAsync = ref.watch(appContentStreamProvider);
-    final appContent = appContentAsync.value ?? AppContentConfig.defaults;
-    final contentLoading =
-        appContentAsync.isLoading && !appContentAsync.hasValue;
 
+    // Root watches nothing section-specific — leaf Consumers own their data.
     return Scaffold(
       backgroundColor: AppSurface.of(context).background,
       // Top inset comes from LandingScreen's SafeArea only.
@@ -355,72 +411,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ],
                 onTap: () => Navigator.push(context, AppPageRoutes.search()),
               ),
-              if (pricingAsync.hasError)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 8),
-                    child: HomeSectionErrorCard(
-                      title: 'Delivery offers unavailable',
-                      subtitle:
-                          'Prices and delivery fees may be outdated until we reconnect.',
-                      onRetry: () => ref.invalidate(pricingConfigProvider),
-                      minHeight: 108,
-                    ),
-                  ),
-                ),
-              if (pricing != null)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 10),
-                    child: _DeliveryPromoStrip(pricing: pricing),
-                  ),
-                ),
+              _HomePricingSliver(gutter: gutter),
+              // 1) Banner
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 12),
                   child: const _BannersSection(),
                 ),
               ),
-              if (appContent.showShopCategory)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: gutter),
-                    child: const HomeCategoriesRail(),
-                  ),
-                ),
-              if (appContent.showFlashDeals)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: gutter),
-                    child: FlashSaleSection(
-                      heading: appContent.flashDealHeading,
-                      headingLoading: contentLoading,
-                    ),
-                  ),
-                ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: _ProductRailSection(
-                    title: appContent.trendingHeading,
-                    titleLoading: contentLoading,
-                    provider: trendingProductsStreamProvider,
-                    legacySpecialCat: "Today's snacks deals",
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: const RecommendationsSection(),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: const RecentlyOrderedSection(),
-                ),
-              ),
+              // 2) Categories
+              _HomeCategoriesSliver(gutter: gutter),
+              // 3) Featured
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
@@ -429,6 +430,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     provider: featuredProductsStreamProvider,
                     legacySpecialCat: 'Featured this week',
                   ),
+                ),
+              ),
+              // 4) Offers / explore — own Consumer so pagination ≠ full Home
+              _HomeExploreOffersSliver(gutter: gutter),
+              // 5) Recommended
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: gutter),
+                  child: const RecommendationsSection(),
+                ),
+              ),
+              _HomeFlashSliver(gutter: gutter),
+              _HomeTrendingSliver(gutter: gutter),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: gutter),
+                  child: const RecentlyOrderedSection(),
                 ),
               ),
               SliverToBoxAdapter(
@@ -449,22 +467,158 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
               ),
-              ...buildHomeExploreOfferSlivers(
-                context: context,
-                ref: ref,
-                exploreAsync: ref.watch(exploreProductsProvider),
-                offers:
-                    ref.watch(homeExploreOfferBannersProvider).asData?.value ??
-                        const [],
-                gutter: gutter,
-              ),
-              SliverToBoxAdapter(
-                child: SizedBox(height: hasCartItems ? 110 : 30),
-              ),
+              const _HomeBottomSpacerSliver(),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Leaf hosts: each watches only the data it needs ──────────────────────
+
+class _HomePricingSliver extends ConsumerWidget {
+  const _HomePricingSliver({required this.gutter});
+  final double gutter;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pricingAsync = ref.watch(pricingConfigProvider);
+    final pricing = pricingAsync.asData?.value;
+    if (pricingAsync.hasError) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 8),
+          child: HomeSectionErrorCard(
+            title: 'Delivery offers unavailable',
+            subtitle:
+                'Prices and delivery fees may be outdated until we reconnect.',
+            onRetry: () => ref.invalidate(pricingConfigProvider),
+            minHeight: 108,
+          ),
+        ),
+      );
+    }
+    if (pricing == null) return const SliverToBoxAdapter(child: SizedBox.shrink());
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 10),
+        child: _DeliveryPromoStrip(pricing: pricing),
+      ),
+    );
+  }
+}
+
+class _HomeCategoriesSliver extends ConsumerWidget {
+  const _HomeCategoriesSliver({required this.gutter});
+  final double gutter;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final show = ref.watch(
+      appContentStreamProvider.select(
+        (async) {
+          final loading = async.isLoading && !async.hasValue;
+          final cfg = async.value ?? AppContentConfig.defaults;
+          return loading || cfg.showShopCategory;
+        },
+      ),
+    );
+    if (!show) return const SliverToBoxAdapter(child: SizedBox.shrink());
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: gutter),
+        child: const HomeCategoriesRail(),
+      ),
+    );
+  }
+}
+
+class _HomeExploreOffersSliver extends ConsumerWidget {
+  const _HomeExploreOffersSliver({required this.gutter});
+  final double gutter;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final exploreAsync = ref.watch(exploreProductsProvider);
+    final offersAsync = ref.watch(homeExploreOfferBannersProvider);
+    return SliverMainAxisGroup(
+      slivers: buildHomeExploreOfferSlivers(
+        context: context,
+        ref: ref,
+        exploreAsync: exploreAsync,
+        offers: offersAsync.asData?.value ?? const [],
+        offersLoading: offersAsync.isLoading && !offersAsync.hasValue,
+        gutter: gutter,
+      ),
+    );
+  }
+}
+
+class _HomeFlashSliver extends ConsumerWidget {
+  const _HomeFlashSliver({required this.gutter});
+  final double gutter;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final visible = ref.watch(
+      appContentStreamProvider.select((async) {
+        final loading = async.isLoading && !async.hasValue;
+        final cfg = async.value ?? AppContentConfig.defaults;
+        return (show: loading || cfg.showFlashDeals, heading: cfg.flashDealHeading, loading: loading);
+      }),
+    );
+    if (!visible.show) return const SliverToBoxAdapter(child: SizedBox.shrink());
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: gutter),
+        child: FlashSaleSection(
+          heading: visible.heading,
+          headingLoading: visible.loading,
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeTrendingSliver extends ConsumerWidget {
+  const _HomeTrendingSliver({required this.gutter});
+  final double gutter;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final meta = ref.watch(
+      appContentStreamProvider.select((async) {
+        final loading = async.isLoading && !async.hasValue;
+        final cfg = async.value ?? AppContentConfig.defaults;
+        return (title: cfg.trendingHeading, loading: loading);
+      }),
+    );
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: gutter),
+        child: _ProductRailSection(
+          title: meta.title,
+          titleLoading: meta.loading,
+          provider: trendingProductsStreamProvider,
+          legacySpecialCat: "Today's snacks deals",
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeBottomSpacerSliver extends ConsumerWidget {
+  const _HomeBottomSpacerSliver();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasCartItems = ref.watch(
+      cartProvider.select((c) => c.items.isNotEmpty),
+    );
+    return SliverToBoxAdapter(
+      child: SizedBox(height: hasCartItems ? 110 : 30),
     );
   }
 }
@@ -481,12 +635,15 @@ class _DeliveryPromoStrip extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: Colors.white,
+        color: AppSurface.of(context).card,
         border: Border.all(color: AppSurface.of(context).border),
       ),
       child: Text(
         message,
-        style: const TextStyle(fontWeight: FontWeight.w600),
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: AppSurface.of(context).textPrimary,
+        ),
       ),
     );
   }
@@ -502,9 +659,10 @@ class _BannersSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(bannersStreamProvider);
-    return async.when(
-      loading: () => HomeShimmer.banner(),
-      error: (e, _) => Column(
+    final loading = async.isLoading && !async.hasValue;
+    Widget content;
+    if (async.hasError && !async.hasValue) {
+      content = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Align(
@@ -517,13 +675,24 @@ class _BannersSection extends ConsumerWidget {
           ),
           const FallbackBannerSlider(),
         ],
-      ),
-      data: (List<BannerModel> banners) {
-        if (banners.isEmpty) return const FallbackBannerSlider();
+      );
+    } else {
+      final banners = async.asData?.value ?? const <BannerModel>[];
+      if (banners.isEmpty && !loading) {
+        content = const FallbackBannerSlider();
+      } else {
         final carousel = imageCarouselBanners(banners);
-        if (carousel.isEmpty) return const FallbackBannerSlider();
-        return HomeBannerSlider(banners: carousel);
-      },
+        content = carousel.isEmpty
+            ? const FallbackBannerSlider()
+            : HomeBannerSlider(banners: carousel);
+      }
+    }
+
+    return HomeSectionSlot(
+      loading: loading,
+      shimmer: AppLoading.banner,
+      minHeight: 160,
+      child: content,
     );
   }
 }
@@ -549,40 +718,47 @@ class _ProductRailSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(provider);
 
-    return async.when(
-      loading: () => Padding(
+    final loading = async.isLoading && !async.hasValue;
+    if (async.hasError && !async.hasValue) {
+      return HomeSectionErrorCard(
+        title: 'Unable to load products',
+        subtitle: 'Pull to refresh or try again in a moment.',
+        onRetry: () => ref.invalidate(provider),
+      );
+    }
+
+    final products = async.asData?.value ?? const <ProductModel>[];
+    final Widget body;
+    if (products.isNotEmpty) {
+      body = _RailWithProducts(
+        title: title,
+        titleLoading: titleLoading,
+        products: products,
+      );
+    } else if (!loading) {
+      body = _LegacyRail(
+        title: title,
+        titleLoading: titleLoading,
+        specialCat: legacySpecialCat,
+      );
+    } else {
+      body = const SizedBox.shrink();
+    }
+
+    return HomeSectionSlot(
+      loading: loading,
+      minHeight: 240,
+      shimmer: Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(title: title, isLoading: titleLoading),
-            Builder(
-              builder: (context) => HomeShimmer.horizontalProducts(
-                height: Responsive.horizontalProductRailHeight(context),
-              ),
-            ),
+            AppLoading.productRail,
           ],
         ),
       ),
-      error: (e, _) => HomeSectionErrorCard(
-        title: 'Unable to load products',
-        subtitle: 'Pull to refresh or try again in a moment.',
-        onRetry: () => ref.invalidate(provider),
-      ),
-      data: (products) {
-        if (products.isNotEmpty) {
-          return _RailWithProducts(
-            title: title,
-            titleLoading: titleLoading,
-            products: products,
-          );
-        }
-        return _LegacyRail(
-          title: title,
-          titleLoading: titleLoading,
-          specialCat: legacySpecialCat,
-        );
-      },
+      child: body,
     );
   }
 }
@@ -601,17 +777,31 @@ class _LegacyRail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(specialCatProductsProvider(specialCat));
-    return async.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (products) {
-        if (products.isEmpty) return const SizedBox.shrink();
-        return _RailWithProducts(
-          title: title,
-          titleLoading: titleLoading,
-          products: products,
-        );
-      },
+    final loading = async.isLoading && !async.hasValue;
+    if (async.hasError && !async.hasValue) {
+      return const SizedBox.shrink();
+    }
+    final products = async.asData?.value ?? const <ProductModel>[];
+    return HomeSectionSlot(
+      loading: loading,
+      hideWhenEmpty: true,
+      isEmpty: products.isEmpty,
+      minHeight: 240,
+      shimmer: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(title: title, isLoading: titleLoading),
+            AppLoading.productRail,
+          ],
+        ),
+      ),
+      child: _RailWithProducts(
+        title: title,
+        titleLoading: titleLoading,
+        products: products,
+      ),
     );
   }
 }
@@ -638,9 +828,16 @@ class _RailWithProducts extends StatelessWidget {
           SectionHeader(title: title, isLoading: titleLoading),
           HorizontalProductRail(
             height: h,
+            itemExtent: HomeProductCard.railExtent,
             itemCount: products.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) => HomeProductCard(product: products[i]),
+            itemBuilder: (_, i) {
+              final p = products[i];
+              return HomeProductCard(
+                key: ValueKey('rail-${p.id}-$title'),
+                product: p,
+              );
+            },
           ),
         ],
       ),
@@ -651,16 +848,6 @@ class _RailWithProducts extends StatelessWidget {
 // ──────────────────────────────────────────────────────────────────────────
 //  STATUS / GLOBAL OVERLAYS
 // ──────────────────────────────────────────────────────────────────────────
-
-class _ServiceabilityLoading extends StatelessWidget {
-  const _ServiceabilityLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    // Match home layout with shimmer — never a blank spinner gate after bootstrap.
-    return const HomeBootstrapShimmer();
-  }
-}
 
 class _OfflineView extends StatelessWidget {
   const _OfflineView({required this.onRetry});
@@ -675,9 +862,6 @@ class _OfflineView extends StatelessWidget {
         bottom: false,
         child: OfflineLoadingView(
           onRetry: onRetry,
-          title: 'No Internet connection',
-          subtitle:
-              'Please check your internet connection and try again. We\'ll reload the freshest groceries.',
         ),
       ),
     );

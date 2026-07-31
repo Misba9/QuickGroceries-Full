@@ -5,6 +5,7 @@ import 'package:quickgrocery/constants/app_spacing.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/wishlist/services/wishlist_service.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 class WishlistScreen extends StatefulWidget {
   const WishlistScreen({super.key});
@@ -35,7 +36,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
         title: Text(context.l10n.wishlist),
       ),
       body: wishlistProvider.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? AppLoading.center
           : wishlistProvider.wishlistProducts == null ||
                 wishlistProvider.wishlistProducts!.isEmpty
           ? Center(

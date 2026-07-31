@@ -1,6 +1,7 @@
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { callableBaseOptions } from "../https_callable_options";
 import { ChatTurn, runGroceryAssistant } from "./assistant_engine";
+import { persistAiChatTurn } from "./ai_chat_persist";
 // GEMINI_API_KEY: set as Functions secret or env — see gemini_config.ts
 import "./gemini_config";
 
@@ -35,7 +36,7 @@ function parseHistory(raw: unknown): ChatTurn[] {
  * Response:
  *   { reply, productIds, quickReplies, intent, source, latencyMs }
  *
- * Secrets: GEMINI_API_KEY (optional — catalog-grounded fallback always works).
+ * After a successful reply, persists the turn to `ai_chat_sessions` for admin.
  */
 export const aiGroceryAssistant = onCall(
   {
@@ -88,6 +89,24 @@ export const aiGroceryAssistant = onCall(
           latencyMs,
         }),
       );
+
+      try {
+        await persistAiChatTurn({
+          uid,
+          sessionId,
+          userMessage: message,
+          reply: result.reply,
+          productIds: result.productIds,
+          quickReplies: result.quickReplies,
+          intent: result.intent,
+          source: result.source,
+          latencyMs,
+        });
+      } catch (persistErr) {
+        // Never fail the user chat if admin transcript write fails.
+        console.error("[aiGroceryAssistant] persist failed", persistErr);
+      }
+
       return {
         success: true,
         reply: result.reply,

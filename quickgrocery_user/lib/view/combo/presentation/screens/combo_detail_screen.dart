@@ -12,6 +12,7 @@ import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/combo/presentation/providers/combo_providers.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Full combo breakdown + add all to cart.
 class ComboDetailScreen extends ConsumerStatefulWidget {
@@ -162,7 +163,7 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                             Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppSurface.of(context).card,
                                 borderRadius: BorderRadius.circular(AppRadii.md),
                                 border: Border.all(color: AppSurface.of(context).border),
                               ),
@@ -341,7 +342,7 @@ class _ComboDetailLoadingBodyState extends State<_ComboDetailLoadingBody> {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: CircularProgressIndicator());
+    return AppLoading.center;
   }
 }
 
@@ -364,7 +365,7 @@ class _QtyStepper extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border.all(color: AppSurface.of(context).border),
         borderRadius: BorderRadius.circular(AppRadii.md),
-        color: Colors.white,
+        color: AppSurface.of(context).card,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

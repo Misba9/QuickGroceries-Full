@@ -564,7 +564,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     if (cart.isHydrating && cart.isEmpty) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: const SafeArea(child: SkeletonCheckout()),
+        body: const SafeArea(child: AppLoading.center),
       );
     }
 
@@ -769,12 +769,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             ),
                           ),
                           if (zoneAsync.isLoading && zoneCharge == 0)
-                            SliverToBoxAdapter(
+                            const SliverToBoxAdapter(
                               child: Padding(
-                                padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-                                child: LinearProgressIndicator(
-                                  minHeight: 2,
-                                  backgroundColor: AppSurface.of(context).subtle,
+                                padding: EdgeInsets.fromLTRB(14, 12, 14, 0),
+                                child: SizedBox(
+                                  height: 28,
+                                  child: AppLoading.micro,
                                 ),
                               ),
                             ),
@@ -901,18 +901,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         vertical: 16,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppSurface.of(context).card,
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: AppShadow.dim,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2.4),
-                          ),
+                          const SizedBox(width: 22, height: 22, child: AppLoading.micro),
                           const SizedBox(width: 14),
                           Flexible(
                             child: Text(
@@ -952,12 +948,13 @@ class _CheckoutDeliveryInfo extends StatelessWidget {
         : pricing.isFreeDeliveryEnabled
         ? 'Free delivery above ₹${pricing.freeDeliveryThreshold}'
         : 'Delivery fee ₹${bill.deliveryFee.toStringAsFixed(0)} applies';
+    final surface = AppSurface.of(context);
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(AppRadii.sm),
-        border: Border.all(color: AppSurface.of(context).border),
+        border: Border.all(color: surface.border),
       ),
       child: Text(
         msg,
@@ -983,7 +980,10 @@ class _CheckoutHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(6, 8, 14, 12),
-      decoration: BoxDecoration(color: Colors.white, boxShadow: AppShadow.dim),
+      decoration: BoxDecoration(
+        color: AppSurface.of(context).card,
+        boxShadow: AppShadow.dim,
+      ),
       child: Row(
         children: [
           IconButton(
@@ -1114,12 +1114,13 @@ class _MiniCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.of(context).border),
+        border: Border.all(color: surface.border),
         boxShadow: AppShadow.dim,
       ),
       child: Column(
@@ -1134,7 +1135,7 @@ class _MiniCard extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w800,
               fontSize: 12.5,
-              color: AppSurface.of(context).text,
+              color: surface.text,
             ),
           ),
           SizedBox(height: 4),
@@ -1145,7 +1146,7 @@ class _MiniCard extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 11.5,
               height: 1.35,
-              color: AppSurface.of(context).textSecondary,
+              color: surface.textSecondary,
             ),
           ),
         ],

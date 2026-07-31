@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/quantity_provider.dart';
 
@@ -33,7 +34,7 @@ class ProductVariantWidget extends ConsumerWidget {
             style: GoogleFonts.poppins(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              color: AppSurface.of(context).text,
             ),
           ),
           const SizedBox(height: 10),
@@ -88,6 +89,7 @@ class _WeightChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: onTap,
@@ -97,10 +99,10 @@ class _WeightChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? AppColor.primary.withValues(alpha: 0.12)
-              : Colors.white,
+              : surface.card,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? AppColor.primary : Colors.grey.shade300,
+            color: selected ? AppColor.primary : surface.border,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -113,7 +115,7 @@ class _WeightChip extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: selected ? AppColor.primary : Colors.black87,
+                color: selected ? AppColor.primary : surface.text,
               ),
             ),
             const SizedBox(height: 2),
@@ -125,7 +127,7 @@ class _WeightChip extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: surface.text,
                   ),
                 ),
                 if (slashed != null) ...[
@@ -134,7 +136,7 @@ class _WeightChip extends StatelessWidget {
                     '₹${slashed!.toStringAsFixed(0)}',
                     style: GoogleFonts.poppins(
                       fontSize: 10.5,
-                      color: Colors.grey,
+                      color: surface.textMuted,
                       decoration: TextDecoration.lineThrough,
                     ),
                   ),

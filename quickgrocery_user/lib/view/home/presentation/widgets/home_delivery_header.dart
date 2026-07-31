@@ -20,6 +20,7 @@ import 'package:quickgrocery/view/app_content/presentation/widgets/animated_app_
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Pinned Blinkit/Zepto-style delivery strip + quick actions.
 class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
@@ -48,7 +49,9 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
     final shadow = overlapsContent
         ? [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
+              color: Colors.black.withValues(
+                alpha: context.isDarkTheme ? 0.35 : 0.07,
+              ),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -63,7 +66,7 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
           duration: AppMotion.short,
           curve: AppMotion.standard,
           decoration: BoxDecoration(
-            gradient: AppGradients.surface,
+            gradient: AppGradients.surfaceOf(context),
             borderRadius: BorderRadius.circular(20),
             boxShadow: shadow,
             border: Border.all(color: AppSurface.of(context).border.withValues(alpha: 0.55)),
@@ -292,7 +295,10 @@ class _HeaderIconButton extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: AppSurface.of(context).danger,
                         borderRadius: BorderRadius.circular(99),
-                        border: Border.all(color: Colors.white, width: 1.5),
+                        border: Border.all(
+                          color: AppSurface.of(context).card,
+                          width: 1.5,
+                        ),
                       ),
                       constraints: const BoxConstraints(minWidth: 16),
                       child: Text(
@@ -301,7 +307,7 @@ class _HeaderIconButton extends StatelessWidget {
                         style: GoogleFonts.poppins(
                           fontSize: 9,
                           fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                          color: AppSurface.of(context).onDanger,
                           height: 1,
                         ),
                       ),
@@ -354,9 +360,10 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
       minChildSize: 0.35,
       maxChildSize: 0.92,
       builder: (ctx, scrollCtrl) {
+        final surface = AppSurface.of(ctx);
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: surface.card,
             borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
           ),
           child: Column(
@@ -366,7 +373,7 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: surface.border,
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -380,6 +387,7 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
                         style: GoogleFonts.poppins(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
+                          color: surface.textPrimary,
                         ),
                       ),
                     ),
@@ -392,14 +400,7 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: _markingAll
-                            ? SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColor.primary,
-                                ),
-                              )
+                            ? SizedBox(width: 18, height: 18, child: AppLoading.micro)
                             : Text(
                                 context.l10n.mark_all_read,
                                 style: GoogleFonts.poppins(
@@ -419,7 +420,7 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
               Expanded(
                 child: async.when(
                   loading: () =>
-                      const Center(child: CircularProgressIndicator()),
+                      AppLoading.center,
                   error: (_, __) => Center(
                     child: Text(
                       'Could not load notifications',

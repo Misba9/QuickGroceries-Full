@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/order/order_line_display.dart';
 import 'package:quickgrocery/models/order_model.dart';
 import 'package:quickgrocery/models/product.dart';
@@ -7,6 +8,7 @@ import 'package:quickgrocery/view/home/screens/landing_screen.dart';
 import 'package:quickgrocery/view/orders/services/order_service.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class DeliveryTab extends StatelessWidget {
@@ -71,12 +73,13 @@ class DeliveryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       padding: const EdgeInsets.all(15),
       margin: const EdgeInsets.all(10),
       width: width,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -92,19 +95,13 @@ class DeliveryCard extends StatelessWidget {
                   image,
                   alignment: Alignment.topCenter,
                   errorBuilder: (context, error, stackTrace) {
-                    return LottieBuilder.asset(
-                      'assets/lottie/load.json',
-                      fit: BoxFit.cover,
-                    );
+                    return AppLoading.center;
                   },
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) {
                       return child;
                     } else {
-                      return LottieBuilder.asset(
-                        'assets/lottie/load.json',
-                        fit: BoxFit.cover,
-                      );
+                      return AppLoading.center;
                     }
                   },
                   fit: BoxFit.cover,
@@ -116,22 +113,22 @@ class DeliveryCard extends StatelessWidget {
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(
-                      color: Colors.black,
+                    style: TextStyle(
+                      color: surface.textPrimary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
                     "Qty: $hotel",
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(color: surface.textMuted, fontSize: 12),
                   ),
                   SizedBox(height: height * .03),
                   Row(
                     children: [
                       Text(
                         '₹$price',
-                        style: const TextStyle(
-                          color: Colors.black,
+                        style: TextStyle(
+                          color: surface.textPrimary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -140,12 +137,12 @@ class DeliveryCard extends StatelessWidget {
                         padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          color: const Color(0xFFD1EEDB),
+                          color: surface.success.withValues(alpha: 0.18),
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text(
                             'Completed',
-                            style: TextStyle(fontSize: 12, color: Colors.green),
+                            style: TextStyle(fontSize: 12, color: surface.success),
                           ),
                         ),
                       ),
@@ -155,7 +152,7 @@ class DeliveryCard extends StatelessWidget {
               ),
             ],
           ),
-          Divider(color: Colors.grey.shade200),
+          Divider(color: surface.border),
           const SizedBox(height: 10),
         ],
       ),
@@ -177,6 +174,7 @@ class OrderButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -184,11 +182,11 @@ class OrderButton extends StatelessWidget {
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.black),
-          color: Colors.white,
+          border: Border.all(color: surface.textPrimary),
+          color: surface.card,
         ),
         child: Center(
-          child: Text(label, style: const TextStyle(color: Colors.black)),
+          child: Text(label, style: TextStyle(color: surface.textPrimary)),
         ),
       ),
     );
@@ -204,6 +202,7 @@ class DeliveredListWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = Provider.of<OrderService>(context);
     final width = MediaQuery.of(context).size.width;
+    final surface = AppSurface.of(context);
     if (orders.isEmpty) {
       return Center(child: Text(context.l10n.noOrdersFoundPeriod));
     }
@@ -222,7 +221,7 @@ class DeliveredListWidget extends StatelessWidget {
         totalAmount += order.deliveryCharge;
 
         return Card(
-          color: Colors.white,
+          color: surface.card,
           margin: const EdgeInsets.all(12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           child: Padding(
@@ -257,7 +256,7 @@ class DeliveredListWidget extends StatelessWidget {
                       (index) => Container(
                         width: 10,
                         height: 1,
-                        color: Colors.grey.shade300,
+                        color: surface.border,
                       ),
                     ),
                   ),
@@ -296,7 +295,7 @@ class DeliveredListWidget extends StatelessWidget {
                                     : Icons.star_border, // Yellow or Grey
                                 color: index < order.rating
                                     ? Colors.amber
-                                    : Colors.grey,
+                                    : surface.iconInactive,
                                 size: 25,
                               );
                             }),
@@ -325,12 +324,12 @@ class DeliveredListWidget extends StatelessWidget {
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          color: Colors.black,
+                          color: surface.textPrimary,
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text(
                             'Order Again',
-                            style: TextStyle(color: Colors.white),
+                            style: TextStyle(color: surface.card),
                           ),
                         ),
                       ),

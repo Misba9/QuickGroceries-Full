@@ -19,7 +19,7 @@ final offerBannerRepositoryProvider = Provider<OfferBannerRepository>((ref) {
 
 final homeExploreOfferBannersProvider =
     StreamProvider.autoDispose<List<OfferBannerModel>>((ref) async* {
-      final seed = ref.watch(homeBootstrapSnapshotProvider).offers;
+      final seed = ref.read(homeBootstrapSnapshotProvider).offers;
       if (seed.isNotEmpty) yield seed;
       yield* ref.watch(offerBannerRepositoryProvider).watchHomeExploreOffers();
     });

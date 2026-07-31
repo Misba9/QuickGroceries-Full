@@ -9,6 +9,7 @@ import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
 import 'package:quickgrocery/core/firebase/firebase_options.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/firebase/google_services_parser.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Debug screen: Firebase + Phone Auth configuration for com.quickgrocery.io.
 class FirebaseDiagnosticScreen extends StatefulWidget {
@@ -166,7 +167,7 @@ class _FirebaseDiagnosticScreenState extends State<FirebaseDiagnosticScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? AppLoading.center
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: SelectableText(

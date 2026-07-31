@@ -16,7 +16,7 @@ import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 class _SearchHit {
   const _SearchHit({
@@ -354,7 +354,10 @@ class _LocationPickerState extends State<LocationPicker> {
                                   ),
                                 ),
                                 if (_suggestLoading)
-                                  const LinearProgressIndicator(minHeight: 2),
+                                  const SizedBox(
+                                    height: 24,
+                                    child: Center(child: AppLoading.micro),
+                                  ),
                                 if (_suggestions.isNotEmpty)
                                   ConstrainedBox(
                                     constraints: const BoxConstraints(
@@ -426,14 +429,7 @@ class _LocationPickerState extends State<LocationPicker> {
                                   ? Row(
                                       key: const ValueKey('loc-geocoding'),
                                       children: [
-                                        SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: primary,
-                                          ),
-                                        ),
+                                        SizedBox(width: 18, height: 18, child: AppLoading.micro),
                                         const SizedBox(width: 10),
                                         Expanded(
                                           child: Text(
@@ -525,7 +521,7 @@ class _LocationMapPaneState extends State<_LocationMapPane> {
 
   bool _alive = true;
   bool _mapReady = false;
-  bool _showMapShimmer = true;
+  bool _showMapPlaceholder = true;
   _LocationGate _gate = _LocationGate.none;
   LatLng? _gpsFix;
 
@@ -596,7 +592,7 @@ class _LocationMapPaneState extends State<_LocationMapPane> {
     setState(() {});
     Future<void>.delayed(const Duration(milliseconds: 220), () {
       if (!_alive || !mounted) return;
-      setState(() => _showMapShimmer = false);
+      setState(() => _showMapPlaceholder = false);
     });
     _emitSettled();
   }
@@ -787,14 +783,10 @@ class _LocationMapPaneState extends State<_LocationMapPane> {
             ],
           ),
         ),
-        if (_showMapShimmer)
+        if (_showMapPlaceholder)
           Positioned.fill(
             child: IgnorePointer(
-              child: Shimmer.fromColors(
-                baseColor: Colors.grey.shade300,
-                highlightColor: Colors.grey.shade100,
-                child: Container(color: Colors.white),
-              ),
+              child: ColoredBox(color: Colors.grey.shade200),
             ),
           ),
         const IgnorePointer(

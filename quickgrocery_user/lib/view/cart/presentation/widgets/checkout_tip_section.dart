@@ -108,7 +108,7 @@ class _CheckoutTipSectionState extends State<CheckoutTipSection> {
       child: Container(
         padding: EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppSurface.of(context).card,
           borderRadius: BorderRadius.circular(AppRadii.md),
           border: Border.all(color: AppColor.primary.withValues(alpha: 0.35)),
           boxShadow: AppShadow.dim,

@@ -7,8 +7,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:quickgrocery/core/user/user_profile_repository.dart';
 import 'package:quickgrocery/core/delivery/delivery_zone_lookup.dart';
+import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
+import 'package:quickgrocery/core/user/user_profile_repository.dart';
 import 'package:quickgrocery/models/address_model.dart';
 import 'package:quickgrocery/view/address/data/guest_address_store.dart';
 import 'package:latlong2/latlong.dart';
@@ -176,8 +177,14 @@ class AddressService extends ChangeNotifier {
       }
 
       // Check permission — do not re-prompt if already granted.
+      // Never auto-prompt during splash / early home settle (unless user force).
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        if (!force && !AppPermissionCoordinator.hasSettled) {
+          _isLoading = false;
+          notifyListeners();
+          return;
+        }
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           _isLoading = false;
@@ -770,18 +777,20 @@ class AddressService extends ChangeNotifier {
     }
   }
 
-  /// Wipes in-memory address state after logout (prefs cleared separately).
+  /// Clears signed-in address book after logout, but keeps browsing unblocked
+  /// so guest Home opens immediately (like a first-time guest).
   void resetSessionForLogout() {
     addresses = null;
     latLng = null;
-    _address = 'Loading...';
+    _address = 'Select delivery location';
     _pinCode = null;
     _selectedAddressId = null;
     _selectedIndex = 0;
     _isAddressValidated = false;
     _cachedServiceable = false;
     _validatedAt = null;
-    _sessionServiceCheckBypass = false;
+    // Allow guest Home to paint without waiting on GPS / zone lookup.
+    _sessionServiceCheckBypass = true;
     _cacheRestored = false;
     _validationMutation++;
     nameController.clear();

@@ -7,6 +7,7 @@ import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quick_grocery_geo/quick_grocery_geo.dart';
 
 import '../../domain/order_models.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Live tracking map backed by OpenStreetMap tiles and OSRM road routing.
 class LiveTrackingMap extends StatefulWidget {
@@ -228,11 +229,7 @@ class _LiveTrackingMapState extends State<LiveTrackingMap> {
               const Positioned(
                 top: 12,
                 right: 12,
-                child: SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                child: SizedBox(width: 22, height: 22, child: AppLoading.micro),
               ),
             if (hasRider && (distanceKm != null || etaMinutes != null))
               Positioned(

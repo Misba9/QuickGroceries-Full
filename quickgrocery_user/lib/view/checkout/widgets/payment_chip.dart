@@ -47,7 +47,7 @@ class PaymentChip extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadii.pill),
                 color: selected
                     ? AppColor.primary.withValues(alpha: 0.14)
-                    : Colors.white,
+                    : AppSurface.of(context).card,
                 border: Border.all(
                   color: selected
                       ? AppColor.primary

@@ -55,7 +55,7 @@ class CategoryTile extends StatelessWidget {
                       height: side,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppSurface.of(context).card,
                           borderRadius: AppRadii.all(AppRadii.md),
                           border: Border.all(color: AppSurface.of(context).border),
                           boxShadow: AppShadow.dim,

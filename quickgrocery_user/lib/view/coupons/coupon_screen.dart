@@ -2,6 +2,8 @@ import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quickgrocery/constants/app_icons.dart';
+import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/device/device_id_service.dart';
 import 'package:quickgrocery/view/auth/widgets/primary_button.dart';
 import 'package:quickgrocery/view/cart/data/coupon_service.dart';
@@ -10,6 +12,7 @@ import 'package:quickgrocery/view/cart/presentation/providers/coupons_provider.d
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 class CouponScreen extends ConsumerStatefulWidget {
   const CouponScreen({super.key, this.checkoutPhone});
@@ -125,11 +128,7 @@ class _CouponScreenState extends ConsumerState<CouponScreen> {
                         ? null
                         : () => _applyCode(_manualCode.text),
                     child: _applying
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? const SizedBox(width: 20, height: 20, child: AppLoading.micro)
                         : Text(context.l10n.apply),
                   ),
                 ],
@@ -202,7 +201,7 @@ class _CouponScreenState extends ConsumerState<CouponScreen> {
                     );
                   },
                   loading: () =>
-                      const Center(child: CircularProgressIndicator()),
+                      AppLoading.center,
                   error: (_, __) =>
                       Center(child: Text(context.l10n.could_not_load_coupons)),
                 ),
@@ -242,6 +241,7 @@ class _CouponTile extends StatelessWidget {
     final meetsMin = subtotal >= coupon.minOrderValue;
     final disabled = !meetsMin || applying;
     final isFirst = coupon.isFirstOrderOffer;
+    final surface = AppSurface.of(context);
 
     return FadeInDown(
       duration: const Duration(milliseconds: 400),
@@ -251,14 +251,16 @@ class _CouponTile extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 6),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isFirst ? Colors.orange.shade50 : Colors.white,
+            color: isFirst
+                ? surface.secondaryOrange.withValues(alpha: 0.12)
+                : surface.card,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: highlightCode == coupon.code
-                  ? Colors.amber
+                  ? AppColor.primary
                   : isFirst
-                      ? Colors.deepOrange.shade200
-                      : Colors.grey.shade200,
+                      ? surface.secondaryOrange.withValues(alpha: 0.45)
+                      : surface.border,
               width: highlightCode == coupon.code ? 2 : 1,
             ),
           ),
@@ -277,9 +279,10 @@ class _CouponTile extends StatelessWidget {
                       children: [
                         Text(
                           coupon.code,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
+                            color: surface.textPrimary,
                           ),
                         ),
                         if (isFirst) ...[
@@ -290,13 +293,13 @@ class _CouponTile extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.deepOrange,
+                              color: surface.offerBadge,
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Text(
+                            child: Text(
                               '1st ORDER',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: surface.onWarning,
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -309,7 +312,7 @@ class _CouponTile extends StatelessWidget {
                     Text(
                       coupon.displaySubtitle,
                       style: TextStyle(
-                        color: Colors.grey.shade700,
+                        color: surface.textSecondary,
                         fontSize: 12,
                       ),
                     ),

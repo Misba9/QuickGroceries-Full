@@ -3,9 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
-import 'package:quickgrocery/core/loading/widgets/animated_category_loader.dart';
 
-/// Friendly offline state instead of infinite loading.
+/// Offline empty state — not a loader (retry CTA only).
 class OfflineLoadingView extends StatelessWidget {
   const OfflineLoadingView({
     super.key,
@@ -28,13 +27,12 @@ class OfflineLoadingView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const AnimatedCategoryLoader(
-              compact: true,
-              showCard: false,
-              rotateEvery: Duration(milliseconds: 3200),
-              semanticsLabel: 'Offline',
+            Icon(
+              Icons.wifi_off_rounded,
+              size: 48,
+              color: surface.textSecondary,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             Text(
               title,
               textAlign: TextAlign.center,

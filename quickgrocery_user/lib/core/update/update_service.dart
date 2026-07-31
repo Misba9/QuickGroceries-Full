@@ -148,6 +148,42 @@ class AppUpdateService {
     await checkAndPrompt(context);
   }
 
+  /// Profile / settings: whether an update should be offered (no throttle).
+  Future<UpdateDecision?> checkAvailability() async {
+    if (mode == UpdateMode.disabled) return null;
+    try {
+      final config = fakeConfig ?? await _remote.fetchConfig();
+      final decision = await _versions.evaluate(
+        config,
+        fakeInstalled: fakeInstalledVersion,
+      );
+      if (!decision.shouldPrompt) return null;
+      return decision;
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[AppUpdate] profile availability check failed: $e\n$st');
+      }
+      return null;
+    }
+  }
+
+  /// Opens Play Store (Android) or App Store (iOS) for this app.
+  Future<bool> openStoreListing() async {
+    final isAndroid =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+    final isIos = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS);
+
+    if (isAndroid) {
+      return _play.openPlayStoreListing();
+    }
+    if (isIos) {
+      return _appStore.openAppStore();
+    }
+    return _play.openPlayStoreListing();
+  }
+
   Future<void> _present(BuildContext context, UpdateDecision decision) async {
     if (_dialogVisible || !context.mounted) return;
     _dialogVisible = true;

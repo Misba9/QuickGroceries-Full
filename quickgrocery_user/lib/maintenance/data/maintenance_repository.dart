@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:quickgrocery/maintenance/domain/maintenance_config.dart';
+import 'package:rxdart/rxdart.dart';
 
 /// Firestore access for maintenance config + online driver count.
 class MaintenanceRepository {
@@ -9,6 +10,9 @@ class MaintenanceRepository {
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
+
+  Stream<MaintenanceConfig>? _sharedConfig;
+  Stream<int>? _sharedDrivers;
 
   DocumentReference<Map<String, dynamic>> get _doc => _firestore
       .collection(MaintenanceConfig.collection)
@@ -18,10 +22,14 @@ class MaintenanceRepository {
       .doc(MaintenanceConfig.legacyDocumentId);
 
   Stream<MaintenanceConfig> watchConfig() {
+    return _sharedConfig ??= _createConfigWatch().shareReplay(maxSize: 1);
+  }
+
+  Stream<MaintenanceConfig> _createConfigWatch() {
     late final StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>
-    systemSub;
+        systemSub;
     late final StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>
-    legacySub;
+        legacySub;
 
     var systemExists = false;
     Map<String, dynamic>? systemData;
@@ -67,10 +75,11 @@ class MaintenanceRepository {
 
   /// Count delivery partners marked online for smart driver rules.
   Stream<int> watchOnlineDriversCount() {
-    return _firestore
+    return _sharedDrivers ??= _firestore
         .collection('delivery_boys')
         .where('isOnline', isEqualTo: true)
         .snapshots()
-        .map((s) => s.docs.length);
+        .map((s) => s.docs.length)
+        .shareReplay(maxSize: 1);
   }
 }

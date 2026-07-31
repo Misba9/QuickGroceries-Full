@@ -1,237 +1,321 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-import 'package:quickgrocery/constants/app_color.dart';
-import 'package:quickgrocery/constants/home_branding.dart';
-import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_controller.dart';
+import 'package:quickgrocery/core/startup/widgets/home_feed_warmup.dart';
+import 'package:quickgrocery/models/category_model.dart';
 
-/// Blinkit-style branded cold-start splash with grocery category energy.
+/// Native launch / logo yellow — OS splash → logo → categories → Home.
+const kLaunchYellow = Color(0xFFFFDE59);
+
+/// Continuous startup motion: logo → categories → Home (no blank frames).
+///
+/// Exit does **not** fade the full page. When bootstrap is ready, the current
+/// category cycle finishes; Home is mounted underneath; splash is removed.
 class AppAnimatedSplash extends ConsumerStatefulWidget {
-  const AppAnimatedSplash({super.key});
+  const AppAnimatedSplash({
+    super.key,
+    this.appReady = false,
+    this.onReadyToOpenHome,
+    this.onExitComplete,
+  });
+
+  final bool appReady;
+
+  /// Fired when Home should mount under this splash (category exit done).
+  final VoidCallback? onReadyToOpenHome;
+
+  /// Fired after Home has painted — shell may remove this splash.
+  final VoidCallback? onExitComplete;
 
   @override
   ConsumerState<AppAnimatedSplash> createState() => _AppAnimatedSplashState();
 }
 
+enum _SplashPhase { logo, categories }
+
 class _AppAnimatedSplashState extends ConsumerState<AppAnimatedSplash>
     with TickerProviderStateMixin {
-  late final AnimationController _intro;
-  late final AnimationController _float;
-  late final Animation<double> _logoScale;
+  late final AnimationController _logo;
   late final Animation<double> _logoOpacity;
-  late final Animation<Offset> _taglineSlide;
+  late final Animation<double> _logoScale;
 
-  late final LoadingRandom _rng;
-  late LoadingMoment _moment;
-  Timer? _messageTimer;
+  _SplashPhase _phase = _SplashPhase.logo;
+  bool _seeded = false;
+  bool _requestCategoryExit = false;
+  bool _pendingExitAfterLogo = false;
+  bool _exitStarted = false;
+  bool _notifiedHomeUnderlay = false;
+  bool _notifiedExitComplete = false;
+  bool _assetsWarmed = false;
 
   @override
   void initState() {
     super.initState();
-    _rng = LoadingRandom();
-    _moment = LoadingMoment.fresh(_rng);
 
-    _intro = AnimationController(
+    _logo = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: LoadingConstants.logoFade,
     );
-    _float = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
-
-    _logoScale = Tween<double>(begin: 0.82, end: 1).animate(
-      CurvedAnimation(parent: _intro, curve: Curves.easeOutBack),
-    );
-    _logoOpacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _intro,
-        curve: const Interval(0, 0.55, curve: Curves.easeOut),
+    _logoOpacity = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0.0, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 35,
       ),
-    );
-    _taglineSlide = Tween<Offset>(
-      begin: const Offset(0, 0.35),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _intro,
-        curve: const Interval(0.35, 1, curve: Curves.easeOutCubic),
+      TweenSequenceItem(tween: ConstantTween(1.0), weight: 30),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeInCubic)),
+        weight: 35,
       ),
-    );
-    _intro.forward();
+    ]).animate(_logo);
+    _logoScale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(
+          begin: LoadingConstants.logoScaleBegin,
+          end: LoadingConstants.logoScaleEnd,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 65,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: LoadingConstants.logoScaleEnd, end: 1.02)
+            .chain(CurveTween(curve: Curves.easeInCubic)),
+        weight: 35,
+      ),
+    ]).animate(_logo);
 
-    unawaited(LoadingAssets.warmUp());
+    _logo.addStatusListener((status) {
+      if (status != AnimationStatus.completed || !mounted) return;
+      _startCategories();
+    });
 
-    _messageTimer = Timer.periodic(const Duration(milliseconds: 2200), (_) {
+    // Precache on first frame, then start logo — same yellow surface, no gap.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (MediaQuery.disableAnimationsOf(context)) return;
-      setState(() {
-        final cat = _rng.nextCategory();
-        _moment = LoadingMoment(
-          category: cat,
-          message: _rng.nextStatusLine(category: cat),
-          emoji: cat.emoji,
-        );
-      });
+      unawaited(_warmThenStartLogo());
+    });
+  }
+
+  Future<void> _warmThenStartLogo() async {
+    await _precacheStartupAssets();
+    if (!mounted) return;
+    if (widget.appReady) {
+      // Already ready (warm start) — skip logo, go straight to categories
+      // so exit can finish one cycle quickly without a blank hold.
+      _startCategories(requestExitIfReady: true);
+      return;
+    }
+    _logo.forward(from: 0);
+  }
+
+  Future<void> _precacheStartupAssets() async {
+    if (_assetsWarmed || !mounted) return;
+    _assetsWarmed = true;
+    try {
+      await Future.wait<void>([
+        precacheImage(
+          const AssetImage(LoadingConstants.logoAsset),
+          context,
+        ),
+        LoadingManager.boot(context: context),
+      ]);
+      // Warm first few category assets into ImageCache before they appear.
+      if (mounted) {
+        await LoadingService.precacheFirst(context);
+      }
+    } catch (_) {}
+  }
+
+  void _startCategories({bool requestExitIfReady = false}) {
+    if (!mounted) return;
+    if (_phase == _SplashPhase.categories) {
+      if ((requestExitIfReady || _pendingExitAfterLogo) && widget.appReady) {
+        _onAppBecameReady();
+      }
+      return;
+    }
+    final exitNow =
+        _pendingExitAfterLogo || (requestExitIfReady && widget.appReady);
+    setState(() {
+      _phase = _SplashPhase.categories;
+      if (exitNow) {
+        _requestCategoryExit = true;
+        _pendingExitAfterLogo = false;
+      }
     });
   }
 
   @override
+  void didUpdateWidget(covariant AppAnimatedSplash oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.appReady && !oldWidget.appReady) {
+      _onAppBecameReady();
+    }
+  }
+
+  void _onAppBecameReady() {
+    if (_exitStarted) return;
+    if (_phase != _SplashPhase.categories) {
+      _pendingExitAfterLogo = true;
+      return;
+    }
+    if (!_requestCategoryExit) {
+      setState(() => _requestCategoryExit = true);
+    }
+  }
+
+  /// Category cycle finished after [appReady] — reveal Home without page fade.
+  void _onCategoryExitReady() {
+    if (_exitStarted || !mounted) return;
+    _exitStarted = true;
+
+    if (!_notifiedHomeUnderlay) {
+      _notifiedHomeUnderlay = true;
+      widget.onReadyToOpenHome?.call();
+    }
+
+    // Wait until Home has painted (frame sync — no Timer / delayed).
+    _afterFrames(2, () {
+      if (!mounted || _notifiedExitComplete) return;
+      _notifiedExitComplete = true;
+      widget.onExitComplete?.call();
+    });
+  }
+
+  void _afterFrames(int count, VoidCallback then) {
+    var left = count;
+    void step(Duration _) {
+      left--;
+      if (left <= 0) {
+        then();
+        return;
+      }
+      SchedulerBinding.instance.addPostFrameCallback(step);
+    }
+
+    SchedulerBinding.instance.addPostFrameCallback(step);
+    SchedulerBinding.instance.scheduleFrame();
+  }
+
+  @override
   void dispose() {
-    _messageTimer?.cancel();
-    _intro.dispose();
-    _float.dispose();
+    _logo.dispose();
     super.dispose();
+  }
+
+  void _seed(List<CategoryModel> cats) {
+    if (_seeded || cats.isEmpty) return;
+    LoadingManager.seed(cats);
+    _seeded = true;
   }
 
   @override
   Widget build(BuildContext context) {
-    final bootstrap = ref.watch(appBootstrapProvider);
-    final controllerMessage = bootstrap.loadingMessage.trim();
-    final statusLine =
-        controllerMessage.isNotEmpty ? controllerMessage : _moment.message;
-    final progress = bootstrap.progress.clamp(0.0, 1.0);
-    final surface = AppSurface.of(context);
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    ref.listen(
+      appBootstrapProvider.select((s) => s.homeSnapshot.categories),
+      (prev, next) {
+        if (next.isNotEmpty) {
+          LoadingManager.seed(next);
+          _seeded = true;
+          if (mounted) unawaited(LoadingManager.boot(context: context));
+        }
+      },
+    );
 
-    return Scaffold(
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColor.primary.withValues(alpha: context.isDarkTheme ? 0.16 : 0.18),
-              surface.scaffold,
-              surface.scaffold,
-            ],
-            stops: const [0, 0.42, 1],
-          ),
+    final categories = ref.watch(
+      appBootstrapProvider.select((s) => s.homeSnapshot.categories),
+    );
+    _seed(categories);
+
+    // If ready while logo still playing, mark exit for the first category cycle.
+    if (widget.appReady &&
+        _phase == _SplashPhase.categories &&
+        !_requestCategoryExit &&
+        !_exitStarted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _onAppBecameReady();
+      });
+    }
+
+    const bg = kLaunchYellow;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: bg,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: bg,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: ColoredBox(
+        color: bg,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const HomeFeedWarmup(),
+            if (_phase == _SplashPhase.logo)
+              _LogoPhase(
+                opacity: _logoOpacity,
+                scale: _logoScale,
+              )
+            else
+              CategoryLoadingWidget(
+                compact: false,
+                fullScreen: true,
+                playing: true,
+                requestExit: _requestCategoryExit,
+                style: const CategoryLoadingStyle(
+                  cycleDuration: LoadingConstants.categoryCycle,
+                  background: bg,
+                ),
+                onExitReady: _onCategoryExitReady,
+              ),
+          ],
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              children: [
-                const Spacer(flex: 3),
-                FadeTransition(
-                  opacity: _logoOpacity,
-                  child: ScaleTransition(
-                    scale: _logoScale,
-                    child: Container(
-                      width: 112,
-                      height: 112,
-                      decoration: BoxDecoration(
-                        color: surface.card,
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: AppShadow.primaryGlow,
-                        border: Border.all(
-                          color: surface.border.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(18),
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                AnimatedBuilder(
-                  animation: _float,
-                  builder: (context, child) {
-                    final dy = reduceMotion
-                        ? 0.0
-                        : math.sin(_float.value * math.pi) * 5;
-                    return Transform.translate(
-                      offset: Offset(0, dy),
-                      child: child,
-                    );
-                  },
-                  child: AnimatedSwitcher(
-                    duration: kLoadingSwitchDuration,
-                    transitionBuilder: (child, anim) => FadeTransition(
-                      opacity: anim,
-                      child: ScaleTransition(scale: anim, child: child),
-                    ),
-                    child: Text(
-                      _moment.emoji,
-                      key: ValueKey(_moment.emoji),
-                      style: const TextStyle(fontSize: 40),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SlideTransition(
-                  position: _taglineSlide,
-                  child: FadeTransition(
-                    opacity: _logoOpacity,
-                    child: Column(
-                      children: [
-                        Text(
-                          'QuickGrocery',
-                          style: GoogleFonts.poppins(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.6,
-                            color: surface.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          HomeBranding.tagline,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: surface.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Spacer(flex: 2),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 350),
-                  child: Text(
-                    statusLine,
-                    key: ValueKey<String>(statusLine),
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: surface.textSecondary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _moment.category.label,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: surface.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: progress > 0 ? progress : null,
-                    minHeight: 4,
-                    backgroundColor: AppColor.primary.withValues(alpha: 0.12),
-                    color: AppColor.primary,
-                  ),
-                ),
-                const SizedBox(height: 36),
-              ],
+      ),
+    );
+  }
+}
+
+class _LogoPhase extends StatelessWidget {
+  const _LogoPhase({
+    required this.opacity,
+    required this.scale,
+  });
+
+  final Animation<double> opacity;
+  final Animation<double> scale;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Center(
+        child: AnimatedBuilder(
+          animation: Listenable.merge([opacity, scale]),
+          builder: (context, child) {
+            return Opacity(
+              opacity: opacity.value.clamp(0.0, 1.0),
+              child: Transform.scale(
+                scale: scale.value,
+                child: child,
+              ),
+            );
+          },
+          child: Image.asset(
+            LoadingConstants.logoAsset,
+            width: 168,
+            height: 168,
+            filterQuality: FilterQuality.medium,
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => const SizedBox(
+              width: 168,
+              height: 168,
             ),
           ),
         ),

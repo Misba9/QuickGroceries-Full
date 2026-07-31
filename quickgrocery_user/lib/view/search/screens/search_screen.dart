@@ -200,7 +200,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 if (provider.filteredProductsList == null)
                   const SliverFillRemaining(
                     hasScrollBody: false,
-                    child: SkeletonSearchFill(),
+                    child: AppLoading.center,
                   )
                 else if (provider.filteredProductsList!.isEmpty)
                   SliverFillRemaining(

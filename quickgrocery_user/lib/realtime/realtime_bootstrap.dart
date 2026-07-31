@@ -12,15 +12,14 @@ import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
-import 'package:quickgrocery/core/user/user_profile_repository.dart';
+import 'package:quickgrocery/core/startup/post_home_startup.dart';
 
 /// Configures Firestore offline persistence + FCM foreground bridge so
 /// the realtime layer behaves correctly across reconnects, kill/restart,
 /// and OS-level notifications.
 ///
-/// **Place this near the top of the widget tree**, inside `ProviderScope`
-/// and outside any auth gate (so we can persist the FCM token under
-/// `customers/{uid}` as soon as the user signs in).
+/// Firestore settings apply immediately (needed for home reads). FCM listeners
+/// and token persistence wait until [PostHomeStartup.homeVisible].
 class RealtimeBootstrap extends ConsumerStatefulWidget {
   const RealtimeBootstrap({super.key, required this.child});
 
@@ -33,7 +32,6 @@ class RealtimeBootstrap extends ConsumerStatefulWidget {
     if (_firestoreConfigured) return;
     _firestoreConfigured = true;
     if (kIsWeb) {
-      // Web requires `enablePersistence(...)` at runtime instead.
       return;
     }
     FirebaseFirestore.instance.settings = const Settings(
@@ -52,13 +50,14 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
   StreamSubscription<String>? _onTokenRefreshSub;
   StreamSubscription<User?>? _onAuthSub;
   String? _lastUid;
+  bool _fcmAttached = false;
 
   @override
   void initState() {
     super.initState();
     RealtimeBootstrap.configureFirestore();
-    _attachFcm();
-    _attachAuth();
+
+    // Cold-start notification payload only — no topic subscribe / token yet.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final initial = await FirebaseMessaging.instance.getInitialMessage();
       if (initial != null) {
@@ -66,6 +65,25 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
         enqueuePushNavigation(initial.data);
       }
     });
+
+    if (PostHomeStartup.homeVisible.value) {
+      _attachFcmLayer();
+    } else {
+      PostHomeStartup.homeVisible.addListener(_onHomeVisible);
+    }
+  }
+
+  void _onHomeVisible() {
+    if (!PostHomeStartup.homeVisible.value) return;
+    PostHomeStartup.homeVisible.removeListener(_onHomeVisible);
+    _attachFcmLayer();
+  }
+
+  void _attachFcmLayer() {
+    if (_fcmAttached) return;
+    _fcmAttached = true;
+    _attachFcm();
+    _attachAuth();
   }
 
   Future<void> _persistInboxFromMessage(RemoteMessage msg) async {
@@ -138,9 +156,6 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
       await handlePushNavigation(msg.data);
     });
 
-    // Token refresh → write into the customer doc the user is signed
-    // into right now. Other apps query `customers/*.fcmToken` to fan
-    // out targeted pushes.
     _onTokenRefreshSub = FirebaseMessaging.instance.onTokenRefresh.listen(
       _persistFcmToken,
     );
@@ -150,8 +165,6 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
     _onAuthSub = FirebaseAuth.instance.authStateChanges().listen((user) async {
       _lastUid = user?.uid;
       if (user == null) return;
-      await UserProfileRepository().hydrateLocal(user.uid);
-      // Persist initial token on sign-in so server can address us.
       try {
         final token = await FirebaseMessaging.instance.getToken();
         if (token != null) {
@@ -213,6 +226,7 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
 
   @override
   void dispose() {
+    PostHomeStartup.homeVisible.removeListener(_onHomeVisible);
     _onMessageSub?.cancel();
     _onMessageOpenedSub?.cancel();
     _onTokenRefreshSub?.cancel();

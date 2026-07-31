@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 
 /// One-time FCM setup: permissions, token, topic subscription, debug logs.
@@ -32,7 +31,8 @@ class FcmBootstrap {
 
     final messaging = FirebaseMessaging.instance;
 
-    await AppPermissionCoordinator.requestNotificationPermissionOnce();
+    // Notification permission is deferred until Home is ready
+    // ([AppPermissionCoordinator.requestAfterAppReady]).
 
     await messaging.setForegroundNotificationPresentationOptions(
       alert: false,
@@ -52,17 +52,19 @@ class FcmBootstrap {
     }
 
     await subscribeDefaultTopics(messaging);
-
-    messaging.onTokenRefresh.listen((newToken) {
-      _log('token refreshed: $newToken');
-    });
+    // Token refresh persistence lives in [RealtimeBootstrap] only — do not
+    // attach a second onTokenRefresh listener here.
   }
+
+  static bool _topicsSubscribed = false;
 
   /// Idempotent — safe to call after login as well.
   static Future<void> subscribeDefaultTopics([
     FirebaseMessaging? messaging,
   ]) async {
     if (kIsWeb) return;
+    if (_topicsSubscribed) return;
+    _topicsSubscribed = true;
     final m = messaging ?? FirebaseMessaging.instance;
     await Future.wait(
       defaultTopics.map((topic) async {

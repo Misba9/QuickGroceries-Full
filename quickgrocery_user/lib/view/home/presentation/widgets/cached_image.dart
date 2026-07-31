@@ -1,11 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading_constants.dart';
+import 'package:quickgrocery/core/loading/widgets/home_section_shimmer.dart';
 
 /// Lightweight wrapper around [CachedNetworkImage] with sensible defaults
-/// (shimmer placeholder, graceful error fallback) used everywhere on the
-/// homepage. Centralizing this gives us one place to tune cache size,
-/// fade duration, and error UX.
+/// (reserved size, soft shimmer placeholder, fade-in) used on the homepage.
 class CachedImage extends StatelessWidget {
   const CachedImage({
     super.key,
@@ -39,7 +39,9 @@ class CachedImage extends StatelessWidget {
         height: height,
         memCacheWidth: memCacheWidth,
         memCacheHeight: memCacheHeight,
-        fadeInDuration: const Duration(milliseconds: 220),
+        fadeInDuration: LoadingConstants.imageFadeIn,
+        fadeOutDuration: Duration.zero,
+        useOldImageOnUrlChange: true,
         placeholder: (context, _) =>
             _ShimmerPlaceholder(width: width, height: height),
         errorWidget: (context, _, __) =>
@@ -59,13 +61,15 @@ class _ShimmerPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey.shade200,
-      highlightColor: Colors.grey.shade100,
-      child: Container(
-        width: width,
-        height: height,
-        color: Colors.grey.shade200,
+    return SizedBox(
+      width: width,
+      height: height,
+      child: AppShimmer(
+        child: ShimmerBox(
+          width: width ?? double.infinity,
+          height: height ?? double.infinity,
+          borderRadius: 0,
+        ),
       ),
     );
   }
@@ -79,14 +83,15 @@ class _Fallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       width: width,
       height: height,
-      color: Colors.grey.shade100,
+      color: surface.subtle,
       alignment: Alignment.center,
       child: Icon(
-        Icons.image_not_supported_outlined,
-        color: Colors.grey.shade400,
+        Icons.image_outlined,
+        color: surface.textMuted,
         size: 28,
       ),
     );

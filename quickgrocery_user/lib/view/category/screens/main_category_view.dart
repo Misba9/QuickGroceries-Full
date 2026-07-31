@@ -12,7 +12,7 @@ import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
-import 'package:quickgrocery/core/widgets/skeleton.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
@@ -67,7 +67,6 @@ class _MainCategoryViewScreenState
     ref.invalidate(trendingProductsStreamProvider);
     ref.invalidate(featuredProductsStreamProvider);
     ref.invalidate(appContentStreamProvider);
-    await Future.delayed(const Duration(milliseconds: 600));
   }
 
   @override
@@ -365,15 +364,9 @@ class _TrendingCategoriesSectionState
               icon: Icons.local_fire_department_rounded,
               isLoading: widget.headingLoading,
             ),
-            SizedBox(
+            const SizedBox(
               height: 178,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: SizedBox(
-                  width: MediaQuery.sizeOf(context).width * 0.84,
-                  child: const Skeleton(radius: 20),
-                ),
-              ),
+              child: AppLoading.section,
             ),
           ],
         ),
@@ -546,10 +539,7 @@ class _AllCategoriesSection extends ConsumerWidget {
             icon: Icons.grid_view_rounded,
             isLoading: headingLoading,
           ),
-          grid(
-            count: cols * 3,
-            builder: (_, __) => const Skeleton(radius: 14),
-          ),
+          AppLoading.section,
         ],
       );
     }

@@ -14,8 +14,8 @@ import 'package:quickgrocery/view/category/screens/category_screen.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_banner_helpers.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
-import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Full-width promo strip for admin-uploaded MP4 banners (`banners/`).
@@ -97,8 +97,7 @@ class _HomeBannerVideoRailState extends ConsumerState<HomeBannerVideoRail> {
     final async = ref.watch(bannersStreamProvider);
 
     return async.when(
-      loading: () =>
-          HomeShimmer.videoRail(showHeader: widget.showHeader),
+      loading: () => AppLoading.banner,
       error: (_, __) => const SizedBox.shrink(),
       data: (banners) {
         final all = promoVideoBanners(banners);
@@ -383,10 +382,10 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
                   top: 10,
                   right: 10,
                   child: Material(
-                    color: Colors.white.withValues(alpha: 0.92),
+                    color: AppSurface.of(context).card.withValues(alpha: 0.92),
                     shape: CircleBorder(),
                     elevation: 3,
-                    shadowColor: Colors.black26,
+                    shadowColor: AppSurface.of(context).shadow,
                     child: InkWell(
                       customBorder: const CircleBorder(),
                       onTap: _togglePause,
@@ -412,7 +411,7 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
                       backgroundColor: AppSurface.of(context).card.withValues(alpha: 0.95),
                       foregroundColor: AppColor.primary,
                       disabledBackgroundColor:
-                          Colors.white.withValues(alpha: 0.5),
+                          AppSurface.of(context).card.withValues(alpha: 0.5),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),

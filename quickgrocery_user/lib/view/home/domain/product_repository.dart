@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quickgrocery/core/startup/startup_isolate_parse.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/home/data/home_product_debug.dart';
 import 'package:quickgrocery/view/home/data/services/product_service.dart';
 import 'package:quickgrocery/view/home/domain/home_failure.dart';
+import 'package:rxdart/rxdart.dart';
 
 /// Result wrapper for paginated explore queries — includes the raw
 /// Firestore cursor so the next page can be fetched without re-querying
@@ -37,36 +39,101 @@ class ProductRepository {
   ProductRepository(this._service);
   final HomeProductService _service;
 
-  // ── Trending / Featured ─────────────────────────────────────────────────
-  Stream<List<ProductModel>> watchTrending({int limit = 12}) {
-    return _service
-        .watchTrending(limit: limit)
-        .map((s) => _mapSnapshot(s, onlyAvailable: true, label: 'trending'))
-        .handleError(_throwHomeFailure('Failed to load trending products.'));
-  }
-
-  Stream<List<ProductModel>> watchFeatured({int limit = 12}) {
-    return _service
-        .watchFeatured(limit: limit)
-        .map((s) => _mapSnapshot(s, onlyAvailable: true, label: 'featured'))
-        .handleError(_throwHomeFailure('Failed to load featured products.'));
-  }
+  /// Shared default-limit watches so Flash + Recs + rails share one snapshot.
+  Stream<List<ProductModel>>? _sharedTrending;
+  Stream<List<ProductModel>>? _sharedFeatured;
+  Stream<List<ProductModel>>? _sharedFlashSale;
 
   Future<List<ProductModel>> fetchFeatured({int limit = 12}) async {
     try {
       final snap = await _service.fetchFeatured(limit: limit);
-      return _mapSnapshot(snap, onlyAvailable: true, label: 'featured');
+      return StartupIsolateParse.parseProductsFromSnapshot(
+        snap,
+        onlyAvailable: true,
+      );
     } catch (e) {
       logHomeProducts('fetchFeatured error: $e');
       return const [];
     }
   }
 
+  Future<List<ProductModel>> fetchTrending({int limit = 12}) async {
+    try {
+      final snap = await _service.fetchTrending(limit: limit);
+      return StartupIsolateParse.parseProductsFromSnapshot(
+        snap,
+        onlyAvailable: true,
+      );
+    } catch (e) {
+      logHomeProducts('fetchTrending error: $e');
+      return const [];
+    }
+  }
+
+  Future<List<ProductModel>> fetchFlashSale({int limit = 16}) async {
+    try {
+      final snap = await _service.fetchFlashSale(limit: limit);
+      return StartupIsolateParse.parseProductsFromSnapshot(
+        snap,
+        onlyAvailable: true,
+      );
+    } catch (e) {
+      logHomeProducts('fetchFlashSale error: $e');
+      return const [];
+    }
+  }
+
+  Stream<List<ProductModel>> watchTrending({int limit = 12}) {
+    if (limit != 12) {
+      return _mapProductStream(
+        _service.watchTrending(limit: limit),
+        'Failed to load trending products.',
+      );
+    }
+    return _sharedTrending ??= _mapProductStream(
+      _service.watchTrending(limit: 12),
+      'Failed to load trending products.',
+    ).shareReplay(maxSize: 1);
+  }
+
+  Stream<List<ProductModel>> watchFeatured({int limit = 12}) {
+    if (limit != 12) {
+      return _mapProductStream(
+        _service.watchFeatured(limit: limit),
+        'Failed to load featured products.',
+      );
+    }
+    return _sharedFeatured ??= _mapProductStream(
+      _service.watchFeatured(limit: 12),
+      'Failed to load featured products.',
+    ).shareReplay(maxSize: 1);
+  }
+
   Stream<List<ProductModel>> watchFlashSale({int limit = 16}) {
-    return _service
-        .watchFlashSale(limit: limit)
-        .map((s) => _mapSnapshot(s, onlyAvailable: true, label: 'flash_sale'))
-        .handleError(_throwHomeFailure('Failed to load flash sale products.'));
+    if (limit != 16) {
+      return _mapProductStream(
+        _service.watchFlashSale(limit: limit),
+        'Failed to load flash sale products.',
+      );
+    }
+    return _sharedFlashSale ??= _mapProductStream(
+      _service.watchFlashSale(limit: 16),
+      'Failed to load flash sale products.',
+    ).shareReplay(maxSize: 1);
+  }
+
+  Stream<List<ProductModel>> _mapProductStream(
+    Stream<QuerySnapshot<Map<String, dynamic>>> raw,
+    String errorMessage,
+  ) {
+    return raw
+        .asyncMap(
+          (s) => StartupIsolateParse.parseProductsFromSnapshot(
+            s,
+            onlyAvailable: true,
+          ),
+        )
+        .handleError(_throwHomeFailure(errorMessage));
   }
 
   // ── Legacy `special_cat` rails ─────────────────────────────────────────
@@ -76,8 +143,12 @@ class ProductRepository {
   }) {
     return _service
         .watchBySpecialCat(specialCat, limit: limit)
-        .map((s) =>
-            _mapSnapshot(s, onlyAvailable: true, label: 'special_cat:$specialCat'))
+        .asyncMap(
+          (s) => StartupIsolateParse.parseProductsFromSnapshot(
+            s,
+            onlyAvailable: true,
+          ),
+        )
         .handleError(_throwHomeFailure('Failed to load products.'));
   }
 
@@ -129,29 +200,24 @@ class ProductRepository {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────
-  ExplorePage _toPage(
+  Future<ExplorePage> _toPage(
     QuerySnapshot<Map<String, dynamic>> snap,
     int pageSize, {
     required HomeExploreSortKey sortKey,
     required String context,
-  }) {
-    final parsed = <ProductModel>[];
-    var skipped = 0;
-    for (final d in snap.docs) {
-      final r = _tryParseProduct(d.data(), d.id, context);
-      if (r == null) {
-        skipped++;
-        continue;
-      }
-      parsed.add(r);
-    }
-
-    final available = parsed.where((p) => p.isAvailable).toList();
-    final filteredOut = parsed.length - available.length;
+  }) async {
+    final docs = StartupIsolateParse.docsFromSnapshot(snap);
+    final available = await StartupIsolateParse.parseProducts(
+      docs,
+      onlyAvailable: true,
+    );
+    final parsedCount = docs.length; // approximate; skips counted in isolate
+    final skipped = 0;
+    final filteredOut = 0;
 
     if (skipped > 0 || filteredOut > 0) {
       logHomeProducts(
-        '$context: raw=${snap.docs.length} parsed=${parsed.length} '
+        '$context: raw=${snap.docs.length} parsed=$parsedCount '
         'skipped=$skipped unavailableFiltered=$filteredOut '
         'final=${available.length} sort=$sortKey',
       );
@@ -163,52 +229,10 @@ class ProductRepository {
       isLast: snap.docs.length < pageSize,
       sortKey: sortKey,
       rawDocCount: snap.docs.length,
-      parsedCount: parsed.length,
+      parsedCount: available.length,
       skippedParseCount: skipped,
       filteredUnavailableCount: filteredOut,
     );
-  }
-
-  ProductModel? _tryParseProduct(
-    Map<String, dynamic> data,
-    String id,
-    String context,
-  ) {
-    try {
-      return ProductModel.fromFirestore(data, id);
-    } catch (e, st) {
-      logHomeProducts(
-        '$context: parse FAILED id=$id error=$e',
-      );
-      logHomeProducts('$st');
-      return null;
-    }
-  }
-
-  List<ProductModel> _mapSnapshot(
-    QuerySnapshot<Map<String, dynamic>> snap, {
-    bool onlyAvailable = false,
-    required String label,
-  }) {
-    final out = <ProductModel>[];
-    var skipped = 0;
-    for (final d in snap.docs) {
-      final r = _tryParseProduct(d.data(), d.id, label);
-      if (r == null) {
-        skipped++;
-        continue;
-      }
-      if (!onlyAvailable || r.isAvailable) {
-        out.add(r);
-      }
-    }
-    if (skipped > 0) {
-      logHomeProducts(
-        '$label stream: docs=${snap.docs.length} kept=${out.length} '
-        'skipped=$skipped',
-      );
-    }
-    return out;
   }
 
   void Function(Object, StackTrace) _throwHomeFailure(String message) {

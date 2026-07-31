@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy;
@@ -6,8 +7,10 @@ import 'package:share_plus/share_plus.dart' show Share;
 
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/auth/guest_auth_guard.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
+import 'package:quickgrocery/core/theme/theme_system_ui.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/core/product/product_quantity_label.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
@@ -15,7 +18,6 @@ import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart
 import 'package:quickgrocery/view/delivery/domain/delivery_pricing_policy.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/recently_viewed_provider.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/cart_action_bar.dart';
-import 'package:quickgrocery/view/product_view/presentation/widgets/product_detail_shimmer.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_image_carousel.dart';
 import 'package:quickgrocery/view/product_view/data/review_api_client.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
@@ -26,6 +28,7 @@ import 'package:quickgrocery/view/product_view/presentation/widgets/product_vari
 import 'package:quickgrocery/view/product_view/presentation/widgets/recently_viewed_section.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/similar_products_section.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Modern, fully-dynamic product details screen.
 ///
@@ -106,24 +109,27 @@ class _ProductViewScreenState extends ConsumerState<ProductViewScreen> {
     final isFreshLoading =
         async.isLoading && async.valueOrNull == null && !async.hasError;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
-      body: isFreshLoading
-          ? _DetailScaffold(
-              productId: widget.product.id,
-              child: const ProductDetailShimmer(),
-            )
-          : _DetailScaffold(
-              productId: product.id,
-              productNameForShare: product.name,
-              priceForShare: product.price,
-              child: _DetailBody(
-                product: product,
-                heroTag: widget.heroTag,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: ThemeSystemUi.of(context),
+      child: Scaffold(
+        backgroundColor: AppSurface.of(context).background,
+        body: isFreshLoading
+            ? _DetailScaffold(
+                productId: widget.product.id,
+                child: AppLoading.center,
+              )
+            : _DetailScaffold(
+                productId: product.id,
+                productNameForShare: product.name,
+                priceForShare: product.price,
+                child: _DetailBody(
+                  product: product,
+                  heroTag: widget.heroTag,
+                ),
               ),
-            ),
-      bottomNavigationBar:
-          isFreshLoading ? null : CartActionBar(product: product),
+        bottomNavigationBar:
+            isFreshLoading ? null : CartActionBar(product: product),
+      ),
     );
   }
 }
@@ -215,17 +221,19 @@ class _CircleIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Material(
-      color: Colors.white,
+      color: surface.card,
       shape: const CircleBorder(),
       elevation: 1,
+      shadowColor: surface.shadow,
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: SizedBox(
           width: 38,
           height: 38,
-          child: Icon(icon, size: 20, color: Colors.black87),
+          child: Icon(icon, size: 20, color: surface.text),
         ),
       ),
     );
@@ -304,15 +312,15 @@ class _DetailBody extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade200),
+                  color: AppSurface.of(context).card,
+                  border: Border.all(color: AppSurface.of(context).border),
                 ),
                 child: Text(
                   DeliveryPricingPolicy.productEligibilityLine(pricing),
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w600,
                     fontSize: 12.5,
-                    color: Colors.black87,
+                    color: AppSurface.of(context).text,
                   ),
                 ),
               ),
@@ -386,7 +394,7 @@ class _ProductHeader extends ConsumerWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: AppSurface.of(context).subtle,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -395,7 +403,7 @@ class _ProductHeader extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
                       fontSize: 11,
-                      color: Colors.grey.shade700,
+                      color: AppSurface.of(context).textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -416,7 +424,7 @@ class _ProductHeader extends ConsumerWidget {
             style: GoogleFonts.poppins(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              color: AppSurface.of(context).text,
               height: 1.25,
             ),
           ),
@@ -430,9 +438,15 @@ class _ProductHeader extends ConsumerWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade50,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.green.withValues(alpha: 0.2)
+                        : Colors.green.shade50,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.green.shade100),
+                    border: Border.all(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.green.withValues(alpha: 0.35)
+                          : Colors.green.shade100,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -448,7 +462,9 @@ class _ProductHeader extends ConsumerWidget {
                         style: GoogleFonts.poppins(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w700,
-                          color: Colors.green.shade800,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.green.shade300
+                              : Colors.green.shade800,
                         ),
                       ),
                     ],
@@ -459,7 +475,7 @@ class _ProductHeader extends ConsumerWidget {
                   '${summary.total} ${context.l10n.reviews}',
                   style: GoogleFonts.poppins(
                     fontSize: 11.5,
-                    color: Colors.grey.shade600,
+                    color: AppSurface.of(context).textMuted,
                   ),
                 ),
               ],
@@ -474,7 +490,7 @@ class _ProductHeader extends ConsumerWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
-                  color: Colors.black87,
+                  color: AppSurface.of(context).text,
                 ),
               ),
               if (hasDiscount) ...[
@@ -485,7 +501,7 @@ class _ProductHeader extends ConsumerWidget {
                     '₹${product.price.toStringAsFixed(0)}',
                     style: GoogleFonts.poppins(
                       fontSize: 14,
-                      color: Colors.grey,
+                      color: AppSurface.of(context).textMuted,
                       decoration: TextDecoration.lineThrough,
                     ),
                   ),
@@ -520,7 +536,7 @@ class _ProductHeader extends ConsumerWidget {
             'Inclusive of all taxes',
             style: GoogleFonts.poppins(
               fontSize: 11,
-              color: Colors.grey.shade500,
+              color: AppSurface.of(context).textMuted,
             ),
           ),
         ],
@@ -623,12 +639,13 @@ class _Perk extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: surface.border),
       ),
       child: Column(
         children: [
@@ -639,13 +656,14 @@ class _Perk extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 11,
               fontWeight: FontWeight.w700,
+              color: surface.text,
             ),
           ),
           Text(
             subtitle,
             style: GoogleFonts.poppins(
               fontSize: 10,
-              color: Colors.grey.shade600,
+              color: surface.textMuted,
             ),
           ),
         ],
@@ -682,6 +700,7 @@ class _DescriptionSectionState extends State<_DescriptionSection> {
             style: GoogleFonts.poppins(
               fontSize: 14,
               fontWeight: FontWeight.w700,
+              color: AppSurface.of(context).text,
             ),
           ),
           const SizedBox(height: 8),
@@ -695,7 +714,7 @@ class _DescriptionSectionState extends State<_DescriptionSection> {
                   _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
                 fontSize: 12.5,
-                color: Colors.black87,
+                color: AppSurface.of(context).textSecondary,
                 height: 1.45,
               ),
             ),
@@ -794,7 +813,7 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: AppLoading.micro,
                       )
                     : const Text('Write review'),
               ),
@@ -805,7 +824,7 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
             loading: () => const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
               child: Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: AppLoading.micro,
               ),
             ),
             error: (_, __) => Padding(
@@ -824,16 +843,16 @@ class _ReviewsSectionState extends ConsumerState<_ReviewsSection> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppSurface.of(context).card,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(color: AppSurface.of(context).border),
                   ),
                   alignment: Alignment.center,
                   child: Text(
                     'No reviews yet. Be the first to review!',
                     style: GoogleFonts.poppins(
                       fontSize: 12,
-                      color: Colors.grey.shade600,
+                      color: AppSurface.of(context).textMuted,
                     ),
                   ),
                 );

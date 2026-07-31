@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 import '../../domain/order_models.dart';
@@ -17,6 +17,7 @@ class OrderCardModern extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     final products = order.legacy.products;
     final dateLabel = order.createdAt.millisecondsSinceEpoch == 0
         ? ''
@@ -25,7 +26,7 @@ class OrderCardModern extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Material(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(20),
         elevation: 0,
         child: InkWell(
@@ -35,7 +36,7 @@ class OrderCardModern extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: surface.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,7 +49,7 @@ class OrderCardModern extends StatelessWidget {
                       Text(
                         dateLabel,
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color: surface.textMuted,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -64,7 +65,7 @@ class OrderCardModern extends StatelessWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(14),
                         child: products.isEmpty
-                            ? Container(color: Colors.grey.shade200)
+                            ? Container(color: surface.subtle)
                             : CachedImage(url: products.first.image),
                       ),
                     ),
@@ -81,9 +82,10 @@ class OrderCardModern extends StatelessWidget {
                                     : '${products.first.name} +${products.length - 1} more'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w800,
                               fontSize: 14,
+                              color: surface.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -92,14 +94,15 @@ class OrderCardModern extends StatelessWidget {
                                 ? '${order.itemCount} items · ₹${order.total.toStringAsFixed(0)} · Tip ₹${order.deliveryPartnerTip.toStringAsFixed(0)}'
                                 : '${order.itemCount} items · ₹${order.total.toStringAsFixed(0)}',
                             style: TextStyle(
-                              color: Colors.grey.shade700,
+                              color: surface.textSecondary,
                               fontSize: 12,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right_rounded),
+                    Icon(Icons.chevron_right_rounded,
+                        color: surface.iconInactive),
                   ],
                 ),
               ],
@@ -118,20 +121,27 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     final (Color bg, Color fg) = switch (status) {
-      OrderStatus.orderPlaced => (Colors.amber.shade50, Colors.amber.shade900),
+      OrderStatus.orderPlaced => (
+          surface.orderPending.withValues(alpha: 0.18),
+          surface.orderPending,
+        ),
       OrderStatus.deliveryAssigned => (
-          Colors.purple.shade50,
-          Colors.purple.shade800,
+          surface.orderPacked.withValues(alpha: 0.18),
+          surface.orderPacked,
         ),
       OrderStatus.outForDelivery => (
-          AppColor.primary.withValues(alpha: 0.18),
-          Colors.brown.shade800,
+          surface.orderOutForDelivery.withValues(alpha: 0.18),
+          surface.orderOutForDelivery,
         ),
-      OrderStatus.delivered => (Colors.green.shade50, Colors.green.shade800),
+      OrderStatus.delivered => (
+          surface.orderDelivered.withValues(alpha: 0.18),
+          surface.orderDelivered,
+        ),
       OrderStatus.cancelled || OrderStatus.vendorRejected => (
-          Colors.red.shade50,
-          Colors.red.shade800,
+          surface.orderCancelled.withValues(alpha: 0.18),
+          surface.orderCancelled,
         ),
     };
 

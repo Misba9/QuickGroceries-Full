@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 class CouponScreen extends StatefulWidget {
   const CouponScreen({super.key});
@@ -60,7 +61,7 @@ class _CouponScreenState extends State<CouponScreen> {
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return AppLoading.center;
                   }
                   var coupons = snapshot.data!.docs;
 

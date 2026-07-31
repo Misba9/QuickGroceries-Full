@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 
 class CategoryProductCard extends StatelessWidget {
   const CategoryProductCard({
@@ -31,6 +32,7 @@ class CategoryProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -38,7 +40,7 @@ class CategoryProductCard extends StatelessWidget {
         padding: const EdgeInsets.all(6),
         height: 220,
         width: MediaQuery.of(context).size.width / 2.5,
-        decoration: const BoxDecoration(color: Colors.white),
+        decoration: BoxDecoration(color: surface.card),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -47,7 +49,7 @@ class CategoryProductCard extends StatelessWidget {
               height: 120,
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: surface.subtle,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Stack(
@@ -58,18 +60,21 @@ class CategoryProductCard extends StatelessWidget {
                     right: 0,
                     child: Icon(
                       Icons.favorite_border,
-                      color: Colors.grey.shade400,
+                      color: surface.iconInactive,
                     ),
                   ),
                 ],
               ),
             ),
             AppSpacing.h10,
-            Text(title),
+            Text(
+              title,
+              style: TextStyle(color: surface.textPrimary),
+            ),
             AppSpacing.h5,
             Text(
               quantity,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: surface.textMuted),
             ),
             AppSpacing.h5,
             Row(
@@ -79,12 +84,15 @@ class CategoryProductCard extends StatelessWidget {
                   children: [
                     Column(
                       children: [
-                        Text("₹$amount"),
+                        Text(
+                          "₹$amount",
+                          style: TextStyle(color: surface.textPrimary),
+                        ),
                         Text(
                           "₹$actualAmount",
-                          style: const TextStyle(
+                          style: TextStyle(
                             decoration: TextDecoration.lineThrough,
-                            color: Colors.grey,
+                            color: surface.textMuted,
                           ),
                         ),
                       ],
@@ -99,15 +107,18 @@ class CategoryProductCard extends StatelessWidget {
                     children: [
                       IconButton(
                         onPressed: onQuantityRemove,
-                        icon: const Icon(Icons.remove),
+                        icon: Icon(Icons.remove, color: surface.iconActive),
                       ),
                       Text(
                         itemCount.toString(),
-                        style: const TextStyle(fontSize: 16),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: surface.textPrimary,
+                        ),
                       ),
                       IconButton(
                         onPressed: onQuantityAdd,
-                        icon: const Icon(Icons.add),
+                        icon: Icon(Icons.add, color: surface.iconActive),
                       ),
                     ],
                   )

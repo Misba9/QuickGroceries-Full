@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 
 import '../design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 enum AppButtonVariant { primary, secondary, ghost, danger }
 enum AppButtonSize { sm, md, lg }
@@ -50,10 +51,7 @@ class AppButton extends StatelessWidget {
         ? SizedBox(
             height: 18,
             width: 18,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.4,
-              valueColor: AlwaysStoppedAnimation(colors.foreground),
-            ),
+            child: AppLoading.spinner(color: colors.foreground),
           )
         : Row(
             mainAxisSize: MainAxisSize.min,

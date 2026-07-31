@@ -52,26 +52,38 @@ class HomeProductCard extends ConsumerWidget {
   /// Image area height on horizontal rails (unbounded height parent).
   static const double _railImageHeightFactor = 0.82;
 
+  /// Card width used by horizontal rails (for [ListView] itemExtent).
+  static const double railExtent = 150;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cartService = legacy.Provider.of<CategoryService>(context);
-    final cart = ref.watch(cartProvider);
-    final cartLine = cart.items
-        .where((e) => e.productId == product.id && !e.isComboLine)
-        .firstOrNull;
-    final count = cartLine?.itemCount ?? 0;
+    // Addon popup only — do not listen (cart qty uses Riverpod select below).
+    final cartService =
+        legacy.Provider.of<CategoryService>(context, listen: false);
+    // Rebuild this card only when *this* product's qty changes.
+    final count = ref.watch(
+      cartProvider.select((cart) {
+        for (final e in cart.items) {
+          if (e.productId == product.id && !e.isComboLine) {
+            return e.itemCount;
+          }
+        }
+        return 0;
+      }),
+    );
     final outOfStock = product.isOutOfStock;
     final weightLabel = productQuantityLabel(product);
 
+    final surface = AppSurface.of(context);
     return SizedBox(
       width: width,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(_radius),
-          boxShadow: AppShadow.card,
+          boxShadow: AppShadow.cardOf(context),
         ),
         child: Material(
-          color: Colors.white,
+          color: surface.card,
           borderRadius: BorderRadius.circular(_radius),
           clipBehavior: Clip.antiAlias,
           child: Opacity(
@@ -265,37 +277,58 @@ class _ProductDetails extends StatelessWidget {
   }
 }
 
-class _FavoriteChip extends ConsumerWidget {
+/// Home-rail favorite control — **no** per-card Firestore listener.
+/// Optimistic local state only; product detail owns live favorite streams.
+class _FavoriteChip extends ConsumerStatefulWidget {
   const _FavoriteChip({required this.productId});
 
   final String productId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final favAsync = ref.watch(isFavoriteStreamProvider(productId));
-    final fav = favAsync.valueOrNull ?? false;
+  ConsumerState<_FavoriteChip> createState() => _FavoriteChipState();
+}
+
+class _FavoriteChipState extends ConsumerState<_FavoriteChip> {
+  bool _fav = false;
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Material(
-      color: Colors.white.withValues(alpha: 0.96),
+      color: surface.card.withValues(alpha: 0.96),
       elevation: 1,
-      shadowColor: Colors.black26,
+      shadowColor: surface.shadow,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
-        onTap: () async {
-          HapticFeedback.selectionClick();
-          final authed = await GuestAuthGuard.requireAuth(context, ref);
-          if (!authed || !context.mounted) return;
-          await ref.read(productDetailRepositoryProvider).toggleFavorite(
-                productId,
-                !fav,
-              );
-        },
+        onTap: _busy
+            ? null
+            : () async {
+                HapticFeedback.selectionClick();
+                final authed = await GuestAuthGuard.requireAuth(context, ref);
+                if (!authed || !mounted) return;
+                final next = !_fav;
+                setState(() {
+                  _fav = next;
+                  _busy = true;
+                });
+                try {
+                  await ref
+                      .read(productDetailRepositoryProvider)
+                      .toggleFavorite(widget.productId, next);
+                } catch (_) {
+                  if (mounted) setState(() => _fav = !next);
+                } finally {
+                  if (mounted) setState(() => _busy = false);
+                }
+              },
         child: Padding(
           padding: const EdgeInsets.all(5),
           child: Icon(
-            fav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            _fav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
             size: 17,
-            color: fav ? Colors.redAccent : Colors.black45,
+            color: _fav ? surface.danger : surface.iconInactive,
           ),
         ),
       ),
@@ -365,16 +398,18 @@ class _RatingPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
+    final isDark = context.isDarkTheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.green.shade50,
+        color: surface.success.withValues(alpha: isDark ? 0.22 : 0.12),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.star, size: 11, color: Colors.green),
+          Icon(Icons.star, size: 11, color: surface.success),
           const SizedBox(width: 2),
           Flexible(
             child: Text(
@@ -384,7 +419,7 @@ class _RatingPill extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: Colors.green.shade800,
+                color: surface.success,
               ),
             ),
           ),
@@ -396,7 +431,7 @@ class _RatingPill extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
                 fontSize: 9.5,
-                color: Colors.green.shade700,
+                color: surface.success.withValues(alpha: 0.85),
               ),
             ),
           ),
@@ -472,12 +507,13 @@ class _CartControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (product.isOutOfStock) {
+      final surface = AppSurface.of(context);
       return Container(
         height: _h,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.grey.shade200,
+          color: surface.subtle,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
@@ -487,7 +523,7 @@ class _CartControl extends StatelessWidget {
           style: GoogleFonts.poppins(
             fontSize: 10,
             fontWeight: FontWeight.w700,
-            color: Colors.grey.shade600,
+            color: surface.textMuted,
           ),
         ),
       );

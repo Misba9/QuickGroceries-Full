@@ -132,7 +132,7 @@ class _Header extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(6, 8, 14, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSurface.of(context).card,
         boxShadow: AppShadow.dim,
       ),
       child: Row(
@@ -247,7 +247,7 @@ class _LoadingList extends StatelessWidget {
         height: 96,
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppSurface.of(context).card,
           borderRadius: BorderRadius.circular(AppRadii.md),
           border: Border.all(color: AppSurface.of(context).border),
         ),
