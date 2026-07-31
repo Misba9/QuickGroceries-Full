@@ -57,6 +57,14 @@ export {
   listCodRestrictedCustomersCallable,
 } from "./cod_restrictions/cod_restriction_callables";
 export {
+  getCustomerProfileCallable,
+  syncCustomerDeviceProfileCallable,
+} from "./customers/customer_profile_callables";
+export {
+  logSearchEventCallable,
+  listSearchLogsCallable,
+} from "./search_analytics/search_analytics_callables";
+export {
   assignRiderCallable,
   autoAssignRiderCallable,
   autoAssignAllUnassignedCallable,

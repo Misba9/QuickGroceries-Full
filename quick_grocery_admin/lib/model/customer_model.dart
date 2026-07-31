@@ -27,6 +27,7 @@ class CustomerModel {
   final String state;
   final String deviceType;
   final String appVersion;
+  final String buildNumber;
   final String lastActiveAt;
   final bool isBlocked;
   /// When false, checkout only allows online payment (COD hidden).
@@ -60,6 +61,7 @@ class CustomerModel {
     this.state = '',
     this.deviceType = '',
     this.appVersion = '',
+    this.buildNumber = '',
     this.lastActiveAt = '',
     this.status = CustomerAccountStatus.active,
     this.phoneVerified = false,
@@ -90,9 +92,12 @@ class CustomerModel {
       createdTs = DateTime.tryParse(createdRaw);
     }
 
-    final lastRaw = data['last_active_at'] ??
-        data['lastActiveAt'] ??
+    final lastRaw = data['lastSeen'] ??
         data['last_seen'] ??
+        data['last_active_at'] ??
+        data['lastActiveAt'] ??
+        data['lastLogin'] ??
+        data['last_login'] ??
         data['fcmUpdatedAt'];
     DateTime? lastTs;
     String lastStr = '';
@@ -123,16 +128,13 @@ class CustomerModel {
       referId: (data['referred_by'] ?? data['referId'] ?? '').toString(),
       city: (data['city'] ?? data['location_city'] ?? '').toString(),
       state: (data['state'] ?? data['location_state'] ?? '').toString(),
-      deviceType: (data['fcmPlatform'] ??
-              data['device_type'] ??
-              data['platform'] ??
-              '')
-          .toString(),
-      appVersion: (data['app_version'] ??
-              data['appVersion'] ??
-              data['version'] ??
-              '')
-          .toString(),
+      deviceType: _pickString(data, const [
+        'platform',
+        'fcmPlatform',
+        'device_type',
+      ]),
+      appVersion: _displayAppVersion(data),
+      buildNumber: _pickString(data, const ['buildNumber', 'build_number']),
       lastActiveAt: lastStr,
       status: status,
       phoneVerified: data['phone_verified'] == true,
@@ -181,6 +183,27 @@ class CustomerModel {
     return CustomerLoyaltyTier.bronze;
   }
 
+  static String _pickString(Map<String, dynamic> data, List<String> keys) {
+    for (final k in keys) {
+      final v = (data[k] ?? '').toString().trim();
+      if (v.isNotEmpty) return v;
+    }
+    return '';
+  }
+
+  static String _displayAppVersion(Map<String, dynamic> data) {
+    final version = _pickString(data, const [
+      'appVersion',
+      'app_version',
+      'version',
+    ]);
+    final build = _pickString(data, const ['buildNumber', 'build_number']);
+    if (version.isEmpty) return build;
+    if (build.isEmpty) return version;
+    if (version.contains('+') || version.contains(build)) return version;
+    return '$version+$build';
+  }
+
   CustomerModel copyWith({
     bool? isBlocked,
     bool? codEnabled,
@@ -206,6 +229,7 @@ class CustomerModel {
       state: state,
       deviceType: deviceType,
       appVersion: appVersion,
+      buildNumber: buildNumber,
       lastActiveAt: lastActiveAt,
       status: status ?? this.status,
       phoneVerified: phoneVerified,

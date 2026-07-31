@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:quickgrocery/core/user/device_profile_sync.dart';
 import 'package:quickgrocery/core/user/search_history_store.dart';
 import 'package:quickgrocery/core/user/user_profile_cache.dart';
 
@@ -12,5 +13,6 @@ abstract final class UserSessionStore {
   static Future<void> clearUserData(SharedPreferences prefs) async {
     await UserProfileCache.clearOnLogout();
     await SearchHistoryStore.clear();
+    await DeviceProfileSync.clearLocalCache();
   }
 }

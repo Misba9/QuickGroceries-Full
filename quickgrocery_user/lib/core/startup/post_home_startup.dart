@@ -11,6 +11,7 @@ import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 import 'package:quickgrocery/core/startup/app_startup_log.dart';
 import 'package:quickgrocery/core/update/remote_config_service.dart';
+import 'package:quickgrocery/core/user/device_profile_sync.dart';
 import 'package:quickgrocery/view/home/data/services/product_index_backfill.dart';
 
 /// Post–first-paint scheduler. Spreads heavy work across frames so Choreographer
@@ -195,6 +196,8 @@ abstract final class PostHomeStartup {
     try {
       await FirebaseAnalytics.instance.logAppOpen();
       AppHeatmapTracker.start();
+      // Populate platform / app version for admin (existing users on reopen).
+      unawaited(DeviceProfileSync.syncAfterStartup());
     } catch (e) {
       if (kDebugMode) debugPrint('[PostHomeStartup] Analytics: $e');
     }

@@ -1,37 +1,82 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:quick_grocery_admin/view/search_analytics/models/search_log_model.dart';
 
 class SearchAnalyticsService {
-  SearchAnalyticsService({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance;
+  SearchAnalyticsService({
+    FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
+  })  : _db = firestore ?? FirebaseFirestore.instance,
+        _fn = functions ??
+            FirebaseFunctions.instanceFor(region: 'us-central1');
 
   final FirebaseFirestore _db;
+  final FirebaseFunctions _fn;
   static const collection = 'search_logs';
 
-  /// Recent raw search events (newest first).
+  /// Live feed via Cloud Function (rules-safe). Polls every 12s.
   Stream<List<SearchLogModel>> watchLogs({int limit = 500}) {
-    return _db
-        .collection(collection)
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map(
-          (snap) =>
-              snap.docs.map(SearchLogModel.fromDoc).toList(growable: false),
-        );
+    final controller = StreamController<List<SearchLogModel>>();
+    Timer? timer;
+    var cancelled = false;
+
+    Future<void> pull() async {
+      try {
+        final logs = await fetchLogsViaCallable(limit: limit);
+        if (!cancelled && !controller.isClosed) {
+          controller.add(logs);
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[SearchAnalytics] callable list: $e');
+        // Last-resort Firestore read (often denied by rules).
+        try {
+          final snap = await _db
+              .collection(collection)
+              .orderBy('createdAt', descending: true)
+              .limit(limit)
+              .get();
+          final logs =
+              snap.docs.map(SearchLogModel.fromDoc).toList(growable: false);
+          if (!cancelled && !controller.isClosed) controller.add(logs);
+        } catch (e2) {
+          if (kDebugMode) debugPrint('[SearchAnalytics] firestore get: $e2');
+          if (!cancelled && !controller.isClosed) {
+            controller.add(const []);
+          }
+        }
+      }
+    }
+
+    controller.onListen = () {
+      unawaited(pull());
+      timer = Timer.periodic(const Duration(seconds: 12), (_) => pull());
+    };
+    controller.onCancel = () {
+      cancelled = true;
+      timer?.cancel();
+    };
+
+    return controller.stream;
   }
 
-  /// Fallback when `createdAt` ordering fails — client sorts by timestamp.
-  Stream<List<SearchLogModel>> watchLogsFallback({int limit = 500}) {
-    return _db.collection(collection).limit(limit).snapshots().map((snap) {
-      final list = snap.docs.map(SearchLogModel.fromDoc).toList();
-      list.sort((a, b) {
-        final at = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bt = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bt.compareTo(at);
-      });
-      return list;
+  Stream<List<SearchLogModel>> watchLogsFallback({int limit = 500}) =>
+      watchLogs(limit: limit);
+
+  Future<List<SearchLogModel>> fetchLogsViaCallable({int limit = 500}) async {
+    final res = await _fn.httpsCallable('listSearchLogsCallable').call({
+      'limit': limit,
     });
+    final data = res.data;
+    if (data is! Map) return const [];
+    final raw = data['logs'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((m) => SearchLogModel.fromMap(Map<String, dynamic>.from(m)))
+        .toList(growable: false);
   }
 
   Map<String, dynamic> kpis(List<SearchLogModel> logs) {
@@ -79,13 +124,11 @@ class SearchAnalyticsService {
     return list;
   }
 
-  /// Enrich blank user names from `customers/{uid}` when possible.
   Future<Map<String, String>> resolveCustomerLabels(
     Iterable<String> userIds,
   ) async {
     final ids = userIds.where((id) => id.isNotEmpty).toSet().toList();
     final out = <String, String>{};
-    // Firestore getAll is limited; batch in chunks of 10 via parallel gets.
     for (var i = 0; i < ids.length; i += 10) {
       final chunk = ids.sublist(i, i + 10 > ids.length ? ids.length : i + 10);
       final snaps = await Future.wait(
@@ -94,14 +137,14 @@ class SearchAnalyticsService {
       for (final snap in snaps) {
         if (!snap.exists) continue;
         final data = snap.data() ?? {};
-        final name = (data['name'] ?? data['fullName'] ?? data['displayName'] ?? '')
-            .toString()
-            .trim();
+        final name =
+            (data['name'] ?? data['fullName'] ?? data['displayName'] ?? '')
+                .toString()
+                .trim();
         final phone =
             (data['phone'] ?? data['phoneNumber'] ?? '').toString().trim();
-        final label = name.isNotEmpty
-            ? name
-            : (phone.isNotEmpty ? phone : snap.id);
+        final label =
+            name.isNotEmpty ? name : (phone.isNotEmpty ? phone : snap.id);
         out[snap.id] = label;
       }
     }

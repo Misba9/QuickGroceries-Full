@@ -86,6 +86,7 @@ dependencies:
     path: ../packages/quick_grocery_geo
   firebase_crashlytics: ^4.3.10
   app_links: ^7.2.1
+  device_info_plus: ^12.4.0
 
 dev_dependencies:
   flutter_test:

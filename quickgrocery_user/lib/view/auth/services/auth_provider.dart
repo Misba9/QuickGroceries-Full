@@ -23,6 +23,7 @@ import 'package:quickgrocery/core/auth/auth_sign_in_coordinator.dart';
 import 'package:quickgrocery/core/auth/phone_auth_coordinator.dart';
 import 'package:quickgrocery/core/auth/phone_auth_flow_log.dart';
 import 'package:quickgrocery/core/auth/phone_sign_in_navigation.dart';
+import 'package:quickgrocery/core/user/device_profile_sync.dart';
 import 'package:quickgrocery/core/user/user_profile_cache.dart';
 import 'package:quickgrocery/core/user/user_profile_repository.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_shell.dart';
@@ -229,9 +230,11 @@ class AuthService extends ChangeNotifier {
 
       await _profileRepo.hydrateLocal(user.uid);
       PhoneAuthFlowLog.profileLoaded(uid: user.uid);
+      unawaited(DeviceProfileSync.syncAfterLogin());
     } catch (e, st) {
       PhoneAuthFlowLog.exception('finishPhoneSignIn', e, st);
       unawaited(_profileRepo.hydrateLocal(user.uid));
+      unawaited(DeviceProfileSync.syncAfterLogin());
     } finally {
       _markPhoneVerificationSettled();
       _notifyPhoneSignInComplete(user);
@@ -752,6 +755,7 @@ class AuthService extends ChangeNotifier {
           'created_date': FieldValue.serverTimestamp(),
         },
       );
+      await DeviceProfileSync.syncAfterRegistration();
 
       final pref = await SharedPreferences.getInstance();
       await pref.setString('user_gender', selectedGender!);

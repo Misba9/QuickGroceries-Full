@@ -25,6 +25,10 @@ class CustomerAdminService extends ChangeNotifier {
 
   CustomerSegment segment = CustomerSegment.allCustomers;
   String searchQuery = '';
+  /// `all` | `android` | `ios` | `web` | `unknown`
+  String platformFilter = 'all';
+  /// Exact app version label, or `all` / `unknown`.
+  String appVersionFilter = 'all';
 
   CustomerSortField sortField = CustomerSortField.lastActive;
   bool sortAscending = false;
@@ -64,10 +68,22 @@ class CustomerAdminService extends ChangeNotifier {
   int get _listCacheKey => Object.hash(
     segment,
     searchQuery.trim().toLowerCase(),
+    platformFilter,
+    appVersionFilter,
     sortField,
     sortAscending,
     _dataVersion,
   );
+
+  List<String> get availableAppVersions {
+    final set = <String>{};
+    for (final e in _enriched) {
+      final v = e.customer.appVersion.trim();
+      if (v.isNotEmpty) set.add(v);
+    }
+    final list = set.toList()..sort();
+    return list;
+  }
 
   void _listen() {
     _customersSub = _db
@@ -179,6 +195,27 @@ class CustomerAdminService extends ChangeNotifier {
       }).toList();
     }
 
+    if (platformFilter != 'all') {
+      list = list.where((e) {
+        final p = e.customer.deviceType.trim().toLowerCase();
+        if (platformFilter == 'unknown') return p.isEmpty;
+        if (platformFilter == 'android') return p.contains('android');
+        if (platformFilter == 'ios') {
+          return p == 'ios' || p.contains('iphone') || p.contains('ipad');
+        }
+        if (platformFilter == 'web') return p.contains('web');
+        return p.contains(platformFilter);
+      }).toList();
+    }
+
+    if (appVersionFilter != 'all') {
+      list = list.where((e) {
+        final v = e.customer.appVersion.trim();
+        if (appVersionFilter == 'unknown') return v.isEmpty;
+        return v == appVersionFilter;
+      }).toList();
+    }
+
     return list;
   }
 
@@ -245,6 +282,22 @@ class CustomerAdminService extends ChangeNotifier {
     _searchDebounce = Timer(const Duration(milliseconds: 250), () {
       if (!_disposed) notifyListeners();
     });
+  }
+
+  void setPlatformFilter(String value) {
+    if (platformFilter == value) return;
+    platformFilter = value;
+    visibleCount = pageSize;
+    _invalidateSortCache();
+    notifyListeners();
+  }
+
+  void setAppVersionFilter(String value) {
+    if (appVersionFilter == value) return;
+    appVersionFilter = value;
+    visibleCount = pageSize;
+    _invalidateSortCache();
+    notifyListeners();
   }
 
   void toggleSort(CustomerSortField field) {

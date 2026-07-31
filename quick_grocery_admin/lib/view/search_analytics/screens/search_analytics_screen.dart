@@ -411,7 +411,9 @@ class _TopQueriesTable extends StatelessWidget {
     if (rows.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(12),
-        child: Text('No search data yet. Searches appear after users search in the app.'),
+        child: Text(
+          'No search data yet. Signed-in users must search in the latest user app (logs via Cloud Function). Guest searches are not stored.',
+        ),
       );
     }
     final fmt = DateFormat('dd MMM, HH:mm');

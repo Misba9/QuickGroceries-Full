@@ -187,7 +187,7 @@ class _ScrollableCustomerTable extends StatelessWidget {
         DataCell(_platformBadge(c.deviceType)),
         DataCell(
           AdminSelectableText(
-            c.appVersion.isEmpty ? '—' : c.appVersion,
+            c.appVersion.isEmpty ? 'Unknown' : c.appVersion,
             maxLines: 1,
           ),
         ),
@@ -227,7 +227,7 @@ class _ScrollableCustomerTable extends StatelessWidget {
 
   static String _platformLabel(String raw) {
     final s = raw.trim().toLowerCase();
-    if (s.isEmpty) return '—';
+    if (s.isEmpty) return 'Unknown';
     if (s.contains('android')) return 'Android';
     if (s == 'ios' || s.contains('iphone') || s.contains('ipad')) return 'iOS';
     if (s.contains('web')) return 'Web';
@@ -239,8 +239,8 @@ class _ScrollableCustomerTable extends StatelessWidget {
 
   static Widget _platformBadge(String raw) {
     final label = _platformLabel(raw);
-    if (label == '—') {
-      return const Text('—', style: TextStyle(color: Colors.black45));
+    if (label == 'Unknown') {
+      return const Text('Unknown', style: TextStyle(color: Colors.black45));
     }
     final isAndroid = label == 'Android';
     final isIos = label == 'iOS';

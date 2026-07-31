@@ -44,12 +44,18 @@ class SearchLogModel {
         : (rawData is Map
             ? Map<String, dynamic>.from(rawData)
             : const <String, dynamic>{});
+    return SearchLogModel.fromMap(data, id: doc.id);
+  }
+
+  factory SearchLogModel.fromMap(Map<String, dynamic> data, {String? id}) {
     DateTime? createdAt;
     final raw = data['createdAt'] ?? data['clientAt'];
     if (raw is Timestamp) {
       createdAt = raw.toDate();
     } else if (raw is DateTime) {
       createdAt = raw;
+    } else if (raw is String && raw.isNotEmpty) {
+      createdAt = DateTime.tryParse(raw);
     }
 
     List<String> asStringList(dynamic v) {
@@ -62,7 +68,7 @@ class SearchLogModel {
         : int.tryParse('${data['resultCount'] ?? 0}') ?? 0;
 
     return SearchLogModel(
-      id: doc.id,
+      id: id ?? (data['id'] ?? '').toString(),
       query: (data['query'] ?? '').toString(),
       queryNormalized: (data['queryNormalized'] ?? data['query'] ?? '')
           .toString()
