@@ -76,7 +76,7 @@ abstract final class ProductIndexBackfill {
     } catch (e, st) {
       // Expected when customers cannot write `products` — explore still
       // synthesizes indexes in-memory for the session.
-      logHomeProducts('product_index backfill skipped/failed: $e');
+      logHomeProducts('product_index backfill skipped/failed: $e', error: true);
       if (kDebugMode) debugPrintStack(stackTrace: st);
     }
   }

@@ -64,21 +64,21 @@ final trendingProductsStreamProvider =
     StreamProvider.autoDispose<List<ProductModel>>((ref) async* {
       final seed = ref.read(homeBootstrapSnapshotProvider).trending;
       if (seed.isNotEmpty) yield seed;
-      yield* ref.watch(productRepositoryProvider).watchTrending(limit: 12);
+      yield* ref.watch(productRepositoryProvider).watchTrending(limit: 8);
     });
 
 final featuredProductsStreamProvider =
     StreamProvider.autoDispose<List<ProductModel>>((ref) async* {
       final seed = ref.read(homeBootstrapSnapshotProvider).featured;
       if (seed.isNotEmpty) yield seed;
-      yield* ref.watch(productRepositoryProvider).watchFeatured(limit: 12);
+      yield* ref.watch(productRepositoryProvider).watchFeatured(limit: 8);
     });
 
 final flashSaleProductsStreamProvider =
     StreamProvider.autoDispose<List<ProductModel>>((ref) async* {
       final seed = ref.read(homeBootstrapSnapshotProvider).flashSale;
       if (seed.isNotEmpty) yield seed;
-      yield* ref.watch(productRepositoryProvider).watchFlashSale(limit: 16);
+      yield* ref.watch(productRepositoryProvider).watchFlashSale(limit: 10);
     });
 
 /// Family stream for the legacy `special_cat` rails so a single provider

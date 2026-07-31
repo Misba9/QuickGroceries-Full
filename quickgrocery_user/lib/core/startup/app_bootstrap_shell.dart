@@ -21,7 +21,6 @@ import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/core/navigation/home_shell_observer.dart';
 import 'package:quickgrocery/core/loading/loading_constants.dart';
-import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_controller.dart';
@@ -38,7 +37,9 @@ import 'package:quickgrocery/view/delivery_location/services/delivery_zone_servi
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
 
-/// Root shell — category animation → home. Home never mounts before bootstrap.
+/// Root shell — 3-step startup:
+/// 1) Logo (0–400ms)  2) Category animation with Home built underneath
+/// 3) Reveal first viewport (already rendered).
 class AppBootstrapShell extends ConsumerStatefulWidget {
   const AppBootstrapShell({super.key});
 
@@ -56,15 +57,13 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
   bool _wasAuthenticated = false;
   String? _lastShellDestination;
   bool _guestSyncInFlight = false;
+  bool _authSyncInFlight = false;
 
   /// Keeps category-animation State alive across phase changes.
   final GlobalKey _splashKey = GlobalKey();
 
-  /// Preserves Home State across splash underlay → solo mount.
+  /// Preserves Home State across underlay → solo mount.
   final GlobalKey _readyHomeKey = GlobalKey();
-
-  /// Home is mounted under the splash during the exit crossfade.
-  bool _homeUnderlayMounted = false;
 
   /// Splash removed after it fades out over Home (no black gap).
   bool _startupSplashDismissed = false;
@@ -152,37 +151,47 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
         _bootUid == authUser.uid &&
         ref.read(appBootstrapCompleteProvider) &&
         ref.read(appBootstrapProvider).status != AppBootstrapStatus.error) {
+      // finishPhoneSignIn owns clear; this is a safe no-op if already cleared.
       if (signingInFresh) {
         await PhoneSignInNavigation.clearAuthRoutesWhenReady();
       }
       return;
     }
 
-    _bootUid = authUser.uid;
-    FloatingCartSuppression.reset();
+    // Auth stream + signedInTick both force-sync — only one auth boot.
+    if (_authSyncInFlight) return;
+    _authSyncInFlight = true;
 
-    if (signingInFresh) {
-      await PhoneSignInNavigation.clearAuthRoutesWhenReady();
-    }
+    try {
+      _bootUid = authUser.uid;
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    final deps = BootstrapDependencies(
-      addressService: legacy.Provider.of<AddressService>(context, listen: false),
-      categoryService:
-          legacy.Provider.of<CategoryService>(context, listen: false),
-      homeProvider: legacy.Provider.of<HomeProvider>(context, listen: false),
-      deliveryZoneService:
-          legacy.Provider.of<DeliveryZoneService>(context, listen: false),
-    );
+      final deps = BootstrapDependencies(
+        addressService:
+            legacy.Provider.of<AddressService>(context, listen: false),
+        categoryService:
+            legacy.Provider.of<CategoryService>(context, listen: false),
+        homeProvider: legacy.Provider.of<HomeProvider>(context, listen: false),
+        deliveryZoneService:
+            legacy.Provider.of<DeliveryZoneService>(context, listen: false),
+      );
 
-    await ref.read(appBootstrapProvider.notifier).runAuthenticated(
-          deps,
-          precacheImages: (snap) => HomeImagePrecache.warm(context, snap),
-        );
+      await ref.read(appBootstrapProvider.notifier).runAuthenticated(
+            deps,
+            precacheImages: (snap) => HomeImagePrecache.warm(context, snap),
+          );
 
-    if (mounted && signingInFresh) {
-      AuthSessionLog.homeNavigation(uid: authUser.uid);
+      if (!mounted) return;
+
+      if (signingInFresh) {
+        // Single post-boot clear (idempotent with finishPhoneSignIn).
+        await PhoneSignInNavigation.clearAuthRoutesWhenReady();
+        FloatingCartSuppression.reset();
+        AuthSessionLog.homeNavigation(uid: authUser.uid);
+      }
+    } finally {
+      _authSyncInFlight = false;
     }
   }
 
@@ -240,34 +249,45 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
       }
     });
 
-    final bootstrap = ref.watch(appBootstrapProvider);
+    // Select only fields that change shell routing — avoid splash rebuilds on
+    // progress / loadingMessage ticks.
+    final phase = ref.watch(appBootstrapProvider.select((s) => s.phase));
+    final status = ref.watch(appBootstrapProvider.select((s) => s.status));
+    final needsOnboarding =
+        ref.watch(appBootstrapProvider.select((s) => s.needsOnboarding));
+    final isComplete =
+        ref.watch(appBootstrapProvider.select((s) => s.isComplete));
+    final errorMessage =
+        ref.watch(appBootstrapProvider.select((s) => s.errorMessage));
+    final isRetrying =
+        ref.watch(appBootstrapProvider.select((s) => s.isRetrying));
     final authUser = resolveAuthUser(ref.watch(authUserProvider));
     final isGuest = authUser == null;
 
-    if (bootstrap.needsOnboarding && authUser != null) {
+    if (needsOnboarding && authUser != null) {
       _logShellDestination('CustomerDetailsAddScreen');
       return const CustomerDetailsAddScreen();
     }
 
-    if (bootstrap.status == AppBootstrapStatus.error ||
-        bootstrap.phase == AppBootstrapPhase.error) {
+    if (status == AppBootstrapStatus.error ||
+        phase == AppBootstrapPhase.error) {
       _logShellDestination('BootstrapErrorScreen');
       final guestRetry = authUser == null && isGuest;
       return BootstrapErrorScreen(
-        message: bootstrap.errorMessage ?? '',
-        isRetrying: bootstrap.isRetrying,
+        message: errorMessage ?? '',
+        isRetrying: isRetrying,
         onRetry: () => ref
             .read(appBootstrapProvider.notifier)
             .retry(guest: guestRetry),
       );
     }
 
-    switch (bootstrap.phase) {
+    switch (phase) {
       case AppBootstrapPhase.idle:
       case AppBootstrapPhase.splash:
       case AppBootstrapPhase.loadingHome:
-        _homeUnderlayMounted = false;
-        _startupSplashDismissed = false;
+        // Cold-start splash only. Do not clear [_startupSplashDismissed] here —
+        // mutating it in build after Home was shown replays splash on re-auth.
         _logShellDestination('AppAnimatedSplash');
         return ColoredBox(
           color: kLaunchYellow,
@@ -278,34 +298,30 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
         );
       case AppBootstrapPhase.ready:
       case AppBootstrapPhase.degraded:
-        // Keep looping categories until essential home content is present.
-        final essentialReady = bootstrap.homeSnapshot.hasContent;
+        // Bootstrap complete — mount Home under splash immediately so the
+        // first viewport paints during category animation (step 2), then
+        // splash only fades (step 3). Once dismissed, stay on Landing.
+        final essentialReady = isComplete;
 
         if (_startupSplashDismissed) {
           _logShellDestination('LandingScreen');
           return ColoredBox(
-            color: AppSurface.of(context).scaffold,
+            color: kLaunchYellow,
             child: _ReadyHome(key: _readyHomeKey),
           );
         }
 
-        _logShellDestination(
-          _homeUnderlayMounted ? 'RevealHome' : 'AppAnimatedSplash',
-        );
+        _logShellDestination('CategoryOverHome');
         return ColoredBox(
           color: kLaunchYellow,
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Home mounts under splash after the current category cycle ends.
-              if (_homeUnderlayMounted) _ReadyHome(key: _readyHomeKey),
+              // Step 2–3: Home builds / first viewport renders behind splash.
+              _ReadyHome(key: _readyHomeKey),
               AppAnimatedSplash(
                 key: _splashKey,
                 appReady: essentialReady,
-                onReadyToOpenHome: () {
-                  if (!mounted || _homeUnderlayMounted) return;
-                  setState(() => _homeUnderlayMounted = true);
-                },
                 onExitComplete: () {
                   if (!mounted || _startupSplashDismissed) return;
                   setState(() => _startupSplashDismissed = true);
@@ -315,13 +331,11 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
           ),
         );
       case AppBootstrapPhase.error:
-        _homeUnderlayMounted = false;
-        _startupSplashDismissed = false;
         _logShellDestination('BootstrapErrorScreen');
         final guestRetry = authUser == null && isGuest;
         return BootstrapErrorScreen(
-          message: bootstrap.errorMessage ?? '',
-          isRetrying: bootstrap.isRetrying,
+          message: errorMessage ?? '',
+          isRetrying: isRetrying,
           onRetry: () => ref
               .read(appBootstrapProvider.notifier)
               .retry(guest: guestRetry),
@@ -405,7 +419,7 @@ class _ReadyHomeState extends ConsumerState<_ReadyHome>
 
   @override
   Widget build(BuildContext context) {
-    // Full opacity immediately — splash crossfades away over this layer.
+    // Home is interactive immediately; splash fades away over this layer.
     return const LandingScreen();
   }
 }

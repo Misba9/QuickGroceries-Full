@@ -189,6 +189,30 @@ abstract final class StartupIsolateParse {
     );
   }
 
+  /// Untyped [QuerySnapshot] (legacy services) — sanitize in chunks with
+  /// event-loop yields so a 300-doc dump cannot freeze the UI for one frame.
+  static Future<List<ProductModel>> parseProductsFromUntypedSnapshot(
+    QuerySnapshot<dynamic> snap, {
+    bool onlyAvailable = false,
+    int yieldEvery = 25,
+  }) async {
+    final docs = <Map<String, dynamic>>[];
+    final raw = snap.docs;
+    for (var i = 0; i < raw.length; i++) {
+      final d = raw[i];
+      final data = d.data();
+      if (data is! Map) continue;
+      docs.add({
+        'id': d.id,
+        'data': sanitizeMap(Map<String, dynamic>.from(data)),
+      });
+      if (yieldEvery > 0 && i > 0 && i % yieldEvery == 0) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+    return parseProducts(docs, onlyAvailable: onlyAvailable);
+  }
+
   // ── Offer banners ───────────────────────────────────────────────────────
 
   static List<OfferBannerModel> parseOffersSync(

@@ -15,12 +15,18 @@ class AppTheme {
 
   static const Duration animationDuration = Duration(milliseconds: 300);
 
-  static ThemeData light() => _build(
+  /// Memoized — Google Fonts / ThemeData build once per brightness.
+  static ThemeData? _light;
+  static ThemeData? _dark;
+
+  static ThemeData light() =>
+      _light ??= _build(
         brightness: Brightness.light,
         palette: AppPalette.light,
       );
 
-  static ThemeData dark() => _build(
+  static ThemeData dark() =>
+      _dark ??= _build(
         brightness: Brightness.dark,
         palette: AppPalette.dark,
       );

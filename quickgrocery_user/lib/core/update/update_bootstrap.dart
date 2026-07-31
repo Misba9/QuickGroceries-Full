@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,6 +12,9 @@ import 'package:quickgrocery/core/update/update_service.dart';
 import 'package:quickgrocery/core/auth/auth_user_provider.dart';
 
 /// Runs update checks after Home is visible, after auth changes, and on resume.
+///
+/// Exactly **one** cold-start check per process. Never races bootstrap +
+/// cold_start into duplicate Remote Config fetches.
 class AppUpdateBootstrap extends ConsumerStatefulWidget {
   const AppUpdateBootstrap({
     super.key,
@@ -73,6 +75,7 @@ class _AppUpdateBootstrapState extends ConsumerState<AppUpdateBootstrap>
     if (!PostHomeStartup.homeVisible.value) return;
     if (!ref.read(appBootstrapCompleteProvider)) return;
     if (_checkInFlight) return;
+    // One cold-start / bootstrap check only.
     if (_started && (reason == 'cold_start' || reason == 'bootstrap')) {
       return;
     }
@@ -82,15 +85,11 @@ class _AppUpdateBootstrapState extends ConsumerState<AppUpdateBootstrap>
         top == AppRoutes.login ||
         top == AppRoutes.payment ||
         top == AppRoutes.checkout) {
-      if (kDebugMode) {
-        debugPrint('[AppUpdate] bootstrap skip ($reason) — on $top');
-      }
       return;
     }
 
     _checkInFlight = true;
     try {
-      if (kDebugMode) debugPrint('[AppUpdate] check ($reason)');
       await _service.flushPendingIfSafe(context);
       if (!mounted) return;
       await _service.checkAndPrompt(context);
@@ -105,18 +104,19 @@ class _AppUpdateBootstrapState extends ConsumerState<AppUpdateBootstrap>
     if (!PostHomeStartup.homeVisible.value) return;
     if (!ref.read(appBootstrapCompleteProvider)) return;
     _initialCheckScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Frame +28 — after FCM / analytics / RC warm, never during first paint.
+    PostHomeStartup.onFrame(28, () {
       unawaited(_runCheck(reason: 'cold_start'));
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    _scheduleInitialCheckIfReady();
-
+    // Do not call schedule from build on every rebuild — only when
+    // bootstrap flips to complete after Home is already visible.
     ref.listen<bool>(appBootstrapCompleteProvider, (prev, next) {
       if (next == true && prev != true) {
-        unawaited(_runCheck(reason: 'bootstrap'));
+        _scheduleInitialCheckIfReady();
       }
     });
 

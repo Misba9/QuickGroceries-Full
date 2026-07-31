@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../domain/order_models.dart';
 import 'package:quickgrocery/core/loading/loading.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 class RiderCard extends StatelessWidget {
   const RiderCard({
@@ -46,15 +47,23 @@ class RiderCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: AppColor.primary,
-              backgroundImage: (r?.image ?? '').isNotEmpty
-                  ? NetworkImage(r!.image)
-                  : null,
-              child: (r?.image ?? '').isEmpty
-                  ? const Icon(Icons.delivery_dining, color: Colors.black)
-                  : null,
+            ClipOval(
+              child: (r?.image ?? '').isNotEmpty
+                  ? CachedImage(
+                      url: r!.image,
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.cover,
+                      memCacheWidth: 88,
+                    )
+                  : ColoredBox(
+                      color: AppColor.primary,
+                      child: const SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Icon(Icons.delivery_dining, color: Colors.black),
+                      ),
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(

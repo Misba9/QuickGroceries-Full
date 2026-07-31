@@ -11,9 +11,9 @@ class StaggeredFadeIn extends StatefulWidget {
     super.key,
     required this.child,
     this.index = 0,
-    this.perItemDelay = const Duration(milliseconds: 40),
-    this.duration = AppMotion.medium,
-    this.offset = const Offset(0, 0.08),
+    this.perItemDelay = const Duration(milliseconds: 32),
+    this.duration = AppMotion.short,
+    this.offset = const Offset(0, 0.05),
   });
 
   final Widget child;
@@ -46,12 +46,12 @@ class _StaggeredFadeInState extends State<StaggeredFadeIn>
     );
     _fade = CurvedAnimation(
       parent: _ctl,
-      curve: Interval(start, 1, curve: AppMotion.standard),
+      curve: Interval(start, 1, curve: AppMotion.emphasized),
     );
     _slide = Tween<Offset>(begin: widget.offset, end: Offset.zero).animate(
       CurvedAnimation(
         parent: _ctl,
-        curve: Interval(start, 1, curve: AppMotion.standard),
+        curve: Interval(start, 1, curve: AppMotion.emphasized),
       ),
     );
     _ctl.addStatusListener((status) {

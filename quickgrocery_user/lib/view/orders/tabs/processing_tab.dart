@@ -9,8 +9,8 @@ import 'package:quickgrocery/view/orders/services/order_service.dart';
 import 'package:quickgrocery/view/tracking/screens/tracking_screen.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
-import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 class ProcessingTab extends StatelessWidget {
   const ProcessingTab({super.key});
@@ -127,19 +127,12 @@ class ProcessingCard extends StatelessWidget {
               SizedBox(
                 height: 80,
                 width: 80,
-                child: Image.network(
-                  image,
-                  errorBuilder: (context, error, stackTrace) {
-                    return AppLoading.center;
-                  },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) {
-                      return child;
-                    } else {
-                      return AppLoading.center;
-                    }
-                  },
+                child: CachedImage(
+                  url: image,
+                  width: 80,
+                  height: 80,
                   fit: BoxFit.cover,
+                  memCacheWidth: 160,
                 ),
               ),
               const SizedBox(width: 10),
@@ -344,8 +337,14 @@ class OrderListWidget extends StatelessWidget {
                 ...order.products.map(
                   (p) => ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      backgroundImage: NetworkImage(p.image),
+                    leading: ClipOval(
+                      child: CachedImage(
+                        url: p.image,
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 80,
+                      ),
                     ),
                     title: Text(p.name),
                     subtitle: Text(orderLinePaidQtySummary(p)),

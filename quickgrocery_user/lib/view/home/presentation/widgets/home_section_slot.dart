@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading_constants.dart';
 
 /// Fixed-slot home section: shimmer while loading, content fades in when ready.
 ///
@@ -13,7 +13,7 @@ class HomeSectionSlot extends StatefulWidget {
     required this.shimmer,
     required this.child,
     this.minHeight,
-    this.fadeDuration = AppMotion.medium,
+    this.fadeDuration = LoadingConstants.sectionReveal,
     this.hideWhenEmpty = false,
     this.isEmpty = false,
   });
@@ -44,13 +44,22 @@ class _HomeSectionSlotState extends State<HomeSectionSlot>
     with SingleTickerProviderStateMixin {
   late final AnimationController _fade;
   late final Animation<double> _opacity;
+  late final Animation<Offset> _slide;
   bool _showingContent = false;
 
   @override
   void initState() {
     super.initState();
     _fade = AnimationController(vsync: this, duration: widget.fadeDuration);
-    _opacity = CurvedAnimation(parent: _fade, curve: AppMotion.standard);
+    final curved = CurvedAnimation(
+      parent: _fade,
+      curve: LoadingConstants.revealCurve,
+    );
+    _opacity = curved;
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.04),
+      end: Offset.zero,
+    ).animate(curved);
     _sync(immediate: true);
   }
 
@@ -96,12 +105,18 @@ class _HomeSectionSlotState extends State<HomeSectionSlot>
       return const SizedBox.shrink();
     }
 
+    final reduce = MediaQuery.disableAnimationsOf(context);
     final body = widget.loading
         ? widget.shimmer
-        : FadeTransition(
-            opacity: _opacity,
-            child: widget.child,
-          );
+        : (reduce
+            ? widget.child
+            : FadeTransition(
+                opacity: _opacity,
+                child: SlideTransition(
+                  position: _slide,
+                  child: widget.child,
+                ),
+              ));
 
     if (widget.minHeight == null) return body;
 

@@ -13,6 +13,7 @@ import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/profile/domain/profile_models.dart';
 import 'package:quickgrocery/core/loading/loading.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 /// Edit name, email, and profile photo.
 class EditProfileScreen extends StatefulWidget {
@@ -111,17 +112,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               onTap: _pickImage,
               child: Stack(
                 children: [
-                  CircleAvatar(
-                    radius: 52,
-                    backgroundColor: AppSurface.of(context).subtle,
-                    backgroundImage: _pickedImage != null
-                        ? FileImage(_pickedImage!)
-                        : (imageUrl.isNotEmpty
-                            ? NetworkImage(imageUrl)
-                            : null) as ImageProvider?,
-                    child: _pickedImage == null && imageUrl.isEmpty
-                        ? const Icon(Icons.person, size: 48)
-                        : null,
+                  ClipOval(
+                    child: _pickedImage != null
+                        ? Image.file(
+                            _pickedImage!,
+                            width: 104,
+                            height: 104,
+                            fit: BoxFit.cover,
+                          )
+                        : imageUrl.isNotEmpty
+                            ? CachedImage(
+                                url: imageUrl,
+                                width: 104,
+                                height: 104,
+                                fit: BoxFit.cover,
+                                memCacheWidth: 208,
+                              )
+                            : ColoredBox(
+                                color: AppSurface.of(context).subtle,
+                                child: const SizedBox(
+                                  width: 104,
+                                  height: 104,
+                                  child: Icon(Icons.person, size: 48),
+                                ),
+                              ),
                   ),
                   Positioned(
                     right: 0,

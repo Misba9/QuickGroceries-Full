@@ -12,6 +12,7 @@ import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_review_widget.dart';
 import 'package:quickgrocery/core/loading/loading.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 enum ReviewSort { latest, highest, lowest, withPhotos }
 
@@ -121,11 +122,12 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (_, i) => ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        withPhotos[i],
+                      child: CachedImage(
+                        url: withPhotos[i],
                         width: 88,
                         height: 88,
                         fit: BoxFit.cover,
+                        memCacheWidth: 176,
                       ),
                     ),
                   ),

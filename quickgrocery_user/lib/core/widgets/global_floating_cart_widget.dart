@@ -10,6 +10,7 @@ import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/view/cart/domain/cart_models.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 /// App-wide floating cart bar — single source of truth for the view-cart pill.
 class GlobalFloatingCartWidget extends ConsumerWidget {
@@ -29,7 +30,23 @@ class GlobalFloatingCartWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cart = ref.watch(cartProvider);
+    // Rebuild only when pill-visible fields change (not every cart notify).
+    ref.watch(
+      cartProvider.select(
+        (c) => (
+          c.isEmpty,
+          c.totalUnits,
+          c.bill.total,
+          c.bill.subtotal,
+          c.items.length,
+          c.items
+              .take(3)
+              .map((e) => '${e.productId}|${e.name}|${e.image}')
+              .join(';'),
+        ),
+      ),
+    );
+    final cart = ref.read(cartProvider);
     if (cart.isEmpty) return const SizedBox.shrink();
 
     return _PillBody(cart: cart);
@@ -210,19 +227,12 @@ class _Avatars extends StatelessWidget {
                   ],
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: Image.network(
-                  shown[i].image,
+                child: CachedImage(
+                  url: shown[i].image,
                   width: 36,
                   height: 36,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: AppSurface.of(context).subtle,
-                    child: Icon(
-                      Icons.image_outlined,
-                      color: AppSurface.of(context).textMuted,
-                      size: 16,
-                    ),
-                  ),
+                  memCacheWidth: 72,
                 ),
               ),
             ),

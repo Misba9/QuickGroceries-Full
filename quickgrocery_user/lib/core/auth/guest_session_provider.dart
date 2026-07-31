@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:quickgrocery/core/auth/auth_user_provider.dart';
@@ -10,14 +11,20 @@ const _guestSessionKey = 'guest_session_enabled';
 class GuestSessionNotifier extends Notifier<bool> {
   @override
   bool build() {
-    if (FirebaseAuth.instance.currentUser != null) return false;
+    if (Firebase.apps.isNotEmpty &&
+        FirebaseAuth.instance.currentUser != null) {
+      return false;
+    }
     final prefs = ref.read(sharedPreferencesProvider);
     // Default true: never block cold start with a login screen.
     return prefs.getBool(_guestSessionKey) ?? true;
   }
 
   Future<void> enable() async {
-    if (FirebaseAuth.instance.currentUser != null) return;
+    if (Firebase.apps.isNotEmpty &&
+        FirebaseAuth.instance.currentUser != null) {
+      return;
+    }
     state = true;
     await ref.read(sharedPreferencesProvider).setBool(_guestSessionKey, true);
   }

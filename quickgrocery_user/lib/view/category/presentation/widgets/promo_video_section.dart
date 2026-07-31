@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +13,7 @@ import 'package:quickgrocery/core/navigation/product_navigation.dart';
 import 'package:quickgrocery/models/promo_model.dart';
 import 'package:quickgrocery/view/category/presentation/providers/categories_discovery_providers.dart';
 import 'package:quickgrocery/view/category/screens/category_screen.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 /// Promo video / GIF / Lottie / image rail for the Categories discovery
 /// page. Streams admin-controlled `promos/` documents and renders each
@@ -245,12 +245,16 @@ class _Media extends StatelessWidget {
         ),
       );
     }
-    if (promo.mediaUrl.isEmpty) return const SizedBox.shrink();
-    return CachedNetworkImage(
-      imageUrl: promo.mediaUrl,
+    if (promo.mediaUrl.isEmpty) {
+      return ColoredBox(
+        color: AppSurface.of(context).subtle,
+        child: const SizedBox.expand(),
+      );
+    }
+    return CachedImage(
+      url: promo.mediaUrl,
       fit: BoxFit.cover,
-      placeholder: (_, __) => const SizedBox.shrink(),
-      errorWidget: (_, __, ___) => const SizedBox.shrink(),
+      memCacheWidth: 800,
     );
   }
 }

@@ -1,10 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/offer_banner_model.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/offers/presentation/screens/offer_story_viewer_screen.dart';
 
 /// Instagram-style circular stories for offers.
@@ -84,11 +84,12 @@ class _StoryOrb extends StatelessWidget {
                   child: imageUrl.isEmpty
                       ? Icon(Icons.card_giftcard_rounded,
                           color: AppColor.primary)
-                      : CachedNetworkImage(
-                          imageUrl: imageUrl,
+                      : CachedImage(
+                          url: imageUrl,
                           fit: BoxFit.cover,
                           width: 60,
                           height: 60,
+                          memCacheWidth: 120,
                         ),
                 ),
               ),

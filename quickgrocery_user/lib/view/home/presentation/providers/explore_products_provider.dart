@@ -66,7 +66,7 @@ class ExploreState {
 ///   the existing list without flipping the AsyncValue back to `loading`.
 class ExploreProductsNotifier
     extends AutoDisposeAsyncNotifier<ExploreState> {
-  static const int _pageSize = 18;
+  static const int _pageSize = 8;
 
   late final ProductRepository _repo = ref.read(productRepositoryProvider);
 

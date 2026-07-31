@@ -23,8 +23,8 @@ abstract final class LoadingManager {
     }
     if (_booted) {
       if (context != null && context.mounted) {
+        // Splash path: decode only the first category image for handoff.
         unawaited(LoadingService.precacheFirst(context));
-        unawaited(LoadingService.precache(context));
       }
       return;
     }
@@ -36,8 +36,14 @@ abstract final class LoadingManager {
     } catch (_) {}
     if (context != null && context.mounted) {
       unawaited(LoadingService.precacheFirst(context));
-      unawaited(LoadingService.precache(context));
+      // Full category catalog decode waits until after first Home paint.
     }
+  }
+
+  /// Decode remaining category images after Home is interactive.
+  static Future<void> warmRemainingImages(BuildContext context) async {
+    if (!context.mounted) return;
+    await LoadingService.precache(context);
   }
 
   static void seed(Iterable<CategoryModel> categories) {

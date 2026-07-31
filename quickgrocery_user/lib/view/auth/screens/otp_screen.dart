@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
-import 'package:quickgrocery/core/auth/phone_sign_in_navigation.dart';
 import 'package:quickgrocery/core/navigation/auth_floating_cart_guard.dart';
 import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
@@ -86,7 +85,7 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
     if (!mounted) return;
 
     if (ok) {
-      await PhoneSignInNavigation.clearAuthRoutesWhenReady();
+      // Auth routes cleared once in AuthService._finishPhoneSignIn.
       return;
     }
 

@@ -20,19 +20,19 @@ abstract final class LoadingCategories {
   static const all = <LoadingCategory>[
     LoadingCategory(
       id: 'vegetables',
-      label: 'Fresh Vegetables',
-      emoji: '🥬',
+      label: 'Vegetables',
+      emoji: '🥦',
       loadingMessage: 'Loading Fresh Vegetables...',
     ),
     LoadingCategory(
       id: 'fruits',
-      label: 'Fresh Fruits',
+      label: 'Fruits',
       emoji: '🍎',
       loadingMessage: 'Picking the freshest fruits...',
     ),
     LoadingCategory(
       id: 'dairy',
-      label: 'Dairy Products',
+      label: 'Dairy',
       emoji: '🥛',
       loadingMessage: 'Preparing Dairy Products...',
     ),
@@ -98,13 +98,13 @@ abstract final class LoadingCategories {
     ),
     LoadingCategory(
       id: 'personal_care',
-      label: 'Personal Care',
+      label: 'Essentials',
       emoji: '🧴',
       loadingMessage: 'Loading personal care essentials...',
     ),
     LoadingCategory(
       id: 'cleaning',
-      label: 'Cleaning Supplies',
+      label: 'Cleaning',
       emoji: '🧹',
       loadingMessage: 'Stocking cleaning supplies...',
     ),
@@ -134,7 +134,7 @@ abstract final class LoadingCategories {
     ),
     LoadingCategory(
       id: 'health',
-      label: 'Health Care',
+      label: 'Health',
       emoji: '💊',
       loadingMessage: 'Loading health care essentials...',
     ),

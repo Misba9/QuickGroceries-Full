@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 class CategoryProductCard extends StatelessWidget {
   const CategoryProductCard({
@@ -53,8 +54,14 @@ class CategoryProductCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Center(child: Image.network(image)),
+                  CachedImage(
+                    url: image,
+                    fit: BoxFit.contain,
+                    width: MediaQuery.of(context).size.width / 2.5,
+                    height: 120,
+                  ),
                   Positioned(
                     top: 0,
                     right: 0,

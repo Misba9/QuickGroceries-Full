@@ -123,10 +123,11 @@ class AppGradients {
 class AppMotion {
   static const Duration micro = Duration(milliseconds: 120);
   static const Duration short = Duration(milliseconds: 220);
-  static const Duration medium = Duration(milliseconds: 320);
-  static const Duration long = Duration(milliseconds: 480);
+  static const Duration medium = Duration(milliseconds: 300);
+  static const Duration long = Duration(milliseconds: 460);
 
   static const Curve standard = Curves.easeOutCubic;
+  /// Material 3 emphasized decelerate — premium reveals / page enters.
   static const Curve emphasized = Cubic(0.2, 0, 0, 1);
   static const Curve spring = Cubic(0.34, 1.56, 0.64, 1);
 }

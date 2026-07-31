@@ -21,6 +21,9 @@ class LandingScreen extends ConsumerStatefulWidget {
 }
 
 class _LandingScreenState extends ConsumerState<LandingScreen> {
+  /// Build Home immediately; other tabs on first visit (keeps memory lower).
+  final Set<int> _mountedTabs = {0};
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -47,8 +50,16 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
         child: legacy.Selector<HomeProvider, int>(
           selector: (_, p) => p.selectedIndex,
           builder: (context, selectedIndex, _) {
+            if (!_mountedTabs.contains(selectedIndex)) {
+              // Defer setState — never mutate the set during build.
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted || _mountedTabs.contains(selectedIndex)) return;
+                setState(() => _mountedTabs.add(selectedIndex));
+              });
+            }
             final provider =
                 legacy.Provider.of<HomeProvider>(context, listen: false);
+            final pages = provider.pages;
             return Scaffold(
               body: SafeArea(
                 bottom: false,
@@ -67,12 +78,12 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                                 key: ValueKey<String>('tabs-$localeKey'),
                                 index: selectedIndex,
                                 children: [
-                                  for (var i = 0;
-                                      i < provider.pages.length;
-                                      i++)
+                                  for (var i = 0; i < pages.length; i++)
                                     HeroMode(
                                       enabled: selectedIndex == i,
-                                      child: provider.pages[i],
+                                      child: _mountedTabs.contains(i)
+                                          ? pages[i]
+                                          : const SizedBox.shrink(),
                                     ),
                                 ],
                               ),
@@ -87,7 +98,12 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
               bottomNavigationBar: PremiumFiveTabNav(
                 key: ValueKey<String>('nav-$localeKey'),
                 currentIndex: selectedIndex,
-                onTap: provider.onSelectedChange,
+                onTap: (i) {
+                  if (!_mountedTabs.contains(i)) {
+                    setState(() => _mountedTabs.add(i));
+                  }
+                  provider.onSelectedChange(i);
+                },
               ),
             );
           },

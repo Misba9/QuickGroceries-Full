@@ -10,6 +10,7 @@ import 'package:quickgrocery/core/firebase/firebase_bootstrap.dart';
 import 'package:quickgrocery/core/loading/loading_constants.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_shell.dart';
 import 'package:quickgrocery/core/startup/shared_preferences_provider.dart';
+import 'package:quickgrocery/core/startup/widgets/firebase_startup_gate.dart';
 import 'package:quickgrocery/core/widgets/startup_failure_screen.dart';
 import 'package:quickgrocery/l10n/app_localizations.dart';
 // Riverpod and `package:provider` both export `ChangeNotifierProvider`
@@ -43,6 +44,7 @@ import 'package:quickgrocery/view/cart/presentation/widgets/cart_bootstrap.dart'
 import 'package:quickgrocery/view/cart/presentation/widgets/global_cart_overlay.dart';
 import 'package:provider/provider.dart' hide Consumer;
 import 'package:shared_preferences/shared_preferences.dart';
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -164,36 +166,14 @@ Future<void> _bootstrap() async {
   AppStartupLog.markAppStart();
 
   try {
-    // Critical path only: Firebase + prefs → first Flutter frame.
-    // App Check / Phone Auth / FCM topics run in [PostHomeStartup] after Home.
-    await initializeFirebaseWithRetry();
-    AppStartupLog.milestone('Firebase initialized');
-    await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
-      !kDebugMode,
-    );
-    _installCrashlyticsHandlers();
-    RealtimeBootstrap.configureFirestore();
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
+    // Critical path only: prefs for correct theme/locale on first paint.
+    // Firebase / Crashlytics / FCM / App Check / RC run after first frame
+    // inside [FirebaseStartupGate] and [PostHomeStartup].
     _configureProductionErrorPresentation();
 
     final prefs = await SharedPreferences.getInstance();
     AppStartupLog.milestone('Preferences loaded');
 
-    // Logo decode overlaps first Flutter frames — do not block runApp.
-    unawaited(_precacheLaunchLogo());
-
-    // Initialize local notifications before first paint so cold-start
-    // getNotificationAppLaunchDetails can enqueue before home consumes pending.
-    if (!kIsWeb) {
-      try {
-        await FcmPushInitializer.ensureInitialized();
-      } catch (e) {
-        if (kDebugMode) debugPrint('[FCM] early init skipped: $e');
-      }
-    }
-
-    unawaited(handleReferralAfterInstall());
     AppStartupLog.log('runApp');
     runApp(
       ProviderScope(
@@ -203,12 +183,13 @@ Future<void> _bootstrap() async {
         child: const MyApp(),
       ),
     );
-    // Non-critical work (FCM topics, App Check, backfill) starts after Home
-    // paints — see [PostHomeStartup.scheduleAfterHomeVisible].
+
+    // Non-critical: overlap with first Flutter frames.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_precacheLaunchLogo());
+      unawaited(handleReferralAfterInstall());
+    });
   } catch (e, st) {
-    try {
-      await FirebaseCrashlytics.instance.recordError(e, st, fatal: true);
-    } catch (_) {}
     FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
     runApp(
       StartupFailureScreen(
@@ -230,7 +211,10 @@ Future<void> main() async {
   await runZonedGuarded(
     _bootstrap,
     (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      // Crashlytics may not be ready yet (Firebase is post-frame).
+      try {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      } catch (_) {}
       FlutterError.reportError(
         FlutterErrorDetails(exception: error, stack: stack),
       );
@@ -281,19 +265,20 @@ class MyApp extends ConsumerWidget {
 
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => AuthService()),
-        ChangeNotifierProvider(create: (context) => HomeProvider()),
-        ChangeNotifierProvider(create: (context) => CategoryService()),
-        ChangeNotifierProvider(create: (context) => ProductViewService()),
-        ChangeNotifierProvider(create: (context) => CartService()),
-        ChangeNotifierProvider(create: (context) => AddressService()),
-        ChangeNotifierProvider(create: (context) => OrderService()),
-        ChangeNotifierProvider(create: (context) => PaymentService()),
-        ChangeNotifierProvider(create: (context) => TrackingService()),
-        ChangeNotifierProvider(create: (context) => SearchService()),
-        ChangeNotifierProvider(create: (context) => ProfileService()),
-        ChangeNotifierProvider(create: (context) => DeliveryZoneService()),
-        ChangeNotifierProvider(create: (context) => WishlistService()),
+        // lazy: true (default) — construct only on first read, not at runApp.
+        ChangeNotifierProvider(create: (_) => AuthService(), lazy: true),
+        ChangeNotifierProvider(create: (_) => HomeProvider(), lazy: true),
+        ChangeNotifierProvider(create: (_) => CategoryService(), lazy: true),
+        ChangeNotifierProvider(create: (_) => ProductViewService(), lazy: true),
+        ChangeNotifierProvider(create: (_) => CartService(), lazy: true),
+        ChangeNotifierProvider(create: (_) => AddressService(), lazy: true),
+        ChangeNotifierProvider(create: (_) => OrderService(), lazy: true),
+        ChangeNotifierProvider(create: (_) => PaymentService(), lazy: true),
+        ChangeNotifierProvider(create: (_) => TrackingService(), lazy: true),
+        ChangeNotifierProvider(create: (_) => SearchService(), lazy: true),
+        ChangeNotifierProvider(create: (_) => ProfileService(), lazy: true),
+        ChangeNotifierProvider(create: (_) => DeliveryZoneService(), lazy: true),
+        ChangeNotifierProvider(create: (_) => WishlistService(), lazy: true),
       ],
       child: MaterialApp(
         navigatorKey: rootNavigatorKey,
@@ -324,16 +309,21 @@ class MyApp extends ConsumerWidget {
               textDirection: AppLocales.isRtl(locale)
                   ? ui.TextDirection.rtl
                   : ui.TextDirection.ltr,
-              child: GlobalCartOverlay(
-                child: child ?? const SizedBox.shrink(),
-              ),
+              child: child ?? const SizedBox.shrink(),
             ),
           );
         },
         navigatorObservers: [appRouteObserver],
-        home: const RealtimeBootstrap(
-          child: CartBootstrap(
-            child: AppBootstrapShell(),
+        home: FirebaseStartupGate(
+          backgroundMessageHandler: _firebaseMessagingBackgroundHandler,
+          onCrashlyticsHandlersInstalled: _installCrashlyticsHandlers,
+          // Cart overlay only after Firebase — avoids Auth before initializeApp.
+          child: const GlobalCartOverlay(
+            child: RealtimeBootstrap(
+              child: CartBootstrap(
+                child: AppBootstrapShell(),
+              ),
+            ),
           ),
         ),
       ),

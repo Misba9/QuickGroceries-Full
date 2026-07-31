@@ -3,9 +3,7 @@ import 'dart:math' as math;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
 import 'package:quickgrocery/core/firebase/firebase_options.dart';
-import 'package:quickgrocery/core/firebase/firebase_startup_validation.dart';
 
 /// Initializes Firebase with bounded retries (transient startup / network).
 ///
@@ -26,19 +24,11 @@ Future<void> initializeFirebaseWithRetry({
           await Firebase.initializeApp(
             options: DefaultFirebaseOptions.currentPlatform,
           );
-          if (kDebugMode) {
-            debugPrint(
-              '[Firebase] initialized with DefaultFirebaseOptions.currentPlatform '
-              'appId=${DefaultFirebaseOptions.currentPlatform.appId}',
-            );
-          }
         }
       }
-      // Validation / audit are diagnostic — never block first paint.
-      if (kDebugMode) {
-        await FirebaseStartupValidation.logAndValidate();
-        await FirebaseConfigAudit.logConfiguration();
-      }
+      // Heavy Phone Auth / config audit dumps are NOT run on cold start.
+      // Use FirebaseDiagnosticScreen or FirebaseConfigAudit.logConfiguration()
+      // when explicitly requested in debug.
       return;
     } catch (e, st) {
       lastError = e;

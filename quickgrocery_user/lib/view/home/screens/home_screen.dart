@@ -12,6 +12,7 @@ import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
 import 'package:quickgrocery/core/startup/post_home_startup.dart';
+import 'package:quickgrocery/core/startup/widgets/home_arm_gate.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/core/widgets/home_section_error_card.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
@@ -86,29 +87,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _scrollController.addListener(_onScroll);
     AppPermissionCoordinator.settledTick.addListener(_onPermissionsSettled);
 
-    // Connectivity + location refinement wait until Home has painted.
-    if (PostHomeStartup.homeVisible.value) {
-      _startBackgroundHomeMonitors();
-    } else {
-      PostHomeStartup.homeVisible.addListener(_onPostHomeVisible);
-    }
-  }
-
-  void _onPostHomeVisible() {
-    if (!PostHomeStartup.homeVisible.value) return;
-    PostHomeStartup.homeVisible.removeListener(_onPostHomeVisible);
-    _startBackgroundHomeMonitors();
-  }
-
-  void _startBackgroundHomeMonitors() {
-    _setupConnectivityListener();
-    unawaited(_checkConnectivity());
-    unawaited(_checkServiceability(force: true));
+    // Connectivity + location wait for staggered post-Home frames.
+    PostHomeStartup.onFrame(2, () {
+      if (!mounted) return;
+      _setupConnectivityListener();
+      unawaited(_checkConnectivity());
+    });
+    PostHomeStartup.onFrame(4, () {
+      if (!mounted) return;
+      unawaited(_checkServiceability(force: true));
+    });
   }
 
   void _onPermissionsSettled() {
     if (!mounted) return;
-    unawaited(_checkServiceability(force: true));
+    PostHomeStartup.onFrame(4, () {
+      if (!mounted) return;
+      unawaited(_checkServiceability(force: true));
+    });
   }
 
   void _bootstrapLegacyServices() {
@@ -134,9 +130,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       // Address hydrate is fine async — Home already painted optimistically.
       await addressService.getAddress();
       if (!mounted) return;
-      if (PostHomeStartup.homeVisible.value) {
-        await _checkServiceability(force: true);
-      }
+      // Geolocator / serviceability only after frame +4.
+      PostHomeStartup.onFrame(4, () {
+        if (!mounted) return;
+        unawaited(_checkServiceability(force: true));
+      });
     });
   }
 
@@ -357,7 +355,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
-    PostHomeStartup.homeVisible.removeListener(_onPostHomeVisible);
     AppPermissionCoordinator.settledTick.removeListener(_onPermissionsSettled);
     _connectivitySub?.cancel();
     _scrollController.dispose();
@@ -411,59 +408,120 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ],
                 onTap: () => Navigator.push(context, AppPageRoutes.search()),
               ),
-              _HomePricingSliver(gutter: gutter),
-              // 1) Banner
+              // Pricing live refresh — frame +8
+              SliverToBoxAdapter(
+                child: HomeArmGate(
+                  frame: 8,
+                  placeholder: const SizedBox.shrink(),
+                  child: _HomePricingBody(gutter: gutter),
+                ),
+              ),
+              // 1) Banner — placeholder first; live refresh frame +10
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 12),
-                  child: const _BannersSection(),
-                ),
-              ),
-              // 2) Categories
-              _HomeCategoriesSliver(gutter: gutter),
-              // 3) Featured
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: _ProductRailSection(
-                    title: 'Featured For You',
-                    provider: featuredProductsStreamProvider,
-                    legacySpecialCat: 'Featured this week',
+                  child: HomeArmGate(
+                    frame: 10,
+                    placeholder: AppLoading.banner,
+                    child: const _BannersSection(),
                   ),
                 ),
               ),
-              // 4) Offers / explore — own Consumer so pagination ≠ full Home
+              // 2) Categories — arm at +4 (seed paints immediately on subscribe)
+              SliverToBoxAdapter(
+                child: HomeArmGate(
+                  frame: 4,
+                  placeholder: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: gutter),
+                    child: AppLoading.categoryRail,
+                  ),
+                  child: _HomeCategoriesBody(gutter: gutter),
+                ),
+              ),
+              // 3) Featured — frame +12
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: gutter),
+                  child: HomeArmGate(
+                    frame: 12,
+                    placeholder: AppLoading.productRail,
+                    child: _ProductRailSection(
+                      title: 'Featured For You',
+                      provider: featuredProductsStreamProvider,
+                      legacySpecialCat: 'Featured this week',
+                    ),
+                  ),
+                ),
+              ),
+              // 4) Offers / explore — armed at frame +10 inside widget
               _HomeExploreOffersSliver(gutter: gutter),
-              // 5) Recommended
+              // 5) Recommended — frame +14
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: const RecommendationsSection(),
+                  child: HomeArmGate(
+                    frame: 14,
+                    placeholder: AppLoading.productRail,
+                    child: const RecommendationsSection(),
+                  ),
                 ),
               ),
-              _HomeFlashSliver(gutter: gutter),
-              _HomeTrendingSliver(gutter: gutter),
+              // Flash — frame +16 (no provider watch until armed)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: const RecentlyOrderedSection(),
+                  child: HomeArmGate(
+                    frame: 16,
+                    placeholder: AppLoading.productRail,
+                    child: _HomeFlashBody(),
+                  ),
                 ),
               ),
+              // Trending — frame +13
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: _LegacyRail(
-                    title: context.l10n.epic_price_drop_items,
-                    specialCat: 'Epic price drop items',
+                  child: HomeArmGate(
+                    frame: 13,
+                    placeholder: AppLoading.productRail,
+                    child: _HomeTrendingBody(),
+                  ),
+                ),
+              ),
+              // Recently ordered — frame +18
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: gutter),
+                  child: HomeArmGate(
+                    frame: 18,
+                    placeholder: const SizedBox.shrink(),
+                    child: const RecentlyOrderedSection(),
                   ),
                 ),
               ),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: _LegacyRail(
-                    title: context.l10n.big_deals_on_beauty_products,
-                    specialCat: 'Big deals on beauty products',
+                  child: HomeArmGate(
+                    frame: 19,
+                    placeholder: const SizedBox.shrink(),
+                    child: _LegacyRail(
+                      title: context.l10n.epic_price_drop_items,
+                      specialCat: 'Epic price drop items',
+                    ),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: gutter),
+                  child: HomeArmGate(
+                    frame: 23,
+                    placeholder: const SizedBox.shrink(),
+                    child: _LegacyRail(
+                      title: context.l10n.big_deals_on_beauty_products,
+                      specialCat: 'Big deals on beauty products',
+                    ),
                   ),
                 ),
               ),
@@ -478,8 +536,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 // ── Leaf hosts: each watches only the data it needs ──────────────────────
 
-class _HomePricingSliver extends ConsumerWidget {
-  const _HomePricingSliver({required this.gutter});
+/// Box body for pricing strip — wrapped in [HomeArmGate] (+8) by Home.
+class _HomePricingBody extends ConsumerWidget {
+  const _HomePricingBody({required this.gutter});
   final double gutter;
 
   @override
@@ -487,31 +546,27 @@ class _HomePricingSliver extends ConsumerWidget {
     final pricingAsync = ref.watch(pricingConfigProvider);
     final pricing = pricingAsync.asData?.value;
     if (pricingAsync.hasError) {
-      return SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 8),
-          child: HomeSectionErrorCard(
-            title: 'Delivery offers unavailable',
-            subtitle:
-                'Prices and delivery fees may be outdated until we reconnect.',
-            onRetry: () => ref.invalidate(pricingConfigProvider),
-            minHeight: 108,
-          ),
+      return Padding(
+        padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 8),
+        child: HomeSectionErrorCard(
+          title: 'Delivery offers unavailable',
+          subtitle:
+              'Prices and delivery fees may be outdated until we reconnect.',
+          onRetry: () => ref.invalidate(pricingConfigProvider),
+          minHeight: 108,
         ),
       );
     }
-    if (pricing == null) return const SliverToBoxAdapter(child: SizedBox.shrink());
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 10),
-        child: _DeliveryPromoStrip(pricing: pricing),
-      ),
+    if (pricing == null) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 10),
+      child: _DeliveryPromoStrip(pricing: pricing),
     );
   }
 }
 
-class _HomeCategoriesSliver extends ConsumerWidget {
-  const _HomeCategoriesSliver({required this.gutter});
+class _HomeCategoriesBody extends ConsumerWidget {
+  const _HomeCategoriesBody({required this.gutter});
   final double gutter;
 
   @override
@@ -525,22 +580,51 @@ class _HomeCategoriesSliver extends ConsumerWidget {
         },
       ),
     );
-    if (!show) return const SliverToBoxAdapter(child: SizedBox.shrink());
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: gutter),
-        child: const HomeCategoriesRail(),
-      ),
+    if (!show) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: gutter),
+      child: const HomeCategoriesRail(),
     );
   }
 }
 
-class _HomeExploreOffersSliver extends ConsumerWidget {
+class _HomeExploreOffersSliver extends ConsumerStatefulWidget {
   const _HomeExploreOffersSliver({required this.gutter});
   final double gutter;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_HomeExploreOffersSliver> createState() =>
+      _HomeExploreOffersSliverState();
+}
+
+class _HomeExploreOffersSliverState
+    extends ConsumerState<_HomeExploreOffersSliver> {
+  bool _armed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Frame +11 — after banner refresh (+10), before featured (+12).
+    _armed = PostHomeStartup.armedAt(11);
+    if (!_armed) {
+      PostHomeStartup.onFrame(11, () {
+        if (mounted) setState(() => _armed = true);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_armed) {
+      // Lightweight placeholder until Home is interactive — no explore GET yet.
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: widget.gutter),
+          child: AppLoading.exploreGrid,
+        ),
+      );
+    }
+
     final exploreAsync = ref.watch(exploreProductsProvider);
     final offersAsync = ref.watch(homeExploreOfferBannersProvider);
     return SliverMainAxisGroup(
@@ -550,15 +634,14 @@ class _HomeExploreOffersSliver extends ConsumerWidget {
         exploreAsync: exploreAsync,
         offers: offersAsync.asData?.value ?? const [],
         offersLoading: offersAsync.isLoading && !offersAsync.hasValue,
-        gutter: gutter,
+        gutter: widget.gutter,
       ),
     );
   }
 }
 
-class _HomeFlashSliver extends ConsumerWidget {
-  const _HomeFlashSliver({required this.gutter});
-  final double gutter;
+class _HomeFlashBody extends ConsumerWidget {
+  const _HomeFlashBody();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -566,25 +649,23 @@ class _HomeFlashSliver extends ConsumerWidget {
       appContentStreamProvider.select((async) {
         final loading = async.isLoading && !async.hasValue;
         final cfg = async.value ?? AppContentConfig.defaults;
-        return (show: loading || cfg.showFlashDeals, heading: cfg.flashDealHeading, loading: loading);
+        return (
+          show: loading || cfg.showFlashDeals,
+          heading: cfg.flashDealHeading,
+          loading: loading,
+        );
       }),
     );
-    if (!visible.show) return const SliverToBoxAdapter(child: SizedBox.shrink());
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: gutter),
-        child: FlashSaleSection(
-          heading: visible.heading,
-          headingLoading: visible.loading,
-        ),
-      ),
+    if (!visible.show) return const SizedBox.shrink();
+    return FlashSaleSection(
+      heading: visible.heading,
+      headingLoading: visible.loading,
     );
   }
 }
 
-class _HomeTrendingSliver extends ConsumerWidget {
-  const _HomeTrendingSliver({required this.gutter});
-  final double gutter;
+class _HomeTrendingBody extends ConsumerWidget {
+  const _HomeTrendingBody();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -595,16 +676,11 @@ class _HomeTrendingSliver extends ConsumerWidget {
         return (title: cfg.trendingHeading, loading: loading);
       }),
     );
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: gutter),
-        child: _ProductRailSection(
-          title: meta.title,
-          titleLoading: meta.loading,
-          provider: trendingProductsStreamProvider,
-          legacySpecialCat: "Today's snacks deals",
-        ),
-      ),
+    return _ProductRailSection(
+      title: meta.title,
+      titleLoading: meta.loading,
+      provider: trendingProductsStreamProvider,
+      legacySpecialCat: "Today's snacks deals",
     );
   }
 }

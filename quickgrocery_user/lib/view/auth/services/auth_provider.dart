@@ -20,12 +20,11 @@ import 'package:quickgrocery/core/firebase/phone_auth_user_messages.dart';
 import 'package:quickgrocery/core/auth/auth_session_log.dart';
 import 'package:quickgrocery/core/auth/auth_session_manager.dart';
 import 'package:quickgrocery/core/auth/auth_sign_in_coordinator.dart';
+import 'package:quickgrocery/core/auth/phone_auth_coordinator.dart';
 import 'package:quickgrocery/core/auth/phone_auth_flow_log.dart';
 import 'package:quickgrocery/core/auth/phone_sign_in_navigation.dart';
-import 'package:quickgrocery/core/navigation/app_route_names.dart';
 import 'package:quickgrocery/core/user/user_profile_cache.dart';
 import 'package:quickgrocery/core/user/user_profile_repository.dart';
-import 'package:quickgrocery/view/auth/screens/otp_screen.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_shell.dart';
 import 'package:quickgrocery/view/refer/services/refer_earn_service.dart';
 
@@ -520,13 +519,7 @@ class AuthService extends ChangeNotifier {
           if (!context.mounted) return;
 
           if (navigateToOtpOnCodeSent) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                settings: const RouteSettings(name: AppRoutes.otp),
-                builder: (context) => const OtpAuthScreen(),
-              ),
-            );
+            PhoneAuthCoordinator.openOtpScreen();
           }
         },
         codeAutoRetrievalTimeout: (String verificationId) {

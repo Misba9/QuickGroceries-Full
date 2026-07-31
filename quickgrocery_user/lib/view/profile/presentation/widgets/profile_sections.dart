@@ -18,6 +18,7 @@ import 'package:quickgrocery/core/localization/locale_provider.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/core/theme/theme.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/core/auth/auth_session_manager.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/core/update/app_update_config.dart';
@@ -200,20 +201,26 @@ class _ProfileAvatar extends StatelessWidget {
         border: Border.all(color: Colors.white, width: 3),
         boxShadow: AppShadow.raised,
       ),
-      child: CircleAvatar(
-        radius: 46,
-        backgroundColor: AppSurface.of(context).card,
-        backgroundImage:
-            imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
-        child: imageUrl.isEmpty
-            ? Image.asset(
-                gender == 'female'
-                    ? 'assets/icons/woman.png'
-                    : 'assets/icons/man.png',
-                width: 56,
-                height: 56,
+      child: ClipOval(
+        child: imageUrl.isNotEmpty
+            ? CachedImage(
+                url: imageUrl,
+                width: 92,
+                height: 92,
+                fit: BoxFit.cover,
+                memCacheWidth: 184,
               )
-            : null,
+            : ColoredBox(
+                color: AppSurface.of(context).card,
+                child: Image.asset(
+                  gender == 'female'
+                      ? 'assets/icons/woman.png'
+                      : 'assets/icons/man.png',
+                  width: 92,
+                  height: 92,
+                  fit: BoxFit.cover,
+                ),
+              ),
       ),
     );
   }

@@ -17,10 +17,23 @@ class UpdateRemoteConfigService {
   final String remoteConfigKey;
   final FirebaseRemoteConfig _rc;
 
+  AppUpdateConfig? _cached;
+  Future<AppUpdateConfig>? _inFlight;
+
   /// Fetch + activate, then parse JSON. Returns [AppUpdateConfig.defaults]
   /// on any failure so the app continues gracefully.
+  ///
+  /// Process-cached: duplicate cold-start callers share one RC round-trip.
   Future<AppUpdateConfig> fetchConfig({
     Duration minimumFetchInterval = const Duration(hours: 1),
+  }) async {
+    if (_cached != null) return _cached!;
+    return _inFlight ??= _fetchConfig(minimumFetchInterval: minimumFetchInterval)
+        .whenComplete(() => _inFlight = null);
+  }
+
+  Future<AppUpdateConfig> _fetchConfig({
+    required Duration minimumFetchInterval,
   }) async {
     try {
       await _rc.setConfigSettings(
@@ -36,32 +49,19 @@ class UpdateRemoteConfigService {
 
       final raw = _rc.getString(remoteConfigKey).trim();
       if (raw.isEmpty) {
-        if (kDebugMode) {
-          debugPrint('[AppUpdate] RC key "$remoteConfigKey" empty');
-        }
-        return AppUpdateConfig.defaults;
+        return _cached = AppUpdateConfig.defaults;
       }
 
       final decoded = jsonDecode(raw);
       if (decoded is! Map) {
-        if (kDebugMode) {
-          debugPrint('[AppUpdate] RC value is not a JSON object');
-        }
-        return AppUpdateConfig.defaults;
+        return _cached = AppUpdateConfig.defaults;
       }
       final config =
           AppUpdateConfig.fromJson(Map<String, dynamic>.from(decoded));
-      if (kDebugMode) {
-        debugPrint(
-          '[AppUpdate] RC loaded key=$remoteConfigKey '
-          'latest=${config.latestVersion} min=${config.minimumSupportedVersion} '
-          'force=${config.forceUpdate}',
-        );
-      }
-      return config;
+      return _cached = config;
     } catch (e) {
       if (kDebugMode) debugPrint('[AppUpdate] RC fetch failed: $e');
-      return AppUpdateConfig.defaults;
+      return _cached = AppUpdateConfig.defaults;
     }
   }
 }

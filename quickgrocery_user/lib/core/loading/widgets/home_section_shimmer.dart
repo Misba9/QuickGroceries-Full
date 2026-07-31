@@ -56,14 +56,15 @@ class _AppShimmerState extends State<AppShimmer>
           blendMode: BlendMode.srcATop,
           shaderCallback: (bounds) {
             return LinearGradient(
-              begin: Alignment(-1.2 + 2.4 * t, 0),
-              end: Alignment(-0.2 + 2.4 * t, 0),
+              begin: Alignment(-1.4 + 2.8 * t, -0.15),
+              end: Alignment(-0.1 + 2.8 * t, 0.15),
               colors: [
                 palette.shimmerBase,
                 palette.shimmerHighlight,
+                palette.shimmerHighlight,
                 palette.shimmerBase,
               ],
-              stops: const [0.25, 0.5, 0.75],
+              stops: const [0.2, 0.42, 0.58, 0.8],
             ).createShader(bounds);
           },
           child: child,
@@ -88,6 +89,7 @@ class ShimmerBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Opaque fill for ShaderMask; tinted by [AppShimmer] sweep.
     return Container(
       width: width,
       height: height,

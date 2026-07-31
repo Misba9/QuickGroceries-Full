@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -8,6 +10,7 @@ import 'package:quickgrocery/core/firebase/callable_payload.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/navigation/app_route_names.dart';
 import 'package:quickgrocery/core/navigation/app_route_observer.dart';
+import 'package:quickgrocery/core/startup/post_home_startup.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 
@@ -16,18 +19,29 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 Map<String, dynamic>? _pendingPushPayload;
 String? _lastNavigationKey;
 DateTime? _lastNavigationAt;
+bool _consumeInFlight = false;
 
 /// Queue a notification payload until [rootNavigatorKey] has a context (cold start).
+/// If Home is already visible, consume immediately so taps don't wait on FCM frames.
 void enqueuePushNavigation(Map<String, dynamic> raw) {
   _pendingPushPayload = Map<String, dynamic>.from(raw);
+  if (PostHomeStartup.homeVisible.value) {
+    unawaited(consumePendingPushNavigation());
+  }
 }
 
 /// Replay a notification tap deferred during splash / bootstrap.
 Future<void> consumePendingPushNavigation() async {
+  if (_consumeInFlight) return;
   final pending = _pendingPushPayload;
   if (pending == null) return;
+  _consumeInFlight = true;
   _pendingPushPayload = null;
-  await handlePushNavigation(pending);
+  try {
+    await handlePushNavigation(pending);
+  } finally {
+    _consumeInFlight = false;
+  }
 }
 
 Map<String, String> _stringData(Map<String, dynamic> raw) {

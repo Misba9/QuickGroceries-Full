@@ -66,31 +66,44 @@ abstract final class HomeDataCache {
     if (!snapshot.hasContent) return;
     _memory = snapshot;
     try {
-      final bannersJson = await StartupIsolateParse.encodeJsonListAsync(
-        _encodeList(snapshot.banners.map((b) => b.toJson()).toList()),
+      // Cheap toJson on UI (small first-viewport lists), then jsonEncode off-UI.
+      final banners = _encodeList(
+        snapshot.banners.map((b) => b.toJson()).toList(growable: false),
       );
-      final categoriesJson = await StartupIsolateParse.encodeJsonListAsync(
-        _encodeList(snapshot.categories.map((c) => c.toJson()).toList()),
+      final categories = _encodeList(
+        snapshot.categories.map((c) => c.toJson()).toList(growable: false),
       );
-      final featuredJson = await StartupIsolateParse.encodeJsonListAsync(
-        _encodeList(snapshot.featured.map((p) => p.toJson()).toList()),
+      final featured = _encodeList(
+        snapshot.featured.map((p) => p.toJson()).toList(growable: false),
       );
-      final trendingJson = await StartupIsolateParse.encodeJsonListAsync(
-        _encodeList(snapshot.trending.map((p) => p.toJson()).toList()),
+      final trending = _encodeList(
+        snapshot.trending.map((p) => p.toJson()).toList(growable: false),
       );
-      final flashJson = await StartupIsolateParse.encodeJsonListAsync(
-        _encodeList(snapshot.flashSale.map((p) => p.toJson()).toList()),
+      final flash = _encodeList(
+        snapshot.flashSale.map((p) => p.toJson()).toList(growable: false),
       );
-      final offersJson = await StartupIsolateParse.encodeJsonListAsync(
-        _encodeList(snapshot.offers.map(_offerToJson).toList()),
+      final offers = _encodeList(
+        snapshot.offers.map(_offerToJson).toList(growable: false),
       );
 
-      await prefs.setString(_bannersKey, bannersJson);
-      await prefs.setString(_categoriesKey, categoriesJson);
-      await prefs.setString(_featuredKey, featuredJson);
-      await prefs.setString(_trendingKey, trendingJson);
-      await prefs.setString(_flashSaleKey, flashJson);
-      await prefs.setString(_offersKey, offersJson);
+      // Yield once so encode work never stacks with the current frame.
+      await Future<void>.delayed(Duration.zero);
+
+      final encoded = await Future.wait<String>([
+        StartupIsolateParse.encodeJsonListAsync(banners),
+        StartupIsolateParse.encodeJsonListAsync(categories),
+        StartupIsolateParse.encodeJsonListAsync(featured),
+        StartupIsolateParse.encodeJsonListAsync(trending),
+        StartupIsolateParse.encodeJsonListAsync(flash),
+        StartupIsolateParse.encodeJsonListAsync(offers),
+      ]);
+
+      await prefs.setString(_bannersKey, encoded[0]);
+      await prefs.setString(_categoriesKey, encoded[1]);
+      await prefs.setString(_featuredKey, encoded[2]);
+      await prefs.setString(_trendingKey, encoded[3]);
+      await prefs.setString(_flashSaleKey, encoded[4]);
+      await prefs.setString(_offersKey, encoded[5]);
       await prefs.setInt(
         _updatedAtKey,
         DateTime.now().millisecondsSinceEpoch,
@@ -127,7 +140,7 @@ abstract final class HomeDataCache {
   static List<Map<String, dynamic>> _encodeList(
     List<Map<String, dynamic>> items,
   ) {
-    return items.map(_encodeTimestamps).toList();
+    return items.map(_encodeTimestamps).toList(growable: false);
   }
 
   static Map<String, dynamic> _encodeTimestamps(Map<String, dynamic> map) {

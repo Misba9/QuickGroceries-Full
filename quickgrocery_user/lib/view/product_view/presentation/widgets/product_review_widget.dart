@@ -1,5 +1,4 @@
 import 'package:intl/intl.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,6 +7,7 @@ import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/rating_model.dart';
 import 'package:quickgrocery/view/product_view/domain/rating_repository.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 class ReviewSummaryCard extends StatelessWidget {
   const ReviewSummaryCard({
@@ -260,11 +260,12 @@ class ProductReviewCard extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(width: 6),
                 itemBuilder: (_, i) => ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: rating.reviewImages[i],
+                  child: CachedImage(
+                    url: rating.reviewImages[i],
                     width: 64,
                     height: 64,
                     fit: BoxFit.cover,
+                    memCacheWidth: 128,
                   ),
                 ),
               ),

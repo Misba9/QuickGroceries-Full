@@ -11,6 +11,7 @@ import 'package:quickgrocery/core/auth/auth_user_provider.dart';
 import 'package:quickgrocery/core/auth/guest_auth_coordinator.dart';
 import 'package:quickgrocery/core/auth/guest_session_provider.dart';
 import 'package:quickgrocery/core/auth/phone_auth_coordinator.dart';
+import 'package:quickgrocery/core/auth/phone_sign_in_navigation.dart';
 import 'package:quickgrocery/core/auth/session_legacy_services.dart';
 import 'package:quickgrocery/core/auth/user_session_store.dart';
 import 'package:quickgrocery/view/address/data/guest_address_store.dart';
@@ -70,6 +71,7 @@ abstract final class AuthSessionManager {
 
       legacy.resetInMemoryState();
       PhoneAuthCoordinator.reset();
+      PhoneSignInNavigation.reset();
       AuthSessionLog.inMemoryStateCleared();
 
       AuthSessionProviderReset.prepareForSignOut(ref);

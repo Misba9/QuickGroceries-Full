@@ -6,24 +6,18 @@ import 'package:flutter/scheduler.dart';
 
 import 'package:quickgrocery/core/startup/app_bootstrap_state.dart';
 import 'package:quickgrocery/core/startup/app_startup_log.dart';
-import 'package:quickgrocery/models/product.dart';
 
-/// Warms the image cache for first-paint hero assets — prevents banner flicker.
+/// Precache **only first-viewport** images after Home paints.
 ///
-/// Uses [CachedNetworkImageProvider] so decode lands in the same cache as
-/// Home [CachedImage] widgets (not Flutter's separate [NetworkImage] cache).
-///
-/// Decodes run in small concurrent batches with event-loop yields so splash /
-/// Home stay near 60 FPS. Never awaits a large parallel decode burst on the
-/// UI isolate.
+/// Remaining rails lazy-load via [CachedNetworkImage] as they scroll into view.
+/// Concurrency 1 + frame yields — never burst-decode on startup.
 abstract final class HomeImagePrecache {
   HomeImagePrecache._();
 
-  static const int _maxConcurrent = 2;
-  static const int _firstWaveCount = 8;
-  static const int _totalCap = 28;
-  /// Matches typical banner/product decode targets on Home.
-  static const int _memCacheWidth = 720;
+  static const int _maxConcurrent = 1;
+  /// First banner + ~4 category chips + ~2 product thumbs.
+  static const int _totalCap = 7;
+  static const int _memCacheWidth = 360;
 
   static Future<void> warm(
     BuildContext context,
@@ -33,46 +27,25 @@ abstract final class HomeImagePrecache {
 
     final urls = <String>{};
 
-    void addProductImages(List<ProductModel> products, {int take = 8}) {
-      for (final p in products.take(take)) {
-        final image = p.image.trim();
-        if (image.isNotEmpty) urls.add(image);
-      }
+    for (final b in snapshot.banners.take(1)) {
+      final u =
+          b.image.trim().isNotEmpty ? b.image.trim() : b.thumbnailUrl.trim();
+      if (u.isNotEmpty) urls.add(u);
     }
-
-    for (final b in snapshot.banners.take(4)) {
-      if (b.image.trim().isNotEmpty) urls.add(b.image.trim());
-      if (b.thumbnailUrl.trim().isNotEmpty) urls.add(b.thumbnailUrl.trim());
-    }
-    for (final c in snapshot.categories.take(10)) {
+    for (final c in snapshot.categories.take(4)) {
       if (c.image.trim().isNotEmpty) urls.add(c.image.trim());
     }
-    addProductImages(snapshot.flashSale, take: 8);
-    addProductImages(snapshot.trending, take: 8);
-    addProductImages(snapshot.featured, take: 6);
-    for (final o in snapshot.offers.take(4)) {
-      if (o.thumbnailUrl.trim().isNotEmpty) urls.add(o.thumbnailUrl.trim());
-      if (o.imageFallbackUrl.trim().isNotEmpty) {
-        urls.add(o.imageFallbackUrl.trim());
-      }
+    for (final p in snapshot.featured.take(2)) {
+      if (p.image.trim().isNotEmpty) urls.add(p.image.trim());
     }
 
     if (urls.isEmpty) return;
-
     final list = urls.take(_totalCap).toList(growable: false);
     AppStartupLog.milestone('Precaching images', 'count=${list.length}');
 
-    // Defer until after the current frame so first paint is never blocked.
     await _waitForNextFrame();
     if (!context.mounted) return;
-
-    final firstWave = list.take(_firstWaveCount).toList(growable: false);
-    await _precacheBatched(context, firstWave);
-
-    if (!context.mounted) return;
-    unawaited(_precacheBatched(context, list.skip(_firstWaveCount).toList()));
-
-    AppStartupLog.milestone('Images precached (first wave)');
+    await _precacheBatched(context, list);
   }
 
   static Future<void> _waitForNextFrame() {
@@ -80,7 +53,6 @@ abstract final class HomeImagePrecache {
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!completer.isCompleted) completer.complete();
     });
-    // Also schedule a frame if the engine is idle.
     SchedulerBinding.instance.scheduleFrame();
     return completer.future;
   }
@@ -90,7 +62,6 @@ abstract final class HomeImagePrecache {
     List<String> urls,
   ) async {
     if (urls.isEmpty) return;
-
     var index = 0;
     Future<void> worker() async {
       while (true) {
@@ -99,14 +70,10 @@ abstract final class HomeImagePrecache {
         if (!context.mounted) return;
         try {
           await precacheImage(
-            CachedNetworkImageProvider(
-              urls[i],
-              maxWidth: _memCacheWidth,
-            ),
+            CachedNetworkImageProvider(urls[i], maxWidth: _memCacheWidth),
             context,
           );
         } catch (_) {}
-        // Yield via frame callback — no Future.delayed / Timer.
         final gate = Completer<void>();
         SchedulerBinding.instance.addPostFrameCallback((_) {
           if (!gate.isCompleted) gate.complete();
@@ -116,9 +83,8 @@ abstract final class HomeImagePrecache {
       }
     }
 
-    final n = _maxConcurrent.clamp(1, urls.length);
     await Future.wait<void>(
-      List.generate(n, (_) => worker()),
+      List.generate(_maxConcurrent.clamp(1, urls.length), (_) => worker()),
       eagerError: false,
     );
   }

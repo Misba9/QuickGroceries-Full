@@ -7,16 +7,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_controller.dart';
-import 'package:quickgrocery/core/startup/widgets/home_feed_warmup.dart';
-import 'package:quickgrocery/models/category_model.dart';
+import 'package:quickgrocery/core/startup/widgets/brand_logo_splash.dart';
 
-/// Native launch / logo yellow — OS splash → logo → categories → Home.
+/// Brand yellow — native splash + Flutter startup must match exactly.
 const kLaunchYellow = Color(0xFFFFDE59);
 
-/// Continuous startup motion: logo → categories → Home (no blank frames).
+/// Startup UI:
 ///
-/// Exit does **not** fade the full page. When bootstrap is ready, the current
-/// category cycle finishes; Home is mounted underneath; splash is removed.
+/// 1. Yellow + logo (native → Flutter bridge, total ~0–400ms) — no text/spinner
+/// 2. Full-screen category animation until Home is ready
+/// 3. Soft 250ms fade → Home
 class AppAnimatedSplash extends ConsumerStatefulWidget {
   const AppAnimatedSplash({
     super.key,
@@ -27,127 +27,130 @@ class AppAnimatedSplash extends ConsumerStatefulWidget {
 
   final bool appReady;
 
-  /// Fired when Home should mount under this splash (category exit done).
+  /// Optional — Home is mounted by the shell when bootstrap is ready.
   final VoidCallback? onReadyToOpenHome;
 
-  /// Fired after Home has painted — shell may remove this splash.
+  /// Fired after splash fade-out — shell may remove this splash.
   final VoidCallback? onExitComplete;
 
   @override
   ConsumerState<AppAnimatedSplash> createState() => _AppAnimatedSplashState();
 }
 
-enum _SplashPhase { logo, categories }
-
 class _AppAnimatedSplashState extends ConsumerState<AppAnimatedSplash>
     with TickerProviderStateMixin {
-  late final AnimationController _logo;
-  late final Animation<double> _logoOpacity;
-  late final Animation<double> _logoScale;
+  late final AnimationController _exitFade;
+  late final Animation<double> _splashOpacity;
 
-  _SplashPhase _phase = _SplashPhase.logo;
-  bool _seeded = false;
+  late final AnimationController _phaseFade;
+  late final Animation<double> _logoOpacity;
+  late final Animation<double> _categoryOpacity;
+
+  bool _showLogo = true;
+  bool _categoriesVisible = false;
   bool _requestCategoryExit = false;
-  bool _pendingExitAfterLogo = false;
   bool _exitStarted = false;
   bool _notifiedHomeUnderlay = false;
   bool _notifiedExitComplete = false;
   bool _assetsWarmed = false;
+  bool _seeded = false;
+  bool _readyHandled = false;
+  bool _logoHoldScheduled = false;
+  AnimationController? _logoHoldCtrl;
 
   @override
   void initState() {
     super.initState();
 
-    _logo = AnimationController(
+    _exitFade = AnimationController(
       vsync: this,
-      duration: LoadingConstants.logoFade,
+      duration: LoadingConstants.exitFade,
     );
-    _logoOpacity = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween(begin: 0.0, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 35,
+    _splashOpacity = Tween<double>(begin: 1, end: 0).animate(
+      CurvedAnimation(
+        parent: _exitFade,
+        curve: LoadingConstants.exitCurve,
       ),
-      TweenSequenceItem(tween: ConstantTween(1.0), weight: 30),
-      TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 0.0)
-            .chain(CurveTween(curve: Curves.easeInCubic)),
-        weight: 35,
-      ),
-    ]).animate(_logo);
-    _logoScale = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween(
-          begin: LoadingConstants.logoScaleBegin,
-          end: LoadingConstants.logoScaleEnd,
-        ).chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 65,
-      ),
-      TweenSequenceItem(
-        tween: Tween(begin: LoadingConstants.logoScaleEnd, end: 1.02)
-            .chain(CurveTween(curve: Curves.easeInCubic)),
-        weight: 35,
-      ),
-    ]).animate(_logo);
+    );
 
-    _logo.addStatusListener((status) {
-      if (status != AnimationStatus.completed || !mounted) return;
-      _startCategories();
-    });
+    _phaseFade = AnimationController(
+      vsync: this,
+      duration: LoadingConstants.logoToCategoryFade,
+    );
+    _logoOpacity = Tween<double>(begin: 1, end: 0).animate(
+      CurvedAnimation(parent: _phaseFade, curve: Curves.easeInCubic),
+    );
+    _categoryOpacity = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _phaseFade, curve: LoadingConstants.revealCurve),
+    );
 
-    // Precache on first frame, then start logo — same yellow surface, no gap.
+    LaunchLogoHold.markStarted();
+
+    // Warm path (Home already ready): finish current logo hold if any, then
+    // one category beat and exit.
+    if (widget.appReady) {
+      _readyHandled = true;
+      _requestCategoryExit = true;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(_warmThenStartLogo());
+      unawaited(_precacheStartupAssets());
+      _scheduleLogoHoldThenCategories();
     });
   }
 
-  Future<void> _warmThenStartLogo() async {
-    await _precacheStartupAssets();
-    if (!mounted) return;
-    if (widget.appReady) {
-      // Already ready (warm start) — skip logo, go straight to categories
-      // so exit can finish one cycle quickly without a blank hold.
-      _startCategories(requestExitIfReady: true);
+  void _scheduleLogoHoldThenCategories() {
+    if (_logoHoldScheduled) return;
+    _logoHoldScheduled = true;
+
+    final remaining = LaunchLogoHold.remaining;
+    if (remaining == Duration.zero) {
+      _startCategories();
       return;
     }
-    _logo.forward(from: 0);
+
+    // Frame-synced hold — no Timer. Tick until Step 1 (0–400ms) completes.
+    _logoHoldCtrl?.dispose();
+    final hold = AnimationController(vsync: this, duration: remaining);
+    _logoHoldCtrl = hold;
+    hold.addStatusListener((status) {
+      if (status != AnimationStatus.completed || !mounted) return;
+      _startCategories();
+    });
+    hold.forward();
   }
 
   Future<void> _precacheStartupAssets() async {
     if (_assetsWarmed || !mounted) return;
     _assetsWarmed = true;
     try {
-      await Future.wait<void>([
+      unawaited(
         precacheImage(
           const AssetImage(LoadingConstants.logoAsset),
           context,
         ),
-        LoadingManager.boot(context: context),
-      ]);
-      // Warm first few category assets into ImageCache before they appear.
-      if (mounted) {
-        await LoadingService.precacheFirst(context);
-      }
+      );
+      unawaited(LoadingManager.boot(context: context));
     } catch (_) {}
   }
 
-  void _startCategories({bool requestExitIfReady = false}) {
-    if (!mounted) return;
-    if (_phase == _SplashPhase.categories) {
-      if ((requestExitIfReady || _pendingExitAfterLogo) && widget.appReady) {
-        _onAppBecameReady();
-      }
+  void _startCategories() {
+    if (!mounted || _categoriesVisible) {
+      if (_categoriesVisible && widget.appReady) _onAppBecameReady();
       return;
     }
-    final exitNow =
-        _pendingExitAfterLogo || (requestExitIfReady && widget.appReady);
+
     setState(() {
-      _phase = _SplashPhase.categories;
-      if (exitNow) {
+      _categoriesVisible = true;
+      if (widget.appReady) {
         _requestCategoryExit = true;
-        _pendingExitAfterLogo = false;
+        _readyHandled = true;
       }
+    });
+    _phaseFade.forward().whenComplete(() {
+      if (!mounted) return;
+      setState(() => _showLogo = false);
     });
   }
 
@@ -160,17 +163,19 @@ class _AppAnimatedSplashState extends ConsumerState<AppAnimatedSplash>
   }
 
   void _onAppBecameReady() {
-    if (_exitStarted) return;
-    if (_phase != _SplashPhase.categories) {
-      _pendingExitAfterLogo = true;
+    if (_exitStarted || _readyHandled) return;
+    if (!_categoriesVisible) {
+      // Still on logo — categories will pick up exit when started.
+      _readyHandled = true;
+      _requestCategoryExit = true;
       return;
     }
+    _readyHandled = true;
     if (!_requestCategoryExit) {
       setState(() => _requestCategoryExit = true);
     }
   }
 
-  /// Category cycle finished after [appReady] — reveal Home without page fade.
   void _onCategoryExitReady() {
     if (_exitStarted || !mounted) return;
     _exitStarted = true;
@@ -180,11 +185,13 @@ class _AppAnimatedSplashState extends ConsumerState<AppAnimatedSplash>
       widget.onReadyToOpenHome?.call();
     }
 
-    // Wait until Home has painted (frame sync — no Timer / delayed).
-    _afterFrames(2, () {
+    _afterFrames(1, () {
       if (!mounted || _notifiedExitComplete) return;
-      _notifiedExitComplete = true;
-      widget.onExitComplete?.call();
+      _exitFade.forward(from: 0).whenComplete(() {
+        if (!mounted || _notifiedExitComplete) return;
+        _notifiedExitComplete = true;
+        widget.onExitComplete?.call();
+      });
     });
   }
 
@@ -205,14 +212,10 @@ class _AppAnimatedSplashState extends ConsumerState<AppAnimatedSplash>
 
   @override
   void dispose() {
-    _logo.dispose();
+    _logoHoldCtrl?.dispose();
+    _exitFade.dispose();
+    _phaseFade.dispose();
     super.dispose();
-  }
-
-  void _seed(List<CategoryModel> cats) {
-    if (_seeded || cats.isEmpty) return;
-    LoadingManager.seed(cats);
-    _seeded = true;
   }
 
   @override
@@ -220,24 +223,17 @@ class _AppAnimatedSplashState extends ConsumerState<AppAnimatedSplash>
     ref.listen(
       appBootstrapProvider.select((s) => s.homeSnapshot.categories),
       (prev, next) {
-        if (next.isNotEmpty) {
-          LoadingManager.seed(next);
-          _seeded = true;
-          if (mounted) unawaited(LoadingManager.boot(context: context));
-        }
+        if (_seeded || next.isEmpty) return;
+        LoadingManager.seed(next);
+        _seeded = true;
       },
     );
 
-    final categories = ref.watch(
-      appBootstrapProvider.select((s) => s.homeSnapshot.categories),
-    );
-    _seed(categories);
-
-    // If ready while logo still playing, mark exit for the first category cycle.
     if (widget.appReady &&
-        _phase == _SplashPhase.categories &&
+        _categoriesVisible &&
         !_requestCategoryExit &&
-        !_exitStarted) {
+        !_exitStarted &&
+        !_readyHandled) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _onAppBecameReady();
       });
@@ -245,78 +241,46 @@ class _AppAnimatedSplashState extends ConsumerState<AppAnimatedSplash>
 
     const bg = kLaunchYellow;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: bg,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-        systemNavigationBarColor: bg,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
-      child: ColoredBox(
-        color: bg,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            const HomeFeedWarmup(),
-            if (_phase == _SplashPhase.logo)
-              _LogoPhase(
-                opacity: _logoOpacity,
-                scale: _logoScale,
-              )
-            else
-              CategoryLoadingWidget(
-                compact: false,
-                fullScreen: true,
-                playing: true,
-                requestExit: _requestCategoryExit,
-                style: const CategoryLoadingStyle(
-                  cycleDuration: LoadingConstants.categoryCycle,
-                  background: bg,
-                ),
-                onExitReady: _onCategoryExitReady,
-              ),
-          ],
+    return FadeTransition(
+      opacity: _splashOpacity,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: bg,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+          systemNavigationBarColor: bg,
+          systemNavigationBarIconBrightness: Brightness.dark,
         ),
-      ),
-    );
-  }
-}
-
-class _LogoPhase extends StatelessWidget {
-  const _LogoPhase({
-    required this.opacity,
-    required this.scale,
-  });
-
-  final Animation<double> opacity;
-  final Animation<double> scale;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Center(
-        child: AnimatedBuilder(
-          animation: Listenable.merge([opacity, scale]),
-          builder: (context, child) {
-            return Opacity(
-              opacity: opacity.value.clamp(0.0, 1.0),
-              child: Transform.scale(
-                scale: scale.value,
-                child: child,
-              ),
-            );
-          },
-          child: Image.asset(
-            LoadingConstants.logoAsset,
-            width: 168,
-            height: 168,
-            filterQuality: FilterQuality.medium,
-            gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => const SizedBox(
-              width: 168,
-              height: 168,
-            ),
+        child: ColoredBox(
+          color: bg,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (_categoriesVisible)
+                FadeTransition(
+                  opacity: _categoryOpacity,
+                  child: CategoryLoadingWidget(
+                    compact: false,
+                    fullScreen: true,
+                    playing: true,
+                    requestExit: _requestCategoryExit,
+                    style: const CategoryLoadingStyle(
+                      cycleDuration: LoadingConstants.categoryCycle,
+                      background: bg,
+                      textColor: Color(0xFF1A1A1A),
+                    ),
+                    onExitReady: _onCategoryExitReady,
+                  ),
+                ),
+              // STEP 1 — yellow + logo (0–400ms). Completely gone after phase.
+              if (_showLogo)
+                IgnorePointer(
+                  child: FadeTransition(
+                    opacity: _logoOpacity,
+                    child: const BrandLogoSplash(),
+                  ),
+                ),
+            ],
           ),
         ),
       ),

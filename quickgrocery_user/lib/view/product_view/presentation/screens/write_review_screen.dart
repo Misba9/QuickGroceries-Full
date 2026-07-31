@@ -12,6 +12,7 @@ import 'package:quickgrocery/models/rating_model.dart';
 import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/product_view/data/review_api_client.dart';
 import 'package:quickgrocery/core/loading/loading.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 class WriteReviewScreen extends StatefulWidget {
   const WriteReviewScreen({
@@ -200,11 +201,12 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                   if (i < _existingImageUrls.length) {
                     return ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        _existingImageUrls[i],
+                      child: CachedImage(
+                        url: _existingImageUrls[i],
                         width: 80,
                         height: 80,
                         fit: BoxFit.cover,
+                        memCacheWidth: 160,
                       ),
                     );
                   }

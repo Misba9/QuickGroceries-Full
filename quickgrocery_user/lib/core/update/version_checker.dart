@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:quickgrocery/core/update/app_update_config.dart';
@@ -27,13 +26,6 @@ class VersionChecker {
     final hasNewer = isVersionHigher(config.latestVersion, installed);
     final force = config.forceUpdate || belowMin;
     final available = hasNewer || force;
-
-    if (kDebugMode) {
-      debugPrint(
-        '[AppUpdate] installed=$installed latest=${config.latestVersion} '
-        'min=${config.minimumSupportedVersion} available=$available force=$force',
-      );
-    }
 
     return UpdateDecision(
       installedVersion: installed,

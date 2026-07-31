@@ -93,8 +93,9 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
 
   /// Cold-start for guest browsing — public catalog only, no user data.
   ///
-  /// Fast path: disk cache → [ready] immediately; network + catalog deferred.
-  /// Cold path: fetch home rails only (banners/categories/featured/offers).
+  /// Fast path: disk cache → [ready] immediately; network deferred until Home.
+  /// Cold path: still [ready] with empty snapshot — Home streams + post-Home
+  /// fetch populate rails (no Firestore before Home mounts).
   Future<void> runGuest(
     BootstrapDependencies deps, {
     BootstrapPrecacheHook? precacheImages,
@@ -115,78 +116,39 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
       diskSnapshot = await HomeDataCache.read(prefs);
 
       // Cart bridge is local — never wait on Firestore catalog/zones.
-      // Prefer [CartBootstrap] when it already attached; still ensure zone wiring.
       unawaited(_wireCartBridge(deps));
 
       // Yield so the category splash can paint after disk decode returns.
       await _yieldToNextFrame();
 
-      // Prefer in-memory snapshot (soft logout) then disk cache — never splash.
+      // Prefer in-memory snapshot (soft logout) then disk cache.
       final existing = state.homeSnapshot.hasContent
           ? state.homeSnapshot
           : diskSnapshot;
 
-      if (existing.hasContent) {
-        state = state.copyWith(
-          status: AppBootstrapStatus.ready,
-          phase: AppBootstrapPhase.ready,
-          homeSnapshot: existing,
-          clearUser: true,
-          needsOnboarding: false,
-          progress: 1,
-          clearError: true,
-        );
-        AppStartupLog.milestone('Guest bootstrap ready from cache');
-        PostHomeStartup.enqueue(
-          () => _refreshHomeAfterPaint(
-            deps: deps,
-            prefs: prefs,
-            precacheImages: precacheImages,
-            guest: true,
-          ),
-        );
-        return;
-      }
-
-      // Cold guest path only when there is no catalog yet.
-      _tick(BootstrapLoadingMessages.loadingBanners, 0.2);
-      state = state.copyWith(
-        phase: AppBootstrapPhase.splash,
-        clearUser: true,
-        needsOnboarding: false,
-        status: AppBootstrapStatus.loading,
-      );
-
-      state = state.copyWith(phase: AppBootstrapPhase.loadingHome);
-      _tick(BootstrapLoadingMessages.loadingBanners, 0.55);
-
-      final freshHome = await _fetchHomeSnapshot();
-      if (!freshHome.hasContent) {
-        state = state.copyWith(
-          status: AppBootstrapStatus.error,
-          phase: AppBootstrapPhase.error,
-          errorMessage:
-              'We couldn\'t load the store. Check your connection and try again.',
-          progress: 0,
-        );
-        return;
-      }
-
       state = state.copyWith(
         status: AppBootstrapStatus.ready,
         phase: AppBootstrapPhase.ready,
-        homeSnapshot: freshHome,
+        homeSnapshot: existing,
+        clearUser: true,
+        needsOnboarding: false,
         progress: 1,
         clearError: true,
       );
-      AppStartupLog.milestone('Guest bootstrap complete');
+      AppStartupLog.milestone(
+        existing.hasContent
+            ? 'Guest bootstrap ready from cache'
+            : 'Guest bootstrap ready — Home will load catalog',
+      );
 
-      unawaited(HomeDataCache.write(prefs, freshHome));
-      if (precacheImages != null) {
-        unawaited(precacheImages(freshHome));
-      }
+      // Firestore home rails + heavy catalog only after Home paints.
       PostHomeStartup.enqueue(
-        () => _deferHeavyCatalogLoads(deps, guest: true),
+        () => _refreshHomeAfterPaint(
+          deps: deps,
+          prefs: prefs,
+          precacheImages: precacheImages,
+          guest: true,
+        ),
       );
     } catch (e, st) {
       if (kDebugMode) {
@@ -201,6 +163,14 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
           progress: 1,
           errorMessage: e.toString(),
         );
+        PostHomeStartup.enqueue(
+          () => _refreshHomeAfterPaint(
+            deps: deps,
+            prefs: ref.read(sharedPreferencesProvider),
+            precacheImages: precacheImages,
+            guest: true,
+          ),
+        );
       } else if (state.homeSnapshot.hasContent) {
         state = state.copyWith(
           status: AppBootstrapStatus.ready,
@@ -210,11 +180,21 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
           errorMessage: e.toString(),
         );
       } else {
+        // Still open Home — streams can recover; avoid blocking on splash.
         state = state.copyWith(
-          status: AppBootstrapStatus.error,
-          phase: AppBootstrapPhase.error,
+          status: AppBootstrapStatus.ready,
+          phase: AppBootstrapPhase.degraded,
+          clearUser: true,
+          progress: 1,
           errorMessage: e.toString(),
-          progress: 0,
+        );
+        PostHomeStartup.enqueue(
+          () => _refreshHomeAfterPaint(
+            deps: deps,
+            prefs: ref.read(sharedPreferencesProvider),
+            precacheImages: precacheImages,
+            guest: true,
+          ),
         );
       }
     } finally {
@@ -223,6 +203,9 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
   }
 
   /// Full cold-start sequence for the signed-in path.
+  ///
+  /// Profile gate uses local cache only (no Firestore). Network hydrate and
+  /// home catalog fetch run after Home via [PostHomeStartup].
   Future<void> runAuthenticated(
     BootstrapDependencies deps, {
     BootstrapPrecacheHook? precacheImages,
@@ -236,13 +219,31 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
     _lastDeps = deps;
     if (precacheImages != null) _lastPrecacheHook = precacheImages;
 
-    _tick(BootstrapLoadingMessages.restoringSession, 0.05);
-    state = state.copyWith(
-      phase: AppBootstrapPhase.splash,
-      user: user,
-      status: AppBootstrapStatus.loading,
-    );
-    AppStartupLog.milestone('Auth restored', 'uid=${user.uid}');
+    // Guest → auth (or re-entry): never replay splash once Home was shown.
+    final keepHomeVisible = state.isComplete;
+
+    if (keepHomeVisible) {
+      state = state.copyWith(
+        user: user,
+        needsOnboarding: false,
+        status: AppBootstrapStatus.ready,
+        phase: AppBootstrapPhase.ready,
+        clearError: true,
+        progress: 1,
+      );
+      AppStartupLog.milestone(
+        'Auth restored — Home stays ready',
+        'uid=${user.uid}',
+      );
+    } else {
+      _tick(BootstrapLoadingMessages.restoringSession, 0.05);
+      state = state.copyWith(
+        phase: AppBootstrapPhase.splash,
+        user: user,
+        status: AppBootstrapStatus.loading,
+      );
+      AppStartupLog.milestone('Auth restored', 'uid=${user.uid}');
+    }
 
     HomeBootstrapSnapshot diskSnapshot = const HomeBootstrapSnapshot();
     var needsOnboarding = false;
@@ -250,18 +251,23 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
     try {
       final prefs = ref.read(sharedPreferencesProvider);
 
-      _tick(BootstrapLoadingMessages.loadingProfile, 0.12);
+      if (!keepHomeVisible) {
+        _tick(BootstrapLoadingMessages.loadingProfile, 0.12);
+      }
+      // Local-only phase — no Firestore before Home.
       final phase1 = await Future.wait<Object?>([
         HomeDataCache.read(prefs),
-        _resolveProfile(user),
+        _resolveProfileLocal(user),
         deps.addressService.ready,
       ]);
 
       diskSnapshot = phase1[0]! as HomeBootstrapSnapshot;
       needsOnboarding = phase1[1]! as bool;
 
-      // Let splash paint while profile/cache work settles.
-      await _yieldToNextFrame();
+      // Let splash paint while profile/cache work settles (cold path only).
+      if (!keepHomeVisible) {
+        await _yieldToNextFrame();
+      }
 
       if (diskSnapshot.hasContent) {
         AppStartupLog.milestone(
@@ -279,79 +285,40 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
           progress: 1,
         );
         AppStartupLog.milestone('Bootstrap complete', 'onboarding');
+        // Home is not mounted — do not use PostHomeStartup queue.
+        unawaited(_hydrateProfileAfterHome(user));
         return;
       }
 
       unawaited(_wireCartBridge(deps));
 
-      if (diskSnapshot.hasContent) {
-        state = state.copyWith(
-          status: AppBootstrapStatus.ready,
-          phase: AppBootstrapPhase.ready,
-          homeSnapshot: diskSnapshot,
-          needsOnboarding: false,
-          progress: 1,
-          clearError: true,
-        );
-        AppStartupLog.milestone('Auth bootstrap ready from cache');
-        PostHomeStartup.enqueue(
-          () => _refreshHomeAfterPaint(
-            deps: deps,
-            prefs: prefs,
-            precacheImages: precacheImages,
-            guest: false,
-          ),
-        );
-        return;
-      }
-
-      state = state.copyWith(
-        phase: AppBootstrapPhase.loadingHome,
-        needsOnboarding: false,
-      );
-      _tick(BootstrapLoadingMessages.loadingBanners, 0.55);
-
-      final freshHome = await _fetchHomeSnapshot();
-      final merged = freshHome.hasContent ? freshHome : diskSnapshot;
-
-      if (!merged.hasContent) {
-        state = state.copyWith(
-          status: AppBootstrapStatus.error,
-          phase: AppBootstrapPhase.error,
-          errorMessage:
-              'We couldn\'t load the store. Check your connection and try again.',
-          progress: 0,
-        );
-        AppStartupLog.milestone('Bootstrap error', 'no cached data');
-        return;
-      }
+      final existing = state.homeSnapshot.hasContent
+          ? state.homeSnapshot
+          : diskSnapshot;
 
       state = state.copyWith(
         status: AppBootstrapStatus.ready,
         phase: AppBootstrapPhase.ready,
-        homeSnapshot: merged,
+        homeSnapshot: existing,
+        needsOnboarding: false,
         progress: 1,
-        loadingMessage: BootstrapLoadingMessages.almostReady,
         clearError: true,
       );
-
       AppStartupLog.milestone(
-        'Bootstrap complete',
-        'banners=${merged.banners.length} categories=${merged.categories.length} '
-        'featured=${merged.featured.length} trending=${merged.trending.length} '
-        'flash=${merged.flashSale.length} offers=${merged.offers.length} '
-        'topHalf=${(merged.topHalfFillRatio * 100).round()}%',
+        existing.hasContent
+            ? 'Auth bootstrap ready from cache'
+            : 'Auth bootstrap ready — Home will load catalog',
       );
 
-      if (freshHome.hasContent) {
-        unawaited(HomeDataCache.write(prefs, freshHome));
-      }
-      if (precacheImages != null && merged.hasContent) {
-        unawaited(precacheImages(merged));
-      }
       PostHomeStartup.enqueue(
-        () => _deferHeavyCatalogLoads(deps, guest: false),
+        () => _refreshHomeAfterPaint(
+          deps: deps,
+          prefs: prefs,
+          precacheImages: precacheImages,
+          guest: false,
+        ),
       );
+      PostHomeStartup.enqueue(() => _hydrateProfileAfterHome(user));
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[AppBootstrap] failed: $e\n$st');
@@ -366,21 +333,42 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
           errorMessage: e.toString(),
         );
         AppStartupLog.milestone('Bootstrap degraded', 'using cache');
-      } else {
-        state = state.copyWith(
-          status: AppBootstrapStatus.error,
-          phase: AppBootstrapPhase.error,
-          errorMessage: e.toString(),
-          progress: 0,
+        PostHomeStartup.enqueue(
+          () => _refreshHomeAfterPaint(
+            deps: deps,
+            prefs: ref.read(sharedPreferencesProvider),
+            precacheImages: precacheImages,
+            guest: false,
+          ),
         );
-        AppStartupLog.milestone('Bootstrap error', e.toString());
+        PostHomeStartup.enqueue(() => _hydrateProfileAfterHome(user));
+      } else {
+        // Open Home anyway — catalog streams recover post-paint.
+        state = state.copyWith(
+          status: AppBootstrapStatus.ready,
+          phase: AppBootstrapPhase.degraded,
+          progress: 1,
+          errorMessage: e.toString(),
+        );
+        AppStartupLog.milestone('Bootstrap degraded', e.toString());
+        PostHomeStartup.enqueue(
+          () => _refreshHomeAfterPaint(
+            deps: deps,
+            prefs: ref.read(sharedPreferencesProvider),
+            precacheImages: precacheImages,
+            guest: false,
+          ),
+        );
+        PostHomeStartup.enqueue(() => _hydrateProfileAfterHome(user));
       }
     } finally {
       _runInFlight = false;
     }
   }
 
-  /// Zones, full product catalog, profile/FCM — after first home paint.
+  /// Zones, profile — after first home paint.
+  /// Full 300-product catalog is scheduled later (+18) so early Home frames
+  /// are not competing with a large sanitize/parse burst.
   Future<void> _deferHeavyCatalogLoads(
     BootstrapDependencies deps, {
     required bool guest,
@@ -388,11 +376,6 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
     AppStartupLog.milestone('Deferred catalog loads start');
     final tasks = <Future<void>>[
       deps.deliveryZoneService.fetchDeliveryZones(),
-      deps.categoryService.fetchProducts().then((_) {
-        AppStartupLog.milestone(
-          guest ? 'Categories loaded (guest, deferred)' : 'Categories loaded (deferred)',
-        );
-      }),
     ];
     if (!guest) {
       tasks.addAll([
@@ -401,11 +384,26 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
           AppStartupLog.milestone('Profile loaded (deferred)');
         }),
         deps.homeProvider.getStatus(),
-        // FCM token write is owned by [RealtimeBootstrap] — skip duplicate
-        // getToken + customers/{uid} merge here.
       ]);
     }
     await Future.wait<void>(tasks, eagerError: false);
+
+    // Addon / search catalog — after rails have painted.
+    PostHomeStartup.onFrame(18, () {
+      unawaited(() async {
+        try {
+          await deps.categoryService.fetchProducts();
+          AppStartupLog.milestone(
+            guest
+                ? 'Categories loaded (guest, deferred)'
+                : 'Categories loaded (deferred)',
+          );
+        } catch (e) {
+          if (kDebugMode) debugPrint('[AppBootstrap] deferred catalog: $e');
+        }
+      }());
+    });
+
     AppStartupLog.milestone('Deferred catalog loads complete');
   }
 
@@ -416,12 +414,15 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
     required bool guest,
   }) async {
     await _deferHeavyCatalogLoads(deps, guest: guest);
-    // Section streams (HomeFeedWarmup + home StreamProviders) already own
-    // live freshness. A second full catalog GET here duplicated banners /
-    // categories / products / offers API work on every warm start.
+
+    // Always ensure a network snapshot when cache was empty; otherwise
+    // section streams already own live freshness (avoid duplicate GETs).
     if (state.homeSnapshot.hasContent) {
       if (precacheImages != null) {
-        unawaited(precacheImages(state.homeSnapshot));
+        final snap = state.homeSnapshot;
+        PostHomeStartup.onFrame(10, () {
+          unawaited(precacheImages(snap));
+        });
       }
       AppStartupLog.milestone(
         'Background home refresh skipped — streams warm',
@@ -430,15 +431,24 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
     }
     try {
       final fresh = await _fetchHomeSnapshot();
-      if (!fresh.hasContent) return;
+      if (!fresh.hasContent) {
+        if (!state.homeSnapshot.hasContent) {
+          AppStartupLog.milestone('Post-home home fetch empty');
+        }
+        return;
+      }
       state = state.copyWith(
         homeSnapshot: fresh,
         status: AppBootstrapStatus.ready,
         phase: AppBootstrapPhase.ready,
+        clearError: true,
       );
       await HomeDataCache.write(prefs, fresh);
       if (precacheImages != null) {
-        unawaited(precacheImages(fresh));
+        final snap = fresh;
+        PostHomeStartup.onFrame(10, () {
+          unawaited(precacheImages(snap));
+        });
       }
       AppStartupLog.milestone('Background home refresh complete');
     } catch (e) {
@@ -475,6 +485,19 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
   void markSignedOut() => prepareGuestHandoff();
 
   void markOnboardingComplete() {
+    // Clear the onboarding gate without forcing a splash replay when the
+    // pipeline is already complete (shell swaps straight to Landing).
+    if (state.isComplete) {
+      state = state.copyWith(
+        needsOnboarding: false,
+        phase: AppBootstrapPhase.ready,
+        status: AppBootstrapStatus.ready,
+        progress: 1,
+        clearError: true,
+      );
+      AppStartupLog.milestone('Onboarding complete — Home stays ready');
+      return;
+    }
     state = state.copyWith(
       needsOnboarding: false,
       phase: AppBootstrapPhase.splash,
@@ -501,6 +524,48 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
       await addressService.getAddress();
     }
     AppStartupLog.milestone('Address loaded');
+  }
+
+  /// Local-cache onboarding gate — never touches Firestore (pre-Home).
+  Future<bool> _resolveProfileLocal(User user) async {
+    final cachedUid = await UserProfileCache.readCachedUid();
+    if (cachedUid != null && cachedUid != user.uid) {
+      await UserProfileCache.clearOnLogout();
+    }
+
+    if (await UserProfileCache.isProfileCompleteCached()) {
+      return false;
+    }
+
+    final cached = await UserProfileCache.readProfile();
+    final name = (cached['name'] ?? '').trim();
+    final gender = (cached['gender'] ?? '').trim();
+    if (name.isNotEmpty && gender.isNotEmpty) {
+      return false;
+    }
+
+    // Partial local profile without name/gender → onboarding.
+    // Completely empty cache → allow Home; [_hydrateProfileAfterHome] may
+    // flip [needsOnboarding] after the network check.
+    final hasAnyLocal = name.isNotEmpty ||
+        gender.isNotEmpty ||
+        (cached['email'] ?? '').trim().isNotEmpty ||
+        (cached['phone'] ?? '').trim().isNotEmpty ||
+        (cached['image'] ?? '').trim().isNotEmpty;
+    return hasAnyLocal && (name.isEmpty || gender.isEmpty);
+  }
+
+  /// Network profile hydrate — only after Home (or onboarding) is showing.
+  Future<void> _hydrateProfileAfterHome(User user) async {
+    try {
+      final needsOnboarding = await _resolveProfile(user);
+      if (!needsOnboarding) return;
+      if (state.needsOnboarding) return;
+      state = state.copyWith(needsOnboarding: true);
+      AppStartupLog.milestone('Post-home onboarding required');
+    } catch (e) {
+      if (kDebugMode) debugPrint('[AppBootstrap] post-home profile: $e');
+    }
   }
 
   Future<bool> _resolveProfile(User user) async {
@@ -549,16 +614,17 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
       bannerRepo,
     );
 
-    final bannersFuture = bannerRepo.fetchActiveBanners(limit: 20);
+    final bannersFuture = bannerRepo.fetchActiveBanners(limit: 8);
 
     // Top-half Home rails in parallel — fills while Category Animation loops.
+    // First-viewport sized limits; remaining items arrive via live streams.
     final results = await Future.wait<List<dynamic>>([
       bannersFuture,
       _safeCategories(categoryRepo),
-      productRepo.fetchFeatured(limit: 12),
+      productRepo.fetchFeatured(limit: 6),
       bannersFuture.then((b) => _safeOffers(offerRepo, b)),
-      productRepo.fetchTrending(limit: 12),
-      productRepo.fetchFlashSale(limit: 16),
+      productRepo.fetchTrending(limit: 6),
+      productRepo.fetchFlashSale(limit: 8),
     ], eagerError: false);
 
     AppStartupLog.milestone(
@@ -581,7 +647,7 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
 
   Future<List<CategoryModel>> _safeCategories(CategoryRepository repo) async {
     try {
-      return await repo.fetchActiveCategories(limit: 40);
+      return await repo.fetchActiveCategories(limit: 20);
     } catch (e) {
       if (kDebugMode) debugPrint('[AppBootstrap] categories: $e');
       return const [];

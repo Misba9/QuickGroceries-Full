@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -11,10 +10,10 @@ import 'package:quickgrocery/core/loading/loading_constants.dart';
 import 'package:quickgrocery/core/loading/loading_manager.dart';
 import 'package:quickgrocery/core/loading/loading_theme.dart';
 
-/// Premium one-by-one category loader (Blinkit-style).
+/// Full-screen Blinkit/Zepto-style category beat for startup.
 ///
-/// Fade in → scale → hold → slide up → fade out → next.
-/// No loading text, dots, shimmer, or spinner.
+/// One large centered category: fade in → scale 0.95→1 → slight rise →
+/// hold → fade out → next. No progress, logo, text chrome, or spinner.
 class CategoryLoadingWidget extends StatefulWidget {
   const CategoryLoadingWidget({
     super.key,
@@ -42,10 +41,9 @@ class CategoryLoadingWidget extends StatefulWidget {
 }
 
 class _CategoryLoadingWidgetState extends State<CategoryLoadingWidget>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late final CategoryAnimationController _engine;
   late final AnimationController _cycle;
-  late final AnimationController _float;
   late CategoryLoaderItem _current;
 
   late final Animation<double> _opacity;
@@ -63,54 +61,52 @@ class _CategoryLoadingWidgetState extends State<CategoryLoadingWidget>
         : (widget.style.cycleDuration ?? LoadingConstants.categoryCycle);
 
     _cycle = AnimationController(vsync: this, duration: period);
-    _float = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1600),
-    )..repeat(reverse: true);
 
-    // Exact thirds of 360ms: fade in 120 → hold 120 → fade/slide out 120.
+    // ~100ms in / ~280ms hold / ~90ms out of 470ms.
     _opacity = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween(begin: 0.0, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 1,
+            .chain(CurveTween(curve: LoadingConstants.revealCurve)),
+        weight: 21,
       ),
-      TweenSequenceItem(tween: ConstantTween<double>(1.0), weight: 1),
+      TweenSequenceItem(tween: ConstantTween<double>(1.0), weight: 60),
       TweenSequenceItem(
         tween: Tween(begin: 1.0, end: 0.0)
             .chain(CurveTween(curve: Curves.easeInCubic)),
-        weight: 1,
+        weight: 19,
       ),
     ]).animate(_cycle);
 
+    // Spec: slight scale 0.95 → 1.0.
     _scale = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 0.92, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 1,
+        tween: Tween(begin: 0.95, end: 1.0)
+            .chain(CurveTween(curve: LoadingConstants.revealCurve)),
+        weight: 21,
       ),
-      TweenSequenceItem(tween: ConstantTween<double>(1.0), weight: 1),
+      TweenSequenceItem(tween: ConstantTween<double>(1.0), weight: 60),
       TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 0.96)
+        tween: Tween(begin: 1.0, end: 0.98)
             .chain(CurveTween(curve: Curves.easeInCubic)),
-        weight: 1,
+        weight: 19,
       ),
     ]).animate(_cycle);
 
+    // Small upward movement — enter from below, exit slightly up.
     _slide = TweenSequence<Offset>([
       TweenSequenceItem(
-        tween: Tween(begin: const Offset(0, 0.06), end: Offset.zero)
-            .chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 1,
+        tween: Tween(begin: const Offset(0, 0.05), end: Offset.zero)
+            .chain(CurveTween(curve: LoadingConstants.revealCurve)),
+        weight: 21,
       ),
       TweenSequenceItem(
         tween: ConstantTween<Offset>(Offset.zero),
-        weight: 1,
+        weight: 60,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: Offset.zero, end: const Offset(0, -0.22))
+        tween: Tween(begin: Offset.zero, end: const Offset(0, -0.06))
             .chain(CurveTween(curve: Curves.easeInCubic)),
-        weight: 1,
+        weight: 19,
       ),
     ]).animate(_cycle);
 
@@ -125,8 +121,6 @@ class _CategoryLoadingWidgetState extends State<CategoryLoadingWidget>
       _cycle.forward(from: 0);
     });
 
-    // Start on the next frame after layout — keeps 60 FPS and avoids a blank
-    // first paint before images are in the tree.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(LoadingManager.boot(context: context));
@@ -155,7 +149,6 @@ class _CategoryLoadingWidgetState extends State<CategoryLoadingWidget>
   @override
   void dispose() {
     _cycle.dispose();
-    _float.dispose();
     super.dispose();
   }
 
@@ -169,6 +162,7 @@ class _CategoryLoadingWidgetState extends State<CategoryLoadingWidget>
   Widget build(BuildContext context) {
     final theme = LoadingTheme.of(context);
     final reduce = MediaQuery.disableAnimationsOf(context);
+    final splashMode = widget.style.background != null;
 
     final animated = reduce
         ? _CategoryBlock(
@@ -177,11 +171,11 @@ class _CategoryLoadingWidgetState extends State<CategoryLoadingWidget>
             theme: theme,
             compact: widget.compact || widget.micro,
             showName: !widget.micro,
-            reduceMotion: true,
-            float: _float,
+            nameColor: widget.style.textColor,
+            splashMode: splashMode,
           )
         : AnimatedBuilder(
-            animation: Listenable.merge([_cycle, _float]),
+            animation: _cycle,
             builder: (context, _) {
               return FadeTransition(
                 opacity: _opacity,
@@ -195,8 +189,8 @@ class _CategoryLoadingWidgetState extends State<CategoryLoadingWidget>
                       theme: theme,
                       compact: widget.compact || widget.micro,
                       showName: !widget.micro,
-                      reduceMotion: false,
-                      float: _float,
+                      nameColor: widget.style.textColor,
+                      splashMode: splashMode,
                     ),
                   ),
                 ),
@@ -223,17 +217,17 @@ class _CategoryLoadingWidgetState extends State<CategoryLoadingWidget>
 
     if (!widget.fullScreen) return body;
 
+    final bg = widget.style.background ?? theme.background;
+
     return SizedBox.expand(
       child: ColoredBox(
-        color: widget.style.background ?? theme.background,
-        child: DecoratedBox(
-          decoration: BoxDecoration(gradient: theme.ambientGradient),
-          child: SafeArea(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: body,
-              ),
+        color: bg,
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              // Plenty of white space — icon + title only.
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: body,
             ),
           ),
         ),
@@ -249,8 +243,8 @@ class _CategoryBlock extends StatelessWidget {
     required this.theme,
     required this.compact,
     required this.showName,
-    required this.reduceMotion,
-    required this.float,
+    this.nameColor,
+    this.splashMode = false,
   });
 
   final CategoryLoaderItem item;
@@ -258,17 +252,16 @@ class _CategoryBlock extends StatelessWidget {
   final LoadingTheme theme;
   final bool compact;
   final bool showName;
-  final bool reduceMotion;
-  final AnimationController float;
+  final Color? nameColor;
+  final bool splashMode;
 
   @override
   Widget build(BuildContext context) {
-    Widget orb = _CategoryOrb(
+    final orb = _CategoryOrb(
       item: item,
       size: size,
       theme: theme,
-      reduceMotion: reduceMotion,
-      float: float,
+      splashMode: splashMode,
     );
 
     if (!showName) return orb;
@@ -277,15 +270,18 @@ class _CategoryBlock extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         orb,
-        SizedBox(height: compact ? 12 : 18),
+        SizedBox(height: compact ? 14 : 28),
         Text(
           item.name,
           textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
-            fontSize: compact ? 15 : 22,
-            fontWeight: FontWeight.w600,
-            color: theme.textPrimary,
-            letterSpacing: -0.2,
+            fontSize: compact ? 16 : 28,
+            fontWeight: FontWeight.w700,
+            height: 1.2,
+            color: nameColor ?? theme.textPrimary,
+            letterSpacing: -0.5,
           ),
         ),
       ],
@@ -298,55 +294,52 @@ class _CategoryOrb extends StatelessWidget {
     required this.item,
     required this.size,
     required this.theme,
-    required this.reduceMotion,
-    required this.float,
+    this.splashMode = false,
   });
 
   final CategoryLoaderItem item;
   final double size;
   final LoadingTheme theme;
-  final bool reduceMotion;
-  final AnimationController float;
+  final bool splashMode;
 
   @override
   Widget build(BuildContext context) {
-    Widget circle = Container(
+    // Soft white disc on yellow — minimal chrome, premium grocery feel.
+    final shadows = size < 40
+        ? null
+        : <BoxShadow>[
+            BoxShadow(
+              color: Colors.black.withValues(alpha: splashMode ? 0.07 : 0.10),
+              blurRadius: splashMode ? 24 : 16,
+              offset: const Offset(0, 8),
+            ),
+          ];
+
+    return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: theme.card,
-        boxShadow: size < 40 ? null : theme.shadow,
-        border: Border.all(color: theme.imageRing, width: size < 40 ? 1 : 2),
+        color: splashMode ? Colors.white : theme.card,
+        boxShadow: shadows,
       ),
       clipBehavior: Clip.antiAlias,
       child: _buildImage(context),
     );
-
-    if (reduceMotion) return circle;
-
-    return AnimatedBuilder(
-      animation: float,
-      builder: (context, child) {
-        final dy = math.sin(float.value * math.pi) * (size < 40 ? 1.5 : 5);
-        return Transform.translate(offset: Offset(0, dy), child: child);
-      },
-      child: circle,
-    );
   }
 
   Widget _buildImage(BuildContext context) {
-    // No fade-in during splash — prevents image "pop" / flicker.
-    const noFade = Duration.zero;
+    // No image fade during splash — avoids flicker mid-beat.
     if (item.hasNetworkImage) {
+      final cacheW = (size * MediaQuery.devicePixelRatioOf(context)).round();
       return CachedNetworkImage(
         imageUrl: item.imageUrl!,
         fit: BoxFit.cover,
         width: size,
         height: size,
-        memCacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
-        fadeInDuration: noFade,
-        fadeOutDuration: noFade,
+        memCacheWidth: cacheW,
+        fadeInDuration: Duration.zero,
+        fadeOutDuration: Duration.zero,
         placeholder: (_, __) =>
             _FallbackGlyph(item: item, size: size, theme: theme),
         errorWidget: (_, __, ___) =>
@@ -385,20 +378,23 @@ class _FallbackGlyph extends StatelessWidget {
   Widget build(BuildContext context) {
     final emoji = item.emoji;
     if (emoji != null && emoji.isNotEmpty) {
-      return Center(
-        child: Text(emoji, style: TextStyle(fontSize: size * 0.42)),
+      return ColoredBox(
+        color: Colors.white,
+        child: Center(
+          child: Text(emoji, style: TextStyle(fontSize: size * 0.46)),
+        ),
       );
     }
     final letter = item.name.isNotEmpty ? item.name[0].toUpperCase() : '?';
     return ColoredBox(
-      color: theme.accent.withValues(alpha: 0.12),
+      color: Colors.white,
       child: Center(
         child: Text(
           letter,
           style: GoogleFonts.poppins(
             fontSize: size * 0.34,
             fontWeight: FontWeight.w700,
-            color: theme.accent,
+            color: const Color(0xFF1A1A1A),
           ),
         ),
       ),

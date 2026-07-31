@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/catalog/product_search.dart';
 import 'package:quickgrocery/core/inventory/inventory_limits.dart';
+import 'package:quickgrocery/core/startup/startup_isolate_parse.dart';
 import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/home/screens/addon_screen.dart';
@@ -72,16 +73,16 @@ class CategoryService extends ChangeNotifier {
   // ─────────────────────────────
   Future<void> fetchProducts() async {
     try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
+      final snapshot = await FirebaseFirestore.instance
           .collection('products')
           .orderBy(FieldPath.documentId)
           .limit(300)
           .get();
 
-      allProducts = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return ProductModel.fromFirestore(data, doc.id);
-      }).toList();
+      // Sanitize in chunks + model factories on a background isolate.
+      allProducts = await StartupIsolateParse.parseProductsFromUntypedSnapshot(
+        snapshot,
+      );
     } catch (e) {
       if (kDebugMode) debugPrint("Error fetching products: $e");
     }
@@ -421,24 +422,25 @@ class CategoryService extends ChangeNotifier {
       }
 
       final needle = _norm(subcategory);
-      _products = snapshot.docs
-          .map(
-            (doc) => ProductModel.fromFirestore(
-              doc.data()! as Map<String, dynamic>,
-              doc.id,
-            ),
-          )
-          .where((p) {
-            if (!p.isAvailable) return false;
-            if (!usedMainCategoryFallback) return true;
-            final sub = _norm(p.subcategory);
-            final cat = _norm(p.category);
-            if (sub == needle) return true;
-            // Legacy: no subcategory field, category equals sub name.
-            if (sub.isEmpty && cat == needle) return true;
-            return false;
-          })
-          .toList()
+      final parsed =
+          await StartupIsolateParse.parseProductsFromUntypedSnapshot(
+        snapshot,
+        onlyAvailable: true,
+      );
+      if (generation != _loadGeneration ||
+          _selectedCategory.trim() != subcategory) {
+        return;
+      }
+
+      _products = parsed.where((p) {
+        if (!usedMainCategoryFallback) return true;
+        final sub = _norm(p.subcategory);
+        final cat = _norm(p.category);
+        if (sub == needle) return true;
+        // Legacy: no subcategory field, category equals sub name.
+        if (sub.isEmpty && cat == needle) return true;
+        return false;
+      }).toList()
         ..sort((a, b) {
           if (a.pinToTop == b.pinToTop) return 0;
           return a.pinToTop ? -1 : 1;
@@ -495,15 +497,17 @@ class CategoryService extends ChangeNotifier {
         return;
       }
 
-      _products = productSnapshot.docs
-          .map(
-            (doc) => ProductModel.fromFirestore(
-              doc.data() as Map<String, dynamic>,
-              doc.id,
-            ),
-          )
-          .where((p) => p.isAvailable)
-          .toList()
+      final parsed =
+          await StartupIsolateParse.parseProductsFromUntypedSnapshot(
+        productSnapshot,
+        onlyAvailable: true,
+      );
+
+      if (generation != _loadGeneration || _mainCategory != mainCategory) {
+        return;
+      }
+
+      _products = parsed
         ..sort((a, b) {
           if (a.pinToTop == b.pinToTop) return 0;
           return a.pinToTop ? -1 : 1;

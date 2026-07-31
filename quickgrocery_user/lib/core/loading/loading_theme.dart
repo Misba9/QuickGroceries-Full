@@ -73,18 +73,23 @@ class CategoryLoadingStyle {
   const CategoryLoadingStyle({
     this.cycleDuration,
     this.background,
+    this.textColor,
   });
 
   final Duration? cycleDuration;
   final Color? background;
+  /// When set (e.g. brand-yellow splash), overrides theme text for names.
+  final Color? textColor;
 
   CategoryLoadingStyle copyWith({
     Duration? cycleDuration,
     Color? background,
+    Color? textColor,
   }) {
     return CategoryLoadingStyle(
       cycleDuration: cycleDuration ?? this.cycleDuration,
       background: background ?? this.background,
+      textColor: textColor ?? this.textColor,
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:quickgrocery/constants/app_spacing.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 class AddonSelector extends StatefulWidget {
   final List<ProductModel> addons;
@@ -56,9 +57,12 @@ class _AddonSelectorState extends State<AddonSelector> {
                       width: 50,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: Image.network(
-                          widget.product.image,
+                        child: CachedImage(
+                          url: widget.product.image,
                           fit: BoxFit.cover,
+                          width: 72,
+                          height: 72,
+                          memCacheWidth: 144,
                         ),
                       ),
                     ),
@@ -107,11 +111,13 @@ class _AddonSelectorState extends State<AddonSelector> {
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Row(
                         children: [
-                          Image.network(
-                            addon.image,
+                          CachedImage(
+                            url: addon.image,
                             width: 50,
                             height: 50,
                             fit: BoxFit.cover,
+                            memCacheWidth: 100,
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -210,11 +216,12 @@ class _AddonSelectorState extends State<AddonSelector> {
                                   ),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(40),
-                                    child: Image.network(
-                                      provider.selectedProduct[index].image,
+                                    child: CachedImage(
+                                      url: provider.selectedProduct[index].image,
                                       width: 40,
                                       height: 40,
                                       fit: BoxFit.cover,
+                                      memCacheWidth: 80,
                                     ),
                                   ),
                                 ),

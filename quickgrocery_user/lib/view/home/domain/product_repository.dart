@@ -83,41 +83,41 @@ class ProductRepository {
     }
   }
 
-  Stream<List<ProductModel>> watchTrending({int limit = 12}) {
-    if (limit != 12) {
+  Stream<List<ProductModel>> watchTrending({int limit = 8}) {
+    if (limit != 8) {
       return _mapProductStream(
         _service.watchTrending(limit: limit),
         'Failed to load trending products.',
       );
     }
     return _sharedTrending ??= _mapProductStream(
-      _service.watchTrending(limit: 12),
+      _service.watchTrending(limit: 8),
       'Failed to load trending products.',
     ).shareReplay(maxSize: 1);
   }
 
-  Stream<List<ProductModel>> watchFeatured({int limit = 12}) {
-    if (limit != 12) {
+  Stream<List<ProductModel>> watchFeatured({int limit = 8}) {
+    if (limit != 8) {
       return _mapProductStream(
         _service.watchFeatured(limit: limit),
         'Failed to load featured products.',
       );
     }
     return _sharedFeatured ??= _mapProductStream(
-      _service.watchFeatured(limit: 12),
+      _service.watchFeatured(limit: 8),
       'Failed to load featured products.',
     ).shareReplay(maxSize: 1);
   }
 
-  Stream<List<ProductModel>> watchFlashSale({int limit = 16}) {
-    if (limit != 16) {
+  Stream<List<ProductModel>> watchFlashSale({int limit = 10}) {
+    if (limit != 10) {
       return _mapProductStream(
         _service.watchFlashSale(limit: limit),
         'Failed to load flash sale products.',
       );
     }
     return _sharedFlashSale ??= _mapProductStream(
-      _service.watchFlashSale(limit: 16),
+      _service.watchFlashSale(limit: 10),
       'Failed to load flash sale products.',
     ).shareReplay(maxSize: 1);
   }

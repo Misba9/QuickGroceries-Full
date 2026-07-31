@@ -113,10 +113,10 @@ class AppUpdateService {
         fakeInstalled: fakeInstalledVersion,
       );
 
-      if (kDebugMode) {
+      if (kDebugMode && decision.updateAvailable) {
         debugPrint(
-          '[AppUpdate] decision available=${decision.updateAvailable} '
-          'force=${decision.forceUpdate}',
+          '[AppUpdate] available force=${decision.forceUpdate} '
+          'latest=${decision.config.latestVersion}',
         );
       }
 

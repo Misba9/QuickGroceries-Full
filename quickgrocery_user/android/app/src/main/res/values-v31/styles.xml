@@ -2,12 +2,13 @@
 <resources>
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">@drawable/launch_background</item>
-        <!-- Android 12+ system splash: brand yellow, no padded icon halo -->
+        <!-- Android 12+ system splash: brand yellow + centered logo -->
         <item name="android:windowSplashScreenBackground">@color/launch_yellow</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@color/launch_yellow</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/launch_yellow</item>
     </style>
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
+        <!-- Keep brand yellow — never flash system white behind first Flutter frame. -->
+        <item name="android:windowBackground">@color/launch_yellow</item>
     </style>
 </resources>

@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
@@ -10,6 +9,7 @@ import 'package:quickgrocery/maintenance/domain/maintenance_status.dart';
 import 'package:quickgrocery/maintenance/presentation/providers/maintenance_providers.dart';
 import 'package:quickgrocery/maintenance/presentation/widgets/maintenance_countdown.dart';
 import 'package:quickgrocery/maintenance/presentation/widgets/maintenance_engagement_section.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/support/presentation/providers/support_settings_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
@@ -70,11 +70,12 @@ class MaintenanceScreen extends ConsumerWidget {
                   if (config.bannerImageUrl.trim().isNotEmpty)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(20),
-                      child: CachedNetworkImage(
-                        imageUrl: config.bannerImageUrl,
+                      child: CachedImage(
+                        url: config.bannerImageUrl,
                         height: 140,
                         width: double.infinity,
                         fit: BoxFit.cover,
+                        memCacheWidth: 800,
                       ),
                     ),
                   if (config.lottieUrl.trim().isNotEmpty) ...[

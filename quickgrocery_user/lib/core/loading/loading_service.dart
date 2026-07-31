@@ -171,7 +171,10 @@ abstract final class LoadingService {
     try {
       if (item.hasNetworkImage) {
         await precacheImage(
-          CachedNetworkImageProvider(item.imageUrl!),
+          CachedNetworkImageProvider(
+            item.imageUrl!,
+            maxWidth: 240,
+          ),
           context,
         );
       } else if (item.hasAsset) {

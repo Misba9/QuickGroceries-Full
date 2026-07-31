@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/catalog/product_search.dart';
+import 'package:quickgrocery/core/startup/startup_isolate_parse.dart';
 import 'package:quickgrocery/models/product.dart';
 
 class SearchService extends ChangeNotifier {
@@ -23,21 +24,17 @@ class SearchService extends ChangeNotifier {
   Future<void> fetchProducts() async {
     if (productsList == null) {
       try {
-        QuerySnapshot snapshot = await FirebaseFirestore.instance
+        final snapshot = await FirebaseFirestore.instance
             .collection('products')
             .orderBy(FieldPath.documentId)
             .limit(300)
             .get();
 
-        productsList = snapshot.docs
-            .map((doc) {
-              return ProductModel.fromFirestore(
-                doc.data() as Map<String, dynamic>,
-                doc.id,
-              );
-            })
-            .where((p) => p.isAvailable)
-            .toList();
+        productsList =
+            await StartupIsolateParse.parseProductsFromUntypedSnapshot(
+          snapshot,
+          onlyAvailable: true,
+        );
 
         filteredProductsList = productsList;
         notifyListeners();

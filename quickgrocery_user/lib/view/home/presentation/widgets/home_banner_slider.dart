@@ -61,7 +61,7 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
                 itemCount: banners.length,
                 itemBuilder: (context, i, _) => _BannerSlide(
                   banner: banners[i],
-                  cacheWidth: (slideW * dpr).round(),
+                  cacheWidth: (slideW * dpr).round().clamp(200, 1200),
                 ),
                 options: CarouselOptions(
                   height: carouselH,
