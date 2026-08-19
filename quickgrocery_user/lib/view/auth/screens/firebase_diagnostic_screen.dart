@@ -111,7 +111,8 @@ class _FirebaseDiagnosticScreenState extends State<FirebaseDiagnosticScreen> {
 
     buffer.writeln('=== App Check ===');
     buffer.writeln(
-      'Provider: ${usePlayIntegrityAppCheck ? 'AndroidProvider.playIntegrity' : 'AndroidProvider.debug'} '
+      'Android: ${usePlayIntegrityAppCheck ? 'playIntegrity' : 'debug'} | '
+      'Apple: ${useAppAttestAppCheck ? 'appAttestWithDeviceCheckFallback' : 'debug'} '
       '(kDebugMode=$kDebugMode kProfileMode=$kProfileMode kReleaseMode=$kReleaseMode)',
     );
     try {

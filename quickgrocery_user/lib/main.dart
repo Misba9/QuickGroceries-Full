@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -10,17 +9,15 @@ import 'package:quickgrocery/core/firebase/firebase_app_check_bootstrap.dart';
 import 'package:quickgrocery/core/firebase/firebase_bootstrap.dart';
 import 'package:quickgrocery/core/firebase/firebase_config_audit.dart';
 import 'package:quickgrocery/core/firebase/firebase_phone_auth_bootstrap.dart';
-import 'package:quickgrocery/core/firestore/firestore_retry.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_shell.dart';
 import 'package:quickgrocery/core/startup/shared_preferences_provider.dart';
 import 'package:quickgrocery/core/widgets/startup_failure_screen.dart';
-import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/l10n/app_localizations.dart';
 // Riverpod and `package:provider` both export `ChangeNotifierProvider`
 // and `Consumer`. Restrict Riverpod to `ProviderScope` here so the legacy
 // Provider symbols remain unambiguous everywhere else in the app.
 import 'package:flutter_riverpod/flutter_riverpod.dart'
-    show ProviderScope, Consumer, ConsumerWidget, WidgetRef;
+    show ProviderScope, ConsumerWidget, WidgetRef;
 import 'package:quickgrocery/core/design/app_theme.dart';
 import 'package:quickgrocery/core/localization/locale_provider.dart';
 import 'package:quickgrocery/core/localization/app_locales.dart';
@@ -83,7 +80,9 @@ Future<void> handleReferralAfterInstall() async {
         await _storePendingReferralCode(data.link);
       })
       .onError((error) {
-        print("Dynamic Link Error: $error");
+        if (kDebugMode) {
+          debugPrint('Dynamic Link Error: $error');
+        }
       });
 }
 

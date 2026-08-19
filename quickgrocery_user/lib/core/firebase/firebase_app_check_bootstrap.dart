@@ -6,18 +6,17 @@ import 'package:quickgrocery/core/firebase/firebase_phone_auth_logger.dart';
 
 /// Activates Firebase App Check with environment-appropriate providers.
 ///
-/// Debug / profile: [AndroidProvider.debug] — register debug token in Firebase
-/// Console → App Check → Manage debug tokens (if enforcement is enabled).
+/// Debug / profile / local release: debug providers (register debug tokens in
+/// Firebase Console → App Check if enforcement is enabled).
 ///
-/// Release: [AndroidProvider.playIntegrity] — requires Play Store signing +
-/// Play Integrity API enabled in Google Cloud.
+/// Store release:
+/// - Android: `--dart-define=PLAY_STORE_RELEASE=true` → Play Integrity
+/// - iOS: `--dart-define=APP_STORE_RELEASE=true` → App Attest + DeviceCheck
 Future<void> configureFirebaseAppCheck() async {
   if (kIsWeb) return;
 
   final androidLabel = appCheckAndroidProviderLabel;
-  final appleLabel = usePlayIntegrityAppCheck
-      ? 'appAttestWithDeviceCheckFallback'
-      : 'debug';
+  final appleLabel = appCheckAppleProviderLabel;
 
   FirebasePhoneAuthLogger.info(
     'AppCheck activating android=$androidLabel apple=$appleLabel '
@@ -29,11 +28,10 @@ Future<void> configureFirebaseAppCheck() async {
       androidProvider: usePlayIntegrityAppCheck
           ? AndroidProvider.playIntegrity
           : AndroidProvider.debug,
-      appleProvider: usePlayIntegrityAppCheck
+      appleProvider: useAppAttestAppCheck
           ? AppleProvider.appAttestWithDeviceCheckFallback
           : AppleProvider.debug,
     );
-
   } catch (e, st) {
     FirebasePhoneAuthLogger.error(
       'AppCheck activation failed: $e',

@@ -9,22 +9,35 @@ const bool kFirebaseAppCheckEnforced = false;
 
 /// Which App Check attestation provider to use per Flutter build mode.
 ///
-/// | Mode    | kDebugMode | kProfileMode | kReleaseMode | Provider        |
-/// |---------|------------|--------------|--------------|-----------------|
-/// | debug   | true       | false        | false        | debug           |
-/// | profile | false      | true         | true         | debug           |
-/// | release | false      | false        | true         | playIntegrity   |
+/// | Mode    | Dart define              | Provider (Android / Apple)              |
+/// |---------|--------------------------|-----------------------------------------|
+/// | debug   | (default)                | debug / debug                           |
+/// | profile | (default)                | debug / debug                           |
+/// | release | (default)                | debug / debug                           |
+/// | release | `PLAY_STORE_RELEASE=true`| playIntegrity / (Apple still needs below)|
+/// | release | `APP_STORE_RELEASE=true` | playIntegrity* / appAttest+DeviceCheck  |
 ///
-/// Sideloaded release builds (`flutter run --release`, USB APK) are signed with
-/// the debug keystore unless key.properties exists — they cannot pass Play
-/// Integrity. Only enable for Play Store app bundles:
-/// `flutter build appbundle --dart-define=PLAY_STORE_RELEASE=true`
+/// \* Android Play Integrity still requires `PLAY_STORE_RELEASE=true`.
+///
+/// Sideloaded release builds cannot pass store attestation. Enable only for
+/// store-signed builds:
+/// - Android: `flutter build appbundle --dart-define=PLAY_STORE_RELEASE=true`
+/// - iOS: `flutter build ipa --dart-define=APP_STORE_RELEASE=true`
 bool get usePlayIntegrityAppCheck =>
     kReleaseMode &&
     !kDebugMode &&
     !kProfileMode &&
     const bool.fromEnvironment('PLAY_STORE_RELEASE', defaultValue: false);
 
+bool get useAppAttestAppCheck =>
+    kReleaseMode &&
+    !kDebugMode &&
+    !kProfileMode &&
+    const bool.fromEnvironment('APP_STORE_RELEASE', defaultValue: false);
+
 /// Human-readable label for logs.
 String get appCheckAndroidProviderLabel =>
     usePlayIntegrityAppCheck ? 'playIntegrity' : 'debug';
+
+String get appCheckAppleProviderLabel =>
+    useAppAttestAppCheck ? 'appAttestWithDeviceCheckFallback' : 'debug';

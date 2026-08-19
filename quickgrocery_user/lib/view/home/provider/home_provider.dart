@@ -1,9 +1,9 @@
-import 'dart:developer';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
@@ -18,7 +18,6 @@ import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/models/customer_model.dart';
 import 'package:quickgrocery/models/product.dart';
-import 'package:quickgrocery/view/category/screens/category_screen.dart';
 import 'package:quickgrocery/view/home/screens/home_screen.dart';
 import 'package:quickgrocery/view/offers/presentation/screens/offers_screen.dart';
 import 'package:quickgrocery/view/orders/orders_screen.dart';
@@ -41,7 +40,6 @@ class HomeProvider extends ChangeNotifier {
   List<CategoryModel> categories = [];
   List<BannerModel> banners = [];
   String _address = 'Loading...';
-  bool _isLoading = false;
   String get address => _address;
 
   void onSelectedChange(int i) {
@@ -60,7 +58,7 @@ class HomeProvider extends ChangeNotifier {
       isActive = doc['isActive'];
       notifyListeners();
     } catch (e) {
-      print('Error fetching products: $e');
+      if (kDebugMode) debugPrint('Error fetching products: $e');
     }
   }
 
@@ -90,12 +88,12 @@ class HomeProvider extends ChangeNotifier {
           SetOptions(merge: true),
         );
 
-        print('FCM token updated successfully: $token');
+        if (kDebugMode) debugPrint('FCM token updated successfully: $token');
       } else {
-        print('Failed to get FCM token.');
+        if (kDebugMode) debugPrint('Failed to get FCM token.');
       }
     } catch (e) {
-      print('Error updating FCM token: $e');
+      if (kDebugMode) debugPrint('Error updating FCM token: $e');
     }
   }
 
@@ -298,9 +296,9 @@ class HomeProvider extends ChangeNotifier {
           );
         }
         notifyListeners();
-        print('Categories fetched and sorted by order: $categories');
+        if (kDebugMode) debugPrint('Categories fetched and sorted by order: $categories');
       } catch (e) {
-        print('Error fetching categories: $e');
+        if (kDebugMode) debugPrint('Error fetching categories: $e');
       }
     }
   }
@@ -321,16 +319,14 @@ class HomeProvider extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      print('Error refreshing banners: $e');
+      if (kDebugMode) debugPrint('Error refreshing banners: $e');
     }
   }
 
   Future<void> getLocationAndAddress() async {
-    _isLoading = true;
-
     try {
-      // Request location permissio
-      LocationPermission permission = await Geolocator.requestPermission();
+      // Request location permission
+      await Geolocator.requestPermission();
 
       // Get current position
       Position position = await Geolocator.getCurrentPosition(
@@ -352,8 +348,6 @@ class HomeProvider extends ChangeNotifier {
       }
     } catch (e) {
       _address = '$e';
-    } finally {
-      _isLoading = false;
     }
   }
 
@@ -394,7 +388,7 @@ class HomeProvider extends ChangeNotifier {
     await remoteConfig.fetchAndActivate();
 
     final requiredVersion = remoteConfig.getString('force_update_version');
-    print("🔥 Force update version from Firebase: $requiredVersion");
+    if (kDebugMode) debugPrint("🔥 Force update version from Firebase: $requiredVersion");
 
     final packageInfo = await PackageInfo.fromPlatform();
     final currentVersion = packageInfo.version;
@@ -417,7 +411,6 @@ class HomeProvider extends ChangeNotifier {
     categories = [];
     banners = [];
     _address = 'Loading...';
-    _isLoading = false;
     currentLatLng = LatLng(0, 0);
     notifyListeners();
   }
@@ -426,8 +419,8 @@ class HomeProvider extends ChangeNotifier {
 bool _isVersionLower(String current, String required) {
   final currentParts = current.split('.').map(int.parse).toList();
   final requiredParts = required.split('.').map(int.parse).toList();
-  print(currentParts);
-  print(requiredParts);
+  if (kDebugMode) debugPrint('$currentParts');
+  if (kDebugMode) debugPrint('$requiredParts');
   for (int i = 0; i < requiredParts.length; i++) {
     if (i >= currentParts.length || currentParts[i] < requiredParts[i]) {
       return true;

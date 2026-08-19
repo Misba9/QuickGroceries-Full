@@ -95,7 +95,6 @@ class _AddonSelectorState extends State<AddonSelector> {
                   itemCount: widget.addons.length,
                   itemBuilder: (context, index) {
                     final addon = widget.addons[index];
-                    final quantity = selectedQuantities[addon.id] ?? 0;
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),

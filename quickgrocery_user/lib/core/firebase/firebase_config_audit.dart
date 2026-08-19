@@ -6,7 +6,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import 'package:flutter/foundation.dart';
 
 import 'package:quickgrocery/core/firebase/app_check_providers.dart';
 import 'package:quickgrocery/core/firebase/firebase_options.dart';
@@ -506,6 +505,16 @@ class FirebaseConfigAudit {
           ],
           severity: 'warning',
         ),
+      );
+    }
+
+    if (useAppAttestAppCheck) {
+      passed.add(
+        'App Check uses App Attest — enable App Check for the iOS app in Firebase Console',
+      );
+    } else {
+      passed.add(
+        'App Check uses debug provider — register debug token in Firebase Console → App Check',
       );
     }
   }

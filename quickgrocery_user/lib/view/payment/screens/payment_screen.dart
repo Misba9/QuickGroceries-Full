@@ -53,7 +53,7 @@ class PaymentScreen extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(15),
                         decoration: BoxDecoration(
-                          color: AppColor.primary.withOpacity(0.2),
+                          color: AppColor.primary.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Center(

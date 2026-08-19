@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:http/http.dart' as http;
@@ -179,7 +180,7 @@ class CartService extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      print('Error fetching products: $e');
+      if (kDebugMode) debugPrint('Error fetching products: $e');
     }
   }
 
@@ -266,9 +267,9 @@ class CartService extends ChangeNotifier {
     );
 
     if (response.statusCode == 200) {
-      print('FCM message sent successfully');
+      if (kDebugMode) debugPrint('FCM message sent successfully');
     } else {
-      print('Failed to send FCM message: ${response.statusCode}');
+      if (kDebugMode) debugPrint('Failed to send FCM message: ${response.statusCode}');
     }
   }
 
@@ -309,11 +310,11 @@ class CartService extends ChangeNotifier {
       if (doc.exists) {
         return doc.get('fcm_token');
       } else {
-        print('Document does not exist');
+        if (kDebugMode) debugPrint('Document does not exist');
         return null;
       }
     } catch (e) {
-      print('Error fetching fcm_token: $e');
+      if (kDebugMode) debugPrint('Error fetching fcm_token: $e');
       return null;
     }
   }
