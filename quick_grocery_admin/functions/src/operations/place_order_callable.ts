@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import { createHash } from "crypto";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { callableBaseOptions } from "../https_callable_options";
 import {
@@ -8,6 +9,11 @@ import {
   mergeTipIntoBill,
   validateTipAmount,
 } from "../delivery_tips/delivery_tips_engine";
+
+function hashId(value: string): string {
+  if (!value) return "";
+  return createHash("sha256").update(value).digest("hex").slice(0, 12);
+}
 
 function num(v: unknown, fallback = 0): number {
   const n = Number(v);
@@ -162,6 +168,10 @@ export const placeOrderCallable = onCall(
     if (!uid) {
       throw new HttpsError("unauthenticated", "Sign in to place an order.");
     }
+    const idempotencyKeyEarly = str(req.data?.idempotencyKey);
+    console.log(
+      `[PlaceOrder] requestStarted uidHash=${hashId(uid)} keyHash=${hashId(idempotencyKeyEarly)}`,
+    );
 
     const paymentMethod = str(req.data?.paymentMethod) || "cod";
     const paymentRef = str(req.data?.paymentRef);
@@ -280,8 +290,27 @@ export const placeOrderCallable = onCall(
       }
     }
 
+    let duplicateOrderId = "";
     try {
       await db.runTransaction(async (tx) => {
+        if (idempotencyKey.length > 0) {
+          const idemInTx = await tx.get(
+            db.collection("order_idempotency").doc(`${uid}_${idempotencyKey}`),
+          );
+          const existingOrderId = str(idemInTx.data()?.orderId);
+          if (existingOrderId) {
+            const existingOrder = await tx.get(
+              db.collection("orders").doc(existingOrderId),
+            );
+            if (existingOrder.exists) {
+              duplicateOrderId = existingOrderId;
+              return;
+            }
+          }
+        }
+        console.log(
+          `[PlaceOrder] idempotencyCheck keyHash=${hashId(idempotencyKey)}`,
+        );
         const systemSnap = await tx.get(
           db.collection("maintenance").doc("system"),
         );
@@ -647,6 +676,12 @@ export const placeOrderCallable = onCall(
           ...(idempotencyKey.length > 0 ? { idempotencyKey } : {}),
         });
       });
+      if (duplicateOrderId) {
+        console.log(
+          `[PlaceOrder] duplicateDetected keyHash=${hashId(idempotencyKey)} orderId=${duplicateOrderId}`,
+        );
+        return { orderId: duplicateOrderId, duplicate: true };
+      }
     } catch (e) {
       const message =
         e instanceof HttpsError ? e.message : "Could not place order";
@@ -655,6 +690,10 @@ export const placeOrderCallable = onCall(
       console.error("placeOrderCallable", e);
       throw new HttpsError("internal", "Could not place order");
     }
+
+    console.log(
+      `[PlaceOrder] orderCreated keyHash=${hashId(idempotencyKey)} orderId=${orderRef.id}`,
+    );
 
     const orderSnap = await orderRef.get();
     const orderData = orderSnap.data() as Record<string, unknown> | undefined;
@@ -685,6 +724,9 @@ export const placeOrderCallable = onCall(
         );
       }
       await batch.commit();
+      console.log(
+        `[PlaceOrder] vendorOrdersCreated keyHash=${hashId(idempotencyKey)} orderId=${orderRef.id}`,
+      );
     }
 
     if (idempotencyKey.length > 0) {
@@ -703,6 +745,9 @@ export const placeOrderCallable = onCall(
         );
     }
 
+    console.log(
+      `[PlaceOrder] completed keyHash=${hashId(idempotencyKey)} orderId=${orderRef.id}`,
+    );
     return { orderId: orderRef.id };
   },
 );

@@ -1,9 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/cart_models.dart';
 import 'delivery_slots_provider.dart';
 import 'package:quickgrocery/core/order/order_placement_log.dart';
 import 'package:quickgrocery/core/user/checkout_preferences_store.dart';
+
+enum PlacementPhase {
+  idle,
+  validating,
+  paymentProcessing,
+  creatingOrder,
+  success,
+  cancelled,
+  failed,
+  timedOut,
+}
 
 /// Local checkout state with session persistence for payment, address, instructions.
 class CheckoutController extends StateNotifier<CheckoutState> {
@@ -18,6 +31,10 @@ class CheckoutController extends StateNotifier<CheckoutState> {
   int _attemptId = 0;
   int? _keyRotatedForAttempt;
   int? _closedAttemptId;
+  PlacementPhase _phase = PlacementPhase.idle;
+  Timer? _phaseTimer;
+
+  PlacementPhase get phase => _phase;
 
   /// Id of the placement started by the latest Place Order tap.
   int get currentAttemptId => _attemptId;
@@ -96,18 +113,49 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     }
     _attemptId++;
     OrderPlacementLog.bindAttempt(_attemptId);
+    _phase = PlacementPhase.validating;
     _placementLock = true;
     _retainDuringPlacement();
     pendingPaymentId = null;
     pendingGatewayOrderId = null;
     state = state.copyWith(isPlacingOrder: true, clearError: true);
+    _armPhaseWatchdog(
+      attemptId: _attemptId,
+      phase: PlacementPhase.validating,
+      limit: const Duration(seconds: 18),
+      rotateKey: true,
+    );
     OrderPlacementLog.loadingStarted(idempotencyKey: state.idempotencyKey);
     return true;
+  }
+
+  void _armPhaseWatchdog({
+    required int attemptId,
+    required PlacementPhase phase,
+    required Duration limit,
+    required bool rotateKey,
+  }) {
+    _phaseTimer?.cancel();
+    _phaseTimer = Timer(limit, () {
+      if (!mounted || _attemptId != attemptId || _phase != phase) return;
+      OrderPlacementLog.timeout(
+        stage: phase.name,
+        idempotencyKey: state.idempotencyKey,
+      );
+      _closedAttemptId = attemptId;
+      _phase = PlacementPhase.timedOut;
+      _stopPlacement(reason: 'timed_out', rotateKey: rotateKey);
+      if (!mounted) return;
+      _attemptId++;
+      OrderPlacementLog.bindAttempt(_attemptId);
+    });
   }
 
   /// Keep the tap lock but hide the blocking overlay so Razorpay can present.
   void beginAwaitingExternalPayment({required int attemptId}) {
     if (!_accepts(attemptId)) return;
+    _phaseTimer?.cancel();
+    _phase = PlacementPhase.paymentProcessing;
     _placementLock = true;
     _retainDuringPlacement();
     state = state.copyWith(isPlacingOrder: false, clearError: true);
@@ -125,6 +173,8 @@ class CheckoutController extends StateNotifier<CheckoutState> {
       OrderPlacementLog.staleCallbackIgnored(attemptId);
       return false;
     }
+    _phaseTimer?.cancel();
+    _phase = PlacementPhase.creatingOrder;
     _placementLock = true;
     _retainDuringPlacement();
     if (paymentId != null && paymentId.isNotEmpty) {
@@ -135,7 +185,32 @@ class CheckoutController extends StateNotifier<CheckoutState> {
     }
     state = state.copyWith(isPlacingOrder: true, clearError: true);
     OrderPlacementLog.loadingStarted(idempotencyKey: state.idempotencyKey);
+    _armPhaseWatchdog(
+      attemptId: attemptId,
+      phase: PlacementPhase.creatingOrder,
+      limit: const Duration(seconds: 80),
+      rotateKey: false,
+    );
     return true;
+  }
+
+  /// COD skips Razorpay, so it is still in [PlacementPhase.validating] when the
+  /// order API starts. That phase's short watchdog must not cancel a real order.
+  void markCreatingOrder({required int attemptId}) {
+    if (!_accepts(attemptId)) return;
+    if (_closedAttemptId == attemptId) {
+      OrderPlacementLog.staleCallbackIgnored(attemptId);
+      return;
+    }
+    if (_phase == PlacementPhase.creatingOrder) return;
+    _phaseTimer?.cancel();
+    _phase = PlacementPhase.creatingOrder;
+    _armPhaseWatchdog(
+      attemptId: attemptId,
+      phase: PlacementPhase.creatingOrder,
+      limit: const Duration(seconds: 80),
+      rotateKey: false,
+    );
   }
 
   /// User cancelled before an order existed. Next Place Order is a new attempt.
@@ -145,11 +220,14 @@ class CheckoutController extends StateNotifier<CheckoutState> {
   void cancelPlacement({int? attemptId, bool closePayment = true}) {
     if (!_accepts(attemptId)) return;
     if (closePayment) _closedAttemptId = _attemptId;
+    _phase = PlacementPhase.cancelled;
     _stopPlacement(reason: 'cancelled', rotateKey: true);
   }
 
   void finishPlacementSuccess({int? attemptId}) {
     if (!_accepts(attemptId)) return;
+    _phaseTimer?.cancel();
+    _phase = PlacementPhase.success;
     pendingPaymentId = null;
     pendingGatewayOrderId = null;
     // Stay locked + loading until checkout screen disposes after navigation.
@@ -160,6 +238,7 @@ class CheckoutController extends StateNotifier<CheckoutState> {
   /// attempt still dedupes if the server may already have created the order.
   void finishPlacementFailure({int? attemptId}) {
     if (!_accepts(attemptId)) return;
+    _phase = PlacementPhase.failed;
     _stopPlacement(reason: 'failure', rotateKey: false);
   }
 
@@ -180,6 +259,7 @@ class CheckoutController extends StateNotifier<CheckoutState> {
         pendingPaymentId != null ||
         pendingGatewayOrderId != null;
     final rotate = rotateKey && _keyRotatedForAttempt != _attemptId;
+    _phaseTimer?.cancel();
     _placementLock = false;
     pendingPaymentId = null;
     pendingGatewayOrderId = null;
@@ -200,6 +280,9 @@ class CheckoutController extends StateNotifier<CheckoutState> {
         idempotencyKey: state.idempotencyKey,
       );
       OrderPlacementLog.end(reason: reason);
+    }
+    if (_phase != PlacementPhase.success) {
+      _phase = PlacementPhase.idle;
     }
   }
 
@@ -254,6 +337,7 @@ class CheckoutController extends StateNotifier<CheckoutState> {
 
   @override
   void dispose() {
+    _phaseTimer?.cancel();
     _keepAlive?.close();
     super.dispose();
   }

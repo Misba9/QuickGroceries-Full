@@ -166,6 +166,29 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     return true;
   }
 
+  bool _canContinueAttempt(CheckoutController notifier, int attemptId) {
+    if (!_attemptStillCurrent(notifier, attemptId)) return false;
+    if (notifier.isAttemptCancelled(attemptId)) {
+      OrderPlacementLog.staleCallbackIgnored(attemptId);
+      return false;
+    }
+    return mounted;
+  }
+
+  /// Creating-order and validation must not keep the overlay up after the
+  /// attempt has already ended or failed to finish.
+  void _settleUnlessTerminal(CheckoutController notifier, int attemptId) {
+    if (!notifier.ownsAttempt(attemptId)) return;
+    if (_navigatedAttemptId == attemptId) return;
+    if (notifier.phase == PlacementPhase.success ||
+        notifier.phase == PlacementPhase.paymentProcessing ||
+        notifier.phase == PlacementPhase.idle) {
+      return;
+    }
+    if (notifier.isAwaitingExternalPayment) return;
+    notifier.finishPlacementFailure(attemptId: attemptId);
+  }
+
   Future<void> _placeOrder({
     required int attemptId,
     required CartState cart,
@@ -203,9 +226,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
             },
           );
       availability.debugLog();
-      if (!_attemptStillCurrent(checkoutNotifier, attemptId) || !mounted) {
-        return;
-      }
+      if (!_canContinueAttempt(checkoutNotifier, attemptId)) return;
 
       final availabilityError = availability.blockingReason;
       OrderPlacementLog.validationCompleted(
@@ -255,44 +276,46 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         idempotencyKey: idempotencyKey,
       );
       _externalPaymentResumeTimer?.cancel();
-      if (!_attemptStillCurrent(checkoutNotifier, attemptId)) return;
-      handedToGateway = true;
+      if (!_canContinueAttempt(checkoutNotifier, attemptId)) return;
       checkoutNotifier.beginAwaitingExternalPayment(attemptId: attemptId);
+      await Future<void>.delayed(Duration.zero);
+      if (!_canContinueAttempt(checkoutNotifier, attemptId)) return;
+      handedToGateway = true;
       payment.openCheckout(
         bill.total,
         address.name,
         'Quick Grocery order',
+        attemptId: attemptId,
         onPaymentSuccess: (paymentId, gatewayOrderId) async {
-          _externalPaymentResumeTimer?.cancel();
-          if (!_attemptStillCurrent(checkoutNotifier, attemptId)) return;
-          if (checkoutNotifier.isAttemptCancelled(attemptId)) {
-            OrderPlacementLog.staleCallbackIgnored(attemptId);
-            return;
-          }
-          OrderPlacementLog.paymentVerificationStarted(
-            hasPaymentId: paymentId.isNotEmpty,
-          );
-          if (!checkoutNotifier.resumePlacementAfterPayment(
-            attemptId: attemptId,
-            paymentId: paymentId,
-            gatewayOrderId: gatewayOrderId,
-          )) {
-            OrderPlacementLog.paidOrderCreateFailure(hasPaymentId: true);
-            OrderPlacementLog.error(
-              stage: 'payment_success_checkout_closed',
-              error: 'checkout_unmounted',
-              idempotencyKey: idempotencyKey,
-            );
-            if (_isCheckoutCurrent()) {
-              _showPaidOrderRecovery(
-                'Payment was received but checkout closed before the order '
-                'could be created. Payment ID: $paymentId. Do not pay again — '
-                'contact support with this ID.',
-              );
-            }
-            return;
-          }
+          if (!_canContinueAttempt(checkoutNotifier, attemptId)) return;
+          var creatingOrder = false;
           try {
+            _externalPaymentResumeTimer?.cancel();
+            if (!_canContinueAttempt(checkoutNotifier, attemptId)) return;
+            OrderPlacementLog.paymentVerificationStarted(
+              hasPaymentId: paymentId.isNotEmpty,
+            );
+            if (!checkoutNotifier.resumePlacementAfterPayment(
+              attemptId: attemptId,
+              paymentId: paymentId,
+              gatewayOrderId: gatewayOrderId,
+            )) {
+              OrderPlacementLog.paidOrderCreateFailure(hasPaymentId: true);
+              OrderPlacementLog.error(
+                stage: 'payment_success_checkout_closed',
+                error: 'checkout_unmounted',
+                idempotencyKey: idempotencyKey,
+              );
+              if (_isCheckoutCurrent()) {
+                _showPaidOrderRecovery(
+                  'Payment was received but checkout closed before the order '
+                  'could be created. Payment ID: $paymentId. Do not pay again — '
+                  'contact support with this ID.',
+                );
+              }
+              return;
+            }
+            creatingOrder = true;
             await _finalizeOrder(
               attemptId: attemptId,
               cart: cart,
@@ -306,6 +329,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
               paymentRef: paymentId,
               razorpayOrderId: gatewayOrderId,
               idempotencyKey: idempotencyKey,
+            ).timeout(
+              const Duration(seconds: 75),
+              onTimeout: () {
+                OrderPlacementLog.timeout(
+                  stage: 'creating_order',
+                  idempotencyKey: idempotencyKey,
+                );
+                throw TimeoutException(
+                  'Placing your order took too long. Please try again. '
+                  'If you were charged, do not pay again.',
+                );
+              },
             );
           } catch (e, stack) {
             OrderPlacementLog.paidOrderCreateFailure(hasPaymentId: true);
@@ -318,11 +353,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
             if (_isCheckoutCurrent()) {
               _showOrderError(e, stack, paidPaymentId: paymentId);
             }
+          } finally {
+            if (creatingOrder) {
+              _settleUnlessTerminal(checkoutNotifier, attemptId);
+            }
           }
         },
         onPaymentError: (message) {
           _externalPaymentResumeTimer?.cancel();
-          if (!_attemptStillCurrent(checkoutNotifier, attemptId)) return;
+          if (checkoutNotifier.phase != PlacementPhase.paymentProcessing ||
+              !_attemptStillCurrent(checkoutNotifier, attemptId)) {
+            OrderPlacementLog.staleCallbackIgnored(attemptId);
+            return;
+          }
           final cancelled = message.toLowerCase().contains('cancel');
           if (cancelled) {
             OrderPlacementLog.paymentCancelled(reason: 'payment_error');
@@ -392,12 +435,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     if (!_attemptStillCurrent(checkoutNotifier, attemptId)) return;
     if (checkoutNotifier.isAttemptCancelled(attemptId)) {
       OrderPlacementLog.staleCallbackIgnored(attemptId);
+      _settleUnlessTerminal(checkoutNotifier, attemptId);
       return;
     }
     if (_navigatedAttemptId == attemptId) {
       OrderPlacementLog.navigationBlocked(reason: 'already_navigated');
+      _settleUnlessTerminal(checkoutNotifier, attemptId);
       return;
     }
+    checkoutNotifier.markCreatingOrder(attemptId: attemptId);
 
     if (paymentMethod.isOnline &&
         (paymentRef == null || paymentRef.trim().isEmpty)) {
@@ -1137,6 +1183,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                           .read(checkoutControllerProvider)
                           .idempotencyKey;
                       OrderPlacementLog.started(idempotencyKey: idempotencyKey);
+                      OrderPlacementLog.stateBeforeStart(
+                        idempotencyKey: idempotencyKey,
+                        placing: true,
+                        locked: checkoutNotifier.placementLocked,
+                        phase: checkoutNotifier.phase.name,
+                      );
                       OrderPlacementLog.buttonTapped(
                         idempotencyKey: idempotencyKey,
                       );

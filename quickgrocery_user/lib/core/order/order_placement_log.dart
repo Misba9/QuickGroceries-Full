@@ -12,8 +12,20 @@ abstract final class OrderPlacementLog {
     _log('START', 'key=$idempotencyKey');
   }
 
+  static void stateBeforeStart({
+    required String idempotencyKey,
+    required bool placing,
+    required bool locked,
+    required String phase,
+  }) {
+    _log(
+      'STATE_BEFORE_START',
+      'key=$idempotencyKey placing=$placing locked=$locked phase=$phase',
+    );
+  }
+
   static void buttonTapped({required String idempotencyKey}) {
-    _log('button_tapped', 'key=$idempotencyKey');
+    _log('BUTTON_TAPPED', 'key=$idempotencyKey');
   }
 
   static void duplicateTapIgnored({required String idempotencyKey}) {
@@ -32,7 +44,7 @@ abstract final class OrderPlacementLog {
   }
 
   static void validationStarted({required String idempotencyKey}) {
-    _log('validation_started', 'key=$idempotencyKey');
+    _log('VALIDATION_STARTED', 'key=$idempotencyKey');
   }
 
   static void validationCompleted({
@@ -41,7 +53,7 @@ abstract final class OrderPlacementLog {
     String? reason,
   }) {
     _log(
-      'validation_completed',
+      'VALIDATION_COMPLETED',
       'key=$idempotencyKey ok=$ok reason=${reason ?? ''}',
     );
   }
@@ -50,7 +62,7 @@ abstract final class OrderPlacementLog {
     required String method,
     required String idempotencyKey,
   }) {
-    _log('PAYMENT_STARTED', 'method=$method key=$idempotencyKey');
+    _log('PAYMENT_START', 'method=$method key=$idempotencyKey');
   }
 
   static void paymentCancelled({required String reason}) {
@@ -62,11 +74,11 @@ abstract final class OrderPlacementLog {
   }
 
   static void stateReset({required bool rotatedKey}) {
-    _log('STATE_RESET', 'rotatedKey=$rotatedKey');
+    _log('CLEANUP', 'rotatedKey=$rotatedKey');
   }
 
   static void end({required String reason}) {
-    _log('END', reason);
+    _log('IDLE', reason);
   }
 
   static void staleCallbackIgnored(int attemptId) {
@@ -100,7 +112,7 @@ abstract final class OrderPlacementLog {
   }
 
   static void apiStarted({required String idempotencyKey, String? path}) {
-    _log('api_started', 'key=$idempotencyKey path=${path ?? 'callable'}');
+    _log('API_START', 'key=$idempotencyKey path=${path ?? 'callable'}');
   }
 
   static void apiCompleted({
@@ -109,7 +121,7 @@ abstract final class OrderPlacementLog {
     bool duplicate = false,
   }) {
     _log(
-      'api_completed',
+      'API_COMPLETED',
       'key=$idempotencyKey orderId=$orderId duplicate=$duplicate',
     );
   }
@@ -122,11 +134,11 @@ abstract final class OrderPlacementLog {
   }
 
   static void navigationStarted({required String orderId}) {
-    _log('navigation_started', 'orderId=$orderId');
+    _log('NAVIGATION_START', 'orderId=$orderId');
   }
 
   static void navigationCompleted({required String orderId}) {
-    _log('navigation_completed', 'orderId=$orderId');
+    _log('NAVIGATION_COMPLETED', 'orderId=$orderId');
   }
 
   static void navigationBlocked({required String reason}) {
@@ -138,15 +150,15 @@ abstract final class OrderPlacementLog {
   }
 
   static void paymentGatewayOpen() {
-    _log('PAYMENT_GATEWAY_OPEN', 'razorpay');
+    _log('PAYMENT_OPEN_CALLED', 'razorpay');
   }
 
   static void paymentSuccessCallback({required bool hasPaymentId}) {
-    _log('PAYMENT_SUCCESS_CALLBACK', 'hasPaymentId=$hasPaymentId');
+    _log('PAYMENT_CALLBACK_SUCCESS', 'hasPaymentId=$hasPaymentId');
   }
 
   static void paymentFailureCallback({int? code}) {
-    _log('PAYMENT_FAILURE_CALLBACK', 'code=$code');
+    _log('PAYMENT_CALLBACK_ERROR', 'code=$code');
   }
 
   static void paymentVerificationStarted({required bool hasPaymentId}) {

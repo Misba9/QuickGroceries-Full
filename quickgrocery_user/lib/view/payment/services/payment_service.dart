@@ -12,6 +12,8 @@ class PaymentService extends ChangeNotifier {
   _onPaymentSuccessCallback;
   void Function(String message)? _onPaymentErrorCallback;
 
+  int? _activeAttemptId;
+
   /// Last gateway payment id after a successful callback (never a secret).
   String? lastPaymentId;
 
@@ -23,6 +25,7 @@ class PaymentService extends ChangeNotifier {
     paymentStatus = 'Pending';
     _onPaymentSuccessCallback = null;
     _onPaymentErrorCallback = null;
+    _activeAttemptId = null;
     notifyListeners();
   }
 
@@ -41,9 +44,17 @@ class PaymentService extends ChangeNotifier {
     double amount,
     String name,
     String description, {
+    int? attemptId,
     void Function(String paymentId, String? gatewayOrderId)? onPaymentSuccess,
     void Function(String message)? onPaymentError,
   }) {
+    if (attemptId != null &&
+        _activeAttemptId != null &&
+        _activeAttemptId != attemptId) {
+      OrderPlacementLog.staleCallbackIgnored(_activeAttemptId!);
+    }
+    _activeAttemptId = attemptId;
+    if (attemptId != null) OrderPlacementLog.bindAttempt(attemptId);
     _onPaymentSuccessCallback = onPaymentSuccess;
     _onPaymentErrorCallback = onPaymentError;
 
@@ -82,6 +93,7 @@ class PaymentService extends ChangeNotifier {
     final cb = _onPaymentErrorCallback;
     _onPaymentSuccessCallback = null;
     _onPaymentErrorCallback = null;
+    _activeAttemptId = null;
     cb?.call(message);
   }
 
@@ -102,6 +114,7 @@ class PaymentService extends ChangeNotifier {
     final cb = _onPaymentSuccessCallback;
     _onPaymentSuccessCallback = null;
     _onPaymentErrorCallback = null;
+    _activeAttemptId = null;
     OrderPlacementLog.paymentVerificationStarted(hasPaymentId: true);
     OrderPlacementLog.paymentVerificationSuccess();
     cb?.call(paymentId, response.orderId?.trim());
@@ -125,6 +138,7 @@ class PaymentService extends ChangeNotifier {
     final cb = _onPaymentErrorCallback;
     _onPaymentErrorCallback = null;
     _onPaymentSuccessCallback = null;
+    _activeAttemptId = null;
     cb?.call(msg);
   }
 
