@@ -17,7 +17,6 @@ class GuestSessionNotifier extends Notifier<bool> {
   }
 
   Future<void> enable() async {
-    if (FirebaseAuth.instance.currentUser != null) return;
     state = true;
     await ref.read(sharedPreferencesProvider).setBool(_guestSessionKey, true);
   }

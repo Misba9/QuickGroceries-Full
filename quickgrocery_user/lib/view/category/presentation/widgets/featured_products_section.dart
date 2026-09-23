@@ -90,7 +90,11 @@ class FeaturedProductsSection extends ConsumerWidget {
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (_, i) => StaggeredFadeIn(
               index: i,
-              child: HomeProductCard(product: products[i]),
+              child: HomeProductCard(
+                product: products[i],
+                heroScope: 'featured-$title',
+                heroIndex: i,
+              ),
             ),
           ),
         ],

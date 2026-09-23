@@ -131,11 +131,11 @@ class _AddDims {
   factory _AddDims.from(QuantityStepperSize s) {
     switch (s) {
       case QuantityStepperSize.small:
-        return const _AddDims(height: 28, padding: 14, radius: 8, fontSize: 11.5);
+        return const _AddDims(height: 36, padding: 14, radius: 8, fontSize: 13);
       case QuantityStepperSize.medium:
-        return const _AddDims(height: 32, padding: 18, radius: 10, fontSize: 12.5);
+        return const _AddDims(height: 40, padding: 18, radius: 10, fontSize: 14);
       case QuantityStepperSize.large:
-        return const _AddDims(height: 40, padding: 22, radius: 12, fontSize: 14);
+        return const _AddDims(height: 48, padding: 22, radius: 12, fontSize: 16);
     }
   }
 }

@@ -46,7 +46,11 @@ class _CustomerDetailsAddScreenState extends State<CustomerDetailsAddScreen> {
       body: SafeArea(
         child: KeyboardSafeBody(
           padding: const EdgeInsets.all(15),
-          child: Column(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
@@ -156,6 +160,8 @@ class _CustomerDetailsAddScreenState extends State<CustomerDetailsAddScreen> {
               ),
               const SizedBox(height: 8),
             ],
+          ),
+            ),
           ),
         ),
       ),

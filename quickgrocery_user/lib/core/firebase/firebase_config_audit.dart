@@ -569,6 +569,13 @@ class FirebaseConfigAudit {
     }
 
     if (e.code == 'missing-client-identifier') {
+      if (Platform.isIOS) {
+        return 'Phone login could not verify this iOS app.\n\n'
+            'Register an APNs Authentication Key in Firebase Console → '
+            'Project settings → Cloud Messaging, keep Push Notifications '
+            'enabled, and ensure Info.plist contains the app-… URL scheme '
+            'from this iOS app’s Google App ID.';
+      }
       return 'Phone login is not configured for this build.\n\n'
           'Add your Android SHA-1 and SHA-256 in Firebase Console for '
           'com.quickgrocery.io, then re-download google-services.json '

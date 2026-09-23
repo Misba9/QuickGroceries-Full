@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/view/category/presentation/utils/category_grid_layout.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
 import 'package:shimmer/shimmer.dart';
@@ -230,29 +231,33 @@ class HomeShimmer {
   }
 
   static Widget exploreGrid({int count = 6}) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 8,
-        childAspectRatio: 0.60,
-      ),
-      itemCount: count,
-      itemBuilder: (_, __) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.max,
-        children: [
-          Expanded(child: _box(radius: 12)),
-          const SizedBox(height: 6),
-          _box(height: 10, width: 80),
-          const SizedBox(height: 6),
-          _box(height: 10, width: 120),
-          const SizedBox(height: 8),
-          _box(height: 14, width: 60),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cols = Responsive.productGridColumnsForWidth(constraints.maxWidth);
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: Responsive.productGridDelegate(
+            context,
+            availableWidth: constraints.maxWidth,
+            spacing: 10,
+          ),
+          itemCount: count < cols * 2 ? cols * 2 : count,
+          itemBuilder: (_, __) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              Expanded(child: _box(radius: 12)),
+              const SizedBox(height: 6),
+              _box(height: 10, width: 80),
+              const SizedBox(height: 6),
+              _box(height: 10, width: 120),
+              const SizedBox(height: 8),
+              _box(height: 14, width: 60),
+            ],
+          ),
+        );
+      },
     );
   }
 }

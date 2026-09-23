@@ -167,6 +167,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                         const SizedBox(height: 20),
                         ProfileSectionGuard(
+                          section: 'Delete Account',
+                          builder: () => const ProfileDeleteAccountSection(),
+                        ),
+                        const SizedBox(height: 12),
+                        ProfileSectionGuard(
                           section: 'Logout',
                           builder: () => const ProfileLogoutSection(),
                         ),

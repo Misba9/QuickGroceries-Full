@@ -31,6 +31,13 @@ flutter build appbundle --release
 ```
 Output: `build/app/outputs/bundle/release/app-release.aab`
 
+```bash
+flutter clean
+flutter pub get
+flutter build ipa --release
+```
+
+
 ## Firebase Phone Auth (avoid external reCAPTCHA page)
 
 Phone login uses **Firebase Phone Authentication**. On Android, SMS is sent after **native Play Integrity / SafetyNet** verification when the app is configured correctly. If SHA certificates are missing, Firebase falls back to an external **"Verify you're not a bot"** reCAPTCHA page — this is confusing and often fails.

@@ -3,7 +3,6 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -63,25 +62,10 @@ class AuthService extends ChangeNotifier {
 
   // Handle Referral
   Future<void> handleReferralAfterInstall() async {
-    final PendingDynamicLinkData? initialLink = await FirebaseDynamicLinks
-        .instance
-        .getInitialLink();
-
-    if (initialLink != null) {
-      final Uri deepLink = initialLink.link;
-      _captureReferralFromUri(deepLink);
-    }
-
-    FirebaseDynamicLinks.instance.onLink
-        .listen((PendingDynamicLinkData data) {
-          _captureReferralFromUri(data.link);
-        })
-        .onError((error) {
-          if (kDebugMode) debugPrint("Dynamic Link Error: $error");
-        });
+    // Dynamic Links deprecated/shut down by Firebase. Code captures remain available via URI / controller.
   }
 
-  void _captureReferralFromUri(Uri deepLink) {
+  void captureReferralFromUri(Uri deepLink) {
     final code = deepLink.queryParameters['code'] ??
         deepLink.queryParameters['ref'] ??
         '';
@@ -348,22 +332,32 @@ class AuthService extends ChangeNotifier {
           if (_phoneVerificationSettled) return;
           watchdog?.cancel();
           isLoading = false;
-          FirebasePhoneAuthLogger.logAuthException(
-            'verificationFailed',
-            e,
-            stackTrace: StackTrace.current,
-          );
-          await FirebasePhoneAuthLogger.logVerifyPhoneSnapshot(
-            phase: 'verificationFailed',
-            phoneNumber: phoneNumber,
-          );
-          final message = await _phoneAuthErrorMessage(e);
-          _setPhoneAuthError(message);
-          log('verificationFailed: ${e.code} ${e.message}', error: e, stackTrace: StackTrace.current);
-          // Login screen already shows [phoneAuthError] banner — avoid duplicate snackbar.
-          if (context.mounted && navigateToOtpOnCodeSent) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(message), backgroundColor: Colors.red),
+          try {
+            FirebasePhoneAuthLogger.logAuthException(
+              'verificationFailed',
+              e,
+              stackTrace: StackTrace.current,
+            );
+            await FirebasePhoneAuthLogger.logVerifyPhoneSnapshot(
+              phase: 'verificationFailed',
+              phoneNumber: phoneNumber,
+            );
+            final message = await _phoneAuthErrorMessage(e);
+            _setPhoneAuthError(message);
+            log('verificationFailed: ${e.code} ${e.message}', error: e, stackTrace: StackTrace.current);
+            if (context.mounted && navigateToOtpOnCodeSent) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(message), backgroundColor: Colors.red),
+              );
+            }
+          } catch (handlerError, handlerStack) {
+            log(
+              'verificationFailed handler error',
+              error: handlerError,
+              stackTrace: handlerStack,
+            );
+            _setPhoneAuthError(
+              'Phone verification failed. Please try again.',
             );
           }
         },
@@ -384,13 +378,20 @@ class AuthService extends ChangeNotifier {
           if (!context.mounted) return;
 
           if (navigateToOtpOnCodeSent) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                settings: const RouteSettings(name: AppRoutes.otp),
-                builder: (context) => const OtpAuthScreen(),
-              ),
-            );
+            try {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  settings: const RouteSettings(name: AppRoutes.otp),
+                  builder: (context) => const OtpAuthScreen(),
+                ),
+              );
+            } catch (navError, navStack) {
+              log('OTP navigation failed', error: navError, stackTrace: navStack);
+              _setPhoneAuthError(
+                'OTP was sent but the next screen could not open. Try again.',
+              );
+            }
           }
         },
         codeAutoRetrievalTimeout: (String verificationId) {
@@ -451,11 +452,16 @@ class AuthService extends ChangeNotifier {
         return 'Too many attempts. Please wait a few minutes and try again.';
       case 'quota-exceeded':
         return 'SMS quota exceeded. Try again later or contact support.';
+      case 'network-request-failed':
+        return 'Network error. Check your connection and try again.';
+      case 'session-expired':
+        return 'This verification session expired. Request a new OTP.';
+      case 'captcha-check-failed':
+        return 'App verification failed. Return to this app after the security check and try again.';
       case 'missing-client-identifier':
       case 'app-not-authorized':
       case 'invalid-app-credential':
       case 'invalid-cert-hash':
-      case 'captcha-check-failed':
       case 'internal-error':
         return FirebaseConfigAudit.messageForAuthException(e);
       default:

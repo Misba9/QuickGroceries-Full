@@ -36,7 +36,12 @@ class CheckoutBottomBar extends StatelessWidget {
 
     return SafeArea(
       top: false,
-      child: Container(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        heightFactor: 1,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: AppBreakpoints.contentMaxWidth),
+          child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: const BoxDecoration(
@@ -118,6 +123,8 @@ class CheckoutBottomBar extends StatelessWidget {
             ),
           ],
         ),
+          ),
+        ),
       ),
     );
   }
@@ -152,7 +159,7 @@ class _HintStrip extends StatelessWidget {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 11.5,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: c,
                 height: 1.25,

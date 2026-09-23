@@ -32,11 +32,15 @@ class PrimaryButton extends StatelessWidget {
           child: isLoading
               ? SizedBox(
                   height: height * .06,
-                  child: const CupertinoActivityIndicator(color: Colors.white),
+                  child: const CupertinoActivityIndicator(color: Colors.black87),
                 )
               : Text(
                   title,
-                  style: const TextStyle(fontSize: 18, color: Colors.white),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
                 ),
         ),
       ),

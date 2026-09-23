@@ -66,8 +66,11 @@ class SimilarProductsSection extends ConsumerWidget {
                 height: Responsive.horizontalProductRailHeight(context),
                 itemCount: products.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (_, i) =>
-                    HomeProductCard(product: products[i]),
+                itemBuilder: (_, i) => HomeProductCard(
+                  product: products[i],
+                  heroScope: 'similar',
+                  heroIndex: i,
+                ),
               ),
             ],
           ),

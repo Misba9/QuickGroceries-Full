@@ -144,7 +144,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<SearchService>(context);
-    final gutter = Responsive.of(context).gutter();
+    final gutter = Responsive.of(context).horizontalInset();
 
     return Scaffold(
       appBar: AppBar(
@@ -224,29 +224,32 @@ class _SearchScreenState extends State<SearchScreen> {
                   )
                 else
                   SliverPadding(
-                    padding: EdgeInsets.fromLTRB(12, 4, 12, 100),
-                    sliver: SliverGrid(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 9,
-                        childAspectRatio: 0.68,
-                      ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, i) {
-                          final product = provider.filteredProductsList![i];
-                          return LayoutBuilder(
-                            builder: (context, c) {
-                              return ProductCardWidget(
-                                product: product,
-                                width: c.maxWidth,
+                    padding: EdgeInsets.fromLTRB(gutter, 4, gutter, 100),
+                    sliver: SliverLayoutBuilder(
+                      builder: (context, constraints) {
+                        return SliverGrid(
+                          gridDelegate: Responsive.productGridDelegate(
+                            context,
+                            availableWidth: constraints.crossAxisExtent,
+                          ),
+                          delegate: SliverChildBuilderDelegate(
+                            (context, i) {
+                              final product = provider.filteredProductsList![i];
+                              return LayoutBuilder(
+                                builder: (context, c) {
+                                  return ProductCardWidget(
+                                    product: product,
+                                    width: c.maxWidth,
+                                    heroScope: 'search',
+                                    heroIndex: i,
+                                  );
+                                },
                               );
                             },
-                          );
-                        },
-                        childCount: provider.filteredProductsList!.length,
-                      ),
+                            childCount: provider.filteredProductsList!.length,
+                          ),
+                        );
+                      },
                     ),
                   ),
               ],

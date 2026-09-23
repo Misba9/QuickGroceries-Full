@@ -52,6 +52,8 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
   bool _wasAuthenticated = false;
   String? _lastShellDestination;
   StreamSubscription<User?>? _authSubscription;
+  int _syncGeneration = 0;
+  bool _syncInFlight = false;
 
   void _logShellDestination(String destination) {
     if (_lastShellDestination == destination) return;
@@ -119,6 +121,11 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
   }
 
   Future<void> _syncAuth({bool force = false}) async {
+    if (_syncInFlight && !force) return;
+    final generation = ++_syncGeneration;
+    _syncInFlight = true;
+
+    try {
     final authAsync = ref.read(authUserProvider);
     final authUser = resolveAuthUser(authAsync);
 
@@ -128,7 +135,7 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
       bootUid: _bootUid,
     );
 
-    if (!mounted) return;
+    if (!mounted || generation != _syncGeneration) return;
 
     if (authUser == null) {
       if (FirebaseAuth.instance.currentUser != null) {
@@ -139,11 +146,13 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
       _bootUid = null;
 
       await ref.read(guestSessionProvider.notifier).enable();
+      if (!mounted || generation != _syncGeneration) return;
       await _syncGuest(force: force);
       return;
     }
 
     await ref.read(guestSessionProvider.notifier).disable();
+    if (!mounted || generation != _syncGeneration) return;
 
     final signingInFresh = !_wasAuthenticated;
     _wasAuthenticated = true;
@@ -165,7 +174,7 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
       await PhoneSignInNavigation.clearAuthRoutesWhenReady();
     }
 
-    if (!mounted) return;
+    if (!mounted || generation != _syncGeneration) return;
 
     final deps = BootstrapDependencies(
       addressService: legacy.Provider.of<AddressService>(context, listen: false),
@@ -181,21 +190,23 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
           precacheImages: (snap) => HomeImagePrecache.warm(context, snap),
         );
 
-    if (mounted && signingInFresh) {
+    if (mounted && signingInFresh && generation == _syncGeneration) {
       AuthSessionLog.homeNavigation(uid: authUser.uid);
+    }
+    } finally {
+      if (generation == _syncGeneration) {
+        _syncInFlight = false;
+      }
     }
   }
 
   Future<void> _syncGuest({bool force = false}) async {
     if (!mounted) return;
 
-    if (!force &&
-        ref.read(appBootstrapCompleteProvider) &&
-        ref.read(appBootstrapProvider).status != AppBootstrapStatus.error) {
-      return;
-    }
-
-    FloatingCartSuppression.reset();
+    final bootstrap = ref.read(appBootstrapProvider);
+    final alreadyShowingHome = bootstrap.isComplete &&
+        (bootstrap.phase == AppBootstrapPhase.ready ||
+            bootstrap.phase == AppBootstrapPhase.degraded);
 
     final deps = BootstrapDependencies(
       addressService: legacy.Provider.of<AddressService>(context, listen: false),
@@ -205,6 +216,21 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
       deliveryZoneService:
           legacy.Provider.of<DeliveryZoneService>(context, listen: false),
     );
+
+    if (alreadyShowingHome) {
+      await ref.read(appBootstrapProvider.notifier).reattachGuestAfterSignOut(
+            deps,
+          );
+      return;
+    }
+
+    if (!force &&
+        ref.read(appBootstrapCompleteProvider) &&
+        ref.read(appBootstrapProvider).status != AppBootstrapStatus.error) {
+      return;
+    }
+
+    FloatingCartSuppression.reset();
 
     await ref.read(appBootstrapProvider.notifier).runGuest(
           deps,

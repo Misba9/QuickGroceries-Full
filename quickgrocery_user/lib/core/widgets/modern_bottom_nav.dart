@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 
 import '../design/app_tokens.dart';
+import '../design/app_typography.dart';
 
 class ModernBottomNavItem {
   const ModernBottomNavItem({
@@ -181,8 +181,7 @@ class _NavTab extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                fontSize: 10.5,
+              style: AppTypography.caption.copyWith(
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                 color: selected ? AppSurface.textPrimary : AppSurface.textMuted,
               ),
@@ -214,12 +213,7 @@ class _Badge extends StatelessWidget {
         alignment: Alignment.center,
         child: Text(
           count > 99 ? '99+' : '$count',
-          style: GoogleFonts.poppins(
-            fontSize: 9.5,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
-            height: 1.2,
-          ),
+          style: AppTypography.badge,
         ),
       ),
     );

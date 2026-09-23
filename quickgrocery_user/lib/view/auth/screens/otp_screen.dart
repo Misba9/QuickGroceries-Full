@@ -8,6 +8,7 @@ import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/auth/phone_sign_in_navigation.dart';
 import 'package:quickgrocery/core/navigation/auth_floating_cart_guard.dart';
 import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
+import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
 import 'package:quickgrocery/view/auth/widgets/pinput_sms_retriever.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
@@ -187,9 +188,15 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: KeyboardSafeBody(
-          padding: const EdgeInsets.symmetric(horizontal: 22),
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.of(context).horizontalInset().clamp(22.0, 64.0),
+          ),
           fillMinHeight: true,
-          child: Column(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 8),
@@ -324,6 +331,8 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
               ),
               const SizedBox(height: 24),
             ],
+          ),
+            ),
           ),
         ),
       ),

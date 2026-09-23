@@ -253,6 +253,50 @@ class AppLocalizationsTe extends AppLocalizations {
   String get delete_account => 'ఖాతా తొలగించు';
 
   @override
+  String get deleteAccountTitle => 'Delete your account?';
+
+  @override
+  String get deleteAccountBody =>
+      'This permanently deletes your account and personal data. This cannot be undone.\n\nOrders and payment records are kept for legal and accounting purposes, with your name, phone, and address removed.';
+
+  @override
+  String get deleteAccountSecondTitle =>
+      'Are you sure you want to permanently delete your account?';
+
+  @override
+  String get deleteAccountSecondBody =>
+      'You will be signed out. This cannot be reversed.';
+
+  @override
+  String get yesDeleteMyAccount => 'Yes, Delete My Account';
+
+  @override
+  String get deleteAccountSuccess =>
+      'Your account has been deleted successfully.';
+
+  @override
+  String get deleteAccountFailed =>
+      'We couldn\'t delete your account. Please try again.';
+
+  @override
+  String get deleteAccountProcessing => 'Deleting your account...';
+
+  @override
+  String get deleteAccountReauthTitle => 'Verify it\'s you';
+
+  @override
+  String get deleteAccountReauthBody =>
+      'Enter the OTP sent to your phone to finish deleting your account.';
+
+  @override
+  String get deleteAccountReauthFailed =>
+      'Phone verification failed. Please try again.';
+
+  @override
+  String get deleteAccountNeedPhone =>
+      'Sign in with your mobile number, then try Delete Account again.';
+
+  @override
   String get delete_address_body =>
       'ఈ చిరునామా మీ జాబితా నుండి తొలగించబడుతుంది.';
 

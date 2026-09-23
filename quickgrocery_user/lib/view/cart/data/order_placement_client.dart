@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:quickgrocery/core/firebase/callable_payload.dart';
+import 'package:quickgrocery/core/order/order_placement_log.dart';
 import 'package:quickgrocery/models/address_model.dart';
 
 import '../domain/cart_models.dart';
@@ -13,7 +17,7 @@ class OrderPlacementClient {
   OrderPlacementClient({FirebaseFunctions? functions})
     : _fn = functions,
       _regions = functions == null
-          ? const ['asia-south1', 'us-central1']
+          ? const ['us-central1', 'asia-south1']
           : const [];
 
   static const functionName = 'placeOrderCallable';
@@ -32,13 +36,11 @@ class OrderPlacementClient {
     required DeliveryInstructions instructions,
     required PaymentMethod paymentMethod,
     String? paymentRef,
+    String? razorpayOrderId,
     double tipAmount = 0,
     String? idempotencyKey,
   }) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      throw StateError('User must be signed in to place an order.');
-    }
+    final user = await _requireFreshAuth();
 
     final authPhone = user.phoneNumber?.trim() ?? '';
     final resolvedMobile = address.resolvedMobile(authPhone);
@@ -70,14 +72,25 @@ class OrderPlacementClient {
       'delivery_instructions': instructions.legacyText,
       'deliveryInstructions': instructions.toMap(),
       'paymentMethod': paymentMethod.id,
-      if (paymentRef != null) 'paymentRef': paymentRef,
+      if (paymentRef != null && paymentRef.trim().isNotEmpty)
+        'paymentRef': paymentRef.trim(),
+      if (razorpayOrderId != null && razorpayOrderId.trim().isNotEmpty)
+        'razorpayOrderId': razorpayOrderId.trim(),
       if (tipAmount > 0) 'tipAmount': tipAmount.round(),
       if (idempotencyKey != null && idempotencyKey.isNotEmpty)
         'idempotencyKey': idempotencyKey,
     });
     debugCallableData(functionName, payload);
 
-    final res = await _callPlaceOrder(payload);
+    HttpsCallableResult<dynamic> res;
+    try {
+      res = await _callPlaceOrder(payload);
+    } on FirebaseFunctionsException catch (e) {
+      if (!_isAuthCallableError(e)) rethrow;
+      OrderPlacementLog.authRefreshRetry(code: e.code);
+      await _requireFreshAuth();
+      res = await _callPlaceOrder(payload);
+    }
 
     final data = res.data;
     if (data is Map && data['orderId'] != null) {
@@ -98,6 +111,55 @@ class OrderPlacementClient {
         e.code == 'unavailable' ||
         e.code == 'internal' ||
         e.code == 'unknown';
+  }
+
+  /// Permanent rejections — do not poll idempotency for 12s.
+  static bool isPermanentFunctionsError(FirebaseFunctionsException e) {
+    return e.code == 'failed-precondition' ||
+        e.code == 'invalid-argument' ||
+        e.code == 'already-exists' ||
+        e.code == 'permission-denied' ||
+        e.code == 'unauthenticated';
+  }
+
+  static bool _isAuthCallableError(FirebaseFunctionsException e) {
+    return e.code == 'unauthenticated' ||
+        e.code == 'permission-denied' ||
+        (e.message ?? '').toLowerCase().contains('authentication failed');
+  }
+
+  Future<User> _requireFreshAuth() async {
+    var user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw StateError('User must be signed in to place an order.');
+    }
+    try {
+      await user.reload().timeout(const Duration(seconds: 8));
+    } catch (e) {
+      debugPrint('ORDER AUTH reload failed: $e');
+    }
+    user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw StateError('User must be signed in to place an order.');
+    }
+    try {
+      await user.getIdToken(true).timeout(const Duration(seconds: 12));
+    } on TimeoutException {
+      OrderPlacementLog.timeout(stage: 'auth_token', idempotencyKey: '');
+      debugPrint(
+        'ORDER AUTH token refresh timed out; continuing with current session',
+      );
+    }
+    try {
+      // Server-side App Check is unchanged. This only stops a stuck token
+      // refresh from holding the checkout spinner open.
+      await FirebaseAppCheck.instance
+          .getToken(true)
+          .timeout(const Duration(seconds: 8));
+    } catch (e) {
+      debugPrint('ORDER APP_CHECK token refresh failed: $e');
+    }
+    return user;
   }
 
   Future<HttpsCallableResult<dynamic>> _callPlaceOrder(
@@ -153,7 +215,12 @@ class OrderPlacementClient {
     Map<String, dynamic> payload,
   ) async {
     debugPrint('ORDER CALLABLE START function=$functionName region=$region');
-    return functions.httpsCallable(functionName).call(payload);
+    return functions
+        .httpsCallable(
+          functionName,
+          options: HttpsCallableOptions(timeout: const Duration(seconds: 60)),
+        )
+        .call(payload);
   }
 
   bool _shouldTryNextRegion(FirebaseFunctionsException e) {

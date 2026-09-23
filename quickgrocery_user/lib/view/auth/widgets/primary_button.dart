@@ -12,35 +12,43 @@ class PrimaryButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool isLoading;
 
+  static const Color _labelColor = Color(0xFF1A1A1A);
+
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
+    final enabled = !isLoading && onTap != null;
     return SizedBox(
-      width: width / 1,
+      width: MediaQuery.sizeOf(context).width,
       height: 55,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              12,
-            ), // Adjust the radius as needed
+      child: Material(
+        color: AppColor.primary,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(12),
+          child: Center(
+            child: isLoading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: _labelColor,
+                    ),
+                  )
+                : Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      inherit: false,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                      color: _labelColor,
+                    ),
+                  ),
           ),
-          backgroundColor: AppColor.primary,
         ),
-        onPressed: isLoading ? null : onTap,
-        child: isLoading
-            ? const SizedBox(
-                width: 30,
-                height: 30,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
-            : Text(
-                label,
-                style: const TextStyle(fontSize: 16, color: Colors.white),
-              ),
       ),
     );
   }

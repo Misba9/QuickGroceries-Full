@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -67,23 +66,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 // Handle Referral
 Future<void> handleReferralAfterInstall() async {
-  final PendingDynamicLinkData? initialLink = await FirebaseDynamicLinks
-      .instance
-      .getInitialLink();
-
-  if (initialLink != null) {
-    await _storePendingReferralCode(initialLink.link);
+  // Firebase Dynamic Links is discontinued. Persist referral codes from a
+  // normal launch URI when present (universal links / custom URL schemes).
+  final route = WidgetsBinding.instance.platformDispatcher.defaultRouteName;
+  final uri = Uri.tryParse(route);
+  if (uri != null) {
+    await _storePendingReferralCode(uri);
   }
-
-  FirebaseDynamicLinks.instance.onLink
-      .listen((PendingDynamicLinkData data) async {
-        await _storePendingReferralCode(data.link);
-      })
-      .onError((error) {
-        if (kDebugMode) {
-          debugPrint('Dynamic Link Error: $error');
-        }
-      });
 }
 
 Future<void> _storePendingReferralCode(Uri deepLink) async {

@@ -67,7 +67,7 @@ class PremiumProductCard extends StatelessWidget {
                     constraints.maxHeight < double.infinity;
                 final image = _ImageSurface(
                   imageUrl: product.image,
-                  heroTag: 'product-${product.id}',
+                  heroTag: 'category-card-${product.id}',
                   discountPct: discount,
                 );
                 return Column(
@@ -85,10 +85,10 @@ class PremiumProductCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       product.name,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
-                        fontSize: 12.5,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w700,
                         color: AppSurface.text,
                         height: 1.2,
@@ -210,7 +210,7 @@ class _UnitChip extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: GoogleFonts.poppins(
-          fontSize: 9.5,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
           color: AppSurface.textSecondary,
           letterSpacing: 0.2,
@@ -241,7 +241,7 @@ class _RatingRow extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               color: AppSurface.textSecondary,
               height: 1.2,
@@ -256,7 +256,7 @@ class _RatingRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 9.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: AppSurface.textMuted,
                 height: 1.2,
@@ -289,7 +289,7 @@ class _PriceColumn extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
-            fontSize: 14,
+            fontSize: 15,
             fontWeight: FontWeight.w800,
             color: AppSurface.text,
             height: 1.1,
@@ -301,7 +301,7 @@ class _PriceColumn extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
               color: AppSurface.textMuted,
               decoration: TextDecoration.lineThrough,
@@ -328,7 +328,7 @@ class _OutOfStockPill extends StatelessWidget {
       child: Text(
         'OUT',
         style: GoogleFonts.poppins(
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: FontWeight.w800,
           color: Colors.grey.shade600,
         ),

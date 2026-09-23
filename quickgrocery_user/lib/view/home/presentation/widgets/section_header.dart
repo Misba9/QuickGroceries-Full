@@ -31,7 +31,8 @@ class SectionHeader extends StatelessWidget {
   final bool compact;
 
   /// Standard horizontal inset when a section is not already gutter-padded.
-  static double inset(BuildContext context) => Responsive.of(context).gutter();
+  static double inset(BuildContext context) =>
+      Responsive.of(context).horizontalInset();
 
   @override
   Widget build(BuildContext context) {

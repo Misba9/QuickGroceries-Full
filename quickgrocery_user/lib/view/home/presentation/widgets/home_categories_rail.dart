@@ -148,9 +148,9 @@ class _CategoryRailCard extends StatelessWidget {
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
-                      fontSize: 10.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      height: 1.15,
+                      height: 1.2,
                       color: AppSurface.textPrimary,
                     ),
                   ),

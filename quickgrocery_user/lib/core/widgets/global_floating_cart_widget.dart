@@ -95,9 +95,9 @@ class _PillBody extends StatelessWidget {
                   Text(
                     itemLabel,
                     style: GoogleFonts.poppins(
-                      fontSize: 11.5,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black.withValues(alpha: 0.65),
+                      color: Colors.black.withValues(alpha: 0.72),
                     ),
                   ),
                   Text(
@@ -241,7 +241,7 @@ class _Avatars extends StatelessWidget {
                 child: Text(
                   '+$extraCount',
                   style: GoogleFonts.poppins(
-                    fontSize: 10.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),

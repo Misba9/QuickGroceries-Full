@@ -114,7 +114,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final gutter = Responsive.of(context).gutter();
+    final gutter = Responsive.of(context).horizontalInset();
     final pageAsync = ref.watch(offersPageBannersProvider);
     final bannersRawAsync = ref.watch(bannersStreamProvider);
     final List<OfferBannerModel> primary =
@@ -230,6 +230,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
                   padding: EdgeInsets.symmetric(horizontal: gutter),
                   child: const FlashSaleSection(
                     cardMargin: EdgeInsets.only(top: 8),
+                    heroScope: 'flash-offers',
                   ),
                 ),
               ),
@@ -319,6 +320,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
                   padding: EdgeInsets.symmetric(horizontal: gutter),
                   child: RecommendationsSection(
                     sectionTitle: 'Recommended deals',
+                    heroScope: 'recs-offers',
                   ),
                 ),
               ),

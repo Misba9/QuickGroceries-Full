@@ -22,8 +22,9 @@ List<Widget> buildHomeExploreOfferSlivers({
   required List<OfferBannerModel> offers,
   required double gutter,
 }) {
-  final responsive = Responsive.of(context);
-  final cols = responsive.cols(phone: 2, tablet: 3, desktop: 4);
+  final available =
+      (MediaQuery.sizeOf(context).width - gutter * 2).clamp(0.0, double.infinity);
+  final cols = Responsive.productGridColumnsForWidth(available);
   final chunk = cols * 2;
 
   return exploreAsync.when(
@@ -112,19 +113,23 @@ List<Widget> buildHomeExploreOfferSlivers({
 
         final end = min(pi + chunk, products.length);
         final slice = products.sublist(pi, end);
+        final chunkStart = pi;
 
         out.add(
           SliverPadding(
             padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 4),
             sliver: SliverGrid(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: cols,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 8,
-                childAspectRatio: cols >= 4 ? 0.66 : 0.60,
+              gridDelegate: Responsive.productGridDelegate(
+                context,
+                availableWidth: available,
+                spacing: 10,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, i) => HomeProductCard(product: slice[i]),
+                (context, i) => HomeProductCard(
+                  product: slice[i],
+                  heroScope: 'home-explore',
+                  heroIndex: chunkStart + i,
+                ),
                 childCount: slice.length,
               ),
             ),

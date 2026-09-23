@@ -4,6 +4,7 @@ import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart' as legacy;
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
@@ -204,7 +205,7 @@ class _Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 84,
+      width: Responsive.of(context).isPhone ? 84 : 104,
       color: const Color(0xFFFAFAFB),
       child: legacy.Consumer<CategoryService>(
         builder: (context, p, _) {
@@ -297,22 +298,26 @@ class _ProductPane extends StatelessWidget {
     } else {
       child = legacy.Consumer<CategoryService>(
         builder: (context, p, _) {
-          return GridView.builder(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 110),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 9,
-              childAspectRatio: 0.68,
-            ),
-            itemCount: p.products.length,
-            itemBuilder: (context, i) {
-              final product = p.products[i];
-              return LayoutBuilder(
-                builder: (context, c) {
-                  return ProductCardWidget(
-                    product: product,
-                    width: c.maxWidth,
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              return GridView.builder(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 110),
+                gridDelegate: Responsive.productGridDelegate(
+                  context,
+                  availableWidth: (constraints.maxWidth - 24).clamp(0.0, double.infinity),
+                ),
+                itemCount: p.products.length,
+                itemBuilder: (context, i) {
+                  final product = p.products[i];
+                  return LayoutBuilder(
+                    builder: (context, c) {
+                      return ProductCardWidget(
+                        product: product,
+                        width: c.maxWidth,
+                        heroScope: 'category',
+                        heroIndex: i,
+                      );
+                    },
                   );
                 },
               );

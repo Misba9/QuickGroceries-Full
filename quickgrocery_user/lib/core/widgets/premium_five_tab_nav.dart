@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/widgets/global_floating_cart_widget.dart';
 
 import '../design/app_tokens.dart';
+import '../design/app_typography.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Bottom navigation: Home, Categories, **Offers FAB**, Orders, Profile.
@@ -18,7 +18,12 @@ class PremiumFiveTabNav extends StatelessWidget {
   /// Total height of the bottom nav including safe-area inset.
   static double tabBarHeight(BuildContext context) {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
-    return safeBottom + 70;
+    return safeBottom + _innerBarHeight(context);
+  }
+
+  static double _innerBarHeight(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(12) / 12;
+    return (72 + (scale - 1) * 22).clamp(72.0, 96.0);
   }
 
   /// [Positioned.bottom] for the floating cart above this bar (+ 12px gap).
@@ -53,9 +58,9 @@ class PremiumFiveTabNav extends StatelessWidget {
         child: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(4, 4, 4, 2),
+            padding: const EdgeInsets.fromLTRB(4, 2, 4, 2),
             child: SizedBox(
-              height: 64,
+              height: PremiumFiveTabNav._innerBarHeight(context) - 8,
               child: Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.bottomCenter,
@@ -206,14 +211,13 @@ class _SideTab extends StatelessWidget {
                     size: selected ? 23 : 21,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 10,
+                  style: AppTypography.caption.copyWith(
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                     color:
                         selected ? AppSurface.textPrimary : AppSurface.textMuted,
@@ -316,11 +320,7 @@ class _OffersFabState extends State<_OffersFab>
                   alignment: Alignment.center,
                   child: Text(
                     widget.badge > 99 ? '99+' : '${widget.badge}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
+                    style: AppTypography.badge,
                   ),
                 ),
               ),

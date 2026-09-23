@@ -9,7 +9,13 @@ import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/localization/locale_provider.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/auth/account_deletion_confirm_flow.dart';
+import 'package:quickgrocery/core/auth/account_deletion_service.dart';
 import 'package:quickgrocery/core/auth/auth_session_manager.dart';
+import 'package:quickgrocery/core/auth/guest_login_launcher.dart';
+import 'package:quickgrocery/core/auth/phone_reauth_sheet.dart';
+import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/orders/domain/order_models.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
@@ -126,7 +132,7 @@ class ProfileHeaderSection extends StatelessWidget {
                     '$completion%',
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w800,
-                      fontSize: 11,
+                      fontSize: 12,
                       color: Colors.black87,
                     ),
                   ),
@@ -344,7 +350,7 @@ class _QuickActionCard extends StatelessWidget {
                     Text(
                       label,
                       style: GoogleFonts.poppins(
-                        fontSize: 11.5,
+                        fontSize: 12,
                         color: AppSurface.textMuted,
                         fontWeight: FontWeight.w500,
                       ),
@@ -757,7 +763,7 @@ class _SavedCouponCard extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
-                      fontSize: 10,
+                      fontSize: 11,
                     ),
                   ),
                 ),
@@ -1366,21 +1372,223 @@ class ProfileLegalSection extends StatelessWidget {
   }
 }
 
+// ─── Delete Account ───────────────────────────────────────────────────────
+
+class ProfileDeleteAccountSection extends ConsumerStatefulWidget {
+  const ProfileDeleteAccountSection({
+    super.key,
+    this.animationIndex = 14,
+    this.deleteAccount,
+  });
+
+  final int animationIndex;
+  final Future<void> Function()? deleteAccount;
+
+  @override
+  ConsumerState<ProfileDeleteAccountSection> createState() =>
+      _ProfileDeleteAccountSectionState();
+}
+
+class _ProfileDeleteAccountSectionState
+    extends ConsumerState<ProfileDeleteAccountSection> {
+  bool _busy = false;
+
+  Future<void> _onDeleteTapped() async {
+    if (_busy) return;
+    final confirmed = await AccountDeletionConfirmFlow.confirm(context);
+    if (!confirmed || !mounted) return;
+    await _runDeletion();
+  }
+
+  Future<void> _runDeletion() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(width: 16),
+              Expanded(child: Text(context.l10n.deleteAccountProcessing)),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    Future<void> runDelete() =>
+        (widget.deleteAccount ?? AccountDeletionService().deleteCurrentAccount)();
+
+    try {
+      await runDelete();
+      await _finishSuccess();
+    } on AccountDeletionException catch (e) {
+      if (e.needsReauth) {
+        await _retryAfterReauth(runDelete);
+      } else {
+        _closeLoading();
+        if (mounted) {
+          showTopErrorToast(
+            context,
+            e.message,
+            duration: const Duration(seconds: 6),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('ACCOUNT_DELETE unexpected: $e');
+      _closeLoading();
+      if (mounted) {
+        showTopErrorToast(
+          context,
+          context.l10n.deleteAccountFailed,
+          duration: const Duration(seconds: 6),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _retryAfterReauth(Future<void> Function() runDelete) async {
+    _closeLoading();
+    if (!mounted) return;
+    final ok = await PhoneReauthSheet.show(context);
+    if (!ok || !mounted) return;
+    setState(() => _busy = true);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(width: 16),
+              Expanded(child: Text(context.l10n.deleteAccountProcessing)),
+            ],
+          ),
+        ),
+      ),
+    );
+    try {
+      await runDelete();
+      await _finishSuccess();
+    } on AccountDeletionException catch (e) {
+      _closeLoading();
+      if (mounted) {
+        showTopErrorToast(
+          context,
+          e.message,
+          duration: const Duration(seconds: 6),
+        );
+      }
+    } catch (e) {
+      debugPrint('ACCOUNT_DELETE retry: $e');
+      _closeLoading();
+      if (mounted) {
+        showTopErrorToast(
+          context,
+          context.l10n.deleteAccountFailed,
+          duration: const Duration(seconds: 6),
+        );
+      }
+    }
+  }
+
+  Future<void> _finishSuccess() async {
+    _closeLoading();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        content: Text(context.l10n.deleteAccountSuccess),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    await AuthSessionManager.signOutFromContext(
+      context: context,
+      ref: ref,
+      preserveCartForGuest: false,
+    );
+    if (!mounted) return;
+    await GuestLoginLauncher.launch(context, ref);
+  }
+
+  void _closeLoading() {
+    if (!mounted) return;
+    final nav = Navigator.of(context, rootNavigator: true);
+    if (nav.canPop()) nav.pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeInUp(
+      duration: Duration(milliseconds: 380 + widget.animationIndex * 40),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          key: const Key('deleteAccountButton'),
+          onPressed: _busy ? null : _onDeleteTapped,
+          icon: Icon(Icons.delete_forever_rounded, color: Colors.red.shade700),
+          label: Text(
+            context.l10n.delete_account,
+            style: GoogleFonts.poppins(
+              color: Colors.red.shade800,
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+            ),
+          ),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            minimumSize: const Size(48, 48),
+            side: BorderSide(color: Colors.red.shade200),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Logout ───────────────────────────────────────────────────────────────
 
-class ProfileLogoutSection extends ConsumerWidget {
+class ProfileLogoutSection extends ConsumerStatefulWidget {
   const ProfileLogoutSection({super.key, this.animationIndex = 14});
 
   final int animationIndex;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileLogoutSection> createState() =>
+      _ProfileLogoutSectionState();
+}
+
+class _ProfileLogoutSectionState extends ConsumerState<ProfileLogoutSection> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
     return FadeInUp(
-      duration: Duration(milliseconds: 380 + animationIndex * 40),
+      duration: Duration(milliseconds: 380 + widget.animationIndex * 40),
       child: SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
-          onPressed: () => _confirmLogout(context, ref),
+          onPressed: _busy ? null : _confirmLogout,
           icon: const Icon(Icons.logout_rounded, color: Colors.red),
           label: Text(
             context.l10n.logout,
@@ -1401,7 +1609,8 @@ class ProfileLogoutSection extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmLogout() async {
+    if (_busy) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1420,32 +1629,38 @@ class ProfileLogoutSection extends ConsumerWidget {
         ],
       ),
     );
-    if (ok != true || !context.mounted) return;
+    if (ok != true || !mounted) return;
 
+    setState(() => _busy = true);
+    var loadingShown = false;
     showDialog<void>(
       context: context,
       barrierDismissible: false,
+      useRootNavigator: true,
       builder: (_) => const PopScope(
         canPop: false,
         child: Center(child: CircularProgressIndicator()),
       ),
     );
+    loadingShown = true;
 
     try {
       await AuthSessionManager.signOutFromContext(context: context, ref: ref);
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Logout failed: $e'),
-            backgroundColor: Colors.red,
-          ),
+      debugPrint('LOGOUT: $e');
+      if (mounted) {
+        showTopErrorToast(
+          context,
+          'Unable to log out. Please try again.',
+          duration: const Duration(seconds: 5),
         );
       }
     } finally {
-      if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
+      if (loadingShown) {
+        final nav = rootNavigatorKey.currentState;
+        if (nav != null && nav.canPop()) nav.pop();
       }
+      if (mounted) setState(() => _busy = false);
     }
   }
 }

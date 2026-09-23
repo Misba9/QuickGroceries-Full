@@ -31,6 +31,7 @@ class FlashSaleSection extends ConsumerStatefulWidget {
     this.cardMargin = const EdgeInsets.only(top: 12),
     this.heading,
     this.headingLoading = false,
+    required this.heroScope,
   });
 
   final int minDiscountPercent;
@@ -42,6 +43,9 @@ class FlashSaleSection extends ConsumerStatefulWidget {
   /// Outer margin around the gradient card (Categories sets [EdgeInsets.zero]
   /// when a section title sits above).
   final EdgeInsetsGeometry cardMargin;
+
+  /// Disambiguates this rail from the same products on other tabs.
+  final String heroScope;
 
   @override
   ConsumerState<FlashSaleSection> createState() => _FlashSaleSectionState();
@@ -161,7 +165,11 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (_, i) => StaggeredFadeIn(
               index: i,
-              child: HomeProductCard(product: discounted[i]),
+              child: HomeProductCard(
+                product: discounted[i],
+                heroScope: widget.heroScope,
+                heroIndex: i,
+              ),
             ),
           );
         },

@@ -35,7 +35,13 @@ class CategorySelectionTile extends StatelessWidget {
           ),
         ),
         AppSpacing.h10,
-        Text(title, style: const TextStyle(fontSize: 10)),
+        Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
         AppSpacing.h10,
       ],
     );

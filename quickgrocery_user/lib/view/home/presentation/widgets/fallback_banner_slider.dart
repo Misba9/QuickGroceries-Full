@@ -75,7 +75,10 @@ class _FallbackBannerSliderState extends State<FallbackBannerSlider> {
                   pauseAutoPlayOnManualNavigate: true,
                   enableInfiniteScroll: true,
                   scrollPhysics: const BouncingScrollPhysics(),
-                  onPageChanged: (i, _) => setState(() => _index = i),
+                  onPageChanged: (i, _) {
+                    if (!mounted) return;
+                    setState(() => _index = i);
+                  },
                 ),
               ),
             ),

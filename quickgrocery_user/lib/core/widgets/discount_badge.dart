@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/design/app_typography.dart';
 
 /// Rounded discount badge — top-left product image overlay.
 ///
@@ -43,8 +43,7 @@ class DiscountBadge extends StatelessWidget {
           children: [
             Text(
               '$percent%',
-              style: GoogleFonts.poppins(
-                fontSize: 12,
+              style: AppTypography.caption.copyWith(
                 fontWeight: FontWeight.w900,
                 color: Colors.white,
                 height: 1,
@@ -54,10 +53,7 @@ class DiscountBadge extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               'OFF',
-              style: GoogleFonts.poppins(
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
+              style: AppTypography.badge.copyWith(
                 letterSpacing: 0.5,
                 height: 1,
               ),

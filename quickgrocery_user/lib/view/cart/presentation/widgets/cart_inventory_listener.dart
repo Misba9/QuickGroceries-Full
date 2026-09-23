@@ -41,10 +41,11 @@ class _CartInventoryListenerState extends ConsumerState<CartInventoryListener> {
         if (next.kind == CartFeedbackKind.error) {
           showTopErrorToast(context, next.text);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
             SnackBar(
               content: Text(next.text),
               behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               duration: const Duration(seconds: 2),
             ),
           );

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,7 +18,7 @@ import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_image_carousel.dart'
-    show productHeroTag;
+    show productCardHeroTag;
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 
@@ -30,12 +31,18 @@ class HomeProductCard extends ConsumerWidget {
     required this.product,
     this.width = 150,
     this.onAfterProductDetailClosed,
+    this.heroScope = 'home',
+    this.heroIndex = 0,
   });
 
   final ProductModel product;
   final double width;
   /// Called after the product detail route is popped (e.g. wishlist refresh).
   final VoidCallback? onAfterProductDetailClosed;
+
+  /// Distinguishes this card from the same product in other rails/tabs.
+  final String heroScope;
+  final int heroIndex;
 
   static const double _radius = AppRadii.lg;
   static const double _cardPadding = 8;
@@ -88,10 +95,31 @@ class HomeProductCard extends ConsumerWidget {
                   builder: (context, constraints) {
                     final bounded = constraints.hasBoundedHeight &&
                         constraints.maxHeight < double.infinity;
+                    final heroTag = productCardHeroTag(
+                      product.id,
+                      scope: heroScope,
+                      index: heroIndex,
+                    );
                     final image = Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        _ImageWithDiscount(product: product),
+                        if (kDebugMode)
+                          Positioned(
+                            left: 0,
+                            top: 0,
+                            width: 0,
+                            height: 0,
+                            child: _HeroTagProbe(
+                              key: ValueKey<String>(heroTag),
+                              productId: product.id,
+                              productName: product.name,
+                              tag: heroTag,
+                            ),
+                          ),
+                        _ImageWithDiscount(
+                          product: product,
+                          heroTag: heroTag,
+                        ),
                         Positioned(
                           top: 0,
                           right: 0,
@@ -204,7 +232,7 @@ class _ProductDetails extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              fontSize: 12.5,
+              fontSize: 13.5,
               fontWeight: FontWeight.w600,
               color: AppSurface.textPrimary,
               height: 1.2,
@@ -217,7 +245,7 @@ class _ProductDetails extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 10.5,
+                fontSize: 12,
                 color: AppSurface.textSecondary,
                 fontWeight: FontWeight.w500,
                 height: 1.15,
@@ -291,9 +319,13 @@ class _FavoriteChip extends ConsumerWidget {
 }
 
 class _ImageWithDiscount extends StatelessWidget {
-  const _ImageWithDiscount({required this.product});
+  const _ImageWithDiscount({
+    required this.product,
+    required this.heroTag,
+  });
 
   final ProductModel product;
+  final String heroTag;
 
   static const double _innerR = 12;
 
@@ -310,7 +342,7 @@ class _ImageWithDiscount extends StatelessWidget {
               padding: const EdgeInsets.all(4),
               child: Center(
                 child: Hero(
-                  tag: productHeroTag(product.id),
+                  tag: heroTag,
                   child: CachedImage(
                     url: product.image,
                     fit: BoxFit.contain,
@@ -364,7 +396,7 @@ class _RatingPill extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: Colors.green.shade800,
               ),
@@ -377,7 +409,7 @@ class _RatingPill extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 9.5,
+                fontSize: 12,
                 color: Colors.green.shade700,
               ),
             ),
@@ -406,7 +438,7 @@ class _PriceBlock extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
-            fontSize: 13.5,
+            fontSize: 15,
             fontWeight: FontWeight.w700,
             color: AppSurface.textPrimary,
             height: 1.1,
@@ -418,7 +450,7 @@ class _PriceBlock extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              fontSize: 10.5,
+              fontSize: 12,
               color: AppSurface.textSecondary,
               decoration: TextDecoration.lineThrough,
               height: 1.1,
@@ -449,7 +481,7 @@ class _CartControl extends StatelessWidget {
   final VoidCallback onDecrement;
   final VoidCallback onMaxReached;
 
-  static const double _h = 32;
+  static const double _h = 40;
 
   @override
   Widget build(BuildContext context) {
@@ -467,7 +499,7 @@ class _CartControl extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
-            fontSize: 10,
+            fontSize: 12,
             fontWeight: FontWeight.w700,
             color: Colors.grey.shade600,
           ),
@@ -509,7 +541,7 @@ class _CartControl extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: FontWeight.w800,
                 color: AppColor.primary,
                 letterSpacing: 0.3,
@@ -541,7 +573,7 @@ class _CartControl extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.poppins(
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
                 ),
@@ -595,4 +627,63 @@ class _StepBtn extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Debug-only mount counter for product-card hero tags.
+///
+/// Prints `productId`, name, and the computed tag, and warns when the same
+/// tag is mounted twice (the "multiple heroes" crash). Silent in release.
+class _HeroTagProbe extends StatefulWidget {
+  const _HeroTagProbe({
+    super.key,
+    required this.productId,
+    required this.productName,
+    required this.tag,
+  });
+
+  final String productId;
+  final String productName;
+  final String tag;
+
+  @override
+  State<_HeroTagProbe> createState() => _HeroTagProbeState();
+}
+
+class _HeroTagProbeState extends State<_HeroTagProbe> {
+  static final Map<String, int> _mounted = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _register(widget.tag);
+  }
+
+  @override
+  void dispose() {
+    final next = (_mounted[widget.tag] ?? 1) - 1;
+    if (next <= 0) {
+      _mounted.remove(widget.tag);
+    } else {
+      _mounted[widget.tag] = next;
+    }
+    super.dispose();
+  }
+
+  void _register(String tag) {
+    final count = (_mounted[tag] ?? 0) + 1;
+    _mounted[tag] = count;
+    debugPrint(
+      '[HeroTag] id=${widget.productId} name=${widget.productName} '
+      'tag=$tag mounted=$count',
+    );
+    if (count > 1) {
+      debugPrint(
+        '[HeroTag] DUPLICATE id=${widget.productId} '
+        'name=${widget.productName} tag=$tag mounted=$count',
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }

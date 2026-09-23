@@ -45,6 +45,8 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
       child: MaintenanceGate(
         child: legacy.Consumer<HomeProvider>(
           builder: (context, provider, _) {
+            final pages = provider.pages;
+            final selected = provider.selectedIndex;
             return Scaffold(
               body: Column(
                 children: [
@@ -57,8 +59,18 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                       child: PromotionPopupBootstrap(
                         child: IndexedStack(
                           key: ValueKey<String>('tabs-$localeKey'),
-                          index: provider.selectedIndex,
-                          children: provider.pages,
+                          index: selected,
+                          children: [
+                            // IndexedStack keeps every tab mounted. Only
+                            // HeroMode actually drops offstage heroes from
+                            // the navigator's flight scan; a second
+                            // HeroController does not.
+                            for (var i = 0; i < pages.length; i++)
+                              HeroMode(
+                                enabled: i == selected,
+                                child: pages[i],
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -67,7 +79,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
               ),
               bottomNavigationBar: PremiumFiveTabNav(
                 key: ValueKey<String>('nav-$localeKey'),
-                currentIndex: provider.selectedIndex,
+                currentIndex: selected,
                 onTap: provider.onSelectedChange,
               ),
             );

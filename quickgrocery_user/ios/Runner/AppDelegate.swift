@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import UserNotifications
+import FirebaseCore
 import FirebaseAuth
 
 @main
@@ -9,6 +10,11 @@ import FirebaseAuth
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Configure Firebase before APNs / Auth callbacks. Dart skips a second
+    // initializeApp when FirebaseApp.app() is already set.
+    if FirebaseApp.app() == nil {
+      FirebaseApp.configure()
+    }
     GeneratedPluginRegistrant.register(with: self)
     if #available(iOS 10.0, *) {
       UNUserNotificationCenter.current().delegate = self
@@ -22,11 +28,7 @@ import FirebaseAuth
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
-    #if DEBUG
-    Auth.auth().setAPNSToken(deviceToken, type: .sandbox)
-    #else
-    Auth.auth().setAPNSToken(deviceToken, type: .prod)
-    #endif
+    applyAPNsToken(deviceToken)
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
   }
 
@@ -44,7 +46,7 @@ import FirebaseAuth
     didReceiveRemoteNotification userInfo: [AnyHashable: Any],
     fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
   ) {
-    if Auth.auth().canHandleNotification(userInfo) {
+    if FirebaseApp.app() != nil, Auth.auth().canHandleNotification(userInfo) {
       completionHandler(.noData)
       return
     }
@@ -61,9 +63,18 @@ import FirebaseAuth
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
-    if Auth.auth().canHandle(url) {
+    if FirebaseApp.app() != nil, Auth.auth().canHandle(url) {
       return true
     }
     return super.application(app, open: url, options: options)
+  }
+
+  private func applyAPNsToken(_ deviceToken: Data) {
+    guard FirebaseApp.app() != nil else { return }
+    #if DEBUG
+    Auth.auth().setAPNSToken(deviceToken, type: .sandbox)
+    #else
+    Auth.auth().setAPNSToken(deviceToken, type: .prod)
+    #endif
   }
 }

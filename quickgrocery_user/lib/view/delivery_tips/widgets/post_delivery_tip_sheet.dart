@@ -101,7 +101,7 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
           ? widget.order.customerName
           : 'Quick Grocery',
       'Delivery partner tip',
-      onPaymentSuccess: (paymentId) async {
+      onPaymentSuccess: (paymentId, _) async {
         paymentCompleted = true;
         if (!mounted) return;
         await _commitDelta(

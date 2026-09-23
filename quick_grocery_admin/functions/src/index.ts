@@ -40,6 +40,7 @@ export { abandonedCartReminder } from "./operations/abandoned_cart";
 export { dailySalesSummary } from "./operations/daily_summary";
 export { seedAdminTestNotification } from "./operations/ops_callables";
 export { placeOrderCallable } from "./operations/place_order_callable";
+export { deleteMyAccountCallable } from "./operations/delete_account_callable";
 export {
   getDeliveryTipSettingsCallable,
   updateOrderTipCallable,

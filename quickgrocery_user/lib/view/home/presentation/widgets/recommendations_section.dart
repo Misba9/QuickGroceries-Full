@@ -25,12 +25,16 @@ class RecommendationsSection extends ConsumerWidget {
     super.key,
     this.maxItems = 12,
     this.sectionTitle,
+    required this.heroScope,
   });
 
   final int maxItems;
 
   /// Defaults to [picked_for_you] translation.
   final String? sectionTitle;
+
+  /// Disambiguates this rail from the same products on other tabs.
+  final String heroScope;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -112,7 +116,11 @@ class RecommendationsSection extends ConsumerWidget {
                 separatorBuilder: (_, __) => const SizedBox(width: 10),
                 itemBuilder: (_, i) => StaggeredFadeIn(
                   index: i,
-                  child: HomeProductCard(product: out[i]),
+                  child: HomeProductCard(
+                    product: out[i],
+                    heroScope: heroScope,
+                    heroIndex: i,
+                  ),
                 ),
               );
             },

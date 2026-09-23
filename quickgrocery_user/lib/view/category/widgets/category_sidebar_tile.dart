@@ -104,7 +104,7 @@ class CategorySidebarTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
-                        fontSize: 10.5,
+                        fontSize: 12,
                         fontWeight:
                             isSelected ? FontWeight.w700 : FontWeight.w500,
                         color: isSelected

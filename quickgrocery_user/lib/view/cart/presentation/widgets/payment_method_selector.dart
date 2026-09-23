@@ -51,7 +51,7 @@ class PaymentMethodSelector extends StatelessWidget {
         Text(
           'Cards, UPI & wallets are powered securely by Razorpay.',
           style: GoogleFonts.poppins(
-            fontSize: 11,
+            fontSize: 13,
             color: AppSurface.textMuted,
             height: 1.35,
           ),

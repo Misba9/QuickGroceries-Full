@@ -20,12 +20,13 @@ import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 /// * **Out-of-stock state** — red sash + disabled stepper.
 /// * **Swipe to remove** — full-width red action with trash icon, with
 ///   haptic confirm; falls back to long-press → remove for accessibility.
-/// * **Hero animation** — `cart-item-${productId}` so opening the product
-///   detail screen animates the image smoothly.
+/// * **Hero tag** — unique per cart line (`productId` + combo key + index).
+///   Product details uses a different tag, so this does not fly across routes.
 class PremiumCartItemCard extends StatelessWidget {
   const PremiumCartItemCard({
     super.key,
     required this.item,
+    required this.lineIndex,
     required this.onIncrement,
     required this.onDecrement,
     required this.onRemove,
@@ -33,6 +34,7 @@ class PremiumCartItemCard extends StatelessWidget {
   });
 
   final CartItem item;
+  final int lineIndex;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
   final VoidCallback onRemove;
@@ -51,6 +53,7 @@ class PremiumCartItemCard extends StatelessWidget {
       onDismissed: (_) => onRemove(),
       child: _CardSurface(
         item: item,
+        lineIndex: lineIndex,
         onIncrement: onIncrement,
         onDecrement: onDecrement,
         onRemove: onRemove,
@@ -65,6 +68,7 @@ class PremiumCartItemCard extends StatelessWidget {
 class _CardSurface extends StatelessWidget {
   const _CardSurface({
     required this.item,
+    required this.lineIndex,
     required this.onIncrement,
     required this.onDecrement,
     required this.onRemove,
@@ -72,6 +76,7 @@ class _CardSurface extends StatelessWidget {
   });
 
   final CartItem item;
+  final int lineIndex;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
   final VoidCallback onRemove;
@@ -109,7 +114,8 @@ class _CardSurface extends StatelessWidget {
               children: [
                 _ItemImage(
                   url: item.image,
-                  productId: item.productId,
+                  heroTag:
+                      'cart-item-${item.productId}-${item.comboGroupKey ?? 'line'}-$lineIndex',
                   outOfStock: outOfStock,
                 ),
                 const SizedBox(width: 12),
@@ -213,18 +219,18 @@ class _CardSurface extends StatelessWidget {
 class _ItemImage extends StatelessWidget {
   const _ItemImage({
     required this.url,
-    required this.productId,
+    required this.heroTag,
     required this.outOfStock,
   });
 
   final String url;
-  final String productId;
+  final String heroTag;
   final bool outOfStock;
 
   @override
   Widget build(BuildContext context) {
     return Hero(
-      tag: 'cart-item-$productId',
+      tag: heroTag,
       child: SizedBox(
         width: 78,
         height: 78,
@@ -264,7 +270,7 @@ class _UnitChip extends StatelessWidget {
       child: Text(
         text,
         style: GoogleFonts.poppins(
-          fontSize: 10.5,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
           color: AppSurface.textSecondary,
           letterSpacing: 0.2,
@@ -287,7 +293,7 @@ class _OutOfStockChip extends StatelessWidget {
       child: Text(
         'Item unavailable',
         style: GoogleFonts.poppins(
-          fontSize: 10.5,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
           color: AppSurface.danger,
           letterSpacing: 0.3,
@@ -313,7 +319,7 @@ class _SaveBadge extends StatelessWidget {
       child: Text(
         'Save ₹${saved.toStringAsFixed(0)}',
         style: GoogleFonts.poppins(
-          fontSize: 10.5,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
           color: AppSurface.success,
           height: 1.1,

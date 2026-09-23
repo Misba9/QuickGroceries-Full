@@ -148,12 +148,14 @@ class ProductRepository {
 
     final available = parsed.where((p) => p.isAvailable).toList();
     final filteredOut = parsed.length - available.length;
+    final uniqueIds = available.map((p) => p.id).toSet().length;
 
-    if (skipped > 0 || filteredOut > 0) {
+    if (skipped > 0 || filteredOut > 0 || uniqueIds != available.length) {
       logHomeProducts(
         '$context: raw=${snap.docs.length} parsed=${parsed.length} '
         'skipped=$skipped unavailableFiltered=$filteredOut '
-        'final=${available.length} sort=$sortKey',
+        'final=${available.length} uniqueIds=$uniqueIds '
+        'duplicateIds=${available.length - uniqueIds} sort=$sortKey',
       );
     }
 

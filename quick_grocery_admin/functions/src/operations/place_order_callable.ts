@@ -69,6 +69,49 @@ function effectiveMax(stock: number, maxOrder: number): number {
   return maxOrder < stock ? maxOrder : stock;
 }
 
+function emergencyDisableCod(
+  maintenance: FirebaseFirestore.DocumentData,
+): boolean {
+  const emergency = maintenance.emergencyControls;
+  if (emergency && typeof emergency === "object") {
+    const e = emergency as Record<string, unknown>;
+    if (e.disableCod === true) return true;
+  }
+  return boolField(maintenance, ["disableCod"], false);
+}
+
+function accountBlocksCod(customer: Record<string, unknown> | undefined): boolean {
+  if (!customer) return false;
+  if (customer.codBlocked === true) return true;
+  if (customer.forceOnlinePayment === true) return true;
+  if (customer.allowCod === false || customer.codEnabled === false) return true;
+  return false;
+}
+
+async function markIdempotencyFailed(
+  db: FirebaseFirestore.Firestore,
+  uid: string,
+  idempotencyKey: string,
+  message: string,
+): Promise<void> {
+  if (!idempotencyKey) return;
+  try {
+    await db
+      .collection("order_idempotency")
+      .doc(`${uid}_${idempotencyKey}`)
+      .set(
+        {
+          status: "failed",
+          error: message.slice(0, 200),
+          failedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+  } catch (err) {
+    console.error("placeOrderCallable idempotency fail mark", err);
+  }
+}
+
 function deliveryInstructionsPayload(data: unknown): {
   legacy: string;
   structured: Record<string, unknown>;
@@ -120,6 +163,18 @@ export const placeOrderCallable = onCall(
       throw new HttpsError("unauthenticated", "Sign in to place an order.");
     }
 
+    const paymentMethod = str(req.data?.paymentMethod) || "cod";
+    const paymentRef = str(req.data?.paymentRef);
+    const razorpayOrderId = str(
+      req.data?.razorpayOrderId || req.data?.gatewayOrderId,
+    );
+    if (paymentMethod !== "cod" && paymentRef.length === 0) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Online payment was not confirmed. Your order was not placed.",
+      );
+    }
+
     const rawItems = req.data?.items;
     if (!Array.isArray(rawItems) || rawItems.length === 0) {
       throw new HttpsError("invalid-argument", "Cart items are required.");
@@ -141,6 +196,22 @@ export const placeOrderCallable = onCall(
     const db = admin.firestore();
     const idempotencyKey = str(req.data?.idempotencyKey);
     let orderRef = db.collection("orders").doc();
+
+    if (paymentRef.length > 0) {
+      try {
+        const paidDup = await db
+          .collection("orders")
+          .where("uuid", "==", uid)
+          .where("razorpayPaymentId", "==", paymentRef)
+          .limit(1)
+          .get();
+        if (!paidDup.empty) {
+          return { orderId: paidDup.docs[0].id, duplicate: true };
+        }
+      } catch (err) {
+        console.error("placeOrderCallable paymentRef lookup", err);
+      }
+    }
 
     if (idempotencyKey.length > 0) {
       const idemRef = db
@@ -264,6 +335,25 @@ export const placeOrderCallable = onCall(
           throw new HttpsError(
             "failed-precondition",
             "User app disabled by admin",
+          );
+        }
+        if (paymentMethod === "cod" && emergencyDisableCod(maintenance)) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Cash on Delivery is currently unavailable. Please use Online Payment.",
+          );
+        }
+        if (
+          paymentMethod === "cod" &&
+          accountBlocksCod(
+            custSnap.exists
+              ? (custSnap.data() as Record<string, unknown>)
+              : undefined,
+          )
+        ) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Cash on Delivery is unavailable for your account. Please use Online Payment.",
           );
         }
 
@@ -478,8 +568,6 @@ export const placeOrderCallable = onCall(
           mobile: orderPhone || addressMobile,
         };
         const bill = billWithTip;
-        const paymentMethod = str(req.data?.paymentMethod) || "cod";
-        const paymentRef = str(req.data?.paymentRef);
         const isPaid = paymentMethod !== "cod" && paymentRef.length > 0;
         const slotRaw = req.data?.delivery_slot ?? req.data?.deliverySlot;
         const instr = deliveryInstructionsPayload(
@@ -539,6 +627,7 @@ export const placeOrderCallable = onCall(
                 transactionId: paymentRef,
                 paidAmount: num(bill.total ?? bill.grandTotal),
                 paidAt: admin.firestore.FieldValue.serverTimestamp(),
+                ...(razorpayOrderId ? { razorpayOrderId } : {}),
               }
             : {}),
           delivery_instructions: instr.legacy,
@@ -559,6 +648,9 @@ export const placeOrderCallable = onCall(
         });
       });
     } catch (e) {
+      const message =
+        e instanceof HttpsError ? e.message : "Could not place order";
+      await markIdempotencyFailed(db, uid, idempotencyKey, message);
       if (e instanceof HttpsError) throw e;
       console.error("placeOrderCallable", e);
       throw new HttpsError("internal", "Could not place order");

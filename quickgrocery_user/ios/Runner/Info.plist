@@ -55,9 +55,18 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.970937777233-REPLACE_WITH_FIREBASE_CONSOLE_CLIENT_ID</string>
+				<string>app-1-970937777233-ios-10b9106006f6e0c66e0c70</string>
 			</array>
 		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tez</string>
+		<string>phonepe</string>
+		<string>paytmmp</string>
+		<string>bhim</string>
+		<string>upi</string>
+		<string>gpay</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

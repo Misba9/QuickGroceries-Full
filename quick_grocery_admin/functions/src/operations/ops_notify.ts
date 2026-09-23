@@ -358,6 +358,8 @@ export async function sendPushToToken(opts: {
   soundType?: string;
   deepLink?: string;
   redirectType?: string;
+  targetScreen?: string;
+  notificationType?: string;
   data?: Record<string, string>;
   eventId?: string;
 }): Promise<string | null> {

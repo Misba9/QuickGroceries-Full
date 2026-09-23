@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -96,8 +98,7 @@ class OrderRepository {
       orderId = _firestore.collection('orders').doc().id;
     }
 
-    final productItems =
-        items.map(OrderLineSnapshot.toProductItem).toList();
+    final productItems = items.map(OrderLineSnapshot.toProductItem).toList();
 
     final isPaid = paymentMethod.isOnline && paymentRef != null;
 
@@ -188,12 +189,12 @@ class OrderRepository {
             .collection('order_idempotency')
             .doc('${user.uid}_$idempotencyKey')
             .set({
-          'uid': user.uid,
-          'idempotencyKey': idempotencyKey,
-          'orderId': ref.id,
-          'status': 'completed',
-          'createdAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+              'uid': user.uid,
+              'idempotencyKey': idempotencyKey,
+              'orderId': ref.id,
+              'status': 'completed',
+              'createdAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
       }
       await _mirrorVendorOrders(
         orderId: ref.id,
@@ -219,29 +220,57 @@ class OrderRepository {
   Future<String?> findExistingOrderId({
     required String idempotencyKey,
     Duration timeout = const Duration(seconds: 12),
+    bool waitForPending = true,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || idempotencyKey.isEmpty) return null;
 
     final deadline = DateTime.now().add(timeout);
+    const readTimeout = Duration(seconds: 8);
     while (true) {
-      final orderId = await _resolveIdempotentOrder(
-        uid: user.uid,
-        idempotencyKey: idempotencyKey,
-      );
-      if (orderId != null) return orderId;
+      if (DateTime.now().isAfter(deadline)) return null;
+      try {
+        final orderId = await _resolveIdempotentOrder(
+          uid: user.uid,
+          idempotencyKey: idempotencyKey,
+        ).timeout(readTimeout);
+        if (orderId != null) return orderId;
 
-      final idemSnap = await _firestore
-          .collection('order_idempotency')
-          .doc('${user.uid}_$idempotencyKey')
-          .get();
-      if (!idemSnap.exists) return null;
+        final idemSnap = await _firestore
+            .collection('order_idempotency')
+            .doc('${user.uid}_$idempotencyKey')
+            .get()
+            .timeout(readTimeout);
+        if (!idemSnap.exists) return null;
 
-      final status = idemSnap.data()?['status']?.toString();
-      if (status != 'pending' && status != 'completed') return null;
+        final status = idemSnap.data()?['status']?.toString();
+        if (status != 'pending' && status != 'completed') return null;
+      } on TimeoutException {
+        if (DateTime.now().isAfter(deadline)) return null;
+      }
+      if (!waitForPending) return null;
       if (DateTime.now().isAfter(deadline)) return null;
       await Future.delayed(const Duration(milliseconds: 400));
     }
+  }
+
+  Future<String?> findOrderByPaymentRef(String paymentRef) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final ref = paymentRef.trim();
+    if (user == null || ref.isEmpty) return null;
+    try {
+      final snap = await _firestore
+          .collection('orders')
+          .where('uuid', isEqualTo: user.uid)
+          .where('razorpayPaymentId', isEqualTo: ref)
+          .limit(1)
+          .get()
+          .timeout(const Duration(seconds: 8));
+      if (snap.docs.isNotEmpty) return snap.docs.first.id;
+    } catch (e) {
+      debugPrint('ORDER LOOKUP BY PAYMENT REF failed: $e');
+    }
+    return null;
   }
 
   Future<String?> _resolveIdempotentOrder({
@@ -274,7 +303,8 @@ class OrderRepository {
       'address': orderData['address'],
       'deliverySlot': orderData['deliverySlot'] ?? orderData['delivery_slot'],
       'deliveryInstructions':
-          orderData['deliveryInstructions'] ?? orderData['delivery_instructions'],
+          orderData['deliveryInstructions'] ??
+          orderData['delivery_instructions'],
       'bill': orderData['bill'],
       'createdAt': orderData['createdAt'],
     };

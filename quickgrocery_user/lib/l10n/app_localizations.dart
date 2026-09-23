@@ -64,8 +64,7 @@ import 'app_localizations_ur.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale)
-    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -73,8 +72,7 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate =
-      _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -86,20 +84,19 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
-      <LocalizationsDelegate<dynamic>>[
-        delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
+    delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
     Locale('hi'),
     Locale('te'),
-    Locale('ur'),
+    Locale('ur')
   ];
 
   /// No description provided for @add.
@@ -569,6 +566,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete Account'**
   String get delete_account;
+
+  /// No description provided for @deleteAccountTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete your account?'**
+  String get deleteAccountTitle;
+
+  /// No description provided for @deleteAccountBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently deletes your account and personal data. This cannot be undone.\n\nOrders and payment records are kept for legal and accounting purposes, with your name, phone, and address removed.'**
+  String get deleteAccountBody;
+
+  /// No description provided for @deleteAccountSecondTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to permanently delete your account?'**
+  String get deleteAccountSecondTitle;
+
+  /// No description provided for @deleteAccountSecondBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You will be signed out. This cannot be reversed.'**
+  String get deleteAccountSecondBody;
+
+  /// No description provided for @yesDeleteMyAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes, Delete My Account'**
+  String get yesDeleteMyAccount;
+
+  /// No description provided for @deleteAccountSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Your account has been deleted successfully.'**
+  String get deleteAccountSuccess;
+
+  /// No description provided for @deleteAccountFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t delete your account. Please try again.'**
+  String get deleteAccountFailed;
+
+  /// No description provided for @deleteAccountProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting your account...'**
+  String get deleteAccountProcessing;
+
+  /// No description provided for @deleteAccountReauthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify it\'s you'**
+  String get deleteAccountReauthTitle;
+
+  /// No description provided for @deleteAccountReauthBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the OTP sent to your phone to finish deleting your account.'**
+  String get deleteAccountReauthBody;
+
+  /// No description provided for @deleteAccountReauthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone verification failed. Please try again.'**
+  String get deleteAccountReauthFailed;
+
+  /// No description provided for @deleteAccountNeedPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with your mobile number, then try Delete Account again.'**
+  String get deleteAccountNeedPhone;
 
   /// No description provided for @delete_address_body.
   ///
@@ -2785,8 +2854,7 @@ abstract class AppLocalizations {
   String get partner_with_us_subtitle;
 }
 
-class _AppLocalizationsDelegate
-    extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -2795,30 +2863,27 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en', 'hi', 'te', 'ur'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['en', 'hi', 'te', 'ur'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
+
+
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'en':
-      return AppLocalizationsEn();
-    case 'hi':
-      return AppLocalizationsHi();
-    case 'te':
-      return AppLocalizationsTe();
-    case 'ur':
-      return AppLocalizationsUr();
+    case 'en': return AppLocalizationsEn();
+    case 'hi': return AppLocalizationsHi();
+    case 'te': return AppLocalizationsTe();
+    case 'ur': return AppLocalizationsUr();
   }
 
   throw FlutterError(
     'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.',
+    'that was used.'
   );
 }

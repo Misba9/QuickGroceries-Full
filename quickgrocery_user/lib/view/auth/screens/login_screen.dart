@@ -22,7 +22,11 @@ class LoginScreen extends ConsumerWidget {
       body: SafeArea(
         child: KeyboardSafeBody(
           padding: const EdgeInsets.all(15),
-          child: Column(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
               children: [
                 AppSpacing.h20,
                 GestureDetector(
@@ -84,7 +88,12 @@ class LoginScreen extends ConsumerWidget {
                     ),
                     child: Text(
                       provider.phoneAuthError!,
-                      style: TextStyle(color: Colors.red.shade800, fontSize: 13),
+                      style: TextStyle(
+                        color: Colors.red.shade800,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
                     ),
                   ),
                   AppSpacing.h10,
@@ -98,7 +107,9 @@ class LoginScreen extends ConsumerWidget {
                       ? null
                       : () {
                           provider.clearPhoneAuthError();
-                          if (provider.mobileController.text.length < 10) {
+                          final digits = provider.mobileController.text
+                              .replaceAll(RegExp(r'\D'), '');
+                          if (digits.length < 10) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(context.l10n.please_enter_valid_phone),
@@ -144,6 +155,8 @@ class LoginScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            ),
+          ),
         ),
       ),
     );

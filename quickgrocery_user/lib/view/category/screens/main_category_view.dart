@@ -73,7 +73,7 @@ class _MainCategoryViewScreenState
   @override
   Widget build(BuildContext context) {
     final responsive = Responsive.of(context);
-    final gutter = responsive.gutter();
+    final gutter = responsive.horizontalInset();
     final appContentAsync = ref.watch(appContentStreamProvider);
     final appContent = appContentAsync.value ?? AppContentConfig.defaults;
     final contentLoading =
@@ -158,6 +158,7 @@ class _MainCategoryViewScreenState
                             cardMargin: EdgeInsets.zero,
                             heading: appContent.flashDealHeading,
                             headingLoading: contentLoading,
+                            heroScope: 'flash-explore',
                           ),
                         ),
                       ),
@@ -179,6 +180,7 @@ class _MainCategoryViewScreenState
                         child: RecommendationsSection(
                           maxItems: 14,
                           sectionTitle: context.l10n.recommended_products,
+                          heroScope: 'recs-explore',
                         ),
                       ),
                     ),

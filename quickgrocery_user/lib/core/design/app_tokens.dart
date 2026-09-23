@@ -97,7 +97,15 @@ class AppMotion {
 class AppBreakpoints {
   static const double phone = 0;
   static const double tablet = 600;
+  static const double largeTablet = 900;
   static const double desktop = 1024;
+  static const double xl = 1200;
+
+  /// Centered content on large iPads; backgrounds/nav stay full-bleed.
+  static const double contentMaxWidth = 1120;
+
+  /// Product tiles narrower than this clip name + ADD + price.
+  static const double productMinCardWidth = 168;
 }
 
 class AppSurface {
@@ -105,10 +113,10 @@ class AppSurface {
   static const Color card = Colors.white;
   static const Color subtle = Color(0xFFEFEFF3);
   static const Color border = Color(0xFFE6E6EC);
-  static const Color textMuted = Color(0xFF6B6B73);
+  static const Color textMuted = Color(0xFF4A4A52);
   static const Color text = Color(0xFF111114);
   static const Color textPrimary = Color(0xFF111114);
-  static const Color textSecondary = Color(0xFF555560);
+  static const Color textSecondary = Color(0xFF3D3D45);
   static const Color success = Color(0xFF11A04C);
   static const Color danger = Color(0xFFD92D2D);
 }

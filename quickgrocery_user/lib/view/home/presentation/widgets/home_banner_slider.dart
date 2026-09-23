@@ -77,7 +77,10 @@ class _HomeBannerSliderState extends State<HomeBannerSlider> {
                   pauseAutoPlayOnManualNavigate: true,
                   enableInfiniteScroll: loop,
                   scrollPhysics: const BouncingScrollPhysics(),
-                  onPageChanged: (i, _) => setState(() => _index = i),
+                  onPageChanged: (i, _) {
+                    if (!mounted) return;
+                    setState(() => _index = i);
+                  },
                 ),
               ),
             ),

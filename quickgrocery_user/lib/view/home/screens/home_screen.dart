@@ -68,6 +68,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  AddressService? _addressService;
+  bool _didBootstrapAddress = false;
   bool _hasInternet = true;
   bool _isServiceable = true;
   bool _isCheckingServiceability = false;
@@ -81,19 +83,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _bootstrapLegacyServices();
     _setupConnectivityListener();
     _checkConnectivity();
     _scrollController.addListener(_onScroll);
   }
 
-  void _bootstrapLegacyServices() {
-    final addressService = legacy.Provider.of<AddressService>(
-      context,
-      listen: false,
-    );
-
-    addressService.addListener(_onAddressChanged);
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final addressService = legacy.Provider.of<AddressService>(context);
+    if (!identical(_addressService, addressService)) {
+      _addressService?.removeListener(_onAddressChanged);
+      _addressService = addressService;
+      _addressService!.addListener(_onAddressChanged);
+    }
+    if (_didBootstrapAddress) return;
+    _didBootstrapAddress = true;
     Future.microtask(() async {
       await addressService.ready;
       await addressService.getAddress();
@@ -285,12 +290,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void dispose() {
     _connectivitySub?.cancel();
     _scrollController.dispose();
-    if (mounted) {
-      legacy.Provider.of<AddressService>(
-        context,
-        listen: false,
-      ).removeListener(_onAddressChanged);
-    }
+    _addressService?.removeListener(_onAddressChanged);
     super.dispose();
   }
 
@@ -305,7 +305,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final cartService = legacy.Provider.of<CategoryService>(context);
     final hasCartItems = cartService.selectedProduct.isNotEmpty;
     final responsive = Responsive.of(context);
-    final gutter = responsive.gutter();
+    final gutter = responsive.horizontalInset();
     final pricingAsync = ref.watch(pricingConfigProvider);
     final pricing = pricingAsync.asData?.value;
     final appContentAsync = ref.watch(appContentStreamProvider);
@@ -379,6 +379,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: FlashSaleSection(
                       heading: appContent.flashDealHeading,
                       headingLoading: contentLoading,
+                      heroScope: 'flash-home',
                     ),
                   ),
                 ),
@@ -396,7 +397,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: const RecommendationsSection(),
+                  child: const RecommendationsSection(heroScope: 'recs-home'),
                 ),
               ),
               SliverToBoxAdapter(
@@ -559,6 +560,7 @@ class _ProductRailSection extends ConsumerWidget {
             title: title,
             titleLoading: titleLoading,
             products: products,
+            heroScope: 'home-rail-$legacySpecialCat',
           );
         }
         return _LegacyRail(
@@ -594,6 +596,7 @@ class _LegacyRail extends ConsumerWidget {
           title: title,
           titleLoading: titleLoading,
           products: products,
+          heroScope: 'home-rail-$specialCat',
         );
       },
     );
@@ -604,11 +607,13 @@ class _RailWithProducts extends StatelessWidget {
   const _RailWithProducts({
     required this.title,
     required this.products,
+    required this.heroScope,
     this.titleLoading = false,
   });
 
   final String title;
   final bool titleLoading;
+  final String heroScope;
   final List<ProductModel> products;
 
   @override
@@ -624,7 +629,11 @@ class _RailWithProducts extends StatelessWidget {
             height: h,
             itemCount: products.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) => HomeProductCard(product: products[i]),
+            itemBuilder: (_, i) => HomeProductCard(
+              product: products[i],
+              heroScope: heroScope,
+              heroIndex: i,
+            ),
           ),
         ],
       ),

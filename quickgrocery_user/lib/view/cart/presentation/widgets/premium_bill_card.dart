@@ -114,7 +114,7 @@ class _PremiumBillCardState extends State<PremiumBillCard> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.poppins(
-                                    fontSize: 10.5,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                     color: AppSurface.textSecondary,
                                   ),
@@ -371,7 +371,7 @@ class _BillRow extends StatelessWidget {
                   child: Text(
                     spec.sub!,
                     style: GoogleFonts.poppins(
-                      fontSize: 10.5,
+                      fontSize: 12,
                       color: AppSurface.textMuted,
                       height: 1.3,
                     ),
@@ -384,7 +384,7 @@ class _BillRow extends StatelessWidget {
           Text(
             spec.valueStrikeText!,
             style: GoogleFonts.poppins(
-              fontSize: 11.5,
+              fontSize: 12,
               color: AppSurface.textMuted,
               decoration: TextDecoration.lineThrough,
               height: 1.3,

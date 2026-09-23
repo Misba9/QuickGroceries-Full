@@ -1,4 +1,3 @@
-import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -203,7 +202,7 @@ class _CartBody extends StatelessWidget {
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 12, Responsive.of(context).horizontalInset(), 0),
               child: FreeDeliveryBanner(
                 subtotal: bill.subtotal,
                 threshold: cart.pricing.freeDeliveryThreshold.toDouble(),
@@ -218,7 +217,7 @@ class _CartBody extends StatelessWidget {
           if (cart.errorMessage != null)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 10, Responsive.of(context).horizontalInset(), 0),
                 child: _InlineError(
                   message: cart.errorMessage!,
                   onRetry: notifier.retry,
@@ -226,9 +225,9 @@ class _CartBody extends StatelessWidget {
               ),
             ),
           if (zoneAsync.isLoading)
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(14, 8, 14, 0),
+                padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 8, Responsive.of(context).horizontalInset(), 0),
                 child: LinearProgressIndicator(
                   minHeight: 2,
                   backgroundColor: AppSurface.subtle,
@@ -238,18 +237,20 @@ class _CartBody extends StatelessWidget {
           if (cart.items.any((e) => e.isUnavailable))
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 12, Responsive.of(context).horizontalInset(), 0),
                 child: _UnavailableCartBanner(
                   onRemoveUnavailable: () {
                     final n = notifier.removeUnavailableItems();
                     if (context.mounted && n > 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
                         SnackBar(
                           content: Text(
                             n == 1
                                 ? 'Removed 1 unavailable item'
                                 : 'Removed $n unavailable items',
                           ),
+                          behavior: SnackBarBehavior.floating,
+                          margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                         ),
                       );
                     }
@@ -259,7 +260,7 @@ class _CartBody extends StatelessWidget {
             ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 18, 14, 8),
+              padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 18, Responsive.of(context).horizontalInset(), 8),
               child: Row(
                 children: [
                   Text(
@@ -283,7 +284,7 @@ class _CartBody extends StatelessWidget {
                     child: Text(
                       '${cart.items.length}',
                       style: GoogleFonts.poppins(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w800,
                         color: AppSurface.textSecondary,
                       ),
@@ -320,31 +321,30 @@ class _CartBody extends StatelessWidget {
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.of(context).horizontalInset(),
+            ),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, i) {
                   final item = cart.items[i];
-                  return FadeInUp(
-                    duration: Duration(milliseconds: 220 + i * 30),
-                    from: 14,
-                    child: PremiumCartItemCard(
-                      item: item,
-                      onIncrement: () {
-                        if (notifier.increment(item.productId)) return;
-                        showTopErrorToast(
-                          context,
-                          InventoryLimitMessages.incrementBlocked(
-                            l10n: context.l10n,
-                            stock: item.stock,
-                            maxOrder: item.maxOrder,
-                            currentCount: item.itemCount,
-                          ),
-                        );
-                      },
-                      onDecrement: () => notifier.decrement(item.productId),
-                      onRemove: () => notifier.remove(item.productId),
-                    ),
+                  return PremiumCartItemCard(
+                    item: item,
+                    lineIndex: i,
+                    onIncrement: () {
+                      if (notifier.increment(item.productId)) return;
+                      showTopErrorToast(
+                        context,
+                        InventoryLimitMessages.incrementBlocked(
+                          l10n: context.l10n,
+                          stock: item.stock,
+                          maxOrder: item.maxOrder,
+                          currentCount: item.itemCount,
+                        ),
+                      );
+                    },
+                    onDecrement: () => notifier.decrement(item.productId),
+                    onRemove: () => notifier.remove(item.productId),
                   );
                 },
                 childCount: cart.items.length,
@@ -353,7 +353,7 @@ class _CartBody extends StatelessWidget {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+              padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 8, Responsive.of(context).horizontalInset(), 0),
               child: PremiumBillCard(
                 bill: bill,
                 pricing: cart.pricing,
@@ -364,7 +364,11 @@ class _CartBody extends StatelessWidget {
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          SliverToBoxAdapter(child: _YouMightAlsoLikeRail()),
+          SliverToBoxAdapter(
+            child: HeroControllerScope.none(
+              child: _YouMightAlsoLikeRail(),
+            ),
+          ),
           // Bottom breathing room so the last card never sits flush
           // against the checkout bar's top divider.
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
@@ -513,7 +517,7 @@ class _YouMightAlsoLikeRail extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+                padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 8, Responsive.of(context).horizontalInset(), 8),
                 child: Row(
                   children: [
                     const Icon(
@@ -547,6 +551,8 @@ class _YouMightAlsoLikeRail extends StatelessWidget {
                       child: HomeProductCard(
                         product: p,
                         width: Responsive.of(context).isPhone ? 148 : 158,
+                        heroScope: 'cart-suggest',
+                        heroIndex: j,
                       ),
                     );
                   },

@@ -11,14 +11,14 @@ final authUserProvider = StreamProvider<User?>((ref) async* {
   yield* FirebaseAuth.instance.authStateChanges();
 });
 
-/// Resolved user for synchronous checks — prefers the synchronous getter so
-/// cold-start session restore on physical devices matches [AuthGate].
+/// Resolved user for synchronous checks.
+///
+/// Always prefer [FirebaseAuth.instance.currentUser]. After [signOut] the
+/// auth stream / Riverpod [AsyncLoading] can still hold the previous [User]
+/// — using that stale value makes the shell think the session is alive and
+/// skip guest bootstrap (stuck splash / black screen).
 User? resolveAuthUser(AsyncValue<User?> authAsync) {
-  final sync = FirebaseAuth.instance.currentUser;
-  if (sync != null) return sync;
-  // Signed out — never resurrect session from a stale stream event.
-  if (!authAsync.isLoading) return null;
-  return authAsync.valueOrNull;
+  return FirebaseAuth.instance.currentUser;
 }
 
 /// True once we know whether the user is signed in or out.
@@ -26,5 +26,5 @@ bool isAuthResolved(AsyncValue<User?> authAsync) {
   if (authAsync.hasValue) return true;
   // Cold start: persisted session available before stream's first event.
   if (FirebaseAuth.instance.currentUser != null) return true;
-  return false;
+  return !authAsync.isLoading;
 }

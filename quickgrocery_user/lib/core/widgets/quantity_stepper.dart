@@ -110,25 +110,25 @@ class QuantityStepper extends StatelessWidget {
     switch (s) {
       case QuantityStepperSize.small:
         return const _Dims(
-          height: 28,
-          tapWidth: 28,
-          numberWidth: 22,
-          numberSize: 12,
-          iconSize: 14,
+          height: 36,
+          tapWidth: 32,
+          numberWidth: 24,
+          numberSize: 13,
+          iconSize: 16,
           radius: 8,
         );
       case QuantityStepperSize.medium:
         return const _Dims(
-          height: 32,
-          tapWidth: 32,
-          numberWidth: 26,
-          numberSize: 13.5,
-          iconSize: 16,
+          height: 40,
+          tapWidth: 36,
+          numberWidth: 28,
+          numberSize: 14,
+          iconSize: 18,
           radius: 10,
         );
       case QuantityStepperSize.large:
         return const _Dims(
-          height: 40,
+          height: 48,
           tapWidth: 40,
           numberWidth: 32,
           numberSize: 16,

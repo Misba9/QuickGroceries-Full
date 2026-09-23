@@ -94,20 +94,32 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
     BootstrapDependencies deps, {
     BootstrapPrecacheHook? precacheImages,
   }) async {
-    if (_runInFlight && state.isComplete) return;
+    if (_runInFlight) return;
 
     _runInFlight = true;
     _lastBootUid = null;
     _lastDeps = deps;
     if (precacheImages != null) _lastPrecacheHook = precacheImages;
 
-    _tick(BootstrapLoadingMessages.loadingBanners, 0.2);
-    state = state.copyWith(
-      phase: AppBootstrapPhase.splash,
-      clearUser: true,
-      needsOnboarding: false,
-      status: AppBootstrapStatus.loading,
-    );
+    final keepHomeVisible = state.homeSnapshot.hasContent &&
+        (state.phase == AppBootstrapPhase.ready ||
+            state.phase == AppBootstrapPhase.degraded);
+
+    if (!keepHomeVisible) {
+      _tick(BootstrapLoadingMessages.loadingBanners, 0.2);
+      state = state.copyWith(
+        phase: AppBootstrapPhase.splash,
+        clearUser: true,
+        needsOnboarding: false,
+        status: AppBootstrapStatus.loading,
+      );
+    } else {
+      state = state.copyWith(
+        clearUser: true,
+        needsOnboarding: false,
+        status: AppBootstrapStatus.ready,
+      );
+    }
     AppStartupLog.milestone('Guest bootstrap started');
 
     HomeBootstrapSnapshot diskSnapshot = const HomeBootstrapSnapshot();
@@ -120,9 +132,10 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
         state = state.copyWith(homeSnapshot: diskSnapshot);
       }
 
-      state = state.copyWith(phase: AppBootstrapPhase.loadingHome);
-
-      _tick(BootstrapLoadingMessages.initializingCart, 0.35);
+      if (!keepHomeVisible) {
+        state = state.copyWith(phase: AppBootstrapPhase.loadingHome);
+        _tick(BootstrapLoadingMessages.initializingCart, 0.35);
+      }
 
       await Future.wait<void>([
         _wireCartBridge(deps),
@@ -132,19 +145,31 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
         }),
       ], eagerError: false);
 
-      _tick(BootstrapLoadingMessages.loadingBanners, 0.55);
+      if (!keepHomeVisible) {
+        _tick(BootstrapLoadingMessages.loadingBanners, 0.55);
+      }
       final freshHome = await _fetchHomeSnapshot();
 
       final merged = freshHome.hasContent
           ? freshHome
           : (diskSnapshot.hasContent ? diskSnapshot : freshHome);
 
-      _tick(BootstrapLoadingMessages.precachingImages, 0.85);
+      if (!keepHomeVisible) {
+        _tick(BootstrapLoadingMessages.precachingImages, 0.85);
+      }
       if (precacheImages != null && merged.hasContent) {
         await precacheImages(merged);
       }
 
       if (!merged.hasContent) {
+        if (keepHomeVisible) {
+          state = state.copyWith(
+            status: AppBootstrapStatus.ready,
+            phase: AppBootstrapPhase.ready,
+            clearUser: true,
+          );
+          return;
+        }
         state = state.copyWith(
           status: AppBootstrapStatus.error,
           phase: AppBootstrapPhase.error,
@@ -232,6 +257,10 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
       diskSnapshot = phase1[0]! as HomeBootstrapSnapshot;
       needsOnboarding = phase1[1]! as bool;
 
+      if (FirebaseAuth.instance.currentUser?.uid != user.uid) {
+        return;
+      }
+
       if (diskSnapshot.hasContent) {
         AppStartupLog.milestone(
           'Cache loaded',
@@ -286,6 +315,10 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
       }
 
       _tick(BootstrapLoadingMessages.almostReady, 0.95);
+
+      if (FirebaseAuth.instance.currentUser?.uid != user.uid) {
+        return;
+      }
 
       if (!merged.hasContent) {
         state = state.copyWith(
@@ -349,10 +382,39 @@ class AppBootstrapController extends Notifier<AppBootstrapState> {
 
   void markSignedOut() {
     _lastBootUid = null;
-    _lastDeps = null;
     _runInFlight = false;
-    state = AppBootstrapState.initial;
+    final snapshot = state.homeSnapshot;
+    final wasShowingHome = state.phase == AppBootstrapPhase.ready ||
+        state.phase == AppBootstrapPhase.degraded;
+    final keepHome = wasShowingHome || snapshot.hasContent;
+    state = AppBootstrapState(
+      status: keepHome ? AppBootstrapStatus.ready : AppBootstrapStatus.loading,
+      phase: keepHome ? AppBootstrapPhase.ready : AppBootstrapPhase.splash,
+      user: null,
+      needsOnboarding: false,
+      homeSnapshot: snapshot,
+      loadingMessage: '',
+      progress: keepHome ? 1 : 0,
+    );
     AppStartupLog.milestone('Signed out');
+  }
+
+  /// Logout while home is already on screen: re-attach cart, do not
+  /// drop into [AppBootstrapPhase.loadingHome] (infinite shimmer).
+  Future<void> reattachGuestAfterSignOut(BootstrapDependencies deps) async {
+    _lastBootUid = null;
+    _lastDeps = deps;
+    await _wireCartBridge(deps);
+    if (state.phase == AppBootstrapPhase.ready ||
+        state.phase == AppBootstrapPhase.degraded) {
+      state = state.copyWith(
+        clearUser: true,
+        needsOnboarding: false,
+        status: AppBootstrapStatus.ready,
+      );
+      return;
+    }
+    await runGuest(deps, precacheImages: _lastPrecacheHook);
   }
 
   void markOnboardingComplete() {

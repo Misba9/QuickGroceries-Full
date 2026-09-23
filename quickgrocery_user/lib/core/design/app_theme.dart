@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 
 import 'app_tokens.dart';
@@ -50,7 +49,7 @@ class AppTheme {
         scrolledUnderElevation: 1,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: textTheme.titleLarge?.copyWith(fontSize: 16),
+        titleTextStyle: textTheme.titleMedium,
         iconTheme: const IconThemeData(color: AppSurface.textPrimary),
         systemOverlayStyle: SystemUiOverlayStyle.dark,
       ),
@@ -65,50 +64,41 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: AppColor.primary,
           foregroundColor: Colors.black,
-          // Avoid Size.fromHeight — its width is infinite and breaks buttons in Row.
-          minimumSize: const Size(0, 52),
+          minimumSize: const Size(0, AppTypography.buttonMinHeight),
           padding: const EdgeInsets.symmetric(horizontal: 18),
           shape: RoundedRectangleBorder(
             borderRadius: AppRadii.all(AppRadii.md),
           ),
-          textStyle: GoogleFonts.poppins(
-            fontWeight: FontWeight.w800,
-            fontSize: 14,
-          ),
+          textStyle: AppTypography.button,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColor.primary,
           foregroundColor: Colors.black,
-          minimumSize: const Size(0, 52),
+          minimumSize: const Size(0, AppTypography.buttonMinHeight),
           shape: RoundedRectangleBorder(
             borderRadius: AppRadii.all(AppRadii.md),
           ),
           elevation: 0,
-          textStyle: GoogleFonts.poppins(
-            fontWeight: FontWeight.w800,
-            fontSize: 14,
-          ),
+          textStyle: AppTypography.button,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(0, AppTypography.buttonMinHeight),
           side: BorderSide(color: AppSurface.border, width: 1.2),
           shape: RoundedRectangleBorder(
             borderRadius: AppRadii.all(AppRadii.md),
           ),
-          textStyle: GoogleFonts.poppins(
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-          ),
+          textStyle: AppTypography.button.copyWith(fontSize: 15),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppSurface.textPrimary,
-          textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w700),
+          minimumSize: const Size(48, 48),
+          textStyle: AppTypography.button.copyWith(fontSize: 15),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -150,7 +140,7 @@ class AppTheme {
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppSurface.textPrimary,
         contentTextStyle:
-            textTheme.bodyMedium?.copyWith(color: Colors.white),
+            textTheme.bodyLarge?.copyWith(color: Colors.white),
         shape: RoundedRectangleBorder(
           borderRadius: AppRadii.all(AppRadii.md),
         ),
@@ -170,8 +160,8 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: AppRadii.all(AppRadii.lg),
         ),
-        titleTextStyle: textTheme.titleLarge,
-        contentTextStyle: textTheme.bodyMedium,
+        titleTextStyle: textTheme.titleMedium,
+        contentTextStyle: textTheme.bodyLarge,
       ),
     );
   }

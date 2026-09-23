@@ -147,7 +147,7 @@ class PaymentScreen extends StatelessWidget {
                       ),
                       "",
                       "Payment for product",
-                      onPaymentSuccess: (_) {
+                      onPaymentSuccess: (_, __) {
                         cartService.addCartItemto(
                           context,
                           catService.selectedProduct,

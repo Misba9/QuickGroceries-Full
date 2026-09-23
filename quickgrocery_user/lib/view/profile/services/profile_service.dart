@@ -2,34 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ProfileService extends ChangeNotifier {
-  Future<String> createReferralLink(String referralCode) async {
-    final dynamicLinkParams = DynamicLinkParameters(
-      uriPrefix: "https://siswar.page.link",
-      link: Uri.parse("https://siswar.com/referral?code=$referralCode"),
-      androidParameters: const AndroidParameters(
-        packageName: "com.quickgrocery.io",
-        minimumVersion: 1,
-      ),
-      iosParameters: const IOSParameters(
-        bundleId: 'com.ahmed.quickgrocery',
-        minimumVersion: '1.0.0',
-      ),
-    );
-
-    final dynamicLink =
-        await FirebaseDynamicLinks.instance.buildShortLink(dynamicLinkParams);
-    return dynamicLink.shortUrl.toString();
-  }
-
-  void shareReferralLink(String referralCode) async {
-    String link = await createReferralLink(referralCode);
+  void shareReferralLink(String referralCode) {
     Share.share(
-      'Get groceries delivered fast. Use my referral code $referralCode '
-      'or link: $link',
+      'Get groceries delivered fast with Quick Groceries. Use my referral code: $referralCode',
     );
   }
 

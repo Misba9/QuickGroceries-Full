@@ -15,39 +15,44 @@ import 'package:quickgrocery/core/auth/session_legacy_services.dart';
 import 'package:quickgrocery/core/auth/user_session_store.dart';
 import 'package:quickgrocery/view/cart/data/guest_cart_store.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
-import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/core/startup/shared_preferences_provider.dart';
 import 'package:quickgrocery/core/user/user_profile_cache.dart';
 
 /// Central sign-out — clears every user-scoped layer so account B never
-/// inherits account A state. Does **not** replace the nav root; [AppBootstrapShell]
-/// shows login when [FirebaseAuth.currentUser] becomes null.
+/// inherits account A state.
+///
+/// Navigation is **not** performed here. [AppBootstrapShell] reacts to
+/// [FirebaseAuth.currentUser] == null (plus [AuthSignOutCoordinator]) and
+/// keeps/shows the guest home. Callers dismiss their own loading overlay.
 abstract final class AuthSessionManager {
   /// Full logout from a widget tree that has legacy [Provider] services.
   static Future<void> signOutFromContext({
     required BuildContext context,
     required WidgetRef ref,
+    bool preserveCartForGuest = true,
   }) {
     return signOut(
       ref: ref,
       legacy: SessionLegacyServices.fromContext(context),
+      preserveCartForGuest: preserveCartForGuest,
     );
   }
 
   static Future<void> signOut({
     required WidgetRef ref,
     required SessionLegacyServices legacy,
+    bool preserveCartForGuest = true,
   }) async {
     final previousUid = FirebaseAuth.instance.currentUser?.uid;
     AuthSessionLog.logoutStarted(uid: previousUid);
 
     try {
       final prefs = ref.read(sharedPreferencesProvider);
-      final cartItems = ref.read(cartProvider).items;
-      await GuestCartStore.saveItems(prefs, cartItems);
-      GuestAuthCoordinator.preserveCartOnSignOut = true;
-      await ref.read(guestSessionProvider.notifier).enable();
-      GuestAuthCoordinator.notifyGuestModeEntered();
+      if (preserveCartForGuest) {
+        final cartItems = ref.read(cartProvider).items;
+        await GuestCartStore.saveItems(prefs, cartItems);
+        GuestAuthCoordinator.preserveCartOnSignOut = true;
+      }
 
       legacy.resetInMemoryState();
       PhoneAuthCoordinator.reset();
@@ -60,10 +65,8 @@ abstract final class AuthSessionManager {
 
       await FirebaseAuth.instance.signOut();
 
-      _clearNavigationStackToLogin();
+      await ref.read(guestSessionProvider.notifier).enable();
 
-      // Defer stream invalidation so listeners (e.g. GlobalCartOverlay) do not
-      // mutate the element tree during an in-flight build.
       SchedulerBinding.instance.addPostFrameCallback((_) {
         AuthSessionProviderReset.invalidateUserProviders(ref);
         ref.invalidate(authUserProvider);
@@ -88,14 +91,6 @@ abstract final class AuthSessionManager {
       AuthSessionLog.exception('signOut', e, st);
       rethrow;
     }
-  }
-
-  /// Clears pushed routes; login is shown by [AppBootstrapShell] auth gate
-  /// (equivalent to pushAndRemoveUntil LoginScreen without destroying the shell).
-  static void _clearNavigationStackToLogin() {
-    final nav = rootNavigatorKey.currentState;
-    if (nav == null || !nav.mounted) return;
-    nav.popUntil((route) => route.isFirst);
   }
 
   /// Drop cached profile/home data when a different UID signs in.

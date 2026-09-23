@@ -69,7 +69,15 @@ class PremiumCheckoutBar extends StatelessWidget {
             ),
           ],
         ),
-        child: Padding(
+        // heightFactor: 1 is required. A default Align expands to the
+        // Scaffold's max height when used as bottomNavigationBar, which
+        // zeros the cart body and paints this white bar over the list.
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: AppBreakpoints.contentMaxWidth),
+            child: Padding(
           padding: EdgeInsets.fromLTRB(
             16,
             12,
@@ -87,6 +95,7 @@ class PremiumCheckoutBar extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
+                    flex: 5,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -104,7 +113,7 @@ class PremiumCheckoutBar extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.poppins(
                                 color: AppSurface.textSecondary,
-                                fontSize: 11.5,
+                                fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 height: 1.2,
                               ),
@@ -116,7 +125,7 @@ class PremiumCheckoutBar extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.poppins(
                                   color: AppSurface.success,
-                                  fontSize: 11.5,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   height: 1.2,
                                 ),
@@ -127,7 +136,9 @@ class PremiumCheckoutBar extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  _CheckoutButton(
+                  Flexible(
+                    flex: 6,
+                    child: _CheckoutButton(
                     label: buttonText,
                     loadingLabel: loadingLabel,
                     enabled: enabled,
@@ -138,9 +149,12 @@ class PremiumCheckoutBar extends StatelessWidget {
                       onCheckout();
                     },
                   ),
+                  ),
                 ],
               ),
             ],
+          ),
+            ),
           ),
         ),
       ),
@@ -197,7 +211,7 @@ class _Helper extends StatelessWidget {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 11.5,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: color,
                 height: 1.25,
@@ -276,8 +290,10 @@ class _CheckoutButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               boxShadow: enabled ? AppShadow.primaryGlow : null,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-            child: Center(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48, minWidth: 112),
+              child: Center(
               child: isLoading
                   ? Row(
                       mainAxisSize: MainAxisSize.min,
@@ -301,7 +317,7 @@ class _CheckoutButton extends StatelessWidget {
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
-                              fontSize: 12.5,
+                              fontSize: 15,
                             ),
                           ),
                         ),
@@ -319,7 +335,7 @@ class _CheckoutButton extends StatelessWidget {
                             style: GoogleFonts.poppins(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
-                              fontSize: 13.5,
+                              fontSize: 16,
                               letterSpacing: 0.3,
                             ),
                           ),
@@ -332,6 +348,7 @@ class _CheckoutButton extends StatelessWidget {
                         ),
                       ],
                     ),
+              ),
             ),
           ),
         ),

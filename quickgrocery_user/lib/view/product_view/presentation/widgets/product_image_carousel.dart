@@ -6,8 +6,19 @@ import 'package:quickgrocery/view/product_view/presentation/widgets/product_bran
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_display_image.dart';
 import 'package:video_player/video_player.dart';
 
-/// Stable hero tag derived from a product id — used by list cards and PDP.
+/// Stable hero tag derived from a product id — used by the PDP destination.
 String productHeroTag(String productId) => 'product-image-$productId';
+
+/// Unique list-card tag. The same product can appear in multiple rails,
+/// grids, and offstage [IndexedStack] tabs. The scope must differ per
+/// screen or section; a shared tag throws "multiple heroes that share
+/// the same tag" because every tab is one navigator subtree.
+String productCardHeroTag(
+  String productId, {
+  required String scope,
+  int index = 0,
+}) =>
+    'product-image-$productId::$scope::$index';
 
 /// Premium product gallery: large hero (~68% screen width), thumbnails, zoom.
 class ProductImageCarousel extends StatefulWidget {
