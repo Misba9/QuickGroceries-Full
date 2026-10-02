@@ -1,5 +1,5 @@
-# Firebase / Flutter plugins require iOS 13+.
-platform :ios, '13.0'
+# Xcode 27 supports iOS 15.0 as the minimum deployment target.
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -37,12 +37,17 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+  end
+
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # Keep pods aligned with the app deployment target.
-      if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 13.0
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      # Podspecs still declare 12.0/13.0. Xcode 27 rejects anything below 15.0.
+      # Leave a higher pod-specific target untouched.
+      if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 15.0
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       end
 
       # permission_handler: enable only the permissions this app requests.
