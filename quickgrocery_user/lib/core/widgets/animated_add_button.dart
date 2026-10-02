@@ -81,7 +81,7 @@ class _AddPill extends StatelessWidget {
     final dims = _AddDims.from(size);
 
     return Material(
-      color: Colors.white,
+      color: AppSurface.of(context).card,
       borderRadius: BorderRadius.circular(dims.radius),
       child: InkWell(
         borderRadius: BorderRadius.circular(dims.radius),
@@ -89,7 +89,7 @@ class _AddPill extends StatelessWidget {
         child: Ink(
           height: dims.height,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppSurface.of(context).card,
             borderRadius: BorderRadius.circular(dims.radius),
             border: Border.all(color: AppColor.primary.withValues(alpha: 0.55)),
             boxShadow: AppShadow.dim,

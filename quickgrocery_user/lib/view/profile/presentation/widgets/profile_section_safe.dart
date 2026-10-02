@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Isolates a profile section so a localized error message can be shown
@@ -32,13 +33,14 @@ class ProfileSectionError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: surface.danger.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade200),
+        border: Border.all(color: surface.danger.withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,7 +50,7 @@ class ProfileSectionError extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w700,
               fontSize: 13,
-              color: Colors.red.shade800,
+              color: surface.danger,
             ),
           ),
           if (message != null) ...[
@@ -57,7 +59,7 @@ class ProfileSectionError extends StatelessWidget {
               message!,
               style: GoogleFonts.poppins(
                 fontSize: 12,
-                color: Colors.red.shade700,
+                color: surface.danger.withValues(alpha: 0.85),
               ),
             ),
           ],

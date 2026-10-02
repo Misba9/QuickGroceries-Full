@@ -12,7 +12,7 @@ import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
-import 'package:quickgrocery/core/widgets/skeleton.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
@@ -67,7 +67,6 @@ class _MainCategoryViewScreenState
     ref.invalidate(trendingProductsStreamProvider);
     ref.invalidate(featuredProductsStreamProvider);
     ref.invalidate(appContentStreamProvider);
-    await Future.delayed(const Duration(milliseconds: 600));
   }
 
   @override
@@ -89,8 +88,9 @@ class _MainCategoryViewScreenState
         ).onSelectedChange(0);
       },
       child: Scaffold(
-        backgroundColor: AppSurface.background,
+        backgroundColor: AppSurface.of(context).background,
         body: SafeArea(
+          top: false,
           bottom: false,
           child: Stack(
             children: [
@@ -220,7 +220,7 @@ class _Greeting extends ConsumerWidget {
             boxShadow: AppShadow.primaryGlow,
           ),
           alignment: Alignment.center,
-          child: const Icon(
+          child: Icon(
             Icons.shopping_basket_rounded,
             color: Colors.white,
             size: 20,
@@ -238,19 +238,19 @@ class _Greeting extends ConsumerWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
-                  color: AppSurface.textMuted,
+                  color: AppSurface.of(context).textMuted,
                   height: 1.1,
                 ),
               ),
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.location_on_rounded,
                     size: 14,
-                    color: AppSurface.text,
+                    color: AppSurface.of(context).text,
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: 4),
                   Flexible(
                     child: Text(
                       addressService.address.isEmpty ||
@@ -262,7 +262,7 @@ class _Greeting extends ConsumerWidget {
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: AppSurface.text,
+                        color: AppSurface.of(context).text,
                         height: 1.1,
                       ),
                     ),
@@ -274,7 +274,7 @@ class _Greeting extends ConsumerWidget {
         ),
         if (categoryCount > 0)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: AppColor.primary.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -287,7 +287,7 @@ class _Greeting extends ConsumerWidget {
               style: GoogleFonts.poppins(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w700,
-                color: AppSurface.text,
+                color: AppSurface.of(context).text,
                 letterSpacing: 0.2,
               ),
             ),
@@ -366,15 +366,9 @@ class _TrendingCategoriesSectionState
               icon: Icons.local_fire_department_rounded,
               isLoading: widget.headingLoading,
             ),
-            SizedBox(
+            const SizedBox(
               height: 178,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: SizedBox(
-                  width: MediaQuery.sizeOf(context).width * 0.84,
-                  child: const Skeleton(radius: 20),
-                ),
-              ),
+              child: AppLoading.section,
             ),
           ],
         ),
@@ -547,10 +541,7 @@ class _AllCategoriesSection extends ConsumerWidget {
             icon: Icons.grid_view_rounded,
             isLoading: headingLoading,
           ),
-          grid(
-            count: cols * 3,
-            builder: (_, __) => const Skeleton(radius: 14),
-          ),
+          AppLoading.section,
         ],
       );
     }

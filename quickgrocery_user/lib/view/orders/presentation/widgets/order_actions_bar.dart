@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 class OrderActionsBar extends StatelessWidget {
   const OrderActionsBar({
@@ -69,8 +71,9 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = primary ? AppColor.primary : Colors.white;
-    final fg = Colors.black;
+    final surface = AppSurface.of(context);
+    final bg = primary ? AppColor.primary : surface.card;
+    final fg = primary ? Colors.black : surface.textPrimary;
     return InkWell(
       onTap: isLoading ? null : onTap,
       borderRadius: BorderRadius.circular(14),
@@ -79,18 +82,13 @@ class _ActionButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(
+            color: primary ? AppColor.primary : surface.border,
+          ),
         ),
         child: Center(
           child: isLoading
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.black,
-                  ),
-                )
+              ? SizedBox(width: 18, height: 18, child: AppLoading.micro)
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

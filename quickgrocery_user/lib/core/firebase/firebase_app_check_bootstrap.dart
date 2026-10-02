@@ -6,12 +6,10 @@ import 'package:quickgrocery/core/firebase/firebase_phone_auth_logger.dart';
 
 /// Activates Firebase App Check with environment-appropriate providers.
 ///
-/// Debug / profile / local release: debug providers (register debug tokens in
-/// Firebase Console → App Check if enforcement is enabled).
-///
-/// Store release:
-/// - Android: `--dart-define=PLAY_STORE_RELEASE=true` → Play Integrity
-/// - iOS: `--dart-define=APP_STORE_RELEASE=true` → App Attest + DeviceCheck
+/// - Debug / profile: debug providers (register tokens in Firebase Console
+///   if enforcement is enabled).
+/// - Release: Play Integrity (Android) / App Attest+DeviceCheck (iOS).
+///   Never activates the debug provider in release builds.
 Future<void> configureFirebaseAppCheck() async {
   if (kIsWeb) return;
 

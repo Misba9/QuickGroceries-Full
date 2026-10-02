@@ -1,6 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
@@ -9,6 +9,7 @@ import 'package:quickgrocery/maintenance/domain/maintenance_status.dart';
 import 'package:quickgrocery/maintenance/presentation/providers/maintenance_providers.dart';
 import 'package:quickgrocery/maintenance/presentation/widgets/maintenance_countdown.dart';
 import 'package:quickgrocery/maintenance/presentation/widgets/maintenance_engagement_section.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/support/presentation/providers/support_settings_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
@@ -69,11 +70,12 @@ class MaintenanceScreen extends ConsumerWidget {
                   if (config.bannerImageUrl.trim().isNotEmpty)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(20),
-                      child: CachedNetworkImage(
-                        imageUrl: config.bannerImageUrl,
+                      child: CachedImage(
+                        url: config.bannerImageUrl,
                         height: 140,
                         width: double.infinity,
                         fit: BoxFit.cover,
+                        memCacheWidth: 800,
                       ),
                     ),
                   if (config.lottieUrl.trim().isNotEmpty) ...[
@@ -282,7 +284,7 @@ class _ActionButton extends StatelessWidget {
               label: Text(label),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(52),
-                backgroundColor: Colors.white,
+                backgroundColor: AppSurface.of(context).card,
                 foregroundColor: Colors.black87,
               ),
             )

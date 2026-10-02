@@ -4,6 +4,7 @@
     "noImplicitReturns": true,
     "rootDir": "./src",
     "outDir": "lib",
+    "rootDir": "src",
     "sourceMap": true,
     "strict": true,
     "target": "ES2022",

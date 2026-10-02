@@ -570,77 +570,71 @@ abstract class AppLocalizations {
   /// **'Delete Account'**
   String get delete_account;
 
-  /// No description provided for @deleteAccountTitle.
+  /// No description provided for @delete_account_title.
   ///
   /// In en, this message translates to:
-  /// **'Delete your account?'**
-  String get deleteAccountTitle;
+  /// **'Delete Account'**
+  String get delete_account_title;
 
-  /// No description provided for @deleteAccountBody.
+  /// No description provided for @delete_account_confirmation.
   ///
   /// In en, this message translates to:
-  /// **'This permanently deletes your account and personal data. This cannot be undone.\n\nOrders and payment records are kept for legal and accounting purposes, with your name, phone, and address removed.'**
-  String get deleteAccountBody;
+  /// **'Deleting your account is permanent.\n\nThis action will permanently remove your account, saved addresses, cart, profile information and other personal data.\n\nThis action cannot be undone.'**
+  String get delete_account_confirmation;
 
-  /// No description provided for @deleteAccountSecondTitle.
+  /// No description provided for @delete_account_warning.
   ///
   /// In en, this message translates to:
-  /// **'Are you sure you want to permanently delete your account?'**
-  String get deleteAccountSecondTitle;
+  /// **'This action cannot be undone.'**
+  String get delete_account_warning;
 
-  /// No description provided for @deleteAccountSecondBody.
+  /// No description provided for @delete_account_success.
   ///
   /// In en, this message translates to:
-  /// **'You will be signed out. This cannot be reversed.'**
-  String get deleteAccountSecondBody;
+  /// **'Your account has been deleted.'**
+  String get delete_account_success;
 
-  /// No description provided for @yesDeleteMyAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Yes, Delete My Account'**
-  String get yesDeleteMyAccount;
-
-  /// No description provided for @deleteAccountSuccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Your account has been deleted successfully.'**
-  String get deleteAccountSuccess;
-
-  /// No description provided for @deleteAccountFailed.
+  /// No description provided for @delete_account_failed.
   ///
   /// In en, this message translates to:
   /// **'We couldn\'t delete your account. Please try again.'**
-  String get deleteAccountFailed;
+  String get delete_account_failed;
 
-  /// No description provided for @deleteAccountProcessing.
-  ///
-  /// In en, this message translates to:
-  /// **'Deleting your account...'**
-  String get deleteAccountProcessing;
-
-  /// No description provided for @deleteAccountReauthTitle.
+  /// No description provided for @delete_account_reauth_title.
   ///
   /// In en, this message translates to:
   /// **'Verify it\'s you'**
-  String get deleteAccountReauthTitle;
+  String get delete_account_reauth_title;
 
-  /// No description provided for @deleteAccountReauthBody.
+  /// No description provided for @delete_account_reauth_message.
   ///
   /// In en, this message translates to:
-  /// **'Enter the OTP sent to your phone to finish deleting your account.'**
-  String get deleteAccountReauthBody;
+  /// **'For security, enter the OTP sent to your phone to confirm account deletion.'**
+  String get delete_account_reauth_message;
 
-  /// No description provided for @deleteAccountReauthFailed.
+  /// No description provided for @delete_account_reauth_send_otp.
   ///
   /// In en, this message translates to:
-  /// **'Phone verification failed. Please try again.'**
-  String get deleteAccountReauthFailed;
+  /// **'Send OTP'**
+  String get delete_account_reauth_send_otp;
 
-  /// No description provided for @deleteAccountNeedPhone.
+  /// No description provided for @delete_account_in_progress.
   ///
   /// In en, this message translates to:
-  /// **'Sign in with your mobile number, then try Delete Account again.'**
-  String get deleteAccountNeedPhone;
+  /// **'Deleting your account…'**
+  String get delete_account_in_progress;
+
+  /// No description provided for @delete_account_network_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error. Check your connection and try again.'**
+  String get delete_account_network_error;
+
+  /// No description provided for @delete_account_permission_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission denied while deleting your data. Please contact support.'**
+  String get delete_account_permission_error;
 
   /// No description provided for @delete_address_body.
   ///
@@ -1271,6 +1265,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Orders'**
   String get nav_orders;
+
+  /// No description provided for @nav_ai.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask AI'**
+  String get nav_ai;
 
   /// No description provided for @nav_profile.
   ///
@@ -2855,6 +2855,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Join Quick Groceries as a store or delivery partner'**
   String get partner_with_us_subtitle;
+
+  /// No description provided for @appearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearance;
+
+  /// No description provided for @theme_light.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get theme_light;
+
+  /// No description provided for @theme_dark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get theme_dark;
+
+  /// No description provided for @theme_system.
+  ///
+  /// In en, this message translates to:
+  /// **'System Default'**
+  String get theme_system;
+
+  /// No description provided for @theme_active_mode.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently using {mode}'**
+  String theme_active_mode(String mode);
 }
 
 class _AppLocalizationsDelegate

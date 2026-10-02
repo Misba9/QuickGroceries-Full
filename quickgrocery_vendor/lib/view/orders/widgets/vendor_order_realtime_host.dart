@@ -123,8 +123,13 @@ class _VendorOrderRealtimeHostState extends State<VendorOrderRealtimeHost> {
 
   void _onOrdersUpdated(List<OrderModel> orders) {
     if (!mounted) return;
+    // In-app banner/snackbar only — never system tray (tray is FCM → local show).
     if (kDebugMode) {
-      debugPrint('[VendorNotify] Firestore orders updated count=${orders.length}');
+      debugPrint(
+        '[VendorNotify] Firestore orders snapshot '
+        'source=vendor_order_realtime_host count=${orders.length} '
+        'vendorId=${widget.vendor.id}',
+      );
     }
     widget.notifications.onOrdersUpdated(
       orders,

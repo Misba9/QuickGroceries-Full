@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// Layout metrics shared by category grid tiles so [GridView.childAspectRatio]
 /// matches the real column height (image + gap + labels).
 ///
-/// Used by [AnimatedCategoryCard] (tile), [CategoryTile], and category shimmers.
+/// Used by [AnimatedCategoryCard] (tile) and [CategoryTile].
 class CategoryGridLayout {
   CategoryGridLayout._();
 

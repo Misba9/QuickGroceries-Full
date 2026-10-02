@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
+import 'package:quickgrocery/core/review/review_service.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
 
 import '../../domain/order_models.dart';
@@ -20,6 +25,7 @@ import '../widgets/order_timeline_widget.dart';
 import '../widgets/order_tracking_header.dart';
 import '../widgets/rider_card.dart';
 import 'support_chat_screen.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Modern Zepto/Blinkit-style live order tracking screen.
 ///
@@ -43,6 +49,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   String? _busyAction;
   DeliveryTipSettings _tipSettings = DeliveryTipSettings.defaults();
   bool _postDeliverySheetShown = false;
+  bool _experienceReviewScheduled = false;
 
   @override
   void initState() {
@@ -52,6 +59,38 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     });
   }
 
+  /// Tip sheet first (if enabled from checkout), then "Rate Your Order".
+  Future<void> _schedulePostDeliveryFlow(LiveOrder order) async {
+    // Let the Delivered celebration paint before any modal.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    if (widget.fromCheckout &&
+        _tipSettings.enabled &&
+        !_postDeliverySheetShown) {
+      _postDeliverySheetShown = true;
+      await showPostDeliveryTipSheet(
+        context: context,
+        order: order,
+        settings: _tipSettings,
+      );
+      if (!mounted) return;
+    }
+
+    final uid = OrderReviewService.currentUserId() ?? order.legacy.uuid;
+    if (uid.isEmpty) return;
+
+    final svc = await OrderReviewService.instance();
+    if (!mounted) return;
+    await svc.maybePromptForOrder(
+      context: context,
+      orderId: order.id,
+      userId: uid,
+      delay: true,
+      forceOnDeliveredScreen: true,
+    );
+  }
+
   Future<void> _runReorder(LiveOrder order) async {
     setState(() => _busyAction = 'reorder');
     final result =
@@ -59,12 +98,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     if (!mounted) return;
     setState(() => _busyAction = null);
 
-    final messenger = ScaffoldMessenger.of(context);
     if (result.nothingAdded) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('None of these items are available right now'),
-        ),
+      AppSnackBar.error(
+        'None of these items are available right now',
+        context: context,
       );
       return;
     }
@@ -72,7 +109,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     final summary = result.unavailable.isEmpty
         ? 'Added ${result.added.length} items to your cart'
         : 'Added ${result.added.length} · ${result.unavailable.length} unavailable';
-    messenger.showSnackBar(SnackBar(content: Text(summary)));
+    AppSnackBar.success(summary, context: context);
 
     Navigator.push(context, AppPageRoutes.cart());
   }
@@ -83,9 +120,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       await ref.read(invoiceServiceProvider).generateAndShare(order);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not generate invoice: $e')),
-      );
+      AppSnackBar.error('Could not generate invoice: $e', context: context);
     } finally {
       if (mounted) setState(() => _busyAction = null);
     }
@@ -141,6 +176,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   @override
   Widget build(BuildContext context) {
     final orderAsync = ref.watch(orderByIdStreamProvider(widget.orderId));
+    final surface = AppSurface.of(context);
 
     return PopScope(
       canPop: !widget.fromCheckout,
@@ -149,36 +185,40 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         _onBack();
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF6F7FB),
+        backgroundColor: surface.scaffold,
         appBar: AppBar(
           title: Text(
             'Track order',
             style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
           ),
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
+          backgroundColor: surface.card,
+          foregroundColor: surface.textPrimary,
           elevation: 0.5,
           leading: BackButton(onPressed: _onBack),
         ),
         body: orderAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => AppLoading.center,
           error: (e, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.cloud_off_outlined, size: 48, color: Colors.grey.shade500),
+                  Icon(Icons.cloud_off_outlined,
+                      size: 48, color: surface.iconInactive),
                   const SizedBox(height: 16),
                   Text(
                     'Could not load order details',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      color: surface.textPrimary,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Check your connection and try again.',
-                    style: GoogleFonts.poppins(color: Colors.grey.shade600),
+                    style: GoogleFonts.poppins(color: surface.textSecondary),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 20),
@@ -211,18 +251,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             final rider = riderAsync.value;
             final isDelivered = order.isDelivered;
 
-            if (isDelivered &&
-                widget.fromCheckout &&
-                !_postDeliverySheetShown &&
-                _tipSettings.enabled) {
-              _postDeliverySheetShown = true;
+            // Delivered → tip (optional) → experience review (once per order).
+            if (isDelivered && !_experienceReviewScheduled) {
+              _experienceReviewScheduled = true;
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted) return;
-                showPostDeliveryTipSheet(
-                  context: context,
-                  order: order,
-                  settings: _tipSettings,
-                );
+                unawaited(_schedulePostDeliveryFlow(order));
               });
             }
 
@@ -346,10 +380,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   onCallRider: () async {
                     final phone = rider?.phone ?? '';
                     if (phone.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Delivery partner not assigned yet'),
-                        ),
+                      AppSnackBar.info(
+                        'Delivery partner not assigned yet',
+                        context: context,
                       );
                       return;
                     }
@@ -384,10 +417,11 @@ class _StickyActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Material(
       elevation: 8,
-      shadowColor: Colors.black26,
-      color: Colors.white,
+      shadowColor: surface.shadow,
+      color: surface.card,
       child: SafeArea(
         top: false,
         child: Padding(
@@ -405,8 +439,8 @@ class _StickyActions extends StatelessWidget {
                       icon: const Icon(Icons.call_rounded),
                       label: const Text('Call delivery partner'),
                       style: FilledButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
+                        backgroundColor: surface.textPrimary,
+                        foregroundColor: surface.card,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),

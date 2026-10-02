@@ -85,7 +85,7 @@ class _PromotionStartupDialogBodyState extends State<_PromotionStartupDialogBody
       alignment: Alignment.bottomCenter,
       child: SlideTransition(
         position: Tween<Offset>(
-          begin: const Offset(0, 1),
+          begin: Offset(0, 1),
           end: Offset.zero,
         ).animate(curved),
         child: Padding(
@@ -112,7 +112,7 @@ class _PromotionStartupDialogBodyState extends State<_PromotionStartupDialogBody
                                 style: GoogleFonts.poppins(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: AppSurface.textSecondary,
+                                  color: AppSurface.of(context).textSecondary,
                                 ),
                               ),
                             ),
@@ -143,7 +143,7 @@ class _PromotionStartupDialogBodyState extends State<_PromotionStartupDialogBody
                               return const SizedBox.shrink();
                             }
                             return Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
+                              padding: EdgeInsets.only(bottom: 12),
                               child: Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.symmetric(
@@ -166,7 +166,7 @@ class _PromotionStartupDialogBodyState extends State<_PromotionStartupDialogBody
                                   style: GoogleFonts.poppins(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
-                                    color: AppSurface.textSecondary,
+                                    color: AppSurface.of(context).textSecondary,
                                     height: 1.35,
                                   ),
                                 ),

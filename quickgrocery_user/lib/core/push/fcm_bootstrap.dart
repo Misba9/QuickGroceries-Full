@@ -2,19 +2,16 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 
-/// One-time FCM setup: permissions, token, topic subscription, debug logs.
-///
-/// Topic broadcast (`all_users`) works without Firestore login — subscribe here
-/// on cold start, not only after auth.
+/// One-time FCM setup split across frames (plugin/token vs topics).
 class FcmBootstrap {
   FcmBootstrap._();
 
-  static bool _configured = false;
+  static bool _pluginReady = false;
+  static bool _topicsSubscribed = false;
 
-  /// Must match admin default topic and [RealtimeBootstrap] topics.
   static const defaultTopics = <String>[
     'all_users',
     'offers',
@@ -23,16 +20,13 @@ class FcmBootstrap {
     'premium_users',
   ];
 
-  /// Call once after [Firebase.initializeApp] in `main.dart`.
-  static Future<void> configure() async {
-    if (kIsWeb || _configured) return;
-    _configured = true;
+  /// Frame +20: plugin + presentation + token. No topic burst.
+  static Future<void> configurePluginAndTokenOnly() async {
+    if (kIsWeb || _pluginReady) return;
+    _pluginReady = true;
 
     await FcmPushInitializer.ensureInitialized();
-
     final messaging = FirebaseMessaging.instance;
-
-    await AppPermissionCoordinator.requestNotificationPermissionOnce();
 
     await messaging.setForegroundNotificationPresentationOptions(
       alert: false,
@@ -44,55 +38,54 @@ class FcmBootstrap {
       await _waitForApnsToken(messaging);
     }
 
-    final token = await messaging.getToken();
-    if (token != null) {
-      _log('FCM token (copy for Firebase Console test): $token');
-    } else {
-      _log('FCM token is null — check Google Play services / iOS APNs setup');
-    }
-
-    await subscribeDefaultTopics(messaging);
-
-    messaging.onTokenRefresh.listen((newToken) {
-      _log('token refreshed: $newToken');
-    });
+    unawaited(() async {
+      try {
+        await messaging.getToken();
+      } catch (_) {}
+    }());
   }
 
-  /// Idempotent — safe to call after login as well.
+  /// Full configure (plugin + topics). Prefer split APIs after Home.
+  static Future<void> configure() async {
+    await configurePluginAndTokenOnly();
+    await subscribeDefaultTopics();
+  }
+
+  /// Frame +22: one topic per frame.
   static Future<void> subscribeDefaultTopics([
     FirebaseMessaging? messaging,
   ]) async {
     if (kIsWeb) return;
+    if (_topicsSubscribed) return;
+    _topicsSubscribed = true;
+    await configurePluginAndTokenOnly();
     final m = messaging ?? FirebaseMessaging.instance;
+
+    var ok = 0;
     for (final topic in defaultTopics) {
       try {
         await m.subscribeToTopic(topic);
-        _log('subscribed to topic: $topic');
-      } catch (e, st) {
-        _log('subscribe $topic failed: $e');
-        if (kDebugMode) debugPrintStack(stackTrace: st);
+        ok++;
+      } catch (e) {
+        if (kDebugMode) debugPrint('[FCM] subscribe $topic failed: $e');
       }
+      final gate = Completer<void>();
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!gate.isCompleted) gate.complete();
+      });
+      SchedulerBinding.instance.scheduleFrame();
+      await gate.future;
+    }
+    if (kDebugMode) {
+      debugPrint('[FCM] topics ready ($ok/${defaultTopics.length})');
     }
   }
 
   static Future<void> _waitForApnsToken(FirebaseMessaging messaging) async {
-    for (var attempt = 0; attempt < 12; attempt++) {
+    for (var attempt = 0; attempt < 3; attempt++) {
       final apns = await messaging.getAPNSToken();
-      if (apns != null) {
-        _log('APNs token ready (length=${apns.length})');
-        return;
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 500));
-    }
-    _log(
-      'APNs token still null — use a physical iPhone with Push capability '
-      'and upload APNs key in Firebase Console',
-    );
-  }
-
-  static void _log(String message) {
-    if (kDebugMode) {
-      debugPrint('[FCM] $message');
+      if (apns != null) return;
+      await Future<void>.delayed(const Duration(milliseconds: 250));
     }
   }
 }

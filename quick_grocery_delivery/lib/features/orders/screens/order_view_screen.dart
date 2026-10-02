@@ -66,7 +66,9 @@ class OrderViewScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 5),
-                      Text("Ordered On: ${selectedOrder.createdDate}"),
+                      Text(
+                        'Ordered On: ${selectedOrder.orderedAtLabel}',
+                      ),
                       const SizedBox(height: 5),
                       Text("Address: ${selectedOrder.address}"),
                       const SizedBox(height: 5),
@@ -232,6 +234,19 @@ class OrderViewScreen extends StatelessWidget {
                           children: [
                             const Text('Platform Fee'),
                             Text('₹${n(bill['platformFee']).toStringAsFixed(0)}'),
+                          ],
+                        ),
+                      if (n(bill['codConvenienceFee'] ?? bill['codFee']) > 0)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              (bill['codFeeDescription'] ?? 'COD Convenience Fee')
+                                  .toString(),
+                            ),
+                            Text(
+                              '₹${n(bill['codConvenienceFee'] ?? bill['codFee']).toStringAsFixed(0)}',
+                            ),
                           ],
                         ),
                       if (n(bill['deliveryPartnerTip'] ?? bill['tipAmount']) > 0)

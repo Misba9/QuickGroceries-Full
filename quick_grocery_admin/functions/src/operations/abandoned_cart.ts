@@ -55,8 +55,17 @@ export const abandonedCartReminder = onSchedule(
           soundType: "offers",
           deepLink: "/cart",
           redirectType: "cart_page",
-          targetScreen: "cart_page",
-          notificationType: "abandoned_cart",
+          eventId: `abandoned_cart:${uid}:${alertId}`,
+          data: {
+            type: "abandoned_cart",
+            notificationType: "abandoned_cart",
+            targetScreen: "cart_page",
+            title,
+            message: body,
+            deepLink: "/cart",
+            redirectType: "cart_page",
+            soundType: "offers",
+          },
         });
       }
 

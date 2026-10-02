@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 
 import 'receipt_models.dart';
 import 'receipt_options.dart';
+import 'order_date_time_format.dart';
 
 /// Unified 58mm / 80mm / A4 thermal receipt PDF (PeriPeri 80mm compatible).
 class ThermalReceiptPdfBuilder {
@@ -51,12 +52,9 @@ class ThermalReceiptPdfBuilder {
     return n < 0 ? '-$s' : s;
   }
 
-  static String formatDateTime(DateTime? date) {
-    if (date == null) return '—';
-    final d = DateFormat('dd MMM yyyy').format(date);
-    final t = DateFormat('hh:mm a').format(date);
-    return '$d · $t';
-  }
+  /// Local wall-clock from order createdAt (UTC → device timezone).
+  static String formatDateTime(DateTime? date) =>
+      OrderDateTimeFormat.format(date);
 
   static Future<pw.Document> build(ReceiptOrderData data) async {
     final base = await PdfGoogleFonts.notoSansRegular();
@@ -214,6 +212,15 @@ class ThermalReceiptPdfBuilder {
       if (b.handlingCharge > 0)
         _moneyRow('Handling Charge', b.handlingCharge, scale, bold),
       if (b.tax > 0) _moneyRow('Tax', b.tax, scale, bold),
+      if (b.codConvenienceFee > 0)
+        _moneyRow(
+          b.codFeeDescription.isNotEmpty
+              ? b.codFeeDescription
+              : 'COD Convenience Fee',
+          b.codConvenienceFee,
+          scale,
+          bold,
+        ),
       if (b.deliveryPartnerTip > 0)
         _moneyRow('Delivery Partner Tip', b.deliveryPartnerTip, scale, bold),
     ];

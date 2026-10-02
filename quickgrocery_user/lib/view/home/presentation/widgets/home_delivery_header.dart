@@ -20,6 +20,7 @@ import 'package:quickgrocery/view/app_content/presentation/widgets/animated_app_
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Pinned Blinkit/Zepto-style delivery strip + quick actions.
 class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
@@ -27,13 +28,13 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   final double gutter;
 
-  static const double _height = 100;
+  static const double _contentHeight = 82;
 
   @override
-  double get maxExtent => _height;
+  double get maxExtent => _contentHeight;
 
   @override
-  double get minExtent => _height;
+  double get minExtent => _contentHeight;
 
   @override
   Widget build(
@@ -41,10 +42,16 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
+    // LandingScreen already applied status-bar SafeArea — only a small
+    // content gutter here (never MediaQuery.padding.top again).
+    final topGutter = (gutter * 0.35).clamp(4.0, 8.0);
+
     final shadow = overlapsContent
         ? [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
+              color: Colors.black.withValues(
+                alpha: context.isDarkTheme ? 0.35 : 0.07,
+              ),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -52,17 +59,17 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
         : AppShadow.dim;
 
     return ColoredBox(
-      color: AppSurface.background,
+      color: AppSurface.of(context).background,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(gutter, 8, gutter, 10),
+        padding: EdgeInsets.fromLTRB(gutter, topGutter, gutter, 8),
         child: AnimatedContainer(
           duration: AppMotion.short,
           curve: AppMotion.standard,
           decoration: BoxDecoration(
-            gradient: AppGradients.surface,
+            gradient: AppGradients.surfaceOf(context),
             borderRadius: BorderRadius.circular(20),
             boxShadow: shadow,
-            border: Border.all(color: AppSurface.border.withValues(alpha: 0.55)),
+            border: Border.all(color: AppSurface.of(context).border.withValues(alpha: 0.55)),
           ),
           child: Material(
             color: Colors.transparent,
@@ -114,7 +121,7 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment:
@@ -131,7 +138,7 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
                                               fontSize: 15,
                                               fontWeight: FontWeight.w800,
                                               letterSpacing: -0.35,
-                                              color: AppSurface.textPrimary,
+                                              color: AppSurface.of(context).textPrimary,
                                               height: 1.15,
                                             ),
                                           ),
@@ -151,7 +158,7 @@ class HomeStickyDeliveryHeaderDelegate extends SliverPersistentHeaderDelegate {
                                           style: GoogleFonts.poppins(
                                             fontSize: 11.5,
                                             fontWeight: FontWeight.w500,
-                                            color: AppSurface.textMuted,
+                                            color: AppSurface.of(context).textMuted,
                                             height: 1.2,
                                           ),
                                         );
@@ -260,10 +267,10 @@ class _HeaderIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 2),
+      padding: EdgeInsets.only(left: 2),
       child: Material(
-        color: AppSurface.subtle.withValues(alpha: 0.65),
-        shape: const CircleBorder(),
+        color: AppSurface.of(context).subtle.withValues(alpha: 0.65),
+        shape: CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
@@ -275,20 +282,23 @@ class _HeaderIconButton extends StatelessWidget {
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                Icon(icon, size: 22, color: AppSurface.textPrimary),
+                Icon(icon, size: 22, color: AppSurface.of(context).textPrimary),
                 if (badgeCount > 0)
                   Positioned(
                     right: 6,
                     top: 6,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: 5,
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: AppSurface.danger,
+                        color: AppSurface.of(context).danger,
                         borderRadius: BorderRadius.circular(99),
-                        border: Border.all(color: Colors.white, width: 1.5),
+                        border: Border.all(
+                          color: AppSurface.of(context).card,
+                          width: 1.5,
+                        ),
                       ),
                       constraints: const BoxConstraints(minWidth: 16),
                       child: Text(
@@ -297,7 +307,7 @@ class _HeaderIconButton extends StatelessWidget {
                         style: GoogleFonts.poppins(
                           fontSize: 9,
                           fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                          color: AppSurface.of(context).onDanger,
                           height: 1,
                         ),
                       ),
@@ -350,9 +360,10 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
       minChildSize: 0.35,
       maxChildSize: 0.92,
       builder: (ctx, scrollCtrl) {
+        final surface = AppSurface.of(ctx);
         return DecoratedBox(
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: surface.card,
             borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
           ),
           child: Column(
@@ -362,7 +373,7 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: surface.border,
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -376,6 +387,7 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
                         style: GoogleFonts.poppins(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
+                          color: surface.textPrimary,
                         ),
                       ),
                     ),
@@ -388,14 +400,7 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: _markingAll
-                            ? SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColor.primary,
-                                ),
-                              )
+                            ? SizedBox(width: 18, height: 18, child: AppLoading.micro)
                             : Text(
                                 context.l10n.mark_all_read,
                                 style: GoogleFonts.poppins(
@@ -415,11 +420,11 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
               Expanded(
                 child: async.when(
                   loading: () =>
-                      const Center(child: CircularProgressIndicator()),
+                      AppLoading.center,
                   error: (_, __) => Center(
                     child: Text(
                       'Could not load notifications',
-                      style: GoogleFonts.poppins(color: AppSurface.textMuted),
+                      style: GoogleFonts.poppins(color: AppSurface.of(context).textMuted),
                     ),
                   ),
                   data: (items) {
@@ -435,13 +440,13 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
                         }
                         if (items.isEmpty && i == 1) {
                           return Padding(
-                            padding: const EdgeInsets.only(top: 10),
+                            padding: EdgeInsets.only(top: 10),
                             child: Center(
                               child: Text(
                                 'You\'re all caught up.',
                                 style: GoogleFonts.poppins(
                                   fontSize: 14,
-                                  color: AppSurface.textMuted,
+                                  color: AppSurface.of(context).textMuted,
                                 ),
                               ),
                             ),
@@ -474,7 +479,7 @@ class _DeliveryLiveNotificationsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final async = ref.watch(pricingConfigProvider);
     return async.when(
-      loading: () => const SizedBox.shrink(),
+      loading: () => SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
       data: (config) {
         return Padding(
@@ -492,25 +497,25 @@ class _DeliveryLiveNotificationsCard extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w800,
                       fontSize: 13,
-                      color: AppSurface.textPrimary,
+                      color: AppSurface.of(context).textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   Text(
                     DeliveryPricingPolicy.notificationLiveLine(config),
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w700,
                       fontSize: 12.5,
-                      color: AppSurface.textSecondary,
+                      color: AppSurface.of(context).textSecondary,
                       height: 1.35,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     DeliveryPricingPolicy.offersLine(config),
                     style: GoogleFonts.poppins(
                       fontSize: 11.5,
-                      color: AppSurface.textMuted,
+                      color: AppSurface.of(context).textMuted,
                       height: 1.35,
                     ),
                   ),
@@ -554,17 +559,17 @@ class _NotificationTile extends ConsumerWidget {
     final unread = !item.read;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: 12),
       child: Material(
         color: unread
             ? AppColor.primary.withValues(alpha: 0.1)
-            : AppSurface.subtle.withValues(alpha: 0.35),
+            : AppSurface.of(context).subtle.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: () => _onTap(ref),
           borderRadius: BorderRadius.circular(14),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: EdgeInsets.all(14),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -573,8 +578,8 @@ class _NotificationTile extends ConsumerWidget {
                     width: 8,
                     height: 8,
                     margin: const EdgeInsets.only(top: 6, right: 10),
-                    decoration: const BoxDecoration(
-                      color: AppSurface.danger,
+                    decoration: BoxDecoration(
+                      color: AppSurface.of(context).danger,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -594,14 +599,14 @@ class _NotificationTile extends ConsumerWidget {
                         ),
                       ),
                       if (item.body.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Text(
                           item.body,
                           maxLines: 4,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.poppins(
                             fontSize: 12,
-                            color: AppSurface.textSecondary,
+                            color: AppSurface.of(context).textSecondary,
                             height: 1.35,
                           ),
                         ),
@@ -611,7 +616,7 @@ class _NotificationTile extends ConsumerWidget {
                 ),
                 Icon(
                   Icons.chevron_right_rounded,
-                  color: AppSurface.textMuted.withValues(alpha: 0.7),
+                  color: AppSurface.of(context).textMuted.withValues(alpha: 0.7),
                 ),
               ],
             ),

@@ -1,29 +1,36 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_branded_placeholder.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_display_image.dart';
 import 'package:video_player/video_player.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
-/// Stable hero tag derived from a product id — used by the PDP destination.
-String productHeroTag(String productId) => 'product-image-$productId';
-
-/// Unique list-card tag. The same product can appear in multiple rails,
-/// grids, and offstage [IndexedStack] tabs. The scope must differ per
-/// screen or section; a shared tag throws "multiple heroes that share
-/// the same tag" because every tab is one navigator subtree.
-String productCardHeroTag(
-  String productId, {
-  required String scope,
-  int index = 0,
-}) =>
-    'product-image-$productId::$scope::$index';
+/// Hero tag for product image flights.
+///
+/// Always pass a unique [scope] when placing Heroes in list/grid rails —
+/// the same [productId] often appears in multiple sections and in multiple
+/// [IndexedStack] tabs at once. Duplicate tags cause:
+/// `There are multiple heroes that share the same tag` →
+/// `_dependents.isEmpty`.
+String productHeroTag(String productId, {String? scope}) =>
+    scope == null || scope.isEmpty
+        ? 'product-image-$productId'
+        : 'product-image-$productId::$scope';
 
 /// Premium product gallery: large hero (~68% screen width), thumbnails, zoom.
 class ProductImageCarousel extends StatefulWidget {
-  const ProductImageCarousel({super.key, required this.product});
+  const ProductImageCarousel({
+    super.key,
+    required this.product,
+    this.heroTag,
+  });
   final ProductModel product;
+
+  /// When null, no [Hero] is used (avoids unpaired / colliding flights).
+  final String? heroTag;
 
   @override
   State<ProductImageCarousel> createState() => _ProductImageCarouselState();
@@ -168,7 +175,9 @@ class _ProductImageCarouselState extends State<ProductImageCarousel> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: active ? AppColor.primary : Colors.grey.shade300,
+                        color: active
+                            ? AppColor.primary
+                            : AppSurface.of(context).border,
                         width: active ? 2.5 : 1,
                       ),
                       boxShadow: active
@@ -205,7 +214,9 @@ class _ProductImageCarouselState extends State<ProductImageCarousel> {
                 height: 6,
                 width: active ? 20 : 6,
                 decoration: BoxDecoration(
-                  color: active ? AppColor.primary : Colors.grey.shade300,
+                  color: active
+                      ? AppColor.primary
+                      : AppSurface.of(context).border,
                   borderRadius: BorderRadius.circular(3),
                 ),
               );
@@ -217,7 +228,10 @@ class _ProductImageCarouselState extends State<ProductImageCarousel> {
           child: Text(
             'Tap image to zoom · Pinch to zoom in gallery',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            style: TextStyle(
+              fontSize: 11,
+              color: AppSurface.of(context).textMuted,
+            ),
           ),
         ),
       ],
@@ -241,7 +255,7 @@ class _ProductImageCarouselState extends State<ProductImageCarousel> {
           width: screenW,
           height: heroH,
           memCacheWidth: cacheW,
-          heroTag: index == 0 ? productHeroTag(widget.product.id) : null,
+          heroTag: index == 0 ? widget.heroTag : null,
         ),
       );
     }
@@ -251,7 +265,7 @@ class _ProductImageCarouselState extends State<ProductImageCarousel> {
       return Container(
         color: Colors.black,
         alignment: Alignment.center,
-        child: const CircularProgressIndicator(color: Colors.white),
+        child: AppLoading.micro,
       );
     }
     return Stack(

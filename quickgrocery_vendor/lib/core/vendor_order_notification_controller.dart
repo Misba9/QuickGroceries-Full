@@ -66,13 +66,18 @@ class VendorOrderNotificationController extends ChangeNotifier {
 
     for (final o in vendorOrders) {
       final cur = _statusKey(o);
-      if (!_knownOrderIds.contains(o.id)) {
+      // Deduped so concurrent vendorIds+vendorId stream emissions never
+    // double-emit new-order / status alerts for the same change.
+    if (!_knownOrderIds.contains(o.id)) {
         _knownOrderIds.add(o.id);
         if (_isNewPendingOrder(o) &&
             !_notifiedOrderIds.contains(o.id) &&
             !_newOrderAlertEmitted.contains(o.id)) {
           if (kDebugMode) {
-            debugPrint('[VendorNotify] order created id=${o.id} status=${o.orderStatus}');
+            debugPrint(
+              '[VendorNotify] order created (firestore) id=${o.id} '
+              'status=${o.orderStatus}',
+            );
           }
           _emit(
             type: VendorAlertType.newOrder,

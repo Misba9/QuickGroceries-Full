@@ -1,77 +1,47 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:quickgrocery/core/startup/startup_isolate_parse.dart';
 import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/view/home/data/services/banner_service.dart';
 import 'package:quickgrocery/view/home/domain/home_failure.dart';
+import 'package:rxdart/rxdart.dart';
 
 class BannerRepository {
   BannerRepository(this._service);
   final HomeBannerService _service;
 
+  /// Single Firestore `banners` subscription shared by Home + Offers consumers.
+  Stream<List<BannerModel>>? _sharedActive;
+
   Stream<List<BannerModel>> watchActiveBanners({int? limit}) {
-    return _service
-        .watchActiveBanners(limit: limit)
-        .map(_mapSnapshot)
-        .handleError((Object error, StackTrace stackTrace) {
-          if (kDebugMode) {
-            debugPrint('[Banners] stream error: $error');
-          }
-          throw HomeFailure(
-            'Failed to load banners.',
-            code: _codeOf(error),
-            cause: error,
-          );
-        });
+    if (limit != null && limit > 0) {
+      return _mapStream(_service.watchActiveBanners(limit: limit));
+    }
+    return _sharedActive ??=
+        _mapStream(_service.watchActiveBanners()).shareReplay(maxSize: 1);
   }
 
-  List<BannerModel> _mapSnapshot(
-    QuerySnapshot<Map<String, dynamic>> snap,
+  Stream<List<BannerModel>> _mapStream(
+    Stream<QuerySnapshot<Map<String, dynamic>>> raw,
   ) {
-    final raw = snap.docs.length;
-    final parsed = <BannerModel>[];
-    var parseFailures = 0;
-    for (final doc in snap.docs) {
-      try {
-        parsed.add(BannerModel.fromFirestore(doc.data(), doc.id));
-      } catch (e) {
-        parseFailures++;
-        if (kDebugMode) {
-          debugPrint(
-            '[Banners] failed to parse doc ${doc.id}: $e',
-          );
-        }
+    return raw
+        .asyncMap(StartupIsolateParse.parseBannersFromSnapshot)
+        .handleError((Object error, StackTrace stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[Banners] stream error: $error');
       }
-    }
-
-    final inactive = parsed.where((b) => !b.isActive).length;
-    final noMedia = parsed.where((b) => !b.hasPromoMedia).length;
-
-    final items = parsed
-        .where((b) => b.isActive)
-        .where((b) => b.hasPromoMedia)
-        .toList();
-    items.sort((a, b) => a.priority.compareTo(b.priority));
-
-    if (kDebugMode) {
-      debugPrint(
-        '[Banners] raw=$raw parsed=${parsed.length} '
-        'inactive=$inactive noMedia=$noMedia '
-        'parseFailures=$parseFailures → showing=${items.length}',
+      throw HomeFailure(
+        'Failed to load banners.',
+        code: _codeOf(error),
+        cause: error,
       );
-      if (items.isEmpty && raw > 0) {
-        debugPrint(
-          '[Banners] All $raw doc(s) were filtered out. '
-          'Check `isActive` plus `image` / `video` / `thumbnailUrl`.',
-        );
-      }
-    }
-    return items;
+    });
   }
 
   Future<List<BannerModel>> fetchActiveBanners({int? limit}) async {
     try {
       final snap = await _service.fetchActiveBanners(limit: limit);
-      return _mapSnapshot(snap);
+      return StartupIsolateParse.parseBannersFromSnapshot(snap);
     } catch (e) {
       if (kDebugMode) debugPrint('[Banners] fetch error: $e');
       return const [];

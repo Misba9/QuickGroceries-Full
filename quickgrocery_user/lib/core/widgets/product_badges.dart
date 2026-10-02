@@ -22,7 +22,10 @@ class ProductBadgesRow extends StatelessWidget {
     return Wrap(
       spacing: 4,
       runSpacing: 4,
-      children: badges.take(maxBadges).map((b) => _BadgeChip(data: b, compact: compact)).toList(),
+      children: badges
+          .take(maxBadges)
+          .map((b) => _BadgeChip(data: b, compact: compact))
+          .toList(),
     );
   }
 
@@ -31,29 +34,78 @@ class ProductBadgesRow extends StatelessWidget {
     if (p.isOutOfStock) {
       out.add(_BadgeData('Out of Stock', Colors.orange.shade800, Icons.block));
     }
+    if (p.customBadgeText.trim().isNotEmpty) {
+      out.add(
+        _BadgeData(
+          p.customBadgeText.trim().toUpperCase(),
+          Colors.pink.shade700,
+          Icons.sell_outlined,
+        ),
+      );
+    }
     if (p.isFlashSaleLive) {
-      out.add(_BadgeData('Flash Sale', Colors.red.shade600, Icons.bolt));
+      out.add(
+        _BadgeData('🔥 Flash Sale', Colors.red.shade600, Icons.bolt),
+      );
     }
-    if (p.isTrending) {
-      out.add(_BadgeData('Trending', Colors.deepOrange, Icons.whatshot_outlined));
+    if (p.isFeatured) {
+      out.add(
+        _BadgeData('⭐ Featured', Colors.amber.shade800, Icons.star_rounded),
+      );
     }
-    if (p.isMostSold) {
-      out.add(_BadgeData('Best Seller', Colors.amber.shade800, Icons.emoji_events_outlined));
+    if (p.isLimitedTimeOffer || p.isLimitedStock) {
+      out.add(
+        _BadgeData(
+          '💥 Limited Offer',
+          Colors.deepOrange,
+          Icons.timer_outlined,
+        ),
+      );
     }
-    if (p.isRecommended) {
-      out.add(_BadgeData('Recommended', Colors.blue.shade700, Icons.thumb_up_alt_outlined));
-    }
-    if (p.isLimitedStock) {
-      out.add(_BadgeData('Limited', Colors.orange.shade800, Icons.inventory_2_outlined));
+    if (p.hasDiscount || p.isFlashSaleLive) {
+      out.add(
+        _BadgeData('🏷️ Discount', Colors.teal.shade700, Icons.discount_outlined),
+      );
     }
     if (p.isNewArrival) {
-      out.add(_BadgeData('New', Colors.green.shade700, Icons.fiber_new_rounded));
+      out.add(
+        _BadgeData('🆕 New Arrival', Colors.green.shade700, Icons.fiber_new_rounded),
+      );
+    }
+    if (p.isTrending) {
+      out.add(
+        _BadgeData('🔥 Trending', Colors.deepOrange, Icons.whatshot_outlined),
+      );
+    }
+    if (p.isMostSold) {
+      out.add(
+        _BadgeData('Best Seller', Colors.amber.shade800, Icons.emoji_events_outlined),
+      );
+    }
+    if (p.isRecommended) {
+      out.add(
+        _BadgeData('Recommended', Colors.blue.shade700, Icons.thumb_up_alt_outlined),
+      );
+    }
+    if (p.isBogo) {
+      out.add(
+        _BadgeData('BOGO', Colors.purple.shade700, Icons.card_giftcard_outlined),
+      );
+    }
+    if (p.isComboOfferPromo) {
+      out.add(
+        _BadgeData('Combo Offer', Colors.indigo.shade700, Icons.layers_outlined),
+      );
     }
     if (p.isTodaysBest) {
-      out.add(_BadgeData("Today's Best", Colors.purple.shade700, Icons.star_rounded));
+      out.add(
+        _BadgeData("Today's Best", Colors.purple.shade700, Icons.star_rounded),
+      );
     }
     if (p.isPremium) {
-      out.add(_BadgeData('Premium', Colors.indigo, Icons.diamond_outlined));
+      out.add(
+        _BadgeData('Premium', Colors.indigo, Icons.diamond_outlined),
+      );
     }
     return out;
   }

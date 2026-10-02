@@ -1,8 +1,7 @@
-import 'dart:async';
-
 import 'package:animate_do/animate_do.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,13 +15,15 @@ import 'package:quickgrocery/core/order/order_placement_log.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/delivery/delivery_zone_lookup.dart';
 import 'package:quickgrocery/core/availability/availability_service.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/models/address_model.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/user/checkout_preferences_store.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/domain/cart_models.dart';
+import 'package:quickgrocery/view/cart/domain/cod_fee_calculator.dart';
 import 'package:quickgrocery/view/cart/domain/pricing_calculator.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/checkout_controller.dart';
@@ -43,9 +44,13 @@ import 'package:quickgrocery/view/cart/presentation/widgets/checkout_tip_section
 import 'package:quickgrocery/view/delivery_tips/models/delivery_tip_settings.dart';
 import 'package:quickgrocery/view/delivery_tips/services/delivery_tip_service.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
+import 'package:quickgrocery/view/payment/data/razorpay_order_client.dart';
+import 'package:quickgrocery/view/payment/domain/razorpay_payment_result.dart';
 import 'package:quickgrocery/view/payment/services/payment_service.dart';
 import 'package:quickgrocery/view/app_content/presentation/providers/app_content_extensions.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/core/user/cod_eligibility.dart';
+import 'package:quickgrocery/view/profile/presentation/providers/profile_providers.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -54,67 +59,17 @@ class CheckoutScreen extends ConsumerStatefulWidget {
   ConsumerState<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
-class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
-    with WidgetsBindingObserver {
+class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   static const _calc = PricingCalculator();
   final _tipService = deliveryTipServiceProvider;
   DeliveryTipSettings _tipSettings = DeliveryTipSettings.defaults();
   bool _tipSettingsLoaded = false;
-  int? _navigatedAttemptId;
-  Timer? _externalPaymentResumeTimer;
-
-  bool _isCheckoutCurrent() {
-    if (!mounted) return false;
-    final route = ModalRoute.of(context);
-    return route == null || route.isCurrent;
-  }
+  bool _orderSuccessNavigated = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _loadTipSettings();
-  }
-
-  @override
-  void dispose() {
-    _externalPaymentResumeTimer?.cancel();
-    WidgetsBinding.instance.removeObserver(this);
-    ref.read(checkoutControllerProvider.notifier).endPlacementSession();
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) return;
-    final checkout = ref.read(checkoutControllerProvider.notifier);
-    if (!checkout.isAwaitingExternalPayment) return;
-    final attemptId = checkout.currentAttemptId;
-    _externalPaymentResumeTimer?.cancel();
-    _externalPaymentResumeTimer = Timer(const Duration(seconds: 8), () {
-      if (!mounted) return;
-      final notifier = ref.read(checkoutControllerProvider.notifier);
-      if (!notifier.ownsAttempt(attemptId)) {
-        OrderPlacementLog.staleCallbackIgnored(attemptId);
-        return;
-      }
-      if (!notifier.isAwaitingExternalPayment) return;
-      final key = ref.read(checkoutControllerProvider).idempotencyKey;
-      OrderPlacementLog.paymentCancelled(
-        reason: 'external_payment_not_completed',
-      );
-      OrderPlacementLog.cancelled(
-        reason: 'external_payment_not_completed',
-        idempotencyKey: key,
-      );
-      notifier.cancelPlacement(attemptId: attemptId, closePayment: false);
-      if (_isCheckoutCurrent()) {
-        showTopErrorToast(
-          context,
-          'Payment was not completed. You can try again.',
-        );
-      }
-    });
   }
 
   Future<void> _loadTipSettings() async {
@@ -131,18 +86,46 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     }
   }
 
-  BillBreakdown _bill(CartState cart, double zoneCharge, {double tip = 0}) {
+  BillBreakdown _bill(
+    CartState cart,
+    double zoneCharge, {
+    double tip = 0,
+    PaymentMethod paymentMethod = PaymentMethod.cod,
+    AddressModel? address,
+  }) {
     final deliveryInt = zoneCharge > 0
         ? zoneCharge.round()
         : cart.pricing.standardDeliveryCharge;
-    return _calc
-        .compute(
-          items: cart.items,
-          config: cart.pricing,
-          coupon: cart.coupon,
-          deliveryChargeOverride: deliveryInt,
-        )
-        .withDeliveryTip(tip);
+    final base = _calc.compute(
+      items: cart.items,
+      config: cart.pricing,
+      coupon: cart.coupon,
+      deliveryChargeOverride: deliveryInt,
+    ).withDeliveryTip(tip);
+
+    final taxable =
+        (base.subtotal - base.couponDiscount).clamp(0.0, double.infinity);
+    final fee = const CodFeeCalculator().compute(
+      config: cart.pricing,
+      paymentMethod: paymentMethod,
+      orderAmountAfterCoupon: taxable,
+      userId: FirebaseAuth.instance.currentUser?.uid,
+      city: address?.city,
+      vendorIds: cart.items
+          .map((e) => e.vendorId)
+          .where((e) => e.isNotEmpty)
+          .toSet()
+          .toList(),
+      categories: cart.items
+          .map((e) => e.category)
+          .where((e) => e.isNotEmpty)
+          .toSet()
+          .toList(),
+    );
+    return base.withCodConvenienceFee(
+      fee: fee,
+      description: cart.pricing.codFeeDescription,
+    );
   }
 
   Future<void> _openAddAddress({AddressModel? edit}) async {
@@ -158,39 +141,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     }
   }
 
-  bool _attemptStillCurrent(CheckoutController notifier, int attemptId) {
-    if (!notifier.ownsAttempt(attemptId)) {
-      OrderPlacementLog.staleCallbackIgnored(attemptId);
-      return false;
-    }
-    return true;
-  }
-
-  bool _canContinueAttempt(CheckoutController notifier, int attemptId) {
-    if (!_attemptStillCurrent(notifier, attemptId)) return false;
-    if (notifier.isAttemptCancelled(attemptId)) {
-      OrderPlacementLog.staleCallbackIgnored(attemptId);
-      return false;
-    }
-    return mounted;
-  }
-
-  /// Creating-order and validation must not keep the overlay up after the
-  /// attempt has already ended or failed to finish.
-  void _settleUnlessTerminal(CheckoutController notifier, int attemptId) {
-    if (!notifier.ownsAttempt(attemptId)) return;
-    if (_navigatedAttemptId == attemptId) return;
-    if (notifier.phase == PlacementPhase.success ||
-        notifier.phase == PlacementPhase.paymentProcessing ||
-        notifier.phase == PlacementPhase.idle) {
-      return;
-    }
-    if (notifier.isAwaitingExternalPayment) return;
-    notifier.finishPlacementFailure(attemptId: attemptId);
-  }
-
   Future<void> _placeOrder({
-    required int attemptId,
     required CartState cart,
     required DeliverySlot? slot,
     required DeliveryInstructions instructions,
@@ -206,54 +157,46 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       context,
       listen: false,
     );
-    var handedToGateway = false;
 
     try {
-      OrderPlacementLog.validationStarted(idempotencyKey: idempotencyKey);
       final availability = await ref
           .read(availabilityServiceProvider)
-          .check(cartItems: cart.items, address: address, pin: pin)
-          .timeout(
-            const Duration(seconds: 12),
-            onTimeout: () {
-              OrderPlacementLog.timeout(
-                stage: 'availability',
-                idempotencyKey: idempotencyKey,
-              );
-              throw TimeoutException(
-                'Checking delivery availability timed out. Please try again.',
-              );
-            },
-          );
+          .check(cartItems: cart.items, address: address, pin: pin);
       availability.debugLog();
-      if (!_canContinueAttempt(checkoutNotifier, attemptId)) return;
 
       final availabilityError = availability.blockingReason;
-      OrderPlacementLog.validationCompleted(
-        idempotencyKey: idempotencyKey,
-        ok: availabilityError == null,
-        reason: availabilityError,
-      );
       if (availabilityError != null) {
         throw StateError(availabilityError);
       }
 
       final zoneCharge = availability.deliveryCharge;
       final tip = ref.read(checkoutControllerProvider).deliveryTipAmount;
-      final bill = _bill(cart, zoneCharge, tip: tip);
-
-      debugPrint(
-        'ORDER PAYMENT: method=${paymentMethod.id} total=${bill.total} '
-        'cod=${paymentMethod == PaymentMethod.cod}',
+      final bill = _bill(
+        cart,
+        zoneCharge,
+        tip: tip,
+        paymentMethod: paymentMethod,
+        address: address,
       );
 
       if (paymentMethod == PaymentMethod.cod) {
-        OrderPlacementLog.checkoutValidation(
-          ok: true,
-          method: paymentMethod.id,
+        final profile = ref.read(customerProfileStreamProvider).valueOrNull;
+        final eligibility =
+            profile?.codEligibility ?? CodEligibility.allowed;
+        if (!eligibility.isCodAllowed) {
+          throw StateError(eligibility.blockedMessage);
+        }
+      }
+
+      if (kDebugMode) {
+        debugPrint(
+        'ORDER PAYMENT: method=${paymentMethod.id} total=${bill.total} '
+        'cod=${paymentMethod == PaymentMethod.cod}',
         );
+      }
+
+      if (paymentMethod == PaymentMethod.cod) {
         await _finalizeOrder(
-          attemptId: attemptId,
           cart: cart,
           bill: bill,
           address: address,
@@ -267,57 +210,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         return;
       }
 
-      OrderPlacementLog.finalAmount(
-        total: bill.total,
-        method: paymentMethod.id,
-      );
-      OrderPlacementLog.paymentStarted(
-        method: paymentMethod.id,
+      // Online: create Razorpay Order on backend → Checkout → verify on placeOrder.
+      final razorpayClient = RazorpayOrderClient();
+      final session = await razorpayClient.createGroceryOrder(
+        amountRupees: bill.total,
         idempotencyKey: idempotencyKey,
       );
-      _externalPaymentResumeTimer?.cancel();
-      if (!_canContinueAttempt(checkoutNotifier, attemptId)) return;
-      checkoutNotifier.beginAwaitingExternalPayment(attemptId: attemptId);
-      await Future<void>.delayed(Duration.zero);
-      if (!_canContinueAttempt(checkoutNotifier, attemptId)) return;
-      handedToGateway = true;
-      payment.openCheckout(
-        bill.total,
-        address.name,
-        'Quick Grocery order',
-        attemptId: attemptId,
-        onPaymentSuccess: (paymentId, gatewayOrderId) async {
-          if (!_canContinueAttempt(checkoutNotifier, attemptId)) return;
-          var creatingOrder = false;
+
+      if (!mounted) return;
+      payment.openCheckoutSession(
+        session: session,
+        name: address.name,
+        description: 'Quick Grocery order',
+        onPaymentSuccess: (RazorpayPaymentResult result) async {
           try {
-            _externalPaymentResumeTimer?.cancel();
-            if (!_canContinueAttempt(checkoutNotifier, attemptId)) return;
-            OrderPlacementLog.paymentVerificationStarted(
-              hasPaymentId: paymentId.isNotEmpty,
-            );
-            if (!checkoutNotifier.resumePlacementAfterPayment(
-              attemptId: attemptId,
-              paymentId: paymentId,
-              gatewayOrderId: gatewayOrderId,
-            )) {
-              OrderPlacementLog.paidOrderCreateFailure(hasPaymentId: true);
-              OrderPlacementLog.error(
-                stage: 'payment_success_checkout_closed',
-                error: 'checkout_unmounted',
-                idempotencyKey: idempotencyKey,
-              );
-              if (_isCheckoutCurrent()) {
-                _showPaidOrderRecovery(
-                  'Payment was received but checkout closed before the order '
-                  'could be created. Payment ID: $paymentId. Do not pay again — '
-                  'contact support with this ID.',
-                );
-              }
-              return;
-            }
-            creatingOrder = true;
             await _finalizeOrder(
-              attemptId: attemptId,
               cart: cart,
               bill: bill,
               address: address,
@@ -326,99 +233,32 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
               slot: slot,
               instructions: instructions,
               paymentMethod: paymentMethod,
-              paymentRef: paymentId,
-              razorpayOrderId: gatewayOrderId,
+              paymentRef: result.paymentId,
+              razorpayOrderId: result.orderId,
+              razorpaySignature: result.signature,
               idempotencyKey: idempotencyKey,
-            ).timeout(
-              const Duration(seconds: 75),
-              onTimeout: () {
-                OrderPlacementLog.timeout(
-                  stage: 'creating_order',
-                  idempotencyKey: idempotencyKey,
-                );
-                throw TimeoutException(
-                  'Placing your order took too long. Please try again. '
-                  'If you were charged, do not pay again.',
-                );
-              },
             );
           } catch (e, stack) {
-            OrderPlacementLog.paidOrderCreateFailure(hasPaymentId: true);
-            OrderPlacementLog.error(
-              stage: 'paid_order_create',
-              error: e,
-              idempotencyKey: idempotencyKey,
-            );
-            checkoutNotifier.finishPlacementFailure(attemptId: attemptId);
-            if (_isCheckoutCurrent()) {
-              _showOrderError(e, stack, paidPaymentId: paymentId);
-            }
-          } finally {
-            if (creatingOrder) {
-              _settleUnlessTerminal(checkoutNotifier, attemptId);
-            }
+            checkoutNotifier.finishPlacementFailure();
+            _showOrderError(e, stack);
           }
         },
         onPaymentError: (message) {
-          _externalPaymentResumeTimer?.cancel();
-          if (checkoutNotifier.phase != PlacementPhase.paymentProcessing ||
-              !_attemptStillCurrent(checkoutNotifier, attemptId)) {
-            OrderPlacementLog.staleCallbackIgnored(attemptId);
-            return;
-          }
-          final cancelled = message.toLowerCase().contains('cancel');
-          if (cancelled) {
-            OrderPlacementLog.paymentCancelled(reason: 'payment_error');
-            OrderPlacementLog.cancelled(
-              reason: 'payment_error',
-              idempotencyKey: idempotencyKey,
-            );
-            checkoutNotifier.cancelPlacement(attemptId: attemptId);
-          } else {
-            OrderPlacementLog.apiFailed(
-              idempotencyKey: idempotencyKey,
-              error: message,
-            );
-            checkoutNotifier.finishPlacementFailure(attemptId: attemptId);
-          }
-          if (_isCheckoutCurrent()) {
-            showTopErrorToast(
-              context,
-              message,
-              duration: const Duration(seconds: 6),
-            );
-          }
+          OrderPlacementLog.apiFailed(
+            idempotencyKey: idempotencyKey,
+            error: message,
+          );
+          checkoutNotifier.finishPlacementFailure();
+          if (mounted) AppSnackBar.error(message, context: context);
         },
       );
     } catch (e, stack) {
-      OrderPlacementLog.error(
-        stage: 'place_order',
-        error: e,
-        idempotencyKey: idempotencyKey,
-      );
-      checkoutNotifier.finishPlacementFailure(attemptId: attemptId);
-      if (_isCheckoutCurrent()) _showOrderError(e, stack);
-    } finally {
-      // Gateway and success navigation own the lock. A cancelled or failed
-      // attempt must release it. Never pop Checkout, and never clear a newer
-      // attempt that already replaced this one.
-      if (!checkoutNotifier.ownsAttempt(attemptId)) {
-        OrderPlacementLog.staleCallbackIgnored(attemptId);
-      } else if (mounted &&
-          !handedToGateway &&
-          _navigatedAttemptId != attemptId) {
-        final stillPlacing =
-            ref.read(checkoutControllerProvider).isPlacingOrder ||
-            checkoutNotifier.placementLocked;
-        if (stillPlacing) {
-          checkoutNotifier.finishPlacementFailure(attemptId: attemptId);
-        }
-      }
+      checkoutNotifier.finishPlacementFailure();
+      _showOrderError(e, stack);
     }
   }
 
   Future<void> _finalizeOrder({
-    required int attemptId,
     required CartState cart,
     required BillBreakdown bill,
     required AddressModel address,
@@ -430,33 +270,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     required String idempotencyKey,
     String? paymentRef,
     String? razorpayOrderId,
+    String? razorpaySignature,
   }) async {
-    final checkoutNotifier = ref.read(checkoutControllerProvider.notifier);
-    if (!_attemptStillCurrent(checkoutNotifier, attemptId)) return;
-    if (checkoutNotifier.isAttemptCancelled(attemptId)) {
-      OrderPlacementLog.staleCallbackIgnored(attemptId);
-      _settleUnlessTerminal(checkoutNotifier, attemptId);
-      return;
-    }
-    if (_navigatedAttemptId == attemptId) {
+    if (_orderSuccessNavigated) {
       OrderPlacementLog.navigationBlocked(reason: 'already_navigated');
-      _settleUnlessTerminal(checkoutNotifier, attemptId);
       return;
-    }
-    checkoutNotifier.markCreatingOrder(attemptId: attemptId);
-
-    if (paymentMethod.isOnline &&
-        (paymentRef == null || paymentRef.trim().isEmpty)) {
-      throw StateError(
-        'Online payment was not confirmed. Your order was not placed.',
-      );
     }
 
     OrderPlacementLog.apiStarted(idempotencyKey: idempotencyKey);
 
     final cartNotifier = ref.read(cartProvider.notifier);
+    final checkoutNotifier = ref.read(checkoutControllerProvider.notifier);
 
-    OrderPlacementLog.orderCreateStart(idempotencyKey: idempotencyKey);
     try {
       final orderId = await _createOrderWithFallback(
         cart: cart,
@@ -469,6 +294,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         paymentMethod: paymentMethod,
         paymentRef: paymentRef,
         razorpayOrderId: razorpayOrderId,
+        razorpaySignature: razorpaySignature,
         idempotencyKey: idempotencyKey,
       );
       OrderPlacementLog.apiCompleted(
@@ -478,9 +304,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
 
       if (cart.coupon != null) {
         try {
-          final deviceId = await DeviceIdService.getOrCreate().timeout(
-            const Duration(seconds: 5),
-          );
+          final deviceId = await DeviceIdService.getOrCreate();
           await ref
               .read(couponValidationClientProvider)
               .redeem(
@@ -491,65 +315,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                 items: cart.items,
                 phone: address.mobile,
                 deviceId: deviceId,
-              )
-              .timeout(const Duration(seconds: 10));
+              );
         } catch (e, stack) {
-          debugPrint('COUPON REDEEM ERROR: $e');
+          if (kDebugMode) debugPrint('COUPON REDEEM ERROR: $e');
           debugPrintStack(stackTrace: stack);
-          if (e is TimeoutException) {
-            OrderPlacementLog.timeout(
-              stage: 'coupon_redeem',
-              idempotencyKey: idempotencyKey,
-            );
-          }
         }
       }
 
-      try {
-        await CheckoutPreferencesStore.recordSuccessfulOrder(
-          orderId: orderId,
-          state: ref.read(checkoutControllerProvider),
-        ).timeout(const Duration(seconds: 8));
-      } on TimeoutException {
-        OrderPlacementLog.timeout(
-          stage: 'checkout_preferences',
-          idempotencyKey: idempotencyKey,
-        );
-      } catch (e, stack) {
-        debugPrint('CHECKOUT PREFS SAVE ERROR: $e');
-        debugPrintStack(stackTrace: stack);
-      }
+      await CheckoutPreferencesStore.recordSuccessfulOrder(
+        orderId: orderId,
+        state: ref.read(checkoutControllerProvider),
+      );
+      await cartNotifier.clear();
+      checkoutNotifier.finishPlacementSuccess();
 
-      try {
-        await cartNotifier.clear().timeout(const Duration(seconds: 10));
-      } on TimeoutException {
-        OrderPlacementLog.timeout(
-          stage: 'cart_clear',
-          idempotencyKey: idempotencyKey,
-        );
-      }
-      OrderPlacementLog.cartCleared(orderId: orderId);
-      if (!_attemptStillCurrent(checkoutNotifier, attemptId)) return;
-      checkoutNotifier.finishPlacementSuccess(attemptId: attemptId);
-
-      if (_navigatedAttemptId == attemptId || !mounted) {
-        OrderPlacementLog.navigationBlocked(
-          reason: _navigatedAttemptId == attemptId
-              ? 'already_navigated'
-              : 'unmounted',
-        );
-        checkoutNotifier.finishPlacementFailure(attemptId: attemptId);
-        return;
-      }
-      _navigatedAttemptId = attemptId;
-      OrderPlacementLog.orderConfirmation(orderId: orderId);
+      if (_orderSuccessNavigated || !mounted) return;
+      _orderSuccessNavigated = true;
       OrderPlacementLog.navigationStarted(orderId: orderId);
-      if (!_isCheckoutCurrent()) {
-        OrderPlacementLog.navigationBlocked(reason: 'route_not_current');
-        checkoutNotifier.finishPlacementFailure(attemptId: attemptId);
-        _navigatedAttemptId = null;
-        return;
-      }
       Navigator.of(context).pushAndRemoveUntil(
         AppPageRoutes.checkoutSuccess(orderId: orderId),
         (_) => false,
@@ -561,9 +343,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     }
   }
 
-  void _showOrderError(Object e, StackTrace stack, {String? paidPaymentId}) {
-    debugPrint('ORDER ERROR: $e');
-    debugPrintStack(stackTrace: stack);
+  void _showOrderError(Object e, StackTrace stack) {
+    if (kDebugMode) {
+      debugPrint('ORDER ERROR: $e');
+      debugPrintStack(stackTrace: stack);
+    }
     String checkoutError(Object error) {
       if (error is FirebaseFunctionsException) {
         if (error.code == 'not-found') {
@@ -572,23 +356,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         if (error.code == 'unavailable') {
           return 'Order service is temporarily unavailable.';
         }
-        final serverMessage = error.message?.trim();
-        if (serverMessage != null && serverMessage.isNotEmpty) {
-          return serverMessage;
+        if (error.code == 'permission-denied') {
+          return 'Permission denied while creating order.';
         }
-        return 'Failed to create order (${error.code})';
-      }
-      if (error is TimeoutException) {
-        final raw = error.message?.trim();
-        if (raw != null && raw.isNotEmpty) return raw;
-        return 'Placing your order took too long. Please try again. '
-            'If you were charged, do not pay again.';
+        return error.message ?? 'Failed to create order (${error.code})';
       }
       if (error is FirebaseException) {
-        debugPrint(
-          'ORDER FIREBASE ERROR code=${error.code} '
-          'message=${error.message} plugin=${error.plugin}',
-        );
+        if (kDebugMode) {
+          debugPrint(
+            'ORDER FIREBASE ERROR code=${error.code} '
+            'message=${error.message} plugin=${error.plugin}',
+          );
+        }
         if (error.code == 'not-found') {
           return 'Required order data was not found.';
         }
@@ -601,36 +380,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     }
 
     if (!mounted) return;
-    final message = checkoutError(e);
-    if (paidPaymentId != null && paidPaymentId.isNotEmpty) {
-      _showPaidOrderRecovery(
-        '$message Your payment ID is $paidPaymentId. '
-        'Do not pay again. If the order does not appear, contact support '
-        'with this payment ID.',
-      );
-      return;
-    }
-    showTopErrorToast(context, message, duration: const Duration(seconds: 6));
-  }
-
-  void _showPaidOrderRecovery(String message) {
-    if (!mounted) return;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Payment received'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
+    AppSnackBar.error(checkoutError(e), context: context);
   }
 
   Future<String> _createOrderWithFallback({
@@ -644,63 +394,45 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     required PaymentMethod paymentMethod,
     String? paymentRef,
     String? razorpayOrderId,
+    String? razorpaySignature,
     String? idempotencyKey,
   }) async {
     final client = ref.read(orderPlacementClientProvider);
     final repo = ref.read(orderRepositoryProvider);
     final key = idempotencyKey ?? '';
+    final isOnline = paymentMethod != PaymentMethod.cod;
 
     Future<String> callCallable() => client.placeOrder(
-      items: cart.items,
-      coupon: cart.coupon,
-      bill: bill,
-      address: address,
-      currentAddressString: readableAddress,
-      currentLatLng: coords,
-      slot: slot,
-      instructions: instructions,
-      paymentMethod: paymentMethod,
-      paymentRef: paymentRef,
-      razorpayOrderId: razorpayOrderId,
-      tipAmount: bill.deliveryPartnerTip,
-      idempotencyKey: key,
-    );
+          items: cart.items,
+          coupon: cart.coupon,
+          bill: bill,
+          address: address,
+          currentAddressString: readableAddress,
+          currentLatLng: coords,
+          slot: slot,
+          instructions: instructions,
+          paymentMethod: paymentMethod,
+          paymentRef: paymentRef,
+          razorpayOrderId: razorpayOrderId,
+          razorpaySignature: razorpaySignature,
+          tipAmount: bill.deliveryPartnerTip,
+          idempotencyKey: key,
+        );
 
     try {
       return await callCallable();
     } on FirebaseFunctionsException catch (e, stack) {
-      debugPrint(
+      if (kDebugMode) {
+        debugPrint(
         'ORDER CALLABLE FAILED code=${e.code} message=${e.message} '
         'details=${e.details}',
-      );
-      debugPrintStack(stackTrace: stack);
-
-      if (paymentRef != null && paymentRef.trim().isNotEmpty) {
-        final byPay = await repo.findOrderByPaymentRef(paymentRef);
-        if (byPay != null) {
-          OrderPlacementLog.duplicateDetected(
-            idempotencyKey: key,
-            orderId: byPay,
-          );
-          OrderPlacementLog.apiCompleted(
-            idempotencyKey: key,
-            orderId: byPay,
-            duplicate: true,
-          );
-          return byPay;
-        }
+        );
       }
+      if (kDebugMode) debugPrintStack(stackTrace: stack);
 
       if (key.isNotEmpty) {
-        final existing = await repo.findExistingOrderId(
-          idempotencyKey: key,
-          waitForPending: OrderPlacementClient.isTransientFunctionsError(e),
-        );
+        final existing = await repo.findExistingOrderId(idempotencyKey: key);
         if (existing != null) {
-          OrderPlacementLog.duplicateDetected(
-            idempotencyKey: key,
-            orderId: existing,
-          );
           OrderPlacementLog.apiCompleted(
             idempotencyKey: key,
             orderId: existing,
@@ -710,38 +442,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         }
       }
 
-      if (e.code == 'deadline-exceeded') {
-        OrderPlacementLog.timeout(
-          stage: 'place_order_callable',
-          idempotencyKey: key,
-        );
-      }
-
-      if (OrderPlacementClient.isPermanentFunctionsError(e)) {
-        rethrow;
-      }
-
       if (OrderPlacementClient.isTransientFunctionsError(e)) {
         try {
           return await callCallable();
         } on FirebaseFunctionsException catch (retryError, retryStack) {
-          debugPrint(
+          if (kDebugMode) {
+            debugPrint(
             'ORDER CALLABLE RETRY FAILED code=${retryError.code} '
             'message=${retryError.message}',
-          );
-          debugPrintStack(stackTrace: retryStack);
-          if (key.isNotEmpty) {
-            final existing = await repo.findExistingOrderId(
-              idempotencyKey: key,
-              waitForPending: OrderPlacementClient.isTransientFunctionsError(
-                retryError,
-              ),
             );
+          }
+          if (kDebugMode) debugPrintStack(stackTrace: retryStack);
+          if (key.isNotEmpty) {
+            final existing =
+                await repo.findExistingOrderId(idempotencyKey: key);
             if (existing != null) {
-              OrderPlacementLog.duplicateDetected(
-                idempotencyKey: key,
-                orderId: existing,
-              );
               OrderPlacementLog.apiCompleted(
                 idempotencyKey: key,
                 orderId: existing,
@@ -750,19 +465,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
               return existing;
             }
           }
-          if (!_canFallbackToDirectOrder(retryError)) rethrow;
+          if (isOnline || !_canFallbackToDirectOrder(retryError)) rethrow;
         }
-      } else if (!_canFallbackToDirectOrder(e)) {
+      } else if (isOnline || !_canFallbackToDirectOrder(e)) {
         rethrow;
       }
 
       if (key.isNotEmpty) {
         final existing = await repo.findExistingOrderId(idempotencyKey: key);
         if (existing != null) {
-          OrderPlacementLog.duplicateDetected(
-            idempotencyKey: key,
-            orderId: existing,
-          );
           OrderPlacementLog.apiCompleted(
             idempotencyKey: key,
             orderId: existing,
@@ -772,6 +483,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         }
       }
 
+      // COD-only emergency fallback — never mark online payments paid here.
       return _createDirectFirestoreOrder(
         cart: cart,
         bill: bill,
@@ -780,8 +492,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         coords: coords,
         slot: slot,
         instructions: instructions,
-        paymentMethod: paymentMethod,
-        paymentRef: paymentRef,
+        paymentMethod: PaymentMethod.cod,
+        paymentRef: null,
         idempotencyKey: key,
       );
     }
@@ -803,10 +515,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     String? paymentRef,
     String? idempotencyKey,
   }) async {
-    debugPrint(
+    if (kDebugMode) {
+      debugPrint(
       'ORDER FALLBACK: creating direct Firestore order path=orders '
       'reason=callable_unavailable',
-    );
+      );
+    }
     try {
       final orderId = await ref
           .read(orderRepositoryProvider)
@@ -822,48 +536,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
             paymentMethod: paymentMethod,
             paymentRef: paymentRef,
             idempotencyKey: idempotencyKey,
-          )
-          .timeout(
-            const Duration(seconds: 25),
-            onTimeout: () {
-              OrderPlacementLog.timeout(
-                stage: 'firestore_order',
-                idempotencyKey: idempotencyKey ?? '',
-              );
-              throw TimeoutException(
-                'Creating the order timed out. Please try again.',
-              );
-            },
           );
-      debugPrint('ORDER FALLBACK SUCCESS firestorePath=orders/$orderId');
+      if (kDebugMode) debugPrint('ORDER FALLBACK SUCCESS firestorePath=orders/$orderId');
       return orderId;
-    } on TimeoutException {
-      final key = idempotencyKey ?? '';
-      if (key.isNotEmpty) {
-        final existing = await ref
-            .read(orderRepositoryProvider)
-            .findExistingOrderId(
-              idempotencyKey: key,
-              timeout: const Duration(seconds: 8),
-            );
-        if (existing != null) {
-          OrderPlacementLog.duplicateDetected(
-            idempotencyKey: key,
-            orderId: existing,
-          );
-          return existing;
-        }
-      }
-      rethrow;
     } on FirebaseException catch (e, stack) {
-      debugPrint(
+      if (kDebugMode) {
+        debugPrint(
         'ORDER FALLBACK FIRESTORE ERROR path=orders '
         'code=${e.code} message=${e.message}',
-      );
-      debugPrintStack(stackTrace: stack);
+        );
+      }
+      if (kDebugMode) debugPrintStack(stackTrace: stack);
       rethrow;
     } catch (e, stack) {
-      debugPrint('ORDER FALLBACK ERROR path=orders error=$e');
+      if (kDebugMode) debugPrint('ORDER FALLBACK ERROR path=orders error=$e');
       debugPrintStack(stackTrace: stack);
       rethrow;
     }
@@ -874,6 +560,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     final cart = ref.watch(cartProvider);
     final checkout = ref.watch(checkoutControllerProvider);
     final checkoutNotifier = ref.read(checkoutControllerProvider.notifier);
+
+    if (cart.isHydrating && cart.isEmpty) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: const SafeArea(child: AppLoading.center),
+      );
+    }
 
     final slots = ref.watch(deliverySlotsProvider);
 
@@ -887,7 +580,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       checkoutControllerProvider.select((s) => s.errorMessage),
       (_, msg) {
         if (msg != null) {
-          showTopErrorToast(context, msg);
+          AppSnackBar.error(msg, context: context);
           ref.read(checkoutControllerProvider.notifier).clearError();
         }
       },
@@ -913,12 +606,33 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
     final readable = addressService.address;
     final zoneAsync = ref.watch(zoneDeliveryProvider(pin));
     final zoneCharge = zoneAsync.value ?? 0;
-    final bill = _bill(cart, zoneCharge, tip: checkout.deliveryTipAmount);
+    final profileAsync = ref.watch(customerProfileStreamProvider);
+    final codEligibility =
+        profileAsync.valueOrNull?.codEligibility ?? CodEligibility.allowed;
+    // Auto-switch off COD when restriction appears (realtime Firestore update).
+    if (!codEligibility.isCodAllowed &&
+        checkout.paymentMethod == PaymentMethod.cod) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final c = ref.read(checkoutControllerProvider);
+        if (c.paymentMethod == PaymentMethod.cod) {
+          ref
+              .read(checkoutControllerProvider.notifier)
+              .selectPaymentMethod(PaymentMethod.upi);
+        }
+      });
+    }
+    final bill = _bill(
+      cart,
+      zoneCharge,
+      tip: checkout.deliveryTipAmount,
+      paymentMethod: checkout.paymentMethod,
+      address: selectedAddr,
+    );
 
     final hasAddr = addresses.isNotEmpty && selectedAddr != null;
     final oos = cart.items.any((e) => e.isUnavailable);
-    final canPay =
-        hasAddr &&
+    final canPay = hasAddr &&
         addrComplete &&
         bill.meetsMinimumOrder &&
         !oos &&
@@ -945,333 +659,234 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       child: Stack(
         children: [
           Scaffold(
-            backgroundColor: AppSurface.background,
-            resizeToAvoidBottomInset: true,
-            body: SafeArea(
-              bottom: false,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _CheckoutHeader(
-                    onBack: checkout.isPlacingOrder
-                        ? null
-                        : () => Navigator.maybePop(context),
-                  ),
-                  Expanded(
-                    child: addresses.isEmpty
-                        ? EmptyAddressWidget(
-                            onAddAddress: () => _openAddAddress(),
-                          )
-                        : RefreshIndicator(
-                            color: AppColor.primary,
-                            onRefresh: () => addressService.getAddress(),
-                            child: CustomScrollView(
-                              keyboardDismissBehavior:
-                                  ScrollViewKeyboardDismissBehavior.onDrag,
-                              physics: const AlwaysScrollableScrollPhysics(
-                                parent: BouncingScrollPhysics(),
+      backgroundColor: AppSurface.of(context).background,
+      resizeToAvoidBottomInset: true,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _CheckoutHeader(
+              onBack: checkout.isPlacingOrder
+                  ? null
+                  : () => Navigator.maybePop(context),
+            ),
+            Expanded(
+              child: addresses.isEmpty
+                  ? EmptyAddressWidget(onAddAddress: () => _openAddAddress())
+                  : RefreshIndicator(
+                      color: AppColor.primary,
+                      onRefresh: () => addressService.getAddress(),
+                      child: CustomScrollView(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        physics: const AlwaysScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics(),
+                        ),
+                        slivers: [
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                            sliver: SliverToBoxAdapter(
+                              child: FadeInDown(
+                                duration: const Duration(milliseconds: 320),
+                                child: _DeliverToSection(
+                                  addresses: addresses,
+                                  selectedIndex: idx,
+                                  onSelect: checkout.isPlacingOrder
+                                      ? (_) {}
+                                      : (i) {
+                                          checkoutNotifier.selectAddress(i);
+                                          addressService.selectAddress(i);
+                                        },
+                                  onAdd: checkout.isPlacingOrder
+                                      ? () {}
+                                      : () => _openAddAddress(),
+                                  onEdit: checkout.isPlacingOrder
+                                      ? (_) {}
+                                      : (a) => _openAddAddress(edit: a),
+                                ),
                               ),
-                              slivers: [
-                                SliverPadding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    14,
-                                    8,
-                                    14,
-                                    0,
-                                  ),
-                                  sliver: SliverToBoxAdapter(
-                                    child: FadeInDown(
-                                      duration: const Duration(
-                                        milliseconds: 320,
-                                      ),
-                                      child: _DeliverToSection(
-                                        addresses: addresses,
-                                        selectedIndex: idx,
-                                        onSelect: checkout.isPlacingOrder
-                                            ? (_) {}
-                                            : (i) {
-                                                checkoutNotifier.selectAddress(
-                                                  i,
-                                                );
-                                                addressService.selectAddress(i);
-                                              },
-                                        onAdd: checkout.isPlacingOrder
-                                            ? () {}
-                                            : () => _openAddAddress(),
-                                        onEdit: checkout.isPlacingOrder
-                                            ? (_) {}
-                                            : (a) => _openAddAddress(edit: a),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SliverPadding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    14,
-                                    16,
-                                    14,
-                                    0,
-                                  ),
-                                  sliver: SliverToBoxAdapter(
-                                    child: FadeInDown(
-                                      duration: const Duration(
-                                        milliseconds: 320,
-                                      ),
-                                      child: _DeliveryEtaCard(
-                                        slot:
-                                            checkout.slot ?? slots.firstOrNull,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SliverPadding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    14,
-                                    12,
-                                    14,
-                                    0,
-                                  ),
-                                  sliver: SliverToBoxAdapter(
-                                    child: FadeInUp(
-                                      delay: const Duration(milliseconds: 80),
-                                      child: CheckoutCouponSection(
-                                        checkoutPhone: selectedAddr?.mobile,
-                                        deliveryChargeOverride: zoneCharge > 0
-                                            ? zoneCharge.round()
-                                            : null,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SliverPadding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    14,
-                                    16,
-                                    14,
-                                    0,
-                                  ),
-                                  sliver: SliverToBoxAdapter(
-                                    child: DeliveryInstructionsField(
-                                      value: checkout.instructions,
-                                      onChanged: checkout.isPlacingOrder
-                                          ? (_) {}
-                                          : checkoutNotifier.setInstructions,
-                                    ),
-                                  ),
-                                ),
-                                SliverPadding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    14,
-                                    18,
-                                    14,
-                                    0,
-                                  ),
-                                  sliver: SliverToBoxAdapter(
-                                    child: DeliverySlotSelector(
-                                      slots: slots,
-                                      selected: checkout.slot,
-                                      onChanged: checkout.isPlacingOrder
-                                          ? (_) {}
-                                          : checkoutNotifier.selectSlot,
-                                    ),
-                                  ),
-                                ),
-                                SliverPadding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    14,
-                                    18,
-                                    14,
-                                    0,
-                                  ),
-                                  sliver: SliverToBoxAdapter(
-                                    child: PaymentMethodSelector(
-                                      selected: checkout.paymentMethod,
-                                      onChanged: checkout.isPlacingOrder
-                                          ? (_) {}
-                                          : checkoutNotifier
-                                                .selectPaymentMethod,
-                                    ),
-                                  ),
-                                ),
-                                if (zoneAsync.isLoading && zoneCharge == 0)
-                                  const SliverToBoxAdapter(
-                                    child: Padding(
-                                      padding: EdgeInsets.fromLTRB(
-                                        14,
-                                        12,
-                                        14,
-                                        0,
-                                      ),
-                                      child: LinearProgressIndicator(
-                                        minHeight: 2,
-                                        backgroundColor: AppSurface.subtle,
-                                      ),
-                                    ),
-                                  ),
-                                SliverPadding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    14,
-                                    18,
-                                    14,
-                                    24,
-                                  ),
-                                  sliver: SliverToBoxAdapter(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        _CheckoutDeliveryInfo(
-                                          bill: bill,
-                                          pricing: cart.pricing,
-                                        ),
-                                        const SizedBox(height: 10),
-                                        if (_tipSettingsLoaded &&
-                                            _tipSettings.enabled) ...[
-                                          CheckoutTipSection(
-                                            settings: _tipSettings,
-                                            selectedAmount:
-                                                checkout.deliveryTipAmount,
-                                            onChanged: checkout.isPlacingOrder
-                                                ? (_) {}
-                                                : checkoutNotifier
-                                                      .setDeliveryTip,
-                                          ),
-                                          const SizedBox(height: 12),
-                                        ],
-                                        PremiumBillCard(
-                                          bill: bill,
-                                          pricing: cart.pricing,
-                                          couponLabel: cart.coupon != null
-                                              ? 'Coupon · ${cart.coupon!.code}'
-                                              : null,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
-                  ),
-                ],
-              ),
+                          SliverPadding(
+                            padding: EdgeInsets.fromLTRB(14, 16, 14, 0),
+                            sliver: SliverToBoxAdapter(
+                              child: FadeInDown(
+                                duration: const Duration(milliseconds: 320),
+                                child: _DeliveryEtaCard(
+                                  slot: checkout.slot ?? slots.firstOrNull,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                            sliver: SliverToBoxAdapter(
+                              child: FadeInUp(
+                                delay: const Duration(milliseconds: 80),
+                                child: CheckoutCouponSection(
+                                  checkoutPhone: selectedAddr?.mobile,
+                                  deliveryChargeOverride: zoneCharge > 0
+                                      ? zoneCharge.round()
+                                      : null,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(14, 16, 14, 0),
+                            sliver: SliverToBoxAdapter(
+                              child: DeliveryInstructionsField(
+                                value: checkout.instructions,
+                                onChanged: checkout.isPlacingOrder
+                                    ? (_) {}
+                                    : checkoutNotifier.setInstructions,
+                              ),
+                            ),
+                          ),
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(14, 18, 14, 0),
+                            sliver: SliverToBoxAdapter(
+                              child: DeliverySlotSelector(
+                                slots: slots,
+                                selected: checkout.slot,
+                                onChanged: checkout.isPlacingOrder
+                                    ? (_) {}
+                                    : checkoutNotifier.selectSlot,
+                              ),
+                            ),
+                          ),
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(14, 18, 14, 0),
+                            sliver: SliverToBoxAdapter(
+                              child: PaymentMethodSelector(
+                                selected: checkout.paymentMethod,
+                                codEligibility: codEligibility,
+                                onChanged: checkout.isPlacingOrder
+                                    ? (_) {}
+                                    : checkoutNotifier.selectPaymentMethod,
+                              ),
+                            ),
+                          ),
+                          if (zoneAsync.isLoading && zoneCharge == 0)
+                            const SliverToBoxAdapter(
+                              child: Padding(
+                                padding: EdgeInsets.fromLTRB(14, 12, 14, 0),
+                                child: SizedBox(
+                                  height: 28,
+                                  child: AppLoading.micro,
+                                ),
+                              ),
+                            ),
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(14, 18, 14, 24),
+                            sliver: SliverToBoxAdapter(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _CheckoutDeliveryInfo(
+                                    bill: bill,
+                                    pricing: cart.pricing,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  if (_tipSettingsLoaded && _tipSettings.enabled) ...[
+                                    CheckoutTipSection(
+                                      settings: _tipSettings,
+                                      selectedAmount: checkout.deliveryTipAmount,
+                                      onChanged: checkout.isPlacingOrder
+                                          ? (_) {}
+                                          : checkoutNotifier.setDeliveryTip,
+                                    ),
+                                    const SizedBox(height: 12),
+                                  ],
+                                  PremiumBillCard(
+                                    bill: bill,
+                                    pricing: cart.pricing,
+                                    couponLabel: cart.coupon != null
+                                        ? 'Coupon · ${cart.coupon!.code}'
+                                        : null,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
             ),
-            bottomNavigationBar: hasAddr
-                ? StickyCheckoutBar(
-                    totalAmount: bill.total,
-                    itemCount: cart.totalUnits,
-                    savings: bill.totalSavings,
-                    buttonText: 'Place Order',
-                    loadingLabel: 'Placing your order...',
-                    helperText: barHint(),
-                    helperIsError:
-                        !hasAddr ||
-                        !addrComplete ||
-                        oos ||
-                        !bill.meetsMinimumOrder ||
-                        checkout.slot == null,
-                    enabled: canPay,
-                    isLoading: checkout.isPlacingOrder,
-                    onTap: () async {
-                      final checkoutNotifier = ref.read(
-                        checkoutControllerProvider.notifier,
-                      );
-                      if (!checkoutNotifier.tryBeginPlacement()) return;
-                      final attemptId = checkoutNotifier.currentAttemptId;
-                      _externalPaymentResumeTimer?.cancel();
-                      final idempotencyKey = ref
-                          .read(checkoutControllerProvider)
-                          .idempotencyKey;
-                      OrderPlacementLog.started(idempotencyKey: idempotencyKey);
-                      OrderPlacementLog.stateBeforeStart(
-                        idempotencyKey: idempotencyKey,
-                        placing: true,
-                        locked: checkoutNotifier.placementLocked,
-                        phase: checkoutNotifier.phase.name,
-                      );
-                      OrderPlacementLog.buttonTapped(
-                        idempotencyKey: idempotencyKey,
-                      );
+          ],
+        ),
+      ),
+      bottomNavigationBar: hasAddr
+          ? StickyCheckoutBar(
+              totalAmount: bill.total,
+              itemCount: cart.totalUnits,
+              savings: bill.totalSavings,
+              buttonText: 'Place Order',
+              loadingLabel: 'Placing your order...',
+              helperText: barHint(),
+              helperIsError:
+                  !hasAddr ||
+                  !addrComplete ||
+                  oos ||
+                  !bill.meetsMinimumOrder ||
+                  checkout.slot == null,
+              enabled: canPay,
+              isLoading: checkout.isPlacingOrder,
+              onTap: () async {
+                final checkoutNotifier =
+                    ref.read(checkoutControllerProvider.notifier);
+                OrderPlacementLog.buttonTapped(
+                  idempotencyKey:
+                      ref.read(checkoutControllerProvider).idempotencyKey,
+                );
+                if (!checkoutNotifier.tryBeginPlacement()) return;
 
-                      try {
-                        if (!bill.meetsMinimumOrder ||
-                            oos ||
-                            checkout.slot == null ||
-                            !addrComplete) {
-                          checkoutNotifier.cancelPlacement(
-                            attemptId: attemptId,
-                          );
-                          if (!addrComplete) {
-                            await _openAddAddress(edit: selectedAddr);
-                          }
-                          return;
-                        }
+                if (!bill.meetsMinimumOrder ||
+                    oos ||
+                    checkout.slot == null ||
+                    !addrComplete) {
+                  checkoutNotifier.cancelPlacement();
+                  if (!addrComplete) {
+                    await _openAddAddress(edit: selectedAddr);
+                  }
+                  return;
+                }
 
-                        final authed = await GuestAuthGuard.requireAuth(
-                          context,
-                          ref,
-                          postLogin: GuestPostLoginAction.continueCheckout,
-                        );
-                        if (!authed || !mounted) {
-                          checkoutNotifier.cancelPlacement(
-                            attemptId: attemptId,
-                          );
-                          return;
-                        }
-                        if (!_attemptStillCurrent(
-                          checkoutNotifier,
-                          attemptId,
-                        )) {
-                          return;
-                        }
+                final authed = await GuestAuthGuard.requireAuth(
+                  context,
+                  ref,
+                  postLogin: GuestPostLoginAction.continueCheckout,
+                );
+                if (!authed || !mounted) {
+                  checkoutNotifier.cancelPlacement();
+                  return;
+                }
 
-                        await _placeOrder(
-                          attemptId: attemptId,
-                          cart: cart,
-                          slot: checkout.slot,
-                          instructions: checkout.instructions,
-                          paymentMethod: checkout.paymentMethod,
-                          address: selectedAddr,
-                          pin: pin,
-                          coords: coords,
-                          readableAddress: readable,
-                        );
-                      } catch (e, stack) {
-                        if (checkoutNotifier.ownsAttempt(attemptId)) {
-                          checkoutNotifier.finishPlacementFailure(
-                            attemptId: attemptId,
-                          );
-                        }
-                        OrderPlacementLog.error(
-                          stage: 'place_order_tap',
-                          error: e,
-                          idempotencyKey: idempotencyKey,
-                        );
-                        debugPrintStack(stackTrace: stack);
-                        if (!context.mounted) return;
-                        final route = ModalRoute.of(context);
-                        if (route != null && !route.isCurrent) return;
-                        showTopErrorToast(
-                          context,
-                          'Could not start your order. Please try again.',
-                        );
-                      }
-                    },
-                  )
-                : StickyCheckoutBar(
-                    totalAmount: bill.total,
-                    itemCount: cart.totalUnits,
-                    savings: bill.totalSavings,
-                    buttonText: 'Add Address',
-                    loadingLabel: 'Placing your order...',
-                    helperText: barHint(),
-                    helperIsError: true,
-                    enabled: !checkout.isPlacingOrder,
-                    isLoading: checkout.isPlacingOrder,
-                    onTap: checkout.isPlacingOrder
-                        ? () {}
-                        : () => _openAddAddress(),
-                  ),
+                await _placeOrder(
+                  cart: cart,
+                  slot: checkout.slot,
+                  instructions: checkout.instructions,
+                  paymentMethod: checkout.paymentMethod,
+                  address: selectedAddr,
+                  pin: pin,
+                  coords: coords,
+                  readableAddress: readable,
+                );
+              },
+            )
+          : StickyCheckoutBar(
+              totalAmount: bill.total,
+              itemCount: cart.totalUnits,
+              savings: bill.totalSavings,
+              buttonText: 'Add Address',
+              loadingLabel: 'Placing your order...',
+              helperText: barHint(),
+              helperIsError: true,
+              enabled: !checkout.isPlacingOrder,
+              isLoading: checkout.isPlacingOrder,
+              onTap: checkout.isPlacingOrder ? () {} : () => _openAddAddress(),
+            ),
           ),
           if (checkout.isPlacingOrder)
             Positioned.fill(
@@ -1280,24 +895,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                   color: Colors.black.withValues(alpha: 0.08),
                   child: Center(
                     child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 32),
+                      margin: EdgeInsets.symmetric(horizontal: 32),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 16,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppSurface.of(context).card,
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: AppShadow.dim,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2.4),
-                          ),
+                          const SizedBox(width: 22, height: 22, child: AppLoading.micro),
                           const SizedBox(width: 14),
                           Flexible(
                             child: Text(
@@ -1305,7 +916,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13.5,
-                                color: AppSurface.text,
+                                color: AppSurface.of(context).text,
                               ),
                             ),
                           ),
@@ -1337,18 +948,19 @@ class _CheckoutDeliveryInfo extends StatelessWidget {
         : pricing.isFreeDeliveryEnabled
         ? 'Free delivery above ₹${pricing.freeDeliveryThreshold}'
         : 'Delivery fee ₹${bill.deliveryFee.toStringAsFixed(0)} applies';
+    final surface = AppSurface.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(AppRadii.sm),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: surface.border),
       ),
       child: Text(
         msg,
         style: GoogleFonts.poppins(
           fontWeight: FontWeight.w600,
-          color: AppSurface.textSecondary,
+          color: AppSurface.of(context).textSecondary,
         ),
       ),
     );
@@ -1368,7 +980,10 @@ class _CheckoutHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(6, 8, 14, 12),
-      decoration: BoxDecoration(color: Colors.white, boxShadow: AppShadow.dim),
+      decoration: BoxDecoration(
+        color: AppSurface.of(context).card,
+        boxShadow: AppShadow.dim,
+      ),
       child: Row(
         children: [
           IconButton(
@@ -1390,7 +1005,7 @@ class _CheckoutHeader extends StatelessWidget {
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.3,
-                color: AppSurface.text,
+                color: AppSurface.of(context).text,
               ),
             ),
           ),
@@ -1422,8 +1037,8 @@ class _DeliverToSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(Icons.location_on_rounded, size: 18, color: AppSurface.text),
-            const SizedBox(width: 8),
+            Icon(Icons.location_on_rounded, size: 18, color: AppSurface.of(context).text),
+            SizedBox(width: 8),
             Expanded(
               child: Text(
                 'Deliver to',
@@ -1432,7 +1047,7 @@ class _DeliverToSection extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
-                  color: AppSurface.text,
+                  color: AppSurface.of(context).text,
                 ),
               ),
             ),
@@ -1477,7 +1092,7 @@ class _DeliveryEtaCard extends ConsumerWidget {
     final deliveryEta = ref.appContent.deliveryTimeText;
     return _MiniCard(
       icon: Icons.schedule_rounded,
-      iconColor: AppSurface.success,
+      iconColor: AppSurface.of(context).success,
       title: context.l10n.delivery_eta_title,
       subtitle: slot != null ? '$deliveryEta · ${slot!.label}' : deliveryEta,
     );
@@ -1499,38 +1114,39 @@ class _MiniCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: surface.border),
         boxShadow: AppShadow.dim,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: 18, color: iconColor),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(
             title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w800,
-              fontSize: 16,
-              color: AppSurface.text,
+              fontSize: 12.5,
+              color: surface.text,
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 4),
           Text(
             subtitle,
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              fontSize: 14,
-              height: 1.4,
-              color: AppSurface.textSecondary,
+              fontSize: 11.5,
+              height: 1.35,
+              color: surface.textSecondary,
             ),
           ),
         ],

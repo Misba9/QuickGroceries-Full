@@ -23,11 +23,16 @@ enum AppBootstrapPhase {
 }
 
 /// Cached home payload surfaced instantly on subsequent launches.
+///
+/// Top-half rails (banner → categories → flash → trending → featured) are
+/// loaded during Category Animation so Home paints without waiting.
 class HomeBootstrapSnapshot {
   const HomeBootstrapSnapshot({
     this.banners = const [],
     this.categories = const [],
     this.featured = const [],
+    this.trending = const [],
+    this.flashSale = const [],
     this.offers = const [],
     this.loadedFromDisk = false,
   });
@@ -35,19 +40,37 @@ class HomeBootstrapSnapshot {
   final List<BannerModel> banners;
   final List<CategoryModel> categories;
   final List<ProductModel> featured;
+  final List<ProductModel> trending;
+  final List<ProductModel> flashSale;
   final List<OfferBannerModel> offers;
   final bool loadedFromDisk;
 
+  /// True when enough top-half content exists to open Home.
   bool get hasContent =>
       banners.isNotEmpty ||
       categories.isNotEmpty ||
       featured.isNotEmpty ||
+      trending.isNotEmpty ||
+      flashSale.isNotEmpty ||
       offers.isNotEmpty;
+
+  /// Rough fill of the first-viewport rails (for warmup telemetry).
+  double get topHalfFillRatio {
+    var score = 0;
+    if (banners.isNotEmpty) score++;
+    if (categories.isNotEmpty) score++;
+    if (flashSale.isNotEmpty) score++;
+    if (trending.isNotEmpty) score++;
+    if (featured.isNotEmpty) score++;
+    return score / 5.0;
+  }
 
   HomeBootstrapSnapshot copyWith({
     List<BannerModel>? banners,
     List<CategoryModel>? categories,
     List<ProductModel>? featured,
+    List<ProductModel>? trending,
+    List<ProductModel>? flashSale,
     List<OfferBannerModel>? offers,
     bool? loadedFromDisk,
   }) {
@@ -55,6 +78,8 @@ class HomeBootstrapSnapshot {
       banners: banners ?? this.banners,
       categories: categories ?? this.categories,
       featured: featured ?? this.featured,
+      trending: trending ?? this.trending,
+      flashSale: flashSale ?? this.flashSale,
       offers: offers ?? this.offers,
       loadedFromDisk: loadedFromDisk ?? this.loadedFromDisk,
     );

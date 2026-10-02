@@ -20,13 +20,16 @@ import 'package:quickgrocery/core/navigation/app_route_observer.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/core/navigation/home_shell_observer.dart';
+import 'package:quickgrocery/core/loading/loading_constants.dart';
+import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
+import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_controller.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_state.dart';
 import 'package:quickgrocery/core/startup/app_startup_log.dart';
 import 'package:quickgrocery/core/startup/home_image_precache.dart';
+import 'package:quickgrocery/core/startup/post_home_startup.dart';
 import 'package:quickgrocery/core/startup/widgets/app_animated_splash.dart';
 import 'package:quickgrocery/core/startup/widgets/bootstrap_error_screen.dart';
-import 'package:quickgrocery/core/startup/widgets/home_bootstrap_shimmer.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/auth/screens/customer_profile_add_screen.dart';
 import 'package:quickgrocery/view/category/services/category_service.dart';
@@ -34,7 +37,9 @@ import 'package:quickgrocery/view/delivery_location/services/delivery_zone_servi
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/home/screens/landing_screen.dart';
 
-/// Root shell — splash → shimmer → home. Home never mounts before bootstrap.
+/// Root shell — 3-step startup:
+/// 1) Logo (0–400ms)  2) Category animation with Home built underneath
+/// 3) Reveal first viewport (already rendered).
 class AppBootstrapShell extends ConsumerStatefulWidget {
   const AppBootstrapShell({super.key});
 
@@ -51,9 +56,17 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
   String? _bootUid;
   bool _wasAuthenticated = false;
   String? _lastShellDestination;
-  StreamSubscription<User?>? _authSubscription;
-  int _syncGeneration = 0;
-  bool _syncInFlight = false;
+  bool _guestSyncInFlight = false;
+  bool _authSyncInFlight = false;
+
+  /// Keeps category-animation State alive across phase changes.
+  final GlobalKey _splashKey = GlobalKey();
+
+  /// Preserves Home State across underlay → solo mount.
+  final GlobalKey _readyHomeKey = GlobalKey();
+
+  /// Splash removed after it fades out over Home (no black gap).
+  bool _startupSplashDismissed = false;
 
   void _logShellDestination(String destination) {
     if (_lastShellDestination == destination) return;
@@ -68,23 +81,8 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
     AuthSignInCoordinator.signedInTick.addListener(_onPhoneSignInComplete);
     AuthSignOutCoordinator.signedOutTick.addListener(_onSignOutComplete);
     GuestAuthCoordinator.guestModeTick.addListener(_onGuestModeEntered);
-    _authSubscription =
-        FirebaseAuth.instance.authStateChanges().listen((user) {
-      if (!mounted) return;
-      PhoneAuthFlowLog.authStateChanged(
-        uid: user?.uid,
-        syncUid: FirebaseAuth.instance.currentUser?.uid,
-      );
-      // Firebase can emit a transient null while credentials are applied.
-      if (user == null && FirebaseAuth.instance.currentUser != null) {
-        PhoneAuthFlowLog.syncAuthIgnoredTransientNull();
-        return;
-      }
-      final uid = user?.uid;
-      if (uid != _bootUid) {
-        unawaited(_syncAuth(force: uid == null));
-      }
-    });
+    // Auth stream is observed once via [authUserProvider] in [build] —
+    // avoids a second FirebaseAuth.authStateChanges() subscription.
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_syncAuth()));
   }
 
@@ -110,7 +108,6 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
     AuthSignInCoordinator.signedInTick.removeListener(_onPhoneSignInComplete);
     AuthSignOutCoordinator.signedOutTick.removeListener(_onSignOutComplete);
     GuestAuthCoordinator.guestModeTick.removeListener(_onGuestModeEntered);
-    _authSubscription?.cancel();
     super.dispose();
   }
 
@@ -121,11 +118,6 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
   }
 
   Future<void> _syncAuth({bool force = false}) async {
-    if (_syncInFlight && !force) return;
-    final generation = ++_syncGeneration;
-    _syncInFlight = true;
-
-    try {
     final authAsync = ref.read(authUserProvider);
     final authUser = resolveAuthUser(authAsync);
 
@@ -135,7 +127,7 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
       bootUid: _bootUid,
     );
 
-    if (!mounted || generation != _syncGeneration) return;
+    if (!mounted) return;
 
     if (authUser == null) {
       if (FirebaseAuth.instance.currentUser != null) {
@@ -146,13 +138,11 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
       _bootUid = null;
 
       await ref.read(guestSessionProvider.notifier).enable();
-      if (!mounted || generation != _syncGeneration) return;
       await _syncGuest(force: force);
       return;
     }
 
     await ref.read(guestSessionProvider.notifier).disable();
-    if (!mounted || generation != _syncGeneration) return;
 
     final signingInFresh = !_wasAuthenticated;
     _wasAuthenticated = true;
@@ -161,68 +151,52 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
         _bootUid == authUser.uid &&
         ref.read(appBootstrapCompleteProvider) &&
         ref.read(appBootstrapProvider).status != AppBootstrapStatus.error) {
+      // finishPhoneSignIn owns clear; this is a safe no-op if already cleared.
       if (signingInFresh) {
         await PhoneSignInNavigation.clearAuthRoutesWhenReady();
       }
       return;
     }
 
-    _bootUid = authUser.uid;
-    FloatingCartSuppression.reset();
+    // Auth stream + signedInTick both force-sync — only one auth boot.
+    if (_authSyncInFlight) return;
+    _authSyncInFlight = true;
 
-    if (signingInFresh) {
-      await PhoneSignInNavigation.clearAuthRoutesWhenReady();
-    }
+    try {
+      _bootUid = authUser.uid;
 
-    if (!mounted || generation != _syncGeneration) return;
+      if (!mounted) return;
 
-    final deps = BootstrapDependencies(
-      addressService: legacy.Provider.of<AddressService>(context, listen: false),
-      categoryService:
-          legacy.Provider.of<CategoryService>(context, listen: false),
-      homeProvider: legacy.Provider.of<HomeProvider>(context, listen: false),
-      deliveryZoneService:
-          legacy.Provider.of<DeliveryZoneService>(context, listen: false),
-    );
+      final deps = BootstrapDependencies(
+        addressService:
+            legacy.Provider.of<AddressService>(context, listen: false),
+        categoryService:
+            legacy.Provider.of<CategoryService>(context, listen: false),
+        homeProvider: legacy.Provider.of<HomeProvider>(context, listen: false),
+        deliveryZoneService:
+            legacy.Provider.of<DeliveryZoneService>(context, listen: false),
+      );
 
-    await ref.read(appBootstrapProvider.notifier).runAuthenticated(
-          deps,
-          precacheImages: (snap) => HomeImagePrecache.warm(context, snap),
-        );
+      await ref.read(appBootstrapProvider.notifier).runAuthenticated(
+            deps,
+            precacheImages: (snap) => HomeImagePrecache.warm(context, snap),
+          );
 
-    if (mounted && signingInFresh && generation == _syncGeneration) {
-      AuthSessionLog.homeNavigation(uid: authUser.uid);
-    }
-    } finally {
-      if (generation == _syncGeneration) {
-        _syncInFlight = false;
+      if (!mounted) return;
+
+      if (signingInFresh) {
+        // Single post-boot clear (idempotent with finishPhoneSignIn).
+        await PhoneSignInNavigation.clearAuthRoutesWhenReady();
+        FloatingCartSuppression.reset();
+        AuthSessionLog.homeNavigation(uid: authUser.uid);
       }
+    } finally {
+      _authSyncInFlight = false;
     }
   }
 
   Future<void> _syncGuest({bool force = false}) async {
     if (!mounted) return;
-
-    final bootstrap = ref.read(appBootstrapProvider);
-    final alreadyShowingHome = bootstrap.isComplete &&
-        (bootstrap.phase == AppBootstrapPhase.ready ||
-            bootstrap.phase == AppBootstrapPhase.degraded);
-
-    final deps = BootstrapDependencies(
-      addressService: legacy.Provider.of<AddressService>(context, listen: false),
-      categoryService:
-          legacy.Provider.of<CategoryService>(context, listen: false),
-      homeProvider: legacy.Provider.of<HomeProvider>(context, listen: false),
-      deliveryZoneService:
-          legacy.Provider.of<DeliveryZoneService>(context, listen: false),
-    );
-
-    if (alreadyShowingHome) {
-      await ref.read(appBootstrapProvider.notifier).reattachGuestAfterSignOut(
-            deps,
-          );
-      return;
-    }
 
     if (!force &&
         ref.read(appBootstrapCompleteProvider) &&
@@ -230,56 +204,138 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
       return;
     }
 
+    // Auth stream + signedOutTick both force-sync — only one guest boot.
+    if (_guestSyncInFlight) return;
+    _guestSyncInFlight = true;
     FloatingCartSuppression.reset();
 
-    await ref.read(appBootstrapProvider.notifier).runGuest(
-          deps,
-          precacheImages: (snap) => HomeImagePrecache.warm(context, snap),
-        );
+    try {
+      final deps = BootstrapDependencies(
+        addressService:
+            legacy.Provider.of<AddressService>(context, listen: false),
+        categoryService:
+            legacy.Provider.of<CategoryService>(context, listen: false),
+        homeProvider: legacy.Provider.of<HomeProvider>(context, listen: false),
+        deliveryZoneService:
+            legacy.Provider.of<DeliveryZoneService>(context, listen: false),
+      );
+
+      await ref.read(appBootstrapProvider.notifier).runGuest(
+            deps,
+            precacheImages: (snap) => HomeImagePrecache.warm(context, snap),
+          );
+    } finally {
+      _guestSyncInFlight = false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bootstrap = ref.watch(appBootstrapProvider);
+    // Single auth subscription via Riverpod (shared with other authUser readers).
+    ref.listen(authUserProvider, (prev, next) {
+      if (!mounted) return;
+      final user = resolveAuthUser(next);
+      PhoneAuthFlowLog.authStateChanged(
+        uid: user?.uid,
+        syncUid: FirebaseAuth.instance.currentUser?.uid,
+      );
+      if (user == null && FirebaseAuth.instance.currentUser != null) {
+        PhoneAuthFlowLog.syncAuthIgnoredTransientNull();
+        return;
+      }
+      final uid = user?.uid;
+      if (uid != _bootUid) {
+        unawaited(_syncAuth(force: uid == null));
+      }
+    });
+
+    // Select only fields that change shell routing — avoid splash rebuilds on
+    // progress / loadingMessage ticks.
+    final phase = ref.watch(appBootstrapProvider.select((s) => s.phase));
+    final status = ref.watch(appBootstrapProvider.select((s) => s.status));
+    final needsOnboarding =
+        ref.watch(appBootstrapProvider.select((s) => s.needsOnboarding));
+    final isComplete =
+        ref.watch(appBootstrapProvider.select((s) => s.isComplete));
+    final errorMessage =
+        ref.watch(appBootstrapProvider.select((s) => s.errorMessage));
+    final isRetrying =
+        ref.watch(appBootstrapProvider.select((s) => s.isRetrying));
     final authUser = resolveAuthUser(ref.watch(authUserProvider));
     final isGuest = authUser == null;
 
-    if (bootstrap.needsOnboarding && authUser != null) {
+    if (needsOnboarding && authUser != null) {
       _logShellDestination('CustomerDetailsAddScreen');
       return const CustomerDetailsAddScreen();
     }
 
-    if (bootstrap.status == AppBootstrapStatus.error ||
-        bootstrap.phase == AppBootstrapPhase.error) {
+    if (status == AppBootstrapStatus.error ||
+        phase == AppBootstrapPhase.error) {
       _logShellDestination('BootstrapErrorScreen');
       final guestRetry = authUser == null && isGuest;
       return BootstrapErrorScreen(
-        message: bootstrap.errorMessage ?? '',
-        isRetrying: bootstrap.isRetrying,
+        message: errorMessage ?? '',
+        isRetrying: isRetrying,
         onRetry: () => ref
             .read(appBootstrapProvider.notifier)
             .retry(guest: guestRetry),
       );
     }
 
-    switch (bootstrap.phase) {
+    switch (phase) {
       case AppBootstrapPhase.idle:
       case AppBootstrapPhase.splash:
-        _logShellDestination('AppAnimatedSplash');
-        return const AppAnimatedSplash();
       case AppBootstrapPhase.loadingHome:
-        _logShellDestination('HomeBootstrapShimmer');
-        return const HomeBootstrapShimmer();
+        // Cold-start splash only. Do not clear [_startupSplashDismissed] here —
+        // mutating it in build after Home was shown replays splash on re-auth.
+        _logShellDestination('AppAnimatedSplash');
+        return ColoredBox(
+          color: kLaunchYellow,
+          child: AppAnimatedSplash(
+            key: _splashKey,
+            appReady: false,
+          ),
+        );
       case AppBootstrapPhase.ready:
       case AppBootstrapPhase.degraded:
-        _logShellDestination('LandingScreen');
-        return const _ReadyHome();
+        // Bootstrap complete — mount Home under splash immediately so the
+        // first viewport paints during category animation (step 2), then
+        // splash only fades (step 3). Once dismissed, stay on Landing.
+        final essentialReady = isComplete;
+
+        if (_startupSplashDismissed) {
+          _logShellDestination('LandingScreen');
+          return ColoredBox(
+            color: kLaunchYellow,
+            child: _ReadyHome(key: _readyHomeKey),
+          );
+        }
+
+        _logShellDestination('CategoryOverHome');
+        return ColoredBox(
+          color: kLaunchYellow,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Step 2–3: Home builds / first viewport renders behind splash.
+              _ReadyHome(key: _readyHomeKey),
+              AppAnimatedSplash(
+                key: _splashKey,
+                appReady: essentialReady,
+                onExitComplete: () {
+                  if (!mounted || _startupSplashDismissed) return;
+                  setState(() => _startupSplashDismissed = true);
+                },
+              ),
+            ],
+          ),
+        );
       case AppBootstrapPhase.error:
         _logShellDestination('BootstrapErrorScreen');
         final guestRetry = authUser == null && isGuest;
         return BootstrapErrorScreen(
-          message: bootstrap.errorMessage ?? '',
-          isRetrying: bootstrap.isRetrying,
+          message: errorMessage ?? '',
+          isRetrying: isRetrying,
           onRetry: () => ref
               .read(appBootstrapProvider.notifier)
               .retry(guest: guestRetry),
@@ -289,20 +345,61 @@ class _AppBootstrapShellState extends ConsumerState<AppBootstrapShell> {
 }
 
 class _ReadyHome extends ConsumerStatefulWidget {
-  const _ReadyHome();
+  const _ReadyHome({super.key});
 
   @override
   ConsumerState<_ReadyHome> createState() => _ReadyHomeState();
 }
 
-class _ReadyHomeState extends ConsumerState<_ReadyHome> {
+class _ReadyHomeState extends ConsumerState<_ReadyHome>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _permissionSettle;
+
   @override
   void initState() {
     super.initState();
     FloatingCartSuppression.reset();
     HomeShellObserver.markReady();
     AppStartupLog.milestone('Home displayed');
-    WidgetsBinding.instance.addPostFrameCallback((_) => _resumePendingAction());
+    PostHomeStartup.scheduleAfterHomeVisible();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_resumePendingAction());
+      _schedulePermissionsAfterHomeReady();
+    });
+  }
+
+  void _schedulePermissionsAfterHomeReady() {
+    // Frame-synced settle using AnimationController — no Timer / delayed.
+    _permissionSettle?.dispose();
+    final settle = AnimationController(
+      vsync: this,
+      duration: LoadingConstants.homeEnterFade +
+          LoadingConstants.permissionPromptSettle,
+    );
+    _permissionSettle = settle;
+    settle.addStatusListener((status) {
+      if (status != AnimationStatus.completed || !mounted) return;
+      unawaited(_requestPermissionsNow());
+    });
+    settle.forward();
+  }
+
+  Future<void> _requestPermissionsNow() async {
+    if (!mounted) return;
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+
+    AppStartupLog.milestone('Requesting OS permissions (post-home)');
+    await AppPermissionCoordinator.requestAfterAppReady(
+      requestIosLocalNotifications:
+          FcmPushInitializer.requestIosLocalNotificationPermission,
+    );
+  }
+
+  @override
+  void dispose() {
+    _permissionSettle?.dispose();
+    super.dispose();
   }
 
   Future<void> _resumePendingAction() async {
@@ -321,5 +418,8 @@ class _ReadyHomeState extends ConsumerState<_ReadyHome> {
   }
 
   @override
-  Widget build(BuildContext context) => const LandingScreen();
+  Widget build(BuildContext context) {
+    // Home is interactive immediately; splash fades away over this layer.
+    return const LandingScreen();
+  }
 }

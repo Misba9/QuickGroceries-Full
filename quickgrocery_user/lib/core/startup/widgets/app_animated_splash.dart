@@ -1,168 +1,285 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-import 'package:quickgrocery/constants/app_color.dart';
-import 'package:quickgrocery/constants/home_branding.dart';
-import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/startup/app_bootstrap_controller.dart';
-import 'package:quickgrocery/core/startup/bootstrap_loading_messages.dart';
+import 'package:quickgrocery/core/startup/widgets/brand_logo_splash.dart';
 
-/// Blinkit-style branded cold-start splash with rotating status messages.
+/// Brand yellow — native splash + Flutter startup must match exactly.
+const kLaunchYellow = Color(0xFFFFDE59);
+
+/// Startup UI:
+///
+/// 1. Yellow + logo (native → Flutter bridge, total ~0–400ms) — no text/spinner
+/// 2. Full-screen category animation until Home is ready
+/// 3. Soft 250ms fade → Home
 class AppAnimatedSplash extends ConsumerStatefulWidget {
-  const AppAnimatedSplash({super.key});
+  const AppAnimatedSplash({
+    super.key,
+    this.appReady = false,
+    this.onReadyToOpenHome,
+    this.onExitComplete,
+  });
+
+  final bool appReady;
+
+  /// Optional — Home is mounted by the shell when bootstrap is ready.
+  final VoidCallback? onReadyToOpenHome;
+
+  /// Fired after splash fade-out — shell may remove this splash.
+  final VoidCallback? onExitComplete;
 
   @override
   ConsumerState<AppAnimatedSplash> createState() => _AppAnimatedSplashState();
 }
 
 class _AppAnimatedSplashState extends ConsumerState<AppAnimatedSplash>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _logoScale;
-  late final Animation<double> _logoOpacity;
-  late final Animation<Offset> _taglineSlide;
+    with TickerProviderStateMixin {
+  late final AnimationController _exitFade;
+  late final Animation<double> _splashOpacity;
 
-  Timer? _messageTimer;
-  int _messageIndex = 0;
+  late final AnimationController _phaseFade;
+  late final Animation<double> _logoOpacity;
+  late final Animation<double> _categoryOpacity;
+
+  bool _showLogo = true;
+  bool _categoriesVisible = false;
+  bool _requestCategoryExit = false;
+  bool _exitStarted = false;
+  bool _notifiedHomeUnderlay = false;
+  bool _notifiedExitComplete = false;
+  bool _assetsWarmed = false;
+  bool _seeded = false;
+  bool _readyHandled = false;
+  bool _logoHoldScheduled = false;
+  AnimationController? _logoHoldCtrl;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _logoScale = Tween<double>(begin: 0.82, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
-    );
-    _logoOpacity = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0, 0.55, curve: Curves.easeOut),
-      ),
-    );
-    _taglineSlide = Tween<Offset>(
-      begin: const Offset(0, 0.35),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.35, 1, curve: Curves.easeOutCubic),
-      ),
-    );
-    _controller.forward();
 
-    _messageTimer = Timer.periodic(const Duration(milliseconds: 2200), (_) {
+    _exitFade = AnimationController(
+      vsync: this,
+      duration: LoadingConstants.exitFade,
+    );
+    _splashOpacity = Tween<double>(begin: 1, end: 0).animate(
+      CurvedAnimation(
+        parent: _exitFade,
+        curve: LoadingConstants.exitCurve,
+      ),
+    );
+
+    _phaseFade = AnimationController(
+      vsync: this,
+      duration: LoadingConstants.logoToCategoryFade,
+    );
+    _logoOpacity = Tween<double>(begin: 1, end: 0).animate(
+      CurvedAnimation(parent: _phaseFade, curve: Curves.easeInCubic),
+    );
+    _categoryOpacity = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _phaseFade, curve: LoadingConstants.revealCurve),
+    );
+
+    LaunchLogoHold.markStarted();
+
+    // Warm path (Home already ready): finish current logo hold if any, then
+    // one category beat and exit.
+    if (widget.appReady) {
+      _readyHandled = true;
+      _requestCategoryExit = true;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      setState(() {
-        _messageIndex =
-            (_messageIndex + 1) % BootstrapLoadingMessages.rotating.length;
-      });
+      unawaited(_precacheStartupAssets());
+      _scheduleLogoHoldThenCategories();
+    });
+  }
+
+  void _scheduleLogoHoldThenCategories() {
+    if (_logoHoldScheduled) return;
+    _logoHoldScheduled = true;
+
+    final remaining = LaunchLogoHold.remaining;
+    if (remaining == Duration.zero) {
+      _startCategories();
+      return;
+    }
+
+    // Frame-synced hold — no Timer. Tick until Step 1 (0–400ms) completes.
+    _logoHoldCtrl?.dispose();
+    final hold = AnimationController(vsync: this, duration: remaining);
+    _logoHoldCtrl = hold;
+    hold.addStatusListener((status) {
+      if (status != AnimationStatus.completed || !mounted) return;
+      _startCategories();
+    });
+    hold.forward();
+  }
+
+  Future<void> _precacheStartupAssets() async {
+    if (_assetsWarmed || !mounted) return;
+    _assetsWarmed = true;
+    try {
+      unawaited(
+        precacheImage(
+          const AssetImage(LoadingConstants.logoAsset),
+          context,
+        ),
+      );
+      unawaited(LoadingManager.boot(context: context));
+    } catch (_) {}
+  }
+
+  void _startCategories() {
+    if (!mounted || _categoriesVisible) {
+      if (_categoriesVisible && widget.appReady) _onAppBecameReady();
+      return;
+    }
+
+    setState(() {
+      _categoriesVisible = true;
+      if (widget.appReady) {
+        _requestCategoryExit = true;
+        _readyHandled = true;
+      }
+    });
+    _phaseFade.forward().whenComplete(() {
+      if (!mounted) return;
+      setState(() => _showLogo = false);
     });
   }
 
   @override
+  void didUpdateWidget(covariant AppAnimatedSplash oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.appReady && !oldWidget.appReady) {
+      _onAppBecameReady();
+    }
+  }
+
+  void _onAppBecameReady() {
+    if (_exitStarted || _readyHandled) return;
+    if (!_categoriesVisible) {
+      // Still on logo — categories will pick up exit when started.
+      _readyHandled = true;
+      _requestCategoryExit = true;
+      return;
+    }
+    _readyHandled = true;
+    if (!_requestCategoryExit) {
+      setState(() => _requestCategoryExit = true);
+    }
+  }
+
+  void _onCategoryExitReady() {
+    if (_exitStarted || !mounted) return;
+    _exitStarted = true;
+
+    if (!_notifiedHomeUnderlay) {
+      _notifiedHomeUnderlay = true;
+      widget.onReadyToOpenHome?.call();
+    }
+
+    _afterFrames(1, () {
+      if (!mounted || _notifiedExitComplete) return;
+      _exitFade.forward(from: 0).whenComplete(() {
+        if (!mounted || _notifiedExitComplete) return;
+        _notifiedExitComplete = true;
+        widget.onExitComplete?.call();
+      });
+    });
+  }
+
+  void _afterFrames(int count, VoidCallback then) {
+    var left = count;
+    void step(Duration _) {
+      left--;
+      if (left <= 0) {
+        then();
+        return;
+      }
+      SchedulerBinding.instance.addPostFrameCallback(step);
+    }
+
+    SchedulerBinding.instance.addPostFrameCallback(step);
+    SchedulerBinding.instance.scheduleFrame();
+  }
+
+  @override
   void dispose() {
-    _messageTimer?.cancel();
-    _controller.dispose();
+    _logoHoldCtrl?.dispose();
+    _exitFade.dispose();
+    _phaseFade.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final bootstrap = ref.watch(appBootstrapProvider);
-    final controllerMessage = bootstrap.loadingMessage.trim();
-    final fallback =
-        BootstrapLoadingMessages.rotating[_messageIndex];
-    final statusLine =
-        controllerMessage.isNotEmpty ? controllerMessage : fallback;
-    final progress = bootstrap.progress.clamp(0.0, 1.0);
+    ref.listen(
+      appBootstrapProvider.select((s) => s.homeSnapshot.categories),
+      (prev, next) {
+        if (_seeded || next.isEmpty) return;
+        LoadingManager.seed(next);
+        _seeded = true;
+      },
+    );
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
+    if (widget.appReady &&
+        _categoriesVisible &&
+        !_requestCategoryExit &&
+        !_exitStarted &&
+        !_readyHandled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _onAppBecameReady();
+      });
+    }
+
+    const bg = kLaunchYellow;
+
+    return FadeTransition(
+      opacity: _splashOpacity,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: bg,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+          systemNavigationBarColor: bg,
+          systemNavigationBarIconBrightness: Brightness.dark,
+        ),
+        child: ColoredBox(
+          color: bg,
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              const Spacer(flex: 3),
-              FadeTransition(
-                opacity: _logoOpacity,
-                child: ScaleTransition(
-                  scale: _logoScale,
-                  child: Container(
-                    width: 112,
-                    height: 112,
-                    decoration: BoxDecoration(
-                      color: AppColor.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: AppShadow.primaryGlow,
+              if (_categoriesVisible)
+                FadeTransition(
+                  opacity: _categoryOpacity,
+                  child: CategoryLoadingWidget(
+                    compact: false,
+                    fullScreen: true,
+                    playing: true,
+                    requestExit: _requestCategoryExit,
+                    style: const CategoryLoadingStyle(
+                      cycleDuration: LoadingConstants.categoryCycle,
+                      background: bg,
+                      textColor: Color(0xFF1A1A1A),
                     ),
-                    padding: const EdgeInsets.all(18),
-                    child: Image.asset(
-                      'assets/images/logo.png',
-                      fit: BoxFit.contain,
-                    ),
+                    onExitReady: _onCategoryExitReady,
                   ),
                 ),
-              ),
-              const SizedBox(height: 28),
-              SlideTransition(
-                position: _taglineSlide,
-                child: FadeTransition(
-                  opacity: _logoOpacity,
-                  child: Column(
-                    children: [
-                      Text(
-                        'QuickGrocery',
-                        style: GoogleFonts.poppins(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.6,
-                          color: AppSurface.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        HomeBranding.tagline,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppSurface.textSecondary,
-                        ),
-                      ),
-                    ],
+              // STEP 1 — yellow + logo (0–400ms). Completely gone after phase.
+              if (_showLogo)
+                IgnorePointer(
+                  child: FadeTransition(
+                    opacity: _logoOpacity,
+                    child: const BrandLogoSplash(),
                   ),
                 ),
-              ),
-              const Spacer(flex: 2),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 350),
-                child: Text(
-                  statusLine,
-                  key: ValueKey<String>(statusLine),
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppSurface.textSecondary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: progress > 0 ? progress : null,
-                  minHeight: 4,
-                  backgroundColor: AppColor.primary.withValues(alpha: 0.12),
-                  color: AppColor.primary,
-                ),
-              ),
-              const SizedBox(height: 36),
             ],
           ),
         ),

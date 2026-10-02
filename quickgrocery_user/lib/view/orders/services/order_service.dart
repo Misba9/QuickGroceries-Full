@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/models/order_model.dart';
 import 'package:quickgrocery/view/orders/domain/order_created_sort.dart';
 
@@ -66,9 +67,7 @@ class OrderService extends ChangeNotifier {
     await FirebaseFirestore.instance.collection('orders').doc(id).update({
       "isCancelled": true,
     });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Order Cancelled by you!")));
+    AppSnackBar.success('Order Cancelled by you!', context: context);
     getOrders();
   }
 

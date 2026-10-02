@@ -47,8 +47,8 @@ class ThermalReceiptPdf {
     final products = order.legacy.products;
     final bill = order.billSnapshot;
     final addr = order.addressSnapshot;
-    final dateStr =
-        DateFormat('dd MMM yyyy, hh:mm a').format(order.createdAt.toLocal());
+    final dateStr = DateFormat('dd MMM yyyy, hh:mm a')
+        .format(order.createdAt.toLocal());
     final paid = order.paymentStatus.toLowerCase().contains('paid') ||
         order.paymentStatus.toLowerCase().contains('success');
     final trackUrl = 'quickgrocery.app/order/${order.id}';
@@ -276,6 +276,18 @@ class ThermalReceiptPdf {
       if ((bill['tax'] as num?)?.toDouble() != null &&
           (bill['tax'] as num).toDouble() != 0)
         (title: 'Tax', value: (bill['tax'] as num).toDouble()),
+      if (((bill['codConvenienceFee'] as num?)?.toDouble() ?? 0) != 0 ||
+          ((bill['codFee'] as num?)?.toDouble() ?? 0) != 0)
+        (
+          title: (bill['codFeeDescription'] as String?)?.trim().isNotEmpty ==
+                  true
+              ? (bill['codFeeDescription'] as String).trim()
+              : 'COD Convenience Fee',
+          value: ((bill['codConvenienceFee'] as num?) ??
+                  (bill['codFee'] as num?) ??
+                  0)
+              .toDouble(),
+        ),
       if ((bill['deliveryPartnerTip'] as num?)?.toDouble() != null &&
           (bill['deliveryPartnerTip'] as num).toDouble() != 0)
         (

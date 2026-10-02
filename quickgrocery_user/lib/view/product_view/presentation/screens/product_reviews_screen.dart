@@ -8,8 +8,11 @@ import 'package:quickgrocery/models/rating_model.dart';
 import 'package:quickgrocery/view/product_view/data/review_api_client.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
 import 'package:quickgrocery/view/product_view/presentation/screens/write_review_screen.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/view/product_view/presentation/widgets/product_review_widget.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 enum ReviewSort { latest, highest, lowest, withPhotos }
 
@@ -53,15 +56,11 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
     try {
       await _api.deleteReview(r.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.reviewDeleted)),
-        );
+        AppSnackBar.success(context.l10n.reviewDeleted, context: context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
-        );
+        AppSnackBar.error('$e', context: context);
       }
     }
   }
@@ -92,7 +91,7 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.ratingsAndReviews)),
       body: ratingsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => AppLoading.center,
         error: (_, __) => Center(child: Text(context.l10n.failedToLoadReviews)),
         data: (ratings) {
           final sorted = _sorted(ratings);
@@ -123,11 +122,12 @@ class _ProductReviewsScreenState extends ConsumerState<ProductReviewsScreen> {
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (_, i) => ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        withPhotos[i],
+                      child: CachedImage(
+                        url: withPhotos[i],
                         width: 88,
                         height: 88,
                         fit: BoxFit.cover,
+                        memCacheWidth: 176,
                       ),
                     ),
                   ),

@@ -1,7 +1,11 @@
+import 'dart:async';
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/catalog/product_search.dart';
 import 'package:quickgrocery/core/inventory/inventory_limits.dart';
+import 'package:quickgrocery/core/startup/startup_isolate_parse.dart';
 import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/home/screens/addon_screen.dart';
@@ -28,6 +32,7 @@ class CategoryService extends ChangeNotifier {
   List<ProductModel> filteredProducts = [];
   String _searchQuery = '';
   List<ProductModel> allProducts = [];
+  Timer? _searchDebounce;
 
   CategoryProductsState _productsState = CategoryProductsState.idle;
   CategoryProductsState get productsState => _productsState;
@@ -50,9 +55,10 @@ class CategoryService extends ChangeNotifier {
   // 🔹 When a subcategory changes (sidebar tap)
   // ─────────────────────────────
   void onCategoryChanged(String category) {
-    if (category.isEmpty) return;
+    final trimmed = category.trim();
+    if (trimmed.isEmpty) return;
     final generation = ++_loadGeneration;
-    _selectedCategory = category;
+    _selectedCategory = trimmed;
     _productsState = CategoryProductsState.loading;
     _productsError = null;
     _products = [];
@@ -67,16 +73,18 @@ class CategoryService extends ChangeNotifier {
   // ─────────────────────────────
   Future<void> fetchProducts() async {
     try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
+      final snapshot = await FirebaseFirestore.instance
           .collection('products')
+          .orderBy(FieldPath.documentId)
+          .limit(300)
           .get();
 
-      allProducts = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return ProductModel.fromFirestore(data, doc.id);
-      }).toList();
+      // Sanitize in chunks + model factories on a background isolate.
+      allProducts = await StartupIsolateParse.parseProductsFromUntypedSnapshot(
+        snapshot,
+      );
     } catch (e) {
-      debugPrint("Error fetching products: $e");
+      if (kDebugMode) debugPrint("Error fetching products: $e");
     }
   }
 
@@ -90,14 +98,35 @@ class CategoryService extends ChangeNotifier {
     if (_productsState == CategoryProductsState.loading) {
       return;
     }
+    _searchDebounce?.cancel();
+    final trimmed = query.trim();
+    // Empty query clears immediately; typing is debounced.
+    if (trimmed.isEmpty) {
+      _applyProductSearch('');
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 280), () {
+      _applyProductSearch(trimmed);
+    });
+  }
+
+  void _applyProductSearch(String query) {
     _searchQuery = query;
     if (query.isEmpty) {
       filteredProducts = List<ProductModel>.from(_products);
     } else {
       filteredProducts = _products
           .where(
-            (product) =>
-                product.name.toLowerCase().contains(query.toLowerCase()),
+            (product) => productMatchesSearchQuery(
+              query,
+              name: product.name,
+              category: product.category,
+              subcategory: product.subcategory,
+              brand: product.brand,
+              sku: product.sku,
+              barcode: product.barcode,
+              description: product.description,
+            ),
           )
           .toList();
     }
@@ -105,6 +134,7 @@ class CategoryService extends ChangeNotifier {
   }
 
   void clearProductSearch() {
+    _searchDebounce?.cancel();
     _searchQuery = '';
     if (_products.isNotEmpty) {
       filteredProducts = List<ProductModel>.from(_products);
@@ -147,14 +177,18 @@ class CategoryService extends ChangeNotifier {
 
       subCategories = snapshot.docs
           .map(
-            (doc) => CategoryModel.fromJson(doc.data() as Map<String, dynamic>),
+            (doc) => CategoryModel.fromFirestore(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
           )
+          .where((c) => c.name.trim().isNotEmpty && c.isActive)
           .toList();
 
       log("Found ${subCategories.length} subcategories for $mainCategory");
 
       if (subCategories.isNotEmpty) {
-        _selectedCategory = subCategories.first.name;
+        _selectedCategory = subCategories.first.name.trim();
         log("Auto-selected subcategory: $_selectedCategory");
         await _fetchProductsForSubcategory(generation);
       } else {
@@ -356,7 +390,7 @@ class CategoryService extends ChangeNotifier {
   }
 
   Future<void> _fetchProductsForSubcategory(int generation) async {
-    final subcategory = _selectedCategory;
+    final subcategory = _selectedCategory.trim();
     if (subcategory.isEmpty) {
       if (generation != _loadGeneration) return;
       _productsState = CategoryProductsState.ready;
@@ -366,35 +400,51 @@ class CategoryService extends ChangeNotifier {
 
     try {
       log("Fetching products for subcategory: $subcategory");
-      QuerySnapshot snapshot;
 
-      try {
-        snapshot = await FirebaseFirestore.instance
-            .collection('products')
-            .where('subcategory', isEqualTo: subcategory)
-            .where('is_active', isEqualTo: true)
-            .get();
-      } catch (e) {
-        log("Query with is_active failed, trying without filter: $e");
-        snapshot = await FirebaseFirestore.instance
-            .collection('products')
-            .where('subcategory', isEqualTo: subcategory)
-            .get();
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('products')
+          .where('subcategory', isEqualTo: subcategory)
+          .get();
+
+      var usedMainCategoryFallback = false;
+      if (snapshot.docs.isEmpty && _mainCategory.trim().isNotEmpty) {
+        log(
+          "No exact subcategory docs for '$subcategory'; "
+          "falling back to main '${_mainCategory.trim()}'",
+        );
+        snapshot = await _queryProductsForMainCategory(_mainCategory.trim());
+        usedMainCategoryFallback = true;
       }
 
-      if (generation != _loadGeneration || _selectedCategory != subcategory) {
+      if (generation != _loadGeneration ||
+          _selectedCategory.trim() != subcategory) {
         return;
       }
 
-      _products = snapshot.docs
-          .map(
-            (doc) => ProductModel.fromFirestore(
-              doc.data() as Map<String, dynamic>,
-              doc.id,
-            ),
-          )
-          .where((p) => p.isAvailable)
-          .toList();
+      final needle = _norm(subcategory);
+      final parsed =
+          await StartupIsolateParse.parseProductsFromUntypedSnapshot(
+        snapshot,
+        onlyAvailable: true,
+      );
+      if (generation != _loadGeneration ||
+          _selectedCategory.trim() != subcategory) {
+        return;
+      }
+
+      _products = parsed.where((p) {
+        if (!usedMainCategoryFallback) return true;
+        final sub = _norm(p.subcategory);
+        final cat = _norm(p.category);
+        if (sub == needle) return true;
+        // Legacy: no subcategory field, category equals sub name.
+        if (sub.isEmpty && cat == needle) return true;
+        return false;
+      }).toList()
+        ..sort((a, b) {
+          if (a.pinToTop == b.pinToTop) return 0;
+          return a.pinToTop ? -1 : 1;
+        });
 
       filteredProducts = List<ProductModel>.from(_products);
       _productsState = CategoryProductsState.ready;
@@ -402,10 +452,11 @@ class CategoryService extends ChangeNotifier {
       log("Found ${_products.length} products for subcategory $subcategory");
       notifyListeners();
     } catch (e, stackTrace) {
-      if (generation != _loadGeneration || _selectedCategory != subcategory) {
+      if (generation != _loadGeneration ||
+          _selectedCategory.trim() != subcategory) {
         return;
       }
-      log("Error getting products: $e");
+      log("Error fetching subcategory products: $e");
       log("Stack trace: $stackTrace");
       _productsState = CategoryProductsState.error;
       _productsError = 'Could not load products';
@@ -413,49 +464,54 @@ class CategoryService extends ChangeNotifier {
     }
   }
 
+  Future<QuerySnapshot> _queryProductsForMainCategory(String mainCategory) async {
+    // Admin products store the parent under `category` (not `main_category`).
+    final byCategory = await FirebaseFirestore.instance
+        .collection('products')
+        .where('category', isEqualTo: mainCategory)
+        .get();
+    if (byCategory.docs.isNotEmpty) return byCategory;
+
+    try {
+      final byMain = await FirebaseFirestore.instance
+          .collection('products')
+          .where('main_category', isEqualTo: mainCategory)
+          .get();
+      if (byMain.docs.isNotEmpty) return byMain;
+    } catch (e) {
+      log("Query by main_category failed: $e");
+    }
+
+    return byCategory;
+  }
+
   Future<void> _fetchProductsForMainCategory(
     String mainCategory,
     int generation,
   ) async {
     try {
-      QuerySnapshot productSnapshot;
-
-      try {
-        productSnapshot = await FirebaseFirestore.instance
-            .collection('products')
-            .where('main_category', isEqualTo: mainCategory)
-            .where('is_active', isEqualTo: true)
-            .get();
-      } catch (e) {
-        log("Query by main_category failed, trying category field: $e");
-        try {
-          productSnapshot = await FirebaseFirestore.instance
-              .collection('products')
-              .where('category', isEqualTo: mainCategory)
-              .where('is_active', isEqualTo: true)
-              .get();
-        } catch (e2) {
-          log("Query by category also failed: $e2");
-          productSnapshot = await FirebaseFirestore.instance
-              .collection('products')
-              .where('category', isEqualTo: mainCategory)
-              .get();
-        }
-      }
+      final productSnapshot =
+          await _queryProductsForMainCategory(mainCategory.trim());
 
       if (generation != _loadGeneration || _mainCategory != mainCategory) {
         return;
       }
 
-      _products = productSnapshot.docs
-          .map(
-            (doc) => ProductModel.fromFirestore(
-              doc.data() as Map<String, dynamic>,
-              doc.id,
-            ),
-          )
-          .where((p) => p.isAvailable)
-          .toList();
+      final parsed =
+          await StartupIsolateParse.parseProductsFromUntypedSnapshot(
+        productSnapshot,
+        onlyAvailable: true,
+      );
+
+      if (generation != _loadGeneration || _mainCategory != mainCategory) {
+        return;
+      }
+
+      _products = parsed
+        ..sort((a, b) {
+          if (a.pinToTop == b.pinToTop) return 0;
+          return a.pinToTop ? -1 : 1;
+        });
 
       filteredProducts = List<ProductModel>.from(_products);
       _productsState = CategoryProductsState.ready;
@@ -476,6 +532,8 @@ class CategoryService extends ChangeNotifier {
     }
   }
 
+  static String _norm(String value) => value.trim().toLowerCase();
+
   // ─────────────────────────────
   // 🔹 Fetch main categories
   // ─────────────────────────────
@@ -491,7 +549,10 @@ class CategoryService extends ChangeNotifier {
 
         for (var doc in querySnapshot.docs) {
           categories.add(
-            CategoryModel.fromJson(doc.data() as Map<String, dynamic>),
+            CategoryModel.fromFirestore(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
           );
         }
 

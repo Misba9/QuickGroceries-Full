@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'auth/vendor_auth_errors.dart';
 import 'vendor_push_initializer.dart';
 
-/// Vendor push: topic subscription + device token storage.
+/// Vendor push: single topic subscription + unique device token storage.
 class VendorFcmBootstrap {
   VendorFcmBootstrap._();
 
@@ -44,10 +44,11 @@ class VendorFcmBootstrap {
       );
 
       if (defaultTargetPlatform == TargetPlatform.iOS) {
+        // alert:false — tray comes only from flutter_local_notifications.
         await messaging.setForegroundNotificationPresentationOptions(
           alert: false,
           badge: true,
-          sound: true,
+          sound: false,
         );
       }
 
@@ -59,8 +60,22 @@ class VendorFcmBootstrap {
 
       final topic = _vendorTopic(vendorId);
       final prefs = await SharedPreferences.getInstance();
-      final subscribed = prefs.getString(_subscribedTopicKey);
-      if (subscribed != topic) {
+      final previousTopic = prefs.getString(_subscribedTopicKey);
+      if (previousTopic != null &&
+          previousTopic.isNotEmpty &&
+          previousTopic != topic) {
+        try {
+          await messaging.unsubscribeFromTopic(previousTopic);
+          if (kDebugMode) {
+            debugPrint(
+              '[VendorNotify] FCM unsubscribed old topic=$previousTopic',
+            );
+          }
+        } catch (e) {
+          VendorAuthErrors.logDebug('[VendorFCM] unsubscribe skipped: $e');
+        }
+      }
+      if (previousTopic != topic) {
         await messaging.subscribeToTopic(topic);
         await prefs.setString(_subscribedTopicKey, topic);
         if (kDebugMode) {
@@ -105,7 +120,17 @@ class VendorFcmBootstrap {
         SetOptions(merge: true),
       );
 
-      await vendorRef.collection('deviceTokens').doc(deviceId).set(
+      final tokensCol = vendorRef.collection('deviceTokens');
+
+      // One row per physical device; drop other rows that share this token.
+      final dupes = await tokensCol.where('token', isEqualTo: token).get();
+      for (final doc in dupes.docs) {
+        if (doc.id != deviceId) {
+          await doc.reference.delete();
+        }
+      }
+
+      await tokensCol.doc(deviceId).set(
         {
           'token': token,
           'deviceId': deviceId,
@@ -116,7 +141,7 @@ class VendorFcmBootstrap {
       );
 
       if (kDebugMode) {
-        debugPrint('[VendorNotify] deviceTokens/$deviceId saved');
+        debugPrint('[VendorNotify] deviceTokens/$deviceId saved (unique)');
       }
     } catch (e) {
       VendorAuthErrors.logDebug('[VendorFCM] token write failed: $e');

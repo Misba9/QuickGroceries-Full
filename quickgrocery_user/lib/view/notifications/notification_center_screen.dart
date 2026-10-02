@@ -9,6 +9,7 @@ import 'package:quickgrocery/realtime/models/notification_item.dart';
 import 'package:quickgrocery/realtime/providers/realtime_providers.dart';
 import 'package:quickgrocery/realtime/utils/notification_navigation.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 class NotificationCenterScreen extends ConsumerStatefulWidget {
   const NotificationCenterScreen({super.key});
@@ -59,20 +60,13 @@ class _NotificationCenterScreenState
             TextButton(
               onPressed: _markingAll ? null : _markAllRead,
               child: _markingAll
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColor.primary,
-                      ),
-                    )
+                  ? SizedBox(width: 18, height: 18, child: AppLoading.micro)
                   : Text(context.l10n.mark_all_read),
             ),
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => AppLoading.center,
         error: (_, __) => Center(child: Text(context.l10n.something_went_wrong)),
         data: (items) {
           if (items.isEmpty) {
@@ -80,7 +74,7 @@ class _NotificationCenterScreenState
               child: Text(
                 'No notifications yet. Offers and orders will appear here.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade700),
+                style: TextStyle(color: AppSurface.of(context).textMuted),
               ),
             );
           }
@@ -108,7 +102,7 @@ class _CenterNotificationTile extends ConsumerWidget {
     return Material(
       color: unread
           ? AppColor.primary.withValues(alpha: 0.08)
-          : Colors.white,
+          : AppSurface.of(context).card,
       borderRadius: BorderRadius.circular(12),
       child: ListTile(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -116,9 +110,13 @@ class _CenterNotificationTile extends ConsumerWidget {
           item.title.isEmpty ? 'Quick Grocery' : item.title,
           style: TextStyle(
             fontWeight: unread ? FontWeight.w800 : FontWeight.w500,
+            color: AppSurface.of(context).textPrimary,
           ),
         ),
-        subtitle: Text(item.body),
+        subtitle: Text(
+          item.body,
+          style: TextStyle(color: AppSurface.of(context).textSecondary),
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -126,13 +124,16 @@ class _CenterNotificationTile extends ConsumerWidget {
               Container(
                 width: 8,
                 height: 8,
-                margin: const EdgeInsets.only(right: 8),
-                decoration: const BoxDecoration(
-                  color: AppSurface.danger,
+                margin: EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: AppSurface.of(context).danger,
                   shape: BoxShape.circle,
                 ),
               ),
-            const Icon(Icons.chevron_right),
+            Icon(
+              Icons.chevron_right,
+              color: AppSurface.of(context).iconInactive,
+            ),
           ],
         ),
         onTap: () async {

@@ -47,6 +47,25 @@ export {
   adminDeliveryTipsCallable,
 } from "./delivery_tips/delivery_tips_callables";
 export {
+  getPaymentSettingsCallable,
+  updatePaymentSettingsCallable,
+  previewCodFeeCallable,
+} from "./cod_fee/cod_fee_callables";
+export {
+  getCustomerPaymentRestrictionsCallable,
+  updateCustomerPaymentRestrictionsCallable,
+  deleteCustomerPaymentRestrictionsCallable,
+  listCodRestrictedCustomersCallable,
+} from "./cod_restrictions/cod_restriction_callables";
+export {
+  getCustomerProfileCallable,
+  syncCustomerDeviceProfileCallable,
+} from "./customers/customer_profile_callables";
+export {
+  logSearchEventCallable,
+  listSearchLogsCallable,
+} from "./search_analytics/search_analytics_callables";
+export {
   assignRiderCallable,
   autoAssignRiderCallable,
   autoAssignAllUnassignedCallable,
@@ -131,3 +150,33 @@ export {
   reportProductReview,
   canReviewProduct,
 } from "./reviews/review_callables";
+
+/** Order-experience review ("Rate Your Order" after delivery). */
+export { submitOrderExperienceReview } from "./reviews/order_experience_review_callable";
+
+/** Razorpay: create Orders API checkout sessions (secret stays on server). */
+export { createRazorpayOrderCallable } from "./payments/create_razorpay_order_callable";
+export { confirmRazorpayTipPaymentCallable } from "./payments/confirm_razorpay_tip_callable";
+
+/** Admin-controlled product promotions. */
+export {
+  adminListPromotionsCallable,
+  adminCreatePromotionCallable,
+  adminUpdatePromotionCallable,
+  adminDeletePromotionCallable,
+  listProductPromotionsCallable,
+  patchProductPromotionsCallable,
+  getPromotionCallable,
+  vendorRequestPromotionCallable,
+  adminListPromotionRequestsCallable,
+  adminResolvePromotionRequestCallable,
+} from "./promotions/promotion_callables";
+export { productPromotionsHttp } from "./promotions/promotion_http_handlers";
+export { promotionExpiryCleanup } from "./promotions/promotion_cleanup";
+
+/** Grocery AI shopping assistant (Gemini + catalog grounding). */
+export { aiGroceryAssistant } from "./ai/ai_assistant_callable";
+export {
+  listAiChatSessionsCallable,
+  listAiChatMessagesCallable,
+} from "./ai/ai_chat_admin_callables";

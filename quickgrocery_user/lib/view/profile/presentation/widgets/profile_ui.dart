@@ -18,17 +18,18 @@ class ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
         gradient: gradient,
-        color: gradient == null ? Colors.white : null,
+        color: gradient == null ? surface.card : null,
         borderRadius: BorderRadius.circular(AppRadii.lg),
         border: gradient == null
-            ? Border.all(color: AppSurface.border.withValues(alpha: 0.7))
+            ? Border.all(color: surface.border.withValues(alpha: 0.7))
             : null,
-        boxShadow: AppShadow.card,
+        boxShadow: AppShadow.cardOf(context),
       ),
       child: child,
     );
@@ -50,7 +51,7 @@ class ProfileSectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
           Text(
@@ -58,7 +59,7 @@ class ProfileSectionTitle extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontWeight: FontWeight.w800,
               fontSize: 17,
-              color: AppSurface.text,
+              color: AppSurface.of(context).text,
             ),
           ),
           const Spacer(),
@@ -104,7 +105,7 @@ class ProfileListTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          padding: EdgeInsets.symmetric(vertical: 10, horizontal: 4),
           child: Row(
             children: [
               Container(
@@ -134,7 +135,7 @@ class ProfileListTile extends StatelessWidget {
                         subtitle!,
                         style: GoogleFonts.poppins(
                           fontSize: 12,
-                          color: AppSurface.textMuted,
+                          color: AppSurface.of(context).textMuted,
                         ),
                       ),
                     ],
@@ -143,7 +144,7 @@ class ProfileListTile extends StatelessWidget {
               ),
               trailing ??
                   Icon(Icons.chevron_right_rounded,
-                      color: AppSurface.textMuted),
+                      color: AppSurface.of(context).textMuted),
             ],
           ),
         ),
@@ -169,10 +170,10 @@ class ProfileToggleTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: AppSurface.textMuted),
+          Icon(icon, size: 20, color: AppSurface.of(context).textMuted),
           const SizedBox(width: 12),
           Expanded(
             child: Text(

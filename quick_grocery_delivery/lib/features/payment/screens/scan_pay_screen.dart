@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
 import 'package:quick_grocery_delivery/features/payment/screens/order_collect_payment_screen.dart';
 import 'package:quick_grocery_delivery/features/payment/services/payment_collection_orders_service.dart';
@@ -226,13 +225,7 @@ class _PaymentCollectionOrderCard extends StatelessWidget {
   }
 
   static String _createdLabel(OrderModel order) {
-    final dt = order.createdAt;
-    if (dt != null) return DateFormat.jm().format(dt);
-    final legacy = order.createdDate.trim();
-    if (legacy.isEmpty) return '—';
-    final parsed = DateTime.tryParse(legacy);
-    if (parsed != null) return DateFormat.jm().format(parsed);
-    return legacy;
+    return order.orderedAtLabel;
   }
 
   static String _statusLabel(OrderModel order) {

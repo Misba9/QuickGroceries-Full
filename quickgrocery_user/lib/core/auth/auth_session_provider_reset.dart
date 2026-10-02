@@ -20,7 +20,8 @@ abstract final class AuthSessionProviderReset {
   static void prepareForSignOut(WidgetRef ref) {
     ref.read(cartBootstrapReadyProvider.notifier).state = false;
     ref.read(deliveryZoneServiceProvider.notifier).state = null;
-    ref.read(appBootstrapProvider.notifier).markSignedOut();
+    // Soft guest handoff — keep catalog ready so Home does not restart splash.
+    ref.read(appBootstrapProvider.notifier).prepareGuestHandoff();
   }
 
   /// Drop cached user streams after Firebase session is gone.

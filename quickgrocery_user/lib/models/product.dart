@@ -66,6 +66,17 @@ class ProductModel {
   bool isSeasonal;
   DateTime? createdAt;
   DateTime? flashSaleEnd;
+  /// Admin/vendor custom badge text (HOT, NEW, LIMITED…).
+  String customBadgeText;
+  /// Promotional banner strip label.
+  String promotionalBannerLabel;
+  bool pinToTop;
+  bool isBogo;
+  bool isLimitedTimeOffer;
+  bool isComboOfferPromo;
+  String sku;
+  String barcode;
+  String brand;
 
   ProductModel({
     required this.id,
@@ -85,6 +96,9 @@ class ProductModel {
     required this.unitPerItem,
     this.packQuantity = '',
     this.packWeight = '',
+    this.sku = '',
+    this.barcode = '',
+    this.brand = '',
     this.measurementType = '',
     required this.itemCount,
     required this.isMostSold,
@@ -112,6 +126,12 @@ class ProductModel {
     this.isSeasonal = false,
     this.createdAt,
     this.flashSaleEnd,
+    this.customBadgeText = '',
+    this.promotionalBannerLabel = '',
+    this.pinToTop = false,
+    this.isBogo = false,
+    this.isLimitedTimeOffer = false,
+    this.isComboOfferPromo = false,
   });
 
   factory ProductModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -192,6 +212,39 @@ class ProductModel {
           _asBool(data['is_seasonal'], fallback: false),
       createdAt: _asDateTime(data['createdAt']),
       flashSaleEnd: _asDateTime(data['flash_sale_end']),
+      sku: _firstNonEmptyString(data, const [
+        'sku',
+        'SKU',
+        'productSku',
+        'product_sku',
+      ]),
+      barcode: _firstNonEmptyString(data, const [
+        'barcode',
+        'barCode',
+        'ean',
+        'upc',
+      ]),
+      brand: _firstNonEmptyString(data, const [
+        'brand',
+        'brandName',
+        'brand_name',
+      ]),
+      customBadgeText: _firstNonEmptyString(data, const [
+        'custom_badge_text',
+        'promo_badge',
+        'badge',
+      ]),
+      promotionalBannerLabel: _firstNonEmptyString(data, const [
+        'promotional_banner_label',
+        'bannerLabel',
+      ]),
+      pinToTop: _asBool(data['pin_to_top'], fallback: false),
+      isBogo: _asBool(data['is_bogo'], fallback: false) ||
+          (data['special_cat']?.toString() == 'Buy 1 Get 1'),
+      isLimitedTimeOffer:
+          _asBool(data['is_limited_time_offer'], fallback: false),
+      isComboOfferPromo:
+          _asBool(data['is_combo_offer_promo'], fallback: false),
     );
   }
 
@@ -264,6 +317,19 @@ class ProductModel {
     bool? isFeatured,
     bool? isAvailable,
     DateTime? createdAt,
+    DateTime? flashSaleEnd,
+    String? customBadgeText,
+    String? promotionalBannerLabel,
+    bool? pinToTop,
+    bool? isBogo,
+    bool? isLimitedTimeOffer,
+    bool? isComboOfferPromo,
+    bool? isFlashSale,
+    bool? isTodaysBest,
+    bool? isRecommended,
+    bool? isNewArrival,
+    bool? isLimitedStock,
+    bool? isActive,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -299,6 +365,20 @@ class ProductModel {
       isFeatured: isFeatured ?? this.isFeatured,
       isAvailable: isAvailable ?? this.isAvailable,
       createdAt: createdAt ?? this.createdAt,
+      flashSaleEnd: flashSaleEnd ?? this.flashSaleEnd,
+      customBadgeText: customBadgeText ?? this.customBadgeText,
+      promotionalBannerLabel:
+          promotionalBannerLabel ?? this.promotionalBannerLabel,
+      pinToTop: pinToTop ?? this.pinToTop,
+      isBogo: isBogo ?? this.isBogo,
+      isLimitedTimeOffer: isLimitedTimeOffer ?? this.isLimitedTimeOffer,
+      isComboOfferPromo: isComboOfferPromo ?? this.isComboOfferPromo,
+      isFlashSale: isFlashSale ?? this.isFlashSale,
+      isTodaysBest: isTodaysBest ?? this.isTodaysBest,
+      isRecommended: isRecommended ?? this.isRecommended,
+      isNewArrival: isNewArrival ?? this.isNewArrival,
+      isLimitedStock: isLimitedStock ?? this.isLimitedStock,
+      isActive: isActive ?? this.isActive,
     );
   }
 
@@ -306,7 +386,13 @@ class ProductModel {
   double get discountPrice => slashedPrice;
 
   /// True when [discountPrice] is set and undercuts [price].
-  bool get hasDiscount => slashedPrice > 0 && slashedPrice < price;
+  /// Automatically false after flash/offer end so UI reverts before Firestore sync.
+  bool get hasDiscount {
+    if (slashedPrice <= 0 || slashedPrice >= price) return false;
+    final end = flashSaleEnd;
+    if (end != null && !DateTime.now().isBefore(end)) return false;
+    return true;
+  }
 
   /// Discount percentage rounded to a whole number, 0 when none.
   int get discountPercent {

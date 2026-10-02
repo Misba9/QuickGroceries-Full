@@ -41,6 +41,9 @@ abstract final class AdminRoutes {
   static const addBanner = 'Add Banner';
   static const addCoupon = 'Add Coupon';
   static const comboOffers = 'Combo Offers';
+  static const productPromotions = 'Product Promotions';
+  static const searchAnalytics = 'Search Analytics';
+  static const appHeatmap = 'App Heatmap';
   static const referEarn = 'Refer & Earn';
   static const deliveryTips = 'Delivery Tips';
   static const platformFee = 'Platform Fee & Charges';
@@ -49,6 +52,7 @@ abstract final class AdminRoutes {
   static const notificationHistory = 'Notification History';
   static const appContent = 'App Content';
   static const supportSettings = 'Support Settings';
+  static const aiChatInbox = 'AI Chat Inbox';
   static const paymentSettings = 'Payment Settings';
   static const maintenance = 'Maintenance & Availability';
 
@@ -75,6 +79,9 @@ abstract final class AdminRoutes {
     addBanner,
     addCoupon,
     comboOffers,
+    productPromotions,
+    searchAnalytics,
+    appHeatmap,
     referEarn,
     deliveryTips,
     platformFee,
@@ -83,6 +90,7 @@ abstract final class AdminRoutes {
     notificationHistory,
     appContent,
     supportSettings,
+    aiChatInbox,
     paymentSettings,
     maintenance,
   ];

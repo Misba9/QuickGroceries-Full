@@ -12,6 +12,8 @@ class OrderBillTotals {
     this.platformFee = 0,
     this.tax = 0,
     this.deliveryPartnerTip = 0,
+    this.codConvenienceFee = 0,
+    this.codFeeDescription = 'COD Convenience Fee',
     required this.grandTotal,
     this.extraLines = const [],
   });
@@ -25,6 +27,8 @@ class OrderBillTotals {
   final double platformFee;
   final double tax;
   final double deliveryPartnerTip;
+  final double codConvenienceFee;
+  final String codFeeDescription;
   final double grandTotal;
   final List<BillExtraLine> extraLines;
 
@@ -40,8 +44,12 @@ class OrderBillTotals {
     'tax',
     'deliveryPartnerTip',
     'tipAmount',
+    'codConvenienceFee',
+    'codFee',
+    'codFeeDescription',
     'total',
     'grandTotal',
+    'isFreeDelivery',
   };
 
   static OrderBillTotals? fromMap(Map<String, dynamic>? raw) {
@@ -56,6 +64,8 @@ class OrderBillTotals {
     final subtotal = n(m['subtotal']);
     final coupon = n(m['couponDiscount'] ?? m['discount']);
     var grand = n(m['grandTotal'] ?? m['total']);
+    final codFee = n(m['codConvenienceFee'] ?? m['codFee']);
+    final codDesc = (m['codFeeDescription'] ?? '').toString().trim();
 
     if (grand <= 0 && subtotal > 0) {
       grand = subtotal -
@@ -65,6 +75,7 @@ class OrderBillTotals {
           n(m['handlingCharge']) +
           n(m['platformFee']) +
           n(m['deliveryPartnerTip'] ?? m['tipAmount']) +
+          codFee +
           n(m['tax']);
     }
 
@@ -90,6 +101,9 @@ class OrderBillTotals {
       handlingCharge: n(m['handlingCharge']),
       platformFee: n(m['platformFee']),
       deliveryPartnerTip: n(m['deliveryPartnerTip'] ?? m['tipAmount']),
+      codConvenienceFee: codFee,
+      codFeeDescription:
+          codDesc.isEmpty ? 'COD Convenience Fee' : codDesc,
       tax: n(m['tax']),
       grandTotal: grand,
       extraLines: extras,

@@ -45,7 +45,7 @@ class _AddressScreenState extends State<AddressScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppSurface.background,
+      backgroundColor: AppSurface.of(context).background,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         bottom: false,
@@ -132,7 +132,7 @@ class _Header extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(6, 8, 14, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSurface.of(context).card,
         boxShadow: AppShadow.dim,
       ),
       child: Row(
@@ -152,7 +152,7 @@ class _Header extends StatelessWidget {
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.3,
-                color: AppSurface.text,
+                color: AppSurface.of(context).text,
               ),
             ),
           ),
@@ -241,15 +241,15 @@ class _LoadingList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+      padding: EdgeInsets.fromLTRB(14, 14, 14, 16),
       itemCount: 4,
       itemBuilder: (context, i) => Container(
         height: 96,
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppSurface.of(context).card,
           borderRadius: BorderRadius.circular(AppRadii.md),
-          border: Border.all(color: AppSurface.border),
+          border: Border.all(color: AppSurface.of(context).border),
         ),
       ),
     );

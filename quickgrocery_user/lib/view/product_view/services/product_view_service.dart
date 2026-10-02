@@ -3,6 +3,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/models/rating_model.dart';
@@ -79,8 +80,9 @@ class ProductViewService extends ChangeNotifier {
           FirebaseAuth.instance.currentUser!.uid,
         ]),
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.product_added_favorite)),
+      AppSnackBar.success(
+        context.l10n.product_added_favorite,
+        context: context,
       );
     } else {
       await FirebaseFirestore.instance.collection('products').doc(id).update({
@@ -88,8 +90,9 @@ class ProductViewService extends ChangeNotifier {
           FirebaseAuth.instance.currentUser!.uid,
         ]),
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.product_removed_favorite)),
+      AppSnackBar.success(
+        context.l10n.product_removed_favorite,
+        context: context,
       );
     }
   }

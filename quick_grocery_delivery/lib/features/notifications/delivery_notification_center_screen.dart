@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/delivery_notification_router.dart';
 import '../../core/delivery_notification_store.dart';
 
 class DeliveryNotificationCenterScreen extends StatelessWidget {
@@ -54,6 +55,14 @@ class DeliveryNotificationCenterScreen extends StatelessWidget {
                     ),
                   ),
                   subtitle: Text(n.body),
+                  onTap: () {
+                    DeliveryNotificationRouter.handleNotificationOpen({
+                      'type': n.type,
+                      'orderId': n.orderId,
+                      'title': n.title,
+                      'message': n.body,
+                    });
+                  },
                 ),
               );
             },

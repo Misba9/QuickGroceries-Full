@@ -11,6 +11,8 @@ class NoServiceableAreaScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
+        top: false,
+        bottom: false,
         child: KeyboardSafeBody(
           padding: const EdgeInsets.all(24),
           fillMinHeight: true,

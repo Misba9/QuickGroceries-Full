@@ -7,6 +7,7 @@ import 'package:quickgrocery_vendor/models/product_settings.dart';
 import 'package:quickgrocery_vendor/services/product_service.dart';
 import 'package:quickgrocery_vendor/style/app_color.dart';
 import 'package:quickgrocery_vendor/utils/app_spacing.dart';
+import 'package:quickgrocery_vendor/view/products/widgets/vendor_promotion_request_dialog.dart';
 import 'package:quickgrocery_vendor/widgets/vendor_form_fields.dart';
 
 typedef SettingsChanged = void Function(ProductSettings settings);
@@ -107,8 +108,12 @@ class _ProductSettingsPanelState extends State<ProductSettingsPanel> {
   }
 
   String _messageForError(Object e) {
-    final s = e.toString().toLowerCase();
-    if (s.contains('network') || s.contains('unavailable')) {
+    final s = e.toString();
+    if (s.contains('managed by the administrator')) {
+      return 'This promotion is managed by the administrator.';
+    }
+    final lower = s.toLowerCase();
+    if (lower.contains('network') || lower.contains('unavailable')) {
       return 'Network error — tap to retry';
     }
     return 'Failed to update product';
@@ -150,8 +155,44 @@ class _ProductSettingsPanelState extends State<ProductSettingsPanel> {
         if (_settings.adminSettingsLocked)
           _InfoBanner(
             icon: Icons.lock_outline,
-            text: 'Admin locked these settings',
+            text:
+                'This promotion is managed by the administrator.',
             color: Colors.orange.shade50,
+          ),
+        if (widget.productId != null && widget.productId!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                final vendorId =
+                    widget.initialProduct?.vendorId.trim().isNotEmpty == true
+                        ? widget.initialProduct!.vendorId
+                        : '';
+                if (vendorId.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Vendor id missing')),
+                  );
+                  return;
+                }
+                final ok = await showVendorPromotionRequestDialog(
+                  context: context,
+                  productId: widget.productId!,
+                  vendorId: vendorId,
+                  productName: widget.initialProduct?.name ?? 'Product',
+                );
+                if (ok == true && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Promotion request sent — waiting for admin approval',
+                      ),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.campaign_outlined),
+              label: const Text('Request promotional offer'),
+            ),
           ),
         if (!_settings.isActive)
           _InfoBanner(

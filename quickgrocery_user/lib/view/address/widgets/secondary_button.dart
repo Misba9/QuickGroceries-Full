@@ -1,6 +1,6 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 class SecondaryButton extends StatelessWidget {
   const SecondaryButton({
@@ -30,10 +30,7 @@ class SecondaryButton extends StatelessWidget {
         ),
         child: Center(
           child: isLoading
-              ? SizedBox(
-                  height: height * .06,
-                  child: const CupertinoActivityIndicator(color: Colors.black),
-                )
+              ? AppLoading.micro
               : Text(
                   title,
                   style: const TextStyle(fontSize: 18, color: Colors.black),

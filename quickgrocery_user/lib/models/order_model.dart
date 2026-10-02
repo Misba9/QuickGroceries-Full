@@ -86,9 +86,18 @@ class OrderModel {
       deliveryCharge: data['delivery_charge'] ?? 0,
       uuid: data['uuid'] ?? '',
       currentLocation: data['current_location'] ?? '',
-      lat: data['lat'] != null ? double.parse(data['lat'].toString()) : 0.0,
-      lng: data['lng'] != null ? double.parse(data['lng'].toString()) : 0.0,
+      lat: _parseCoord(data['lat'] ?? data['latitude']),
+      lng: _parseCoord(data['lng'] ?? data['longitude']),
     );
+  }
+
+  static double _parseCoord(dynamic value) {
+    if (value == null) return 0.0;
+    final parsed = value is num
+        ? value.toDouble()
+        : double.tryParse(value.toString());
+    if (parsed == null || !parsed.isFinite) return 0.0;
+    return parsed;
   }
 
   Map<String, dynamic> toMap() {

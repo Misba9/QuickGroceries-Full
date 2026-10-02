@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
@@ -8,6 +10,7 @@ import 'package:quickgrocery/core/firebase/callable_payload.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/core/navigation/app_route_names.dart';
 import 'package:quickgrocery/core/navigation/app_route_observer.dart';
+import 'package:quickgrocery/core/startup/post_home_startup.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 
@@ -16,18 +19,29 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 Map<String, dynamic>? _pendingPushPayload;
 String? _lastNavigationKey;
 DateTime? _lastNavigationAt;
+bool _consumeInFlight = false;
 
 /// Queue a notification payload until [rootNavigatorKey] has a context (cold start).
+/// If Home is already visible, consume immediately so taps don't wait on FCM frames.
 void enqueuePushNavigation(Map<String, dynamic> raw) {
   _pendingPushPayload = Map<String, dynamic>.from(raw);
+  if (PostHomeStartup.homeVisible.value) {
+    unawaited(consumePendingPushNavigation());
+  }
 }
 
 /// Replay a notification tap deferred during splash / bootstrap.
 Future<void> consumePendingPushNavigation() async {
+  if (_consumeInFlight) return;
   final pending = _pendingPushPayload;
   if (pending == null) return;
+  _consumeInFlight = true;
   _pendingPushPayload = null;
-  await handlePushNavigation(pending);
+  try {
+    await handlePushNavigation(pending);
+  } finally {
+    _consumeInFlight = false;
+  }
 }
 
 Map<String, String> _stringData(Map<String, dynamic> raw) {
@@ -252,8 +266,7 @@ void _markNavigation(String key) {
 }
 
 Future<void> _showOrderNotFound(BuildContext context) async {
-  final home = legacy.Provider.of<HomeProvider>(context, listen: false);
-  home.onSelectedChange(AppRoutes.ordersTabIndex);
+  await Navigator.of(context).push(AppPageRoutes.ordersList());
   if (!context.mounted) return;
   await showDialog<void>(
     context: context,
@@ -285,7 +298,7 @@ Future<void> _openOrderTracking(BuildContext context, String orderId) async {
   }
 
   final home = legacy.Provider.of<HomeProvider>(context, listen: false);
-  home.onSelectedChange(AppRoutes.ordersTabIndex);
+  home.onSelectedChange(0);
 
   final nav = Navigator.of(context);
   final top = appRouteObserver.topRouteName ?? '';
@@ -330,22 +343,21 @@ Future<void> handlePushNavigation(Map<String, dynamic> raw) async {
       await _openOrderTracking(ctx, orderId);
       return;
     case 'payment_retry':
+      // Prefer the order screen when we have an orderId (payment failure on an order).
       if (orderId.isNotEmpty) {
-        final exists = await _orderExists(orderId);
-        if (!ctx.mounted) return;
-        if (!exists) {
-          await _showOrderNotFound(ctx);
-          return;
-        }
+        await _openOrderTracking(ctx, orderId);
+        return;
       }
-      home.onSelectedChange(AppRoutes.ordersTabIndex);
+      home.onSelectedChange(0);
       if (!ctx.mounted) return;
       if (_shouldSkipDuplicateNavigation(AppRoutes.checkout)) return;
       _markNavigation(AppRoutes.checkout);
       await Navigator.of(ctx).push(AppPageRoutes.checkout());
       return;
     case 'orders_tab':
-      home.onSelectedChange(AppRoutes.ordersTabIndex);
+      if (_shouldSkipDuplicateNavigation(AppRoutes.ordersList)) return;
+      _markNavigation(AppRoutes.ordersList);
+      await Navigator.of(ctx).push(AppPageRoutes.ordersList());
       return;
     case 'offers_page':
       home.onSelectedChange(2);

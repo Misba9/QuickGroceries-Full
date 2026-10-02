@@ -5,13 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
-import 'package:quickgrocery/core/auth/phone_sign_in_navigation.dart';
 import 'package:quickgrocery/core/navigation/auth_floating_cart_guard.dart';
 import 'package:quickgrocery/core/widgets/keyboard_safe_body.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/view/auth/services/auth_provider.dart';
 import 'package:quickgrocery/view/auth/widgets/pinput_sms_retriever.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 class OtpAuthScreen extends StatefulWidget {
   static String route = 'otpScreen';
@@ -86,7 +86,7 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
     if (!mounted) return;
 
     if (ok) {
-      await PhoneSignInNavigation.clearAuthRoutesWhenReady();
+      // Auth routes cleared once in AuthService._finishPhoneSignIn.
       return;
     }
 
@@ -282,11 +282,7 @@ class _OtpAuthScreenState extends State<OtpAuthScreen>
                     if (verifying)
                       Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: const SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                        ),
+                        child: AppLoading.spinner(size: 28),
                       ),
                   ],
                 ),

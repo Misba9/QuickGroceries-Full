@@ -68,6 +68,13 @@ class OrderEarningsCard extends StatelessWidget {
             _line('Handling Fee', bill.handlingCharge),
           if (bill.platformFee > 0) _line('Platform Fee', bill.platformFee),
           if (bill.tax > 0) _line('Tax', bill.tax),
+          if (bill.codConvenienceFee > 0)
+            _line(
+              bill.codFeeDescription.isNotEmpty
+                  ? bill.codFeeDescription
+                  : 'COD Convenience Fee',
+              bill.codConvenienceFee,
+            ),
           for (final extra in bill.extraLines)
             _line(extra.label, extra.value),
           if (bill.deliveryPartnerTip > 0)

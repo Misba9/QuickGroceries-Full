@@ -83,10 +83,13 @@ class AdminSidebar extends StatelessWidget {
     ),
     _SectionDef(
       icon: 'assets/icons/coupon.svg',
-      title: 'Coupon',
+      title: 'Marketing',
       routes: [
         AdminRoutes.addCoupon,
         AdminRoutes.comboOffers,
+        AdminRoutes.productPromotions,
+        AdminRoutes.searchAnalytics,
+        AdminRoutes.appHeatmap,
         AdminRoutes.referEarn,
         AdminRoutes.deliveryTips,
       ],
@@ -106,6 +109,7 @@ class AdminSidebar extends StatelessWidget {
       routes: [
         AdminRoutes.appContent,
         AdminRoutes.supportSettings,
+        AdminRoutes.aiChatInbox,
         AdminRoutes.paymentSettings,
         AdminRoutes.maintenance,
       ],

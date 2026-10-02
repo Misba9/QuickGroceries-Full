@@ -74,8 +74,16 @@ class LiveOrder {
     if (fromSnap != null) {
       return LatLng(fromSnap.latitude, fromSnap.longitude);
     }
-    return LatLng(legacy.lat, legacy.lng);
+    final fromLegacy = GpsPoint.tryParse(legacy.lat, legacy.lng);
+    if (fromLegacy != null) {
+      return LatLng(fromLegacy.latitude, fromLegacy.longitude);
+    }
+    // Never return NaN / (0,0) — flutter_map throws on non-finite centers.
+    return const LatLng(12.9352, 77.6147);
   }
+
+  bool get hasValidDropLocation =>
+      GpsPoint.isValidCoord(dropLatLng.latitude, dropLatLng.longitude);
 
   LatLng? get storeLatLng {
     final coords = GpsPoint.tryParse(pickupLat, pickupLng);
@@ -405,7 +413,7 @@ class RiderLocation {
           .toString(),
       vehicleNumber: (data['vehicleNumber'] ?? data['vehicle_number'] ?? '')
           .toString(),
-      position: (lat != null && lng != null) ? LatLng(lat, lng) : null,
+      position: GpsPoint.isValidCoord(lat, lng) ? LatLng(lat!, lng!) : null,
       heading: (data['heading'] as num?)?.toDouble(),
       lastUpdated: _parseDateTime(data['lastUpdated']),
     );

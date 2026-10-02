@@ -76,6 +76,9 @@ class UserProfileRepository {
         defaultAddressIdValue: defaultAddr.isEmpty ? null : defaultAddr,
       );
 
+      // Ensure callers always see device fields (empty string when absent).
+      // Values are never wiped here — hydrate is read-only.
+
       final checkout = data['checkout_preferences'];
       if (checkout is Map<String, dynamic>) {
         final pm = checkout['payment_method']?.toString();
@@ -98,13 +101,53 @@ class UserProfileRepository {
     }
   }
 
+  /// Normalized profile map for APIs / UI — always includes device fields.
+  static Map<String, dynamic> deviceFieldsFromData(Map<String, dynamic> data) {
+    String pick(List<String> keys) {
+      for (final k in keys) {
+        final v = (data[k] ?? '').toString().trim();
+        if (v.isNotEmpty) return v;
+      }
+      return '';
+    }
+
+    final appVersion = pick(['appVersion', 'app_version', 'version']);
+    final buildNumber = pick(['buildNumber', 'build_number']);
+    return {
+      'platform': pick(['platform', 'fcmPlatform', 'device_type']),
+      'appVersion': appVersion,
+      'buildNumber': buildNumber,
+      'deviceModel': pick(['deviceModel', 'device_model']),
+      'osVersion': pick(['osVersion', 'os_version']),
+      'lastSeen': data['lastSeen'] ?? data['last_seen'] ?? data['last_active_at'],
+      'lastLogin': data['lastLogin'] ?? data['last_login'],
+    };
+  }
+
+  /// Fetch customer profile with device fields always present (merge-safe read).
+  Future<Map<String, dynamic>?> fetchProfile(String uid) async {
+    final snap = await withFirestoreRetry(
+      () => _customerRef(uid).get().timeout(const Duration(seconds: 10)),
+    );
+    if (!snap.exists) return null;
+    final data = Map<String, dynamic>.from(snap.data() ?? {});
+    data.addAll(deviceFieldsFromData(data));
+    return data;
+  }
+
   /// Merge-write profile fields to both collections.
+  /// Empty / null string values are stripped so existing fields are preserved.
   Future<void> saveProfile({
     required String uid,
     required Map<String, dynamic> fields,
     bool markComplete = false,
   }) async {
-    final payload = Map<String, dynamic>.from(fields);
+    final payload = <String, dynamic>{};
+    fields.forEach((key, value) {
+      if (value == null) return;
+      if (value is String && value.trim().isEmpty) return;
+      payload[key] = value;
+    });
     payload['uid'] = uid;
     payload['updated_at'] = FieldValue.serverTimestamp();
     if (markComplete) payload['profile_complete'] = true;

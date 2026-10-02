@@ -15,6 +15,8 @@ class OrderBillTotals {
     this.platformFee = 0,
     this.tax = 0,
     this.deliveryPartnerTip = 0,
+    this.codConvenienceFee = 0,
+    this.codFeeDescription = 'COD Convenience Fee',
     required this.grandTotal,
   });
 
@@ -27,6 +29,8 @@ class OrderBillTotals {
   final double platformFee;
   final double tax;
   final double deliveryPartnerTip;
+  final double codConvenienceFee;
+  final String codFeeDescription;
   final double grandTotal;
 
   /// Amount subtracted in [computeGrandTotal] (coupon / promo only).
@@ -40,7 +44,8 @@ class OrderBillTotals {
             handlingCharge +
             platformFee +
             tax +
-            deliveryPartnerTip,
+            deliveryPartnerTip +
+            codConvenienceFee,
       );
 
   static OrderBillTotals fromBillBreakdown(BillBreakdown bill) =>
@@ -54,6 +59,8 @@ class OrderBillTotals {
         platformFee: bill.platformFee,
         tax: bill.tax,
         deliveryPartnerTip: bill.deliveryPartnerTip,
+        codConvenienceFee: bill.codConvenienceFee,
+        codFeeDescription: bill.codFeeDescription,
         grandTotal: bill.total,
       );
 
@@ -75,6 +82,10 @@ class OrderBillTotals {
     final platform = n(m['platformFee']);
     final taxAmt = n(m['tax']);
     final tipAmt = n(m['deliveryPartnerTip'] ?? m['tipAmount']);
+    final codFee = n(m['codConvenienceFee'] ?? m['codFee']);
+    final codDesc = (m['codFeeDescription'] ?? m['cod_fee_description'] ?? '')
+        .toString()
+        .trim();
 
     if (grand <= 0 && subtotal > 0) {
       grand = OrderBillTotals(
@@ -86,6 +97,7 @@ class OrderBillTotals {
         platformFee: platform,
         tax: taxAmt,
         deliveryPartnerTip: tipAmt,
+        codConvenienceFee: codFee,
         grandTotal: 0,
       ).computeGrandTotal();
     }
@@ -100,6 +112,9 @@ class OrderBillTotals {
       platformFee: platform,
       tax: taxAmt,
       deliveryPartnerTip: tipAmt,
+      codConvenienceFee: codFee,
+      codFeeDescription:
+          codDesc.isEmpty ? 'COD Convenience Fee' : codDesc,
       grandTotal: grand,
     );
   }
@@ -135,6 +150,11 @@ class OrderBillTotals {
         'platformFee': platformFee,
         'tax': tax,
         if (deliveryPartnerTip > 0) 'deliveryPartnerTip': deliveryPartnerTip,
+        if (codConvenienceFee > 0) ...{
+          'codConvenienceFee': codConvenienceFee,
+          'codFee': codConvenienceFee,
+          'codFeeDescription': codFeeDescription,
+        },
         'total': grandTotal,
         'grandTotal': grandTotal,
       };

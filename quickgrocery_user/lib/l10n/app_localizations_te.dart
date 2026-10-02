@@ -253,48 +253,42 @@ class AppLocalizationsTe extends AppLocalizations {
   String get delete_account => 'ఖాతా తొలగించు';
 
   @override
-  String get deleteAccountTitle => 'Delete your account?';
+  String get delete_account_title => 'ఖాతా తొలగించు';
 
   @override
-  String get deleteAccountBody =>
-      'This permanently deletes your account and personal data. This cannot be undone.\n\nOrders and payment records are kept for legal and accounting purposes, with your name, phone, and address removed.';
+  String get delete_account_confirmation =>
+      'మీ ఖాతా శాశ్వతంగా తొలగించబడుతుంది.\n\nఇది మీ ఖాతా, సేవ్ చేసిన చిరునామాలు, కార్ట్, ప్రొఫైల్ సమాచారం మరియు ఇతర వ్యక్తిగత డేటాను శాశ్వతంగా తొలగిస్తుంది.\n\nఈ చర్యను రద్దు చేయలేరు.';
 
   @override
-  String get deleteAccountSecondTitle =>
-      'Are you sure you want to permanently delete your account?';
+  String get delete_account_warning => 'ఈ చర్యను రద్దు చేయలేరు.';
 
   @override
-  String get deleteAccountSecondBody =>
-      'You will be signed out. This cannot be reversed.';
+  String get delete_account_success => 'మీ ఖాతా తొలగించబడింది.';
 
   @override
-  String get yesDeleteMyAccount => 'Yes, Delete My Account';
+  String get delete_account_failed =>
+      'మీ ఖాతాను తొలగించలేకపోయాము. దయచేసి మళ్లీ ప్రయత్నించండి.';
 
   @override
-  String get deleteAccountSuccess =>
-      'Your account has been deleted successfully.';
+  String get delete_account_reauth_title => 'మీరే అని నిర్ధారించండి';
 
   @override
-  String get deleteAccountFailed =>
-      'We couldn\'t delete your account. Please try again.';
+  String get delete_account_reauth_message =>
+      'భద్రత కోసం, ఖాతా తొలగింపును నిర్ధారించడానికి మీ ఫోన్‌కు పంపిన OTPని నమోదు చేయండి.';
 
   @override
-  String get deleteAccountProcessing => 'Deleting your account...';
+  String get delete_account_reauth_send_otp => 'OTP పంపండి';
 
   @override
-  String get deleteAccountReauthTitle => 'Verify it\'s you';
+  String get delete_account_in_progress => 'మీ ఖాతా తొలగించబడుతోంది…';
 
   @override
-  String get deleteAccountReauthBody =>
-      'Enter the OTP sent to your phone to finish deleting your account.';
+  String get delete_account_network_error =>
+      'నెట్‌వర్క్ లోపం. కనెక్షన్‌ను తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.';
 
   @override
-  String get deleteAccountReauthFailed =>
-      'Phone verification failed. Please try again.';
-
-  @override
-  String get deleteAccountNeedPhone =>
-      'Sign in with your mobile number, then try Delete Account again.';
+  String get delete_account_permission_error =>
+      'డేటా తొలగించేటప్పుడు అనుమతి నిరాకరించబడింది. దయచేసి సపోర్ట్‌ను సంప్రదించండి.';
 
   @override
   String get delete_address_body =>
@@ -629,6 +623,9 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get nav_orders => 'ఆర్డర్లు';
+
+  @override
+  String get nav_ai => 'Ask AI';
 
   @override
   String get nav_profile => 'ప్రొఫైల్';
@@ -1476,4 +1473,21 @@ class AppLocalizationsTe extends AppLocalizations {
   @override
   String get partner_with_us_subtitle =>
       'Join Quick Groceries as a store or delivery partner';
+
+  @override
+  String get appearance => 'రూపం';
+
+  @override
+  String get theme_light => 'లైట్';
+
+  @override
+  String get theme_dark => 'డార్క్';
+
+  @override
+  String get theme_system => 'సిస్టమ్ డిఫాల్ట్';
+
+  @override
+  String theme_active_mode(String mode) {
+    return 'ప్రస్తుతం $mode';
+  }
 }

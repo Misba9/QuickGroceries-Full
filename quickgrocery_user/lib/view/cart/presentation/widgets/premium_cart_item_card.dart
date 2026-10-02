@@ -20,13 +20,10 @@ import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 /// * **Out-of-stock state** — red sash + disabled stepper.
 /// * **Swipe to remove** — full-width red action with trash icon, with
 ///   haptic confirm; falls back to long-press → remove for accessibility.
-/// * **Hero tag** — unique per cart line (`productId` + combo key + index).
-///   Product details uses a different tag, so this does not fly across routes.
 class PremiumCartItemCard extends StatelessWidget {
   const PremiumCartItemCard({
     super.key,
     required this.item,
-    required this.lineIndex,
     required this.onIncrement,
     required this.onDecrement,
     required this.onRemove,
@@ -34,7 +31,6 @@ class PremiumCartItemCard extends StatelessWidget {
   });
 
   final CartItem item;
-  final int lineIndex;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
   final VoidCallback onRemove;
@@ -43,7 +39,9 @@ class PremiumCartItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dismissible(
-      key: ValueKey('cart-${item.productId}'),
+      key: ValueKey(
+        'cart-${item.productId}-${item.comboGroupKey ?? 'solo'}',
+      ),
       direction: DismissDirection.endToStart,
       background: _DismissBackground(),
       confirmDismiss: (_) async {
@@ -53,7 +51,6 @@ class PremiumCartItemCard extends StatelessWidget {
       onDismissed: (_) => onRemove(),
       child: _CardSurface(
         item: item,
-        lineIndex: lineIndex,
         onIncrement: onIncrement,
         onDecrement: onDecrement,
         onRemove: onRemove,
@@ -68,7 +65,6 @@ class PremiumCartItemCard extends StatelessWidget {
 class _CardSurface extends StatelessWidget {
   const _CardSurface({
     required this.item,
-    required this.lineIndex,
     required this.onIncrement,
     required this.onDecrement,
     required this.onRemove,
@@ -76,7 +72,6 @@ class _CardSurface extends StatelessWidget {
   });
 
   final CartItem item;
-  final int lineIndex;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
   final VoidCallback onRemove;
@@ -94,12 +89,13 @@ class _CardSurface extends StatelessWidget {
     final lineMrp = item.lineSlashedTotal;
     final hasSlash = lineMrp > lineTotal + 0.5;
 
+    final surface = AppSurface.of(context);
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface.card,
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: surface.border),
         boxShadow: AppShadow.dim,
       ),
       clipBehavior: Clip.antiAlias,
@@ -108,14 +104,12 @@ class _CardSurface extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _ItemImage(
                   url: item.image,
-                  heroTag:
-                      'cart-item-${item.productId}-${item.comboGroupKey ?? 'line'}-$lineIndex',
                   outOfStock: outOfStock,
                 ),
                 const SizedBox(width: 12),
@@ -135,7 +129,7 @@ class _CardSurface extends StatelessWidget {
                               style: GoogleFonts.poppins(
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w700,
-                                color: AppSurface.text,
+                                color: AppSurface.of(context).text,
                                 height: 1.25,
                               ),
                             ),
@@ -143,7 +137,7 @@ class _CardSurface extends StatelessWidget {
                           _RemoveButton(onTap: onRemove),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      SizedBox(height: 6),
                       if (item.unitPerItem.isNotEmpty)
                         _UnitChip(text: item.unitPerItem),
                       if (outOfStock) ...[
@@ -165,7 +159,7 @@ class _CardSurface extends StatelessWidget {
                                   style: GoogleFonts.poppins(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
-                                    color: AppSurface.text,
+                                    color: AppSurface.of(context).text,
                                     height: 1.1,
                                   ),
                                 ),
@@ -174,7 +168,7 @@ class _CardSurface extends StatelessWidget {
                                     '₹${_money(lineMrp)}',
                                     style: GoogleFonts.poppins(
                                       fontSize: 11.5,
-                                      color: AppSurface.textMuted,
+                                      color: AppSurface.of(context).textMuted,
                                       decoration: TextDecoration.lineThrough,
                                       height: 1.1,
                                     ),
@@ -219,34 +213,29 @@ class _CardSurface extends StatelessWidget {
 class _ItemImage extends StatelessWidget {
   const _ItemImage({
     required this.url,
-    required this.heroTag,
     required this.outOfStock,
   });
 
   final String url;
-  final String heroTag;
   final bool outOfStock;
 
   @override
   Widget build(BuildContext context) {
-    return Hero(
-      tag: heroTag,
-      child: SizedBox(
-        width: 78,
-        height: 78,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadii.sm),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ColoredBox(
-                color: AppSurface.subtle,
-                child: CachedImage(url: url, fit: BoxFit.cover),
-              ),
-              if (outOfStock)
-                ColoredBox(color: Colors.black.withValues(alpha: 0.35)),
-            ],
-          ),
+    return SizedBox(
+      width: 78,
+      height: 78,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ColoredBox(
+              color: AppSurface.of(context).subtle,
+              child: CachedImage(url: url, fit: BoxFit.cover),
+            ),
+            if (outOfStock)
+              ColoredBox(color: Colors.black.withValues(alpha: 0.35)),
+          ],
         ),
       ),
     );
@@ -262,17 +251,17 @@ class _UnitChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppSurface.subtle,
+        color: AppSurface.of(context).subtle,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         text,
         style: GoogleFonts.poppins(
-          fontSize: 12,
+          fontSize: 10.5,
           fontWeight: FontWeight.w700,
-          color: AppSurface.textSecondary,
+          color: AppSurface.of(context).textSecondary,
           letterSpacing: 0.2,
           height: 1.2,
         ),
@@ -285,17 +274,17 @@ class _OutOfStockChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppSurface.danger.withValues(alpha: 0.10),
+        color: AppSurface.of(context).danger.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         'Item unavailable',
         style: GoogleFonts.poppins(
-          fontSize: 12,
+          fontSize: 10.5,
           fontWeight: FontWeight.w700,
-          color: AppSurface.danger,
+          color: AppSurface.of(context).danger,
           letterSpacing: 0.3,
           height: 1.2,
         ),
@@ -311,17 +300,17 @@ class _SaveBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppSurface.success.withValues(alpha: 0.12),
+        color: AppSurface.of(context).success.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         'Save ₹${saved.toStringAsFixed(0)}',
         style: GoogleFonts.poppins(
-          fontSize: 12,
+          fontSize: 10.5,
           fontWeight: FontWeight.w700,
-          color: AppSurface.success,
+          color: AppSurface.of(context).success,
           height: 1.1,
         ),
       ),
@@ -344,11 +333,11 @@ class _RemoveButton extends StatelessWidget {
         onTap();
       },
       child: Padding(
-        padding: const EdgeInsets.only(left: 6, top: 2, bottom: 2),
+        padding: EdgeInsets.only(left: 6, top: 2, bottom: 2),
         child: Icon(
           Icons.delete_outline_rounded,
           size: 20,
-          color: AppSurface.textMuted,
+          color: AppSurface.of(context).textMuted,
         ),
       ),
     );
@@ -361,12 +350,12 @@ class _DismissBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppSurface.danger.withValues(alpha: 0.85),
-            AppSurface.danger,
+            AppSurface.of(context).danger.withValues(alpha: 0.85),
+            AppSurface.of(context).danger,
           ],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,

@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Persists processed notification [eventId]s across isolates and app restarts.
+///
+/// Prevents the same logical order event from creating two tray entries when
+/// FCM is delivered more than once (topic retry, dual listener, etc.).
 class NotificationEventDedupe {
   NotificationEventDedupe._();
 
@@ -15,6 +18,8 @@ class NotificationEventDedupe {
   static LinkedHashSet<String>? _cache;
   static Future<void>? _loadFuture;
 
+  /// Prefer server [eventId]; else stable `orderId:type` (no timestamp — timestamps
+  /// differ per duplicate FCM copy and would defeat dedupe).
   static String resolveEventId(RemoteMessage msg) {
     final data = msg.data;
     final fromServer = data['eventId']?.toString().trim();
@@ -22,10 +27,8 @@ class NotificationEventDedupe {
 
     final orderId = data['orderId']?.toString().trim() ?? '';
     final type = data['type']?.toString().trim() ?? '';
-    final ts = data['timestamp']?.toString().trim() ??
-        (msg.sentTime?.millisecondsSinceEpoch.toString() ?? '');
     if (orderId.isNotEmpty && type.isNotEmpty) {
-      return ts.isNotEmpty ? '$orderId:$type:$ts' : '$orderId:$type';
+      return '$orderId:$type';
     }
 
     final messageId = msg.messageId?.trim();
@@ -44,16 +47,19 @@ class NotificationEventDedupe {
     final eventId = resolveEventId(msg);
     final alreadyProcessed = _cache!.contains(eventId);
 
-    _log(
-      eventId: eventId,
-      alreadyProcessed: alreadyProcessed,
-      source: source,
-      listenerId: listenerId,
-      deviceToken: deviceToken,
-      messageId: msg.messageId,
-      orderId: msg.data['orderId']?.toString(),
-      type: msg.data['type']?.toString(),
-    );
+    if (kDebugMode) {
+      debugPrint(
+        '[$_appTag][EventDedupe] '
+        'eventId=$eventId '
+        'alreadyProcessed=$alreadyProcessed '
+        'source=$source '
+        'listenerId=$listenerId '
+        'messageId=${msg.messageId ?? "—"} '
+        'orderId=${msg.data['orderId'] ?? "—"} '
+        'type=${msg.data['type'] ?? "—"} '
+        'vendorReceiver=${msg.data['eventId'] ?? "—"}',
+      );
+    }
 
     if (alreadyProcessed) return false;
 
@@ -98,29 +104,5 @@ class NotificationEventDedupe {
         debugPrint('[$_appTag][EventDedupe] persist failed: $e');
       }
     }
-  }
-
-  static void _log({
-    required String eventId,
-    required bool alreadyProcessed,
-    required String source,
-    required String listenerId,
-    String? deviceToken,
-    String? messageId,
-    String? orderId,
-    String? type,
-  }) {
-    if (!kDebugMode) return;
-    debugPrint(
-      '[$_appTag] Notification received '
-      'eventId=$eventId '
-      'alreadyProcessed=$alreadyProcessed '
-      'source=$source '
-      'listenerId=$listenerId '
-      'messageId=${messageId ?? "—"} '
-      'orderId=${orderId ?? "—"} '
-      'type=${type ?? "—"} '
-      'deviceToken=${deviceToken ?? "—"}',
-    );
   }
 }

@@ -1,11 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:quick_grocery_delivery/core/delivery_notification_router.dart';
 import 'package:quick_grocery_delivery/core/delivery_push_initializer.dart';
 import 'package:quick_grocery_delivery/core/fcm_bootstrap.dart';
+import 'package:quick_grocery_delivery/core/update/update_bootstrap.dart';
 import 'package:quick_grocery_delivery/constants/delivery_branding.dart';
 import 'package:quick_grocery_delivery/constants/global_variables.dart';
-// import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:quick_grocery_delivery/features/login/auth_gate.dart';
 import 'package:quick_grocery_delivery/maintenance/maintenance_gate.dart';
 import 'package:quick_grocery_delivery/features/login/services/login_service.dart';
@@ -17,40 +18,33 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// const AndroidNotificationChannel channel = AndroidNotificationChannel(
-//   'high_importance_channel',
-//   'High Importance Notifications',
-//   sound: RawResourceAndroidNotificationSound('alert'),
-//
-//: 'This channel is used for important notifications.',
-//   importance: Importance.high,
-//   playSound: true,
-// );
-
-// final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-//     FlutterLocalNotificationsPlugin();
-
+/// Top-level background handler — registered once from [main].
+/// Must not show a second tray entry when FCM already includes `notification`.
+@pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   await DeliveryPushInitializer.ensureInitialized();
   await DeliveryPushInitializer.handleBackgroundMessage(message);
   if (kDebugMode) {
-    debugPrint('[DeliveryFCM:bg] ${message.notification?.title}');
+    debugPrint(
+      '[DeliveryFCM:bg] messageId=${message.messageId} '
+      'eventId=${message.data['eventId']} '
+      'orderId=${message.data['orderId']} '
+      'type=${message.data['type']} '
+      'hasNotification=${message.notification != null}',
+    );
   }
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  // Register background handler exactly once (before runApp).
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  // await flutterLocalNotificationsPlugin
-  //     .resolvePlatformSpecificImplementation<
-  //       AndroidFlutterLocalNotificationsPlugin
-  //     >()
-  //     ?.createNotificationChannel(channel);
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  // ignore: unused_local_variable
-  NotificationSettings settings = await messaging.requestPermission(
+
+  final messaging = FirebaseMessaging.instance;
+  await messaging.requestPermission(
     alert: true,
     announcement: false,
     badge: true,
@@ -60,13 +54,16 @@ Future<void> main() async {
     sound: true,
   );
 
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+  // Foreground: do not let iOS/Android auto-present; we show one local notif.
+  await messaging.setForegroundNotificationPresentationOptions(
     alert: false,
     badge: true,
-    sound: true,
+    sound: false,
   );
+
   await DeliveryPushInitializer.ensureInitialized();
   DeliveryPushInitializer.attachMessagingListeners();
+
   final pref = await SharedPreferences.getInstance();
   final riderId =
       FirebaseAuth.instance.currentUser?.uid ??
@@ -92,13 +89,16 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => DriverProfileService()),
       ],
       child: MaterialApp(
+        navigatorKey: DeliveryNotificationRouter.navigatorKey,
         debugShowCheckedModeBanner: false,
         title: DeliveryBranding.appName,
         theme: ThemeData(
           textTheme: GoogleFonts.nunitoTextTheme(Theme.of(context).textTheme),
           colorScheme: ColorScheme.fromSeed(seedColor: GlobalVariables.primary),
         ),
-        home: const DriverMaintenanceGate(child: AuthGate()),
+        home: const AppUpdateBootstrap(
+          child: DriverMaintenanceGate(child: AuthGate()),
+        ),
       ),
     );
   }

@@ -40,7 +40,6 @@ class _UpdateOrderStatusDialogState extends State<UpdateOrderStatusDialog> {
                   return DropdownMenuItem(value: status, child: Text(status));
                 }).toList(),
                 onChanged: (newStatus) {
-                  p.sendFCMMessage(widget.customerID, newStatus!);
                   p.onStatusChanged(newStatus ?? "");
                   setState(() {
                     _selectedStatus = newStatus!;

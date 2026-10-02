@@ -58,6 +58,13 @@ class OrderBillSummarySection extends StatelessWidget {
         if (bill.handlingCharge > 0) _line('Handling fee', bill.handlingCharge),
         if (bill.platformFee > 0) _line('Platform fee', bill.platformFee),
         if (bill.tax > 0) _line('Tax', bill.tax),
+        if (bill.codConvenienceFee > 0)
+          _line(
+            bill.codFeeDescription.isNotEmpty
+                ? bill.codFeeDescription
+                : 'COD Convenience Fee',
+            bill.codConvenienceFee,
+          ),
         if (bill.deliveryPartnerTip > 0)
           _line('Delivery partner tip', bill.deliveryPartnerTip),
         const Divider(height: 20),

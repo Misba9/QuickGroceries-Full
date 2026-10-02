@@ -5,13 +5,14 @@ import 'package:intl/intl.dart';
 
 import 'package:quickgrocery/core/navigation/floating_cart_suppression.dart';
 import 'package:quickgrocery/constants/app_color.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/models/combo_offer_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/view/combo/presentation/providers/combo_providers.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Full combo breakdown + add all to cart.
 class ComboDetailScreen extends ConsumerStatefulWidget {
@@ -79,8 +80,9 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
 
   void _addToCart(List<ProductModel> products) {
     if (!widget.combo.isAvailableNow) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This combo is currently unavailable')),
+      AppSnackBar.error(
+        'This combo is currently unavailable',
+        context: context,
       );
       return;
     }
@@ -103,17 +105,17 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
     final fmt = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
 
     return Scaffold(
-      backgroundColor: AppSurface.background,
+      backgroundColor: AppSurface.of(context).background,
       appBar: AppBar(
         title: Text(
           'Combo details',
           style: GoogleFonts.poppins(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: AppSurface.background,
+        backgroundColor: AppSurface.of(context).background,
         surfaceTintColor: Colors.transparent,
       ),
       body: _loading
-          ? const _ComboDetailLoadingBody()
+          ? _ComboDetailLoadingBody()
           : _error != null
               ? Center(child: Text(_error!))
               : CustomScrollView(
@@ -128,7 +130,7 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                             child: combo.image.isNotEmpty
                                 ? CachedImage(url: combo.image, fit: BoxFit.cover)
                                 : Container(
-                                    color: AppSurface.subtle,
+                                    color: AppSurface.of(context).subtle,
                                     child: const Icon(Icons.shopping_basket, size: 64),
                                   ),
                           ),
@@ -137,7 +139,7 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: EdgeInsets.symmetric(horizontal: 16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -153,17 +155,17 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                               Text(
                                 combo.subtitle,
                                 style: GoogleFonts.poppins(
-                                  color: AppSurface.textSecondary,
+                                  color: AppSurface.of(context).textSecondary,
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16),
                             Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: AppSurface.of(context).card,
                                 borderRadius: BorderRadius.circular(AppRadii.md),
-                                border: Border.all(color: AppSurface.border),
+                                border: Border.all(color: AppSurface.of(context).border),
                               ),
                               child: Row(
                                 children: [
@@ -174,7 +176,7 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                                         'Combo price',
                                         style: GoogleFonts.poppins(
                                           fontSize: 12,
-                                          color: AppSurface.textMuted,
+                                          color: AppSurface.of(context).textMuted,
                                         ),
                                       ),
                                       Text(
@@ -186,15 +188,15 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                                       ),
                                     ],
                                   ),
-                                  const Spacer(),
+                                  Spacer(),
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Text(
                                         fmt.format(combo.originalTotalPrice * _qty),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           decoration: TextDecoration.lineThrough,
-                                          color: AppSurface.textMuted,
+                                          color: AppSurface.of(context).textMuted,
                                         ),
                                       ),
                                       Text(
@@ -261,11 +263,11 @@ class _ComboDetailScreenState extends ConsumerState<ComboDetailScreen> {
                       qty: _qty,
                       maxQty: combo.stock > 0 ? combo.stock : null,
                       onChanged: (v) => setState(() => _qty = v),
-                      onMaxReached: () => showTopErrorToast(
-                        context,
+                      onMaxReached: () => AppSnackBar.error(
                         combo.stock == 1
                             ? 'Only 1 combo available'
                             : 'Only ${combo.stock} combos available',
+                        context: context,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -340,7 +342,7 @@ class _ComboDetailLoadingBodyState extends State<_ComboDetailLoadingBody> {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: CircularProgressIndicator());
+    return AppLoading.center;
   }
 }
 
@@ -361,9 +363,9 @@ class _QtyStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
         borderRadius: BorderRadius.circular(AppRadii.md),
-        color: Colors.white,
+        color: AppSurface.of(context).card,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

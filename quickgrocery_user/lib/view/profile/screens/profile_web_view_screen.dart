@@ -3,6 +3,7 @@ import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 class ProfileWebViewScreen extends StatefulWidget {
   const ProfileWebViewScreen({
@@ -75,10 +76,10 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
     final pageTitle = widget.title ?? 'Quick Groceries';
 
     return Scaffold(
-      backgroundColor: AppSurface.background,
+      backgroundColor: AppSurface.of(context).background,
       appBar: AppBar(
         backgroundColor: AppColor.primary,
-        foregroundColor: AppSurface.text,
+        foregroundColor: AppSurface.of(context).text,
         title: Text(
           pageTitle,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
@@ -98,14 +99,17 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
         ],
       ),
       body: _controller == null
-          ? const Center(child: CircularProgressIndicator())
+          ? AppLoading.center
           : Stack(
               children: [
                 WebViewWidget(controller: _controller!),
                 if (_loading)
-                  const LinearProgressIndicator(
-                    minHeight: 2,
-                    color: AppColor.primary,
+                  const Align(
+                    alignment: Alignment.topCenter,
+                    child: SizedBox(
+                      height: 28,
+                      child: AppLoading.micro,
+                    ),
                   ),
               ],
             ),

@@ -7,19 +7,20 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:quickgrocery/core/auth/auth_user_provider.dart';
 import 'package:quickgrocery/core/firestore/firestore_retry.dart';
 import 'package:quickgrocery/core/push/fcm_bootstrap.dart';
 import 'package:quickgrocery/core/push/fcm_push_initializer.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
-import 'package:quickgrocery/core/user/user_profile_repository.dart';
+import 'package:quickgrocery/core/startup/post_home_startup.dart';
+import 'package:quickgrocery/core/user/device_profile_sync.dart';
 
-/// Configures Firestore offline persistence + FCM foreground bridge so
-/// the realtime layer behaves correctly across reconnects, kill/restart,
-/// and OS-level notifications.
+/// Configures FCM foreground bridge so the realtime layer behaves correctly
+/// across reconnects, kill/restart, and OS-level notifications.
 ///
-/// **Place this near the top of the widget tree**, inside `ProviderScope`
-/// and outside any auth gate (so we can persist the FCM token under
-/// `customers/{uid}` as soon as the user signs in).
+/// Firestore persistence is configured once in [FirebaseStartupGate].
+/// FCM listeners and token persistence wait until [PostHomeStartup.homeVisible].
 class RealtimeBootstrap extends ConsumerStatefulWidget {
   const RealtimeBootstrap({super.key, required this.child});
 
@@ -32,7 +33,6 @@ class RealtimeBootstrap extends ConsumerStatefulWidget {
     if (_firestoreConfigured) return;
     _firestoreConfigured = true;
     if (kIsWeb) {
-      // Web requires `enablePersistence(...)` at runtime instead.
       return;
     }
     FirebaseFirestore.instance.settings = const Settings(
@@ -49,22 +49,49 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
   StreamSubscription<RemoteMessage>? _onMessageSub;
   StreamSubscription<RemoteMessage>? _onMessageOpenedSub;
   StreamSubscription<String>? _onTokenRefreshSub;
-  StreamSubscription<User?>? _onAuthSub;
   String? _lastUid;
+  bool _fcmAttached = false;
 
   @override
   void initState() {
     super.initState();
-    RealtimeBootstrap.configureFirestore();
-    _attachFcm();
-    _attachAuth();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final initial = await FirebaseMessaging.instance.getInitialMessage();
-      if (initial != null) {
-        await _persistInboxFromMessage(initial);
-        enqueuePushNavigation(initial.data);
-      }
+    // Firestore settings already applied once in [FirebaseStartupGate].
+
+    // Cold-start notification payload — after FCM plugin (+20), one frame later.
+    PostHomeStartup.onFrame(21, () {
+      unawaited(() async {
+        final initial = await FirebaseMessaging.instance.getInitialMessage();
+        if (initial != null) {
+          await _persistInboxFromMessage(initial);
+          enqueuePushNavigation(initial.data);
+        }
+      }());
     });
+
+    // Attach FCM listeners at frame +20 (with plugin/token schedule).
+    PostHomeStartup.onFrame(20, _attachFcmLayer);
+  }
+
+  void _attachFcmLayer() {
+    if (_fcmAttached) return;
+    _fcmAttached = true;
+    _attachFcm();
+    // One-shot token persist — ongoing auth changes use [authUserProvider]
+    // via [ref.listen] (no second FirebaseAuth.authStateChanges subscription).
+    final user = FirebaseAuth.instance.currentUser;
+    _lastUid = user?.uid;
+    if (user != null) {
+      unawaited(_persistTokenForCurrentUser());
+    }
+  }
+
+  Future<void> _persistTokenForCurrentUser() async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) await _persistFcmToken(token);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[FCM] token fetch failed: $e');
+    }
   }
 
   Future<void> _persistInboxFromMessage(RemoteMessage msg) async {
@@ -137,30 +164,9 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
       await handlePushNavigation(msg.data);
     });
 
-    // Token refresh → write into the customer doc the user is signed
-    // into right now. Other apps query `customers/*.fcmToken` to fan
-    // out targeted pushes.
     _onTokenRefreshSub = FirebaseMessaging.instance.onTokenRefresh.listen(
       _persistFcmToken,
     );
-  }
-
-  void _attachAuth() {
-    _onAuthSub = FirebaseAuth.instance.authStateChanges().listen((user) async {
-      _lastUid = user?.uid;
-      if (user == null) return;
-      await UserProfileRepository().hydrateLocal(user.uid);
-      // Persist initial token on sign-in so server can address us.
-      try {
-        final token = await FirebaseMessaging.instance.getToken();
-        if (token != null) {
-          if (kDebugMode) debugPrint('[FCM] auth token persist uid=${user.uid}');
-          await _persistFcmToken(token);
-        }
-      } catch (e) {
-        if (kDebugMode) debugPrint('[FCM] token fetch failed: $e');
-      }
-    });
   }
 
   Future<void> _persistFcmToken(String token) async {
@@ -172,16 +178,19 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
           {
             'fcmToken': token,
             'fcm_token': token,
-            'fcmPlatform': defaultTargetPlatform.name,
             'fcmUpdatedAt': FieldValue.serverTimestamp(),
             'fcmTopics': FieldValue.arrayUnion(FcmBootstrap.defaultTopics),
           },
           SetOptions(merge: true),
         ),
       );
+      // Platform / version / device — independent of FCM success path.
+      await DeviceProfileSync.syncOnTokenRefresh();
       await FcmBootstrap.subscribeDefaultTopics();
     } catch (e) {
       if (kDebugMode) debugPrint('[FCM] token write failed: $e');
+      // Still try device sync if only token write failed.
+      unawaited(DeviceProfileSync.syncOnTokenRefresh());
     }
   }
 
@@ -190,33 +199,22 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
     String body, {
     Map<String, dynamic>? navigationData,
   }) {
+    final message = body.isNotEmpty ? '$title\n$body' : title;
+    if (navigationData == null || navigationData.isEmpty) {
+      AppSnackBar.info(message, context: context);
+      return;
+    }
     final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger == null) return;
-    messenger.showSnackBar(
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
       SnackBar(
+        content: Text(message),
         behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(12),
-        duration: const Duration(seconds: 4),
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            if (body.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(body),
-            ],
-          ],
+        action: SnackBarAction(
+          label: 'View',
+          onPressed: () => handlePushNavigation(navigationData),
         ),
-        action: navigationData != null
-            ? SnackBarAction(
-                label: 'View',
-                onPressed: () => handlePushNavigation(navigationData),
-              )
-            : null,
+        duration: const Duration(seconds: 5),
       ),
     );
   }
@@ -226,10 +224,23 @@ class _RealtimeBootstrapState extends ConsumerState<RealtimeBootstrap> {
     _onMessageSub?.cancel();
     _onMessageOpenedSub?.cancel();
     _onTokenRefreshSub?.cancel();
-    _onAuthSub?.cancel();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    // Single auth subscription via [authUserProvider] (shared with shell).
+    ref.listen(authUserProvider, (prev, next) {
+      if (!_fcmAttached) return;
+      final user = resolveAuthUser(next);
+      final uid = user?.uid;
+      if (uid == _lastUid) return;
+      _lastUid = uid;
+      if (user == null) return;
+      if (kDebugMode) debugPrint('[FCM] auth token persist uid=$uid');
+      unawaited(_persistTokenForCurrentUser());
+    });
+
+    return widget.child;
+  }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
@@ -22,7 +23,7 @@ class FirestoreConnectionLost extends StatelessWidget {
   Widget build(BuildContext context) {
     final msg = firestoreUserFacingMessage(error);
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppSurface.of(context).scaffold,
       body: SafeArea(
         child: KeyboardSafeBody(
           padding: const EdgeInsets.all(24),

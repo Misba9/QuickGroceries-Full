@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:quickgrocery/core/startup/app_bootstrap_controller.dart';
+import 'package:quickgrocery/core/startup/post_home_startup.dart';
 import 'package:quickgrocery/models/offer_banner_model.dart';
 import 'package:quickgrocery/view/offers/presentation/providers/offer_providers.dart';
 import 'package:quickgrocery/view/offers/presentation/widgets/promotion_startup_sheet.dart';
@@ -26,16 +27,31 @@ class _PromotionPopupBootstrapState extends ConsumerState<PromotionPopupBootstra
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleAttempt());
+    PostHomeStartup.homeVisible.addListener(_onHomeVisible);
+    if (PostHomeStartup.homeVisible.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleAttempt());
+    }
+  }
+
+  @override
+  void dispose() {
+    PostHomeStartup.homeVisible.removeListener(_onHomeVisible);
+    super.dispose();
+  }
+
+  void _onHomeVisible() {
+    if (PostHomeStartup.homeVisible.value) _scheduleAttempt();
   }
 
   void _scheduleAttempt() {
     if (_attempted || !mounted) return;
+    if (!PostHomeStartup.homeVisible.value) return;
     WidgetsBinding.instance.addPostFrameCallback((_) => _tryShowPopup());
   }
 
   Future<void> _tryShowPopup() async {
     if (_attempted || !mounted) return;
+    if (!PostHomeStartup.homeVisible.value) return;
     if (!ref.read(appBootstrapCompleteProvider)) return;
 
     final settings = ref.read(promotionPopupSettingsProvider).valueOrNull;

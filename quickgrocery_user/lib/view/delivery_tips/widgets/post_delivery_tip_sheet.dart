@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:quickgrocery/constants/app_color.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/view/delivery_tips/models/delivery_tip_settings.dart';
 import 'package:quickgrocery/view/delivery_tips/services/delivery_tip_service.dart';
 import 'package:quickgrocery/view/orders/domain/order_models.dart';
 import 'package:quickgrocery/view/orders/presentation/widgets/delivered_celebration.dart';
+import 'package:quickgrocery/view/payment/data/razorpay_order_client.dart';
+import 'package:quickgrocery/view/payment/domain/razorpay_payment_result.dart';
 import 'package:quickgrocery/view/payment/services/payment_service.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Post-delivery feedback: rate delivery + optional extra tip.
 Future<void> showPostDeliveryTipSheet({
@@ -78,9 +82,9 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
     }
     final newTotal = widget.order.deliveryPartnerTip + extra;
     if (newTotal > widget.settings.maxTipAmount) {
-      showTopErrorToast(
-        context,
+      AppSnackBar.error(
         'Maximum tip is ₹${widget.settings.maxTipAmount}.',
+        context: context,
       );
       return;
     }
@@ -95,29 +99,66 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
 
     final payment = Provider.of<PaymentService>(context, listen: false);
     var paymentCompleted = false;
-    payment.openCheckout(
-      extra.toDouble(),
-      widget.order.customerName.isNotEmpty
-          ? widget.order.customerName
-          : 'Quick Grocery',
-      'Delivery partner tip',
-      onPaymentSuccess: (paymentId, _) async {
-        paymentCompleted = true;
-        if (!mounted) return;
-        await _commitDelta(
-          extra,
-          paymentRef: paymentId,
-          paymentStatus: 'paid',
+    setState(() => _loading = true);
+    try {
+      final session = await RazorpayOrderClient().createTipOrder(
+        amountRupees: extra.toDouble(),
+        groceryOrderId: widget.order.id,
+      );
+      if (!mounted) return;
+      setState(() => _loading = false);
+      payment.openCheckoutSession(
+        session: session,
+        name: widget.order.customerName.isNotEmpty
+            ? widget.order.customerName
+            : 'Quick Grocery',
+        description: 'Delivery partner tip',
+        onPaymentSuccess: (RazorpayPaymentResult result) async {
+          paymentCompleted = true;
+          if (!mounted) return;
+          setState(() => _loading = true);
+          try {
+            await RazorpayOrderClient().confirmTipPayment(
+              groceryOrderId: widget.order.id,
+              payment: result,
+              tipDeltaRupees: extra,
+            );
+            if (!mounted) return;
+            Navigator.pop(context);
+            AppSnackBar.success(
+              '🎉 Thank you! ₹$extra tip added successfully.',
+              context: context,
+            );
+          } catch (e) {
+            if (mounted) {
+              AppSnackBar.error(
+                e is StateError
+                    ? e.message
+                    : 'Tip payment could not be verified.',
+                context: context,
+              );
+            }
+          } finally {
+            if (mounted) setState(() => _loading = false);
+          }
+        },
+        onPaymentError: (message) {
+          if (!mounted || paymentCompleted) return;
+          AppSnackBar.error(
+            message.isNotEmpty ? message : 'Payment was not completed.',
+            context: context,
+          );
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        AppSnackBar.error(
+          e is StateError ? e.message : 'Could not start tip payment.',
+          context: context,
         );
-      },
-      onPaymentError: (message) {
-        if (!mounted || paymentCompleted) return;
-        showTopErrorToast(
-          context,
-          message.isNotEmpty ? message : 'Payment was not completed.',
-        );
-      },
-    );
+      }
+    }
   }
 
   Future<void> _commitDelta(
@@ -136,18 +177,18 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
       );
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '🎉 Thank you! ₹${result.delta.toStringAsFixed(0)} tip added successfully.',
-          ),
-        ),
+      AppSnackBar.success(
+        '🎉 Thank you! ₹${result.delta.toStringAsFixed(0)} tip added successfully.',
+        context: context,
       );
     } on DeliveryTipException catch (e) {
-      if (mounted) showTopErrorToast(context, e.message);
+      if (mounted) AppSnackBar.error(e.message, context: context);
     } catch (e) {
       if (mounted) {
-        showTopErrorToast(context, 'Could not update tip. Please try again.');
+        AppSnackBar.error(
+          'Could not update tip. Please try again.',
+          context: context,
+        );
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -166,7 +207,7 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
         margin: const EdgeInsets.all(12),
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppSurface.of(context).card,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Column(
@@ -177,6 +218,7 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w800,
                 fontSize: 18,
+                color: AppSurface.of(context).text,
               ),
             ),
             const SizedBox(height: 16),
@@ -186,7 +228,7 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
               trailing: const Icon(Icons.chevron_right),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.grey.shade200),
+                side: BorderSide(color: AppSurface.of(context).border),
               ),
               onTap: () {
                 Navigator.pop(context);
@@ -215,7 +257,7 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
                 'Current Delivery Partner Tip: ₹${widget.order.deliveryPartnerTip.toStringAsFixed(0)}',
                 style: GoogleFonts.poppins(
                   fontSize: 13,
-                  color: Colors.grey.shade700,
+                  color: AppSurface.of(context).textMuted,
                 ),
               ),
             ],
@@ -247,7 +289,7 @@ class _PostDeliveryTipSheetState extends State<_PostDeliveryTipSheet> {
                     ? const SizedBox(
                         height: 22,
                         width: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: AppLoading.micro,
                       )
                     : const Text('Submit'),
               ),

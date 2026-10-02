@@ -36,35 +36,35 @@ class HomeSectionErrorCard extends StatelessWidget {
       child: Container(
         constraints: BoxConstraints(minHeight: minHeight),
         width: double.infinity,
-        margin: const EdgeInsets.only(top: 8),
+        margin: EdgeInsets.only(top: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: AppSurface.subtle.withValues(alpha: 0.55),
+          color: AppSurface.of(context).subtle.withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppSurface.border),
+          border: Border.all(color: AppSurface.of(context).border),
           boxShadow: AppShadow.dim,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.cloud_sync_rounded, size: 30, color: Colors.grey.shade600),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
               resolvedTitle,
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w700,
-                color: AppSurface.textPrimary,
+                color: AppSurface.of(context).textPrimary,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             Text(
               resolvedSubtitle,
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 12,
-                color: AppSurface.textSecondary,
+                color: AppSurface.of(context).textSecondary,
                 height: 1.35,
               ),
             ),
@@ -75,7 +75,7 @@ class HomeSectionErrorCard extends StatelessWidget {
               label: Text(context.l10n.retry),
               style: FilledButton.styleFrom(
                 foregroundColor: AppColor.primary,
-                backgroundColor: Colors.white,
+                backgroundColor: AppSurface.of(context).card,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               ),
             ),

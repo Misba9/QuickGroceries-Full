@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shimmer/shimmer.dart';
 
 import 'package:quickgrocery/core/design/responsive.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 
-/// Section / header title with shimmer while loading and a soft cross-fade
-/// when admin updates copy in Firestore.
+/// Section / header title with empty placeholder while loading and a soft
+/// cross-fade when admin updates copy in Firestore.
 class AnimatedAppHeading extends StatelessWidget {
   const AnimatedAppHeading({
     super.key,
@@ -42,18 +41,17 @@ class AnimatedAppHeading extends StatelessWidget {
         );
 
     if (isLoading) {
-      return Shimmer.fromColors(
-        baseColor: Colors.grey.shade200,
-        highlightColor: Colors.grey.shade100,
-        child: Container(
-          height: fontSize * 1.2,
-          width: compact ? 140 : 180,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(6),
-          ),
-        ),
-      );
+      // Prefer showing the known title; otherwise reserve space without shimmer.
+      if (text.trim().isNotEmpty) {
+        return Text(
+          text,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.start,
+          style: resolved,
+        );
+      }
+      return SizedBox(height: fontSize * 1.2);
     }
 
     return AnimatedSwitcher(
@@ -88,18 +86,22 @@ class AnimatedAppGreeting extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return Shimmer.fromColors(
-        baseColor: Colors.grey.shade200,
-        highlightColor: Colors.grey.shade100,
-        child: Container(
-          height: 12,
-          width: 96,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-      );
+      if (text.trim().isNotEmpty) {
+        return Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.start,
+          style: style ??
+              GoogleFonts.poppins(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: AppColor.primary.withValues(alpha: 0.85),
+                height: 1.1,
+              ),
+        );
+      }
+      return const SizedBox(height: 12);
     }
 
     return AnimatedSwitcher(

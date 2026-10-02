@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:quickgrocery/core/design/responsive.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
-import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/recently_viewed_provider.dart';
@@ -30,9 +30,7 @@ class RecentlyViewedSection extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SectionHeader(title: 'Recently viewed'),
-            HomeShimmer.horizontalProducts(
-              height: Responsive.horizontalProductRailHeight(context),
-            ),
+            AppLoading.section,
           ],
         ),
       ),

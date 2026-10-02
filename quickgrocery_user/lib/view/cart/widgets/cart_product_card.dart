@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 class CartProductCard extends StatelessWidget {
   const CartProductCard({
@@ -29,14 +30,20 @@ class CartProductCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
                 height: 80,
                 width: 80,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
                   color: Colors.grey.shade200,
                 ),
-                child: Image.network(image, fit: BoxFit.cover),
+                clipBehavior: Clip.antiAlias,
+                child: CachedImage(
+                  url: image,
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.cover,
+                  memCacheWidth: 160,
+                ),
               ),
               AppSpacing.w15,
               Column(

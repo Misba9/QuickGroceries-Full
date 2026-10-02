@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/vendor_notification_router.dart';
 import '../../../core/vendor_notification_store.dart';
 import '../../../style/app_color.dart';
 
@@ -76,7 +77,19 @@ class VendorNotificationCenter extends StatelessWidget {
                         ),
                     ],
                   ),
-                  onTap: () => VendorNotificationStore.markRead(vendorId, n.id),
+                  onTap: () async {
+                    await VendorNotificationStore.markRead(vendorId, n.id);
+                    if (!context.mounted) return;
+                    await VendorNotificationRouter.handleNotificationOpen({
+                      'type': n.type,
+                      'orderId': n.orderId,
+                      'title': n.title,
+                      'message': n.body,
+                      'targetScreen': n.orderId.isNotEmpty
+                          ? 'order_detail'
+                          : 'orders_tab',
+                    });
+                  },
                 ),
               );
             },

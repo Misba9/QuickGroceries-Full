@@ -8,7 +8,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'push_message_dedupe.dart';
+import 'delivery_notification_router.dart';
+
 /// Rider push — data-only FCM from Cloud Functions is the sole tray display path.
+///
+/// Guarantees:
+/// - [ensureInitialized] / [attachMessagingListeners] run at most once
+/// - one local [show] per logical event (dedupe by eventId / messageId)
+/// - never pairs OS tray (`notification` payload) with flutter_local_notifications
 class DeliveryPushInitializer {
   DeliveryPushInitializer._();
 
@@ -18,7 +26,10 @@ class DeliveryPushInitializer {
 
   static bool _initialized = false;
   static bool _listenersAttached = false;
+  static bool _channelReady = false;
+  static Future<void>? _initFuture;
   static DateTime? _lastFcmAlertAt;
+  static String? _cachedToken;
 
   static StreamSubscription<RemoteMessage>? _onMessageSub;
   static StreamSubscription<RemoteMessage>? _onMessageOpenedSub;
@@ -29,7 +40,12 @@ class DeliveryPushInitializer {
   static const _channelId = 'delivery_assignments';
   static const _channelName = 'Delivery Assignments';
 
-  static Future<void> ensureInitialized() async {
+  static Future<void> ensureInitialized() {
+    if (_initialized) return Future.value();
+    return _initFuture ??= _doInit();
+  }
+
+  static Future<void> _doInit() async {
     if (_initialized) return;
     if (kIsWeb) {
       _initialized = true;
@@ -48,20 +64,7 @@ class DeliveryPushInitializer {
       onDidReceiveNotificationResponse: _onNotificationTap,
     );
 
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    if (android != null) {
-      await android.createNotificationChannel(
-        const AndroidNotificationChannel(
-          _channelId,
-          _channelName,
-          description: 'Delivery assignment and cancellation alerts',
-          importance: Importance.max,
-          playSound: true,
-          sound: RawResourceAndroidNotificationSound('delivery_alert'),
-        ),
-      );
-    }
+    await _ensureAndroidChannel();
 
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       await _plugin
@@ -74,9 +77,60 @@ class DeliveryPushInitializer {
       await Permission.notification.request();
     }
 
+    try {
+      _cachedToken = await FirebaseMessaging.instance.getToken();
+    } catch (_) {
+      /* ignore */
+    }
+
     _initialized = true;
+
+    try {
+      final launch = await _plugin.getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp == true) {
+        final p = launch!.notificationResponse?.payload;
+        if (p != null && p.isNotEmpty) {
+          final map = jsonDecode(p) as Map<String, dynamic>;
+          DeliveryNotificationRouter.enqueue(map);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[DeliveryNotify] launch details skipped: $e');
+      }
+    }
+
+    if (kDebugMode) {
+      debugPrint(
+        '[DeliveryNotify] init complete once '
+        'token=${_cachedToken ?? "—"} '
+        'time=${DateTime.now().toIso8601String()}',
+      );
+    }
   }
 
+  static Future<void> _ensureAndroidChannel() async {
+    if (_channelReady || kIsWeb) return;
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) {
+      _channelReady = true;
+      return;
+    }
+    await android.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _channelId,
+        _channelName,
+        description: 'Delivery assignment and cancellation alerts',
+        importance: Importance.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('delivery_alert'),
+      ),
+    );
+    _channelReady = true;
+  }
+
+  /// Attach FCM stream listeners exactly once for the process lifetime.
   static void attachMessagingListeners() {
     if (_listenersAttached || kIsWeb) return;
     _listenersAttached = true;
@@ -88,22 +142,32 @@ class DeliveryPushInitializer {
       await handleForegroundMessage(message, listenerId: 'main_onMessage');
     });
 
-    _onMessageOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      _dispatchFromMessage(message);
+    _onMessageOpenedSub =
+        FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      DeliveryNotificationRouter.handleNotificationOpen(
+        Map<String, dynamic>.from(message.data),
+      );
     });
 
     FirebaseMessaging.instance.getInitialMessage().then((message) {
       if (message == null) return;
-      _dispatchFromMessage(message);
+      DeliveryNotificationRouter.enqueue(
+        Map<String, dynamic>.from(message.data),
+      );
     });
 
     if (kDebugMode) {
-      debugPrint('[DeliveryNotify] LISTENER CREATED main_onMessage');
+      debugPrint('[DeliveryNotify] LISTENER CREATED main_onMessage (once)');
     }
   }
 
   static bool _isDataOnlyRemote(RemoteMessage msg) {
     return msg.data['displayMode']?.toString().toLowerCase() == 'data_only';
+  }
+
+  /// True when FCM included a system tray notification block (OS will/did show).
+  static bool _hasSystemNotificationPayload(RemoteMessage msg) {
+    return msg.notification != null;
   }
 
   static void _log(
@@ -121,8 +185,30 @@ class DeliveryPushInitializer {
       'messageId=${msg.messageId ?? "—"} '
       'eventId=${d['eventId'] ?? "—"} '
       'type=${d['type'] ?? "—"} '
-      'orderId=${d['orderId'] ?? "—"}',
+      'orderId=${d['orderId'] ?? "—"} '
+      'displayMode=${d['displayMode'] ?? "—"} '
+      'hasNotificationPayload=${msg.notification != null} '
+      'token=${_cachedToken ?? "—"} '
+      'time=${DateTime.now().toIso8601String()}',
     );
+  }
+
+  static Future<bool> _claimMessage(
+    RemoteMessage msg, {
+    required String source,
+    required String listenerId,
+  }) async {
+    final isNew = await PushMessageDedupe.markIfNew(
+      msg,
+      appTag: 'DeliveryNotify',
+      source: source,
+      listenerId: listenerId,
+      deviceToken: _cachedToken,
+    );
+    if (!isNew) {
+      _log('SKIP DUPLICATE EVENT', msg, source: source, listenerId: listenerId);
+    }
+    return isNew;
   }
 
   static Future<void> handleBackgroundMessage(
@@ -131,8 +217,32 @@ class DeliveryPushInitializer {
   }) async {
     _log('DEVICE RECEIVED', msg, source: 'fcm_background', listenerId: listenerId);
 
+    if (!await _claimMessage(
+      msg,
+      source: 'fcm_background',
+      listenerId: listenerId,
+    )) {
+      return;
+    }
+
+    // Never pair OS tray + flutter_local_notifications for the same event.
+    if (_hasSystemNotificationPayload(msg)) {
+      _log(
+        'SKIP LOCAL SHOW — FCM notification payload present (OS tray)',
+        msg,
+        source: 'fcm_background',
+        listenerId: listenerId,
+      );
+      return;
+    }
+
     if (!_isDataOnlyRemote(msg)) {
-      _log('SKIP LOCAL SHOW — not data_only', msg, source: 'fcm_background');
+      _log(
+        'SKIP LOCAL SHOW — not data_only (legacy payload or pre-deploy server)',
+        msg,
+        source: 'fcm_background',
+        listenerId: listenerId,
+      );
       return;
     }
 
@@ -140,33 +250,14 @@ class DeliveryPushInitializer {
     _log('LOCAL SHOW', msg, source: 'fcm_background', listenerId: listenerId);
   }
 
-  static void _dispatchFromMessage(RemoteMessage message) {
-    final data = Map<String, dynamic>.from(message.data);
-    final type = data['type']?.toString() ?? '';
-    if (type == 'order_cancelled') {
-      onCancellationPush?.call(data);
-      return;
-    }
-    onAssignmentPush?.call(data);
-  }
-
   static void _onNotificationTap(NotificationResponse response) {
     final p = response.payload;
     if (p == null || p.isEmpty) return;
     try {
       final map = jsonDecode(p) as Map<String, dynamic>;
-      _dispatch(map);
+      DeliveryNotificationRouter.handleNotificationOpen(map);
     } catch (_) {
       /* ignore */
-    }
-  }
-
-  static void _dispatch(Map<String, dynamic> data) {
-    final type = data['type']?.toString() ?? '';
-    if (type == 'order_cancelled') {
-      onCancellationPush?.call(data);
-    } else {
-      onAssignmentPush?.call(data);
     }
   }
 
@@ -182,9 +273,17 @@ class DeliveryPushInitializer {
 
   static Future<void> handleForegroundMessage(
     RemoteMessage msg, {
-    String listenerId = 'default',
+    String listenerId = 'main_onMessage',
   }) async {
     _log('DEVICE RECEIVED', msg, source: 'fcm_foreground', listenerId: listenerId);
+
+    if (!await _claimMessage(
+      msg,
+      source: 'fcm_foreground',
+      listenerId: listenerId,
+    )) {
+      return;
+    }
 
     final data = Map<String, dynamic>.from(msg.data);
     final type = data['type']?.toString() ?? '';
@@ -199,8 +298,23 @@ class DeliveryPushInitializer {
       onAssignmentPush?.call(data);
     }
 
+    if (_hasSystemNotificationPayload(msg)) {
+      _log(
+        'SKIP LOCAL SHOW — FCM notification payload present (OS tray)',
+        msg,
+        source: 'fcm_foreground',
+        listenerId: listenerId,
+      );
+      return;
+    }
+
     if (!_isDataOnlyRemote(msg)) {
-      _log('SKIP LOCAL SHOW — not data_only', msg, source: 'fcm_foreground');
+      _log(
+        'SKIP LOCAL SHOW — not data_only (legacy payload or pre-deploy server)',
+        msg,
+        source: 'fcm_foreground',
+        listenerId: listenerId,
+      );
       return;
     }
 
@@ -229,7 +343,9 @@ class DeliveryPushInitializer {
   }
 
   static Future<void> showFromRemoteMessage(RemoteMessage msg) async {
-    if (kIsWeb || !_initialized) return;
+    if (kIsWeb) return;
+    await ensureInitialized();
+    if (!_initialized) return;
 
     final data = msg.data;
     final title = data['title']?.toString() ?? 'Delivery Update';
@@ -237,8 +353,15 @@ class DeliveryPushInitializer {
         data['message']?.toString() ?? data['body']?.toString() ?? '';
 
     final payload = jsonEncode(Map<String, dynamic>.from(data));
-    final eventId = data['eventId']?.toString() ?? msg.messageId ?? '';
-    final id = eventId.hashCode & 0x7fffffff;
+    final eventId = data['eventId']?.toString().trim().isNotEmpty == true
+        ? data['eventId']!.toString()
+        : (msg.messageId ?? '');
+    // Stable Android id+tag so a second show of the same event replaces, never stacks.
+    final id = eventId.isNotEmpty
+        ? eventId.hashCode & 0x7fffffff
+        : (msg.messageId?.hashCode ??
+                '${data['orderId']}:${data['type']}'.hashCode) &
+            0x7fffffff;
 
     await _plugin.show(
       id,

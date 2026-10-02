@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:quickgrocery/core/design/responsive.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
-import 'package:quickgrocery/core/widgets/skeleton.dart';
 import 'package:quickgrocery/core/widgets/staggered_fade_in.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
@@ -44,7 +44,7 @@ class FeaturedProductsSection extends ConsumerWidget {
 
     return async.when(
       skipLoadingOnReload: false,
-      loading: () => _buildSkeleton(context, header),
+      loading: () => _buildLoading(header),
       error: (_, __) => const SizedBox.shrink(),
       data: (list) {
         final products = list
@@ -57,17 +57,14 @@ class FeaturedProductsSection extends ConsumerWidget {
     );
   }
 
-  Widget _buildSkeleton(BuildContext context, Widget header) {
+  Widget _buildLoading(Widget header) {
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           header,
-          SkeletonRail(
-            count: 4,
-            height: Responsive.horizontalProductRailHeight(context),
-          ),
+          AppLoading.section,
         ],
       ),
     );

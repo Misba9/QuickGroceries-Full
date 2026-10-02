@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quickgrocery/core/startup/startup_isolate_parse.dart';
 import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/models/offer_banner_model.dart';
 import 'package:quickgrocery/view/home/domain/banner_repository.dart';
@@ -11,13 +12,14 @@ class OfferBannerRepository {
   final OfferBannerService _service;
   final BannerRepository _bannerRepository;
 
-  List<OfferBannerModel> _mapOffers(QuerySnapshot<Map<String, dynamic>> snap) {
-    final list = snap.docs
-        .map((d) => OfferBannerModel.fromFirestore(d.data(), d.id))
-        .where((o) => o.isScheduleOk)
-        .toList()
+  Future<List<OfferBannerModel>> _mapOffersAsync(
+    QuerySnapshot<Map<String, dynamic>> snap,
+  ) async {
+    final parsed = await StartupIsolateParse.parseOffers(
+      StartupIsolateParse.docsFromSnapshot(snap),
+    );
+    return parsed.where((o) => o.isScheduleOk).toList()
       ..sort((a, b) => b.priority.compareTo(a.priority));
-    return list;
   }
 
   List<OfferBannerModel> _fromAdminBanners(List<BannerModel> banners) {
@@ -50,10 +52,10 @@ class OfferBannerRepository {
 
   Stream<List<OfferBannerModel>> watchHomeExploreOffers() {
     return Rx.combineLatest2(
-      _service.watchOfferBanners(),
+      _service.watchOfferBanners().asyncMap(_mapOffersAsync),
       _bannerRepository.watchActiveBanners(),
-      (QuerySnapshot<Map<String, dynamic>> offerSnap, List<BannerModel> admin) {
-        final fromOffers = _mapOffers(offerSnap)
+      (List<OfferBannerModel> fromOffersRaw, List<BannerModel> admin) {
+        final fromOffers = fromOffersRaw
             .where((o) =>
                 o.showOnHomepage && o.showInHomeExplore && o.hasPromoMedia)
             .toList();
@@ -68,10 +70,10 @@ class OfferBannerRepository {
 
   Stream<List<OfferBannerModel>> watchOffersPage() {
     return Rx.combineLatest2(
-      _service.watchOfferBanners(),
+      _service.watchOfferBanners().asyncMap(_mapOffersAsync),
       _bannerRepository.watchActiveBanners(),
-      (QuerySnapshot<Map<String, dynamic>> offerSnap, List<BannerModel> admin) {
-        final fromOffers = _mapOffers(offerSnap)
+      (List<OfferBannerModel> fromOffersRaw, List<BannerModel> admin) {
+        final fromOffers = fromOffersRaw
             .where((o) => o.showOnOffersPage && o.hasPromoMedia)
             .toList();
         final fromAdmin = _fromAdminBanners(admin)
@@ -83,17 +85,18 @@ class OfferBannerRepository {
   }
 
   Stream<List<OfferBannerModel>> watchStories() {
-    return _service.watchOfferBanners().map((snap) {
-      return _mapOffers(snap).where((o) => o.showInStories).toList();
+    return _service.watchOfferBanners().asyncMap((snap) async {
+      final list = await _mapOffersAsync(snap);
+      return list.where((o) => o.showInStories).toList();
     });
   }
 
   Stream<List<OfferBannerModel>> watchPopupEligible() {
     return Rx.combineLatest2(
-      _service.watchOfferBanners(),
+      _service.watchOfferBanners().asyncMap(_mapOffersAsync),
       _bannerRepository.watchActiveBanners(),
-      (QuerySnapshot<Map<String, dynamic>> offerSnap, List<BannerModel> admin) {
-        final fromOffers = _mapOffers(offerSnap)
+      (List<OfferBannerModel> fromOffersRaw, List<BannerModel> admin) {
+        final fromOffers = fromOffersRaw
             .where((o) =>
                 o.showAsPopup &&
                 (o.hasVideo ||
@@ -123,7 +126,7 @@ class OfferBannerRepository {
   }) async {
     try {
       final offerSnap = await _service.fetchOfferBanners();
-      final fromOffers = _mapOffers(offerSnap)
+      final fromOffers = (await _mapOffersAsync(offerSnap))
           .where((o) =>
               o.showOnHomepage && o.showInHomeExplore && o.hasPromoMedia)
           .toList();

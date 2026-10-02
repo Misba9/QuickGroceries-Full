@@ -95,13 +95,27 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 autofocus: false,
                                 controller: searchController,
                                 decoration: InputDecoration(
-                                  hintText: 'Search...',
+                                  hintText:
+                                      'Search name, SKU, brand, barcode, category…',
                                   prefixIcon: const Icon(Icons.search),
+                                  suffixIcon: searchController.text.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.close),
+                                          onPressed: () {
+                                            searchController.clear();
+                                            provider.clearSearchOnly();
+                                            setState(() {});
+                                          },
+                                        )
+                                      : null,
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
-                                onChanged: provider.onSearchQuary,
+                                onChanged: (v) {
+                                  provider.onSearchQuary(v);
+                                  setState(() {});
+                                },
                               ),
                             ],
                           )
@@ -138,13 +152,27 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                   autofocus: false,
                                   controller: searchController,
                                   decoration: InputDecoration(
-                                    hintText: 'Search...',
+                                    hintText:
+                                        'Search name, SKU, brand, barcode, category…',
                                     prefixIcon: const Icon(Icons.search),
+                                    suffixIcon: searchController.text.isNotEmpty
+                                        ? IconButton(
+                                            icon: const Icon(Icons.close),
+                                            onPressed: () {
+                                              searchController.clear();
+                                              provider.clearSearchOnly();
+                                              setState(() {});
+                                            },
+                                          )
+                                        : null,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                   ),
-                                  onChanged: provider.onSearchQuary,
+                                  onChanged: (v) {
+                                    provider.onSearchQuary(v);
+                                    setState(() {});
+                                  },
                                 ),
                               ),
                             ],

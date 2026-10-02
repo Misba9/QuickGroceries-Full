@@ -1,21 +1,28 @@
+import 'dart:async';
+
 import 'package:animate_do/animate_do.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/account/account_deletion_exception.dart';
+import 'package:quickgrocery/core/account/account_deletion_reauth.dart';
+import 'package:quickgrocery/core/account/account_deletion_service.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/locale_provider.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
+import 'package:quickgrocery/core/theme/theme.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
-import 'package:quickgrocery/core/auth/account_deletion_confirm_flow.dart';
-import 'package:quickgrocery/core/auth/account_deletion_service.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/core/auth/auth_session_manager.dart';
-import 'package:quickgrocery/core/auth/guest_login_launcher.dart';
-import 'package:quickgrocery/core/auth/phone_reauth_sheet.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
+import 'package:quickgrocery/core/update/app_update_config.dart';
+import 'package:quickgrocery/core/update/update_service.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
 import 'package:quickgrocery/view/orders/domain/order_models.dart';
 import 'package:quickgrocery/view/orders/presentation/providers/orders_providers.dart';
@@ -33,8 +40,10 @@ import 'package:quickgrocery/view/profile/presentation/utils/profile_url_opener.
 import 'package:quickgrocery/view/support/models/support_settings.dart';
 import 'package:quickgrocery/view/support/presentation/providers/support_settings_provider.dart';
 import 'package:quickgrocery/view/support/services/support_action_launcher.dart';
+import 'package:quickgrocery/view/ai_chat/ai_chat_entry.dart';
 import 'package:quickgrocery/view/refer/screens/refer_screen.dart';
 import 'package:quickgrocery/view/wishlist/screens/wishlist_screen.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 // ─── Header ───────────────────────────────────────────────────────────────
 
@@ -120,7 +129,7 @@ class ProfileHeaderSection extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: completion / 100,
                   minHeight: 6,
-                  backgroundColor: Colors.white.withValues(alpha: 0.35),
+                  backgroundColor: AppSurface.of(context).card.withValues(alpha: 0.35),
                   color: Colors.black87,
                 ),
               ),
@@ -132,7 +141,7 @@ class ProfileHeaderSection extends StatelessWidget {
                     '$completion%',
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w800,
-                      fontSize: 12,
+                      fontSize: 11,
                       color: Colors.black87,
                     ),
                   ),
@@ -192,20 +201,26 @@ class _ProfileAvatar extends StatelessWidget {
         border: Border.all(color: Colors.white, width: 3),
         boxShadow: AppShadow.raised,
       ),
-      child: CircleAvatar(
-        radius: 46,
-        backgroundColor: Colors.white,
-        backgroundImage:
-            imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
-        child: imageUrl.isEmpty
-            ? Image.asset(
-                gender == 'female'
-                    ? 'assets/icons/woman.png'
-                    : 'assets/icons/man.png',
-                width: 56,
-                height: 56,
+      child: ClipOval(
+        child: imageUrl.isNotEmpty
+            ? CachedImage(
+                url: imageUrl,
+                width: 92,
+                height: 92,
+                fit: BoxFit.cover,
+                memCacheWidth: 184,
               )
-            : null,
+            : ColoredBox(
+                color: AppSurface.of(context).card,
+                child: Image.asset(
+                  gender == 'female'
+                      ? 'assets/icons/woman.png'
+                      : 'assets/icons/man.png',
+                  width: 92,
+                  height: 92,
+                  fit: BoxFit.cover,
+                ),
+              ),
       ),
     );
   }
@@ -292,8 +307,7 @@ class ProfileQuickActions extends ConsumerWidget {
   }
 
   void _goOrders(BuildContext context) {
-    legacy.Provider.of<HomeProvider>(context, listen: false)
-        .onSelectedChange(3);
+    Navigator.push(context, AppPageRoutes.ordersList());
   }
 }
 
@@ -312,10 +326,11 @@ class _QuickActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Material(
-      color: Colors.white,
+      color: surface.card,
       elevation: 0,
-      shadowColor: Colors.black12,
+      shadowColor: surface.shadow,
       borderRadius: BorderRadius.circular(AppRadii.lg),
       child: InkWell(
         onTap: onTap,
@@ -324,10 +339,10 @@ class _QuickActionCard extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadii.lg),
-            border: Border.all(color: AppSurface.border),
-            boxShadow: AppShadow.card,
+            border: Border.all(color: surface.border),
+            boxShadow: AppShadow.cardOf(context),
           ),
-          padding: const EdgeInsets.all(14),
+          padding: EdgeInsets.all(14),
           child: SizedBox(
             height: 88,
             child: Column(
@@ -343,6 +358,7 @@ class _QuickActionCard extends StatelessWidget {
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w800,
                         fontSize: 16,
+                        color: surface.text,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -350,8 +366,8 @@ class _QuickActionCard extends StatelessWidget {
                     Text(
                       label,
                       style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: AppSurface.textMuted,
+                        fontSize: 11.5,
+                        color: surface.textMuted,
                         fontWeight: FontWeight.w500,
                       ),
                       maxLines: 1,
@@ -526,9 +542,8 @@ class ProfileOrdersSection extends ConsumerWidget {
           ProfileSectionTitle(
             title: context.l10n.my_orders,
             actionLabel: context.l10n.view_all_arrow,
-            onAction: () => legacy.Provider.of<HomeProvider>(context,
-                    listen: false)
-                .onSelectedChange(3),
+            onAction: () =>
+                Navigator.push(context, AppPageRoutes.ordersList()),
           ),
           ProfileCard(
             child: Column(
@@ -536,30 +551,26 @@ class ProfileOrdersSection extends ConsumerWidget {
                 ProfileListTile(
                   icon: Icons.hourglass_top_rounded,
                   title: '${context.l10n.pending_orders} (${counts.pending})',
-                  onTap: () => legacy.Provider.of<HomeProvider>(context,
-                          listen: false)
-                      .onSelectedChange(3),
+                  onTap: () =>
+                      Navigator.push(context, AppPageRoutes.ordersList()),
                 ),
                 ProfileListTile(
                   icon: Icons.check_circle_outline_rounded,
                   title: '${context.l10n.delivered_orders} (${counts.delivered})',
-                  onTap: () => legacy.Provider.of<HomeProvider>(context,
-                          listen: false)
-                      .onSelectedChange(3),
+                  onTap: () =>
+                      Navigator.push(context, AppPageRoutes.ordersList()),
                 ),
                 ProfileListTile(
                   icon: Icons.cancel_outlined,
                   title: '${context.l10n.cancelled_orders} (${counts.cancelled})',
-                  onTap: () => legacy.Provider.of<HomeProvider>(context,
-                          listen: false)
-                      .onSelectedChange(3),
+                  onTap: () =>
+                      Navigator.push(context, AppPageRoutes.ordersList()),
                 ),
                 ProfileListTile(
                   icon: Icons.undo_rounded,
                   title: '${context.l10n.returned_orders} (${counts.returned})',
-                  onTap: () => legacy.Provider.of<HomeProvider>(context,
-                          listen: false)
-                      .onSelectedChange(3),
+                  onTap: () =>
+                      Navigator.push(context, AppPageRoutes.ordersList()),
                 ),
               ],
             ),
@@ -598,21 +609,19 @@ class _ProfileSavedCouponsSectionState
         );
     if (!mounted) return;
     setState(() => _applyingCode = null);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          err ?? context.l10n.coupon_applied_checkout(coupon.code),
-        ),
-        backgroundColor: err == null ? Colors.green.shade700 : Colors.red,
-      ),
-    );
+    if (err != null) {
+      AppSnackBar.error(err, context: context);
+    } else {
+      AppSnackBar.success(
+        context.l10n.coupon_applied_checkout(coupon.code),
+        context: context,
+      );
+    }
   }
 
   void _copyCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.coupon_copied(code))),
-    );
+    AppSnackBar.success(context.l10n.coupon_copied(code), context: context);
   }
 
   @override
@@ -636,7 +645,7 @@ class _ProfileSavedCouponsSectionState
                   ? null
                   : () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const CouponScreen()),
+                        MaterialPageRoute(builder: (_) => CouponScreen()),
                       ),
             ),
           ),
@@ -645,19 +654,19 @@ class _ProfileSavedCouponsSectionState
               loading: () => const Center(
                 child: Padding(
                   padding: EdgeInsets.all(16),
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: AppLoading.micro,
                 ),
               ),
               error: (_, __) => Text(
                 context.l10n.could_not_load_coupons,
-                style: GoogleFonts.poppins(color: AppSurface.textMuted),
+                style: GoogleFonts.poppins(color: AppSurface.of(context).textMuted),
               ),
               data: (coupons) {
                 if (coupons.isEmpty) {
                   return Text(
                     context.l10n.no_saved_coupons,
                     style: GoogleFonts.poppins(
-                      color: AppSurface.textMuted,
+                      color: AppSurface.of(context).textMuted,
                       fontSize: 13,
                     ),
                   );
@@ -717,12 +726,12 @@ class _SavedCouponCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColor.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppSurface.border),
+        border: Border.all(color: AppSurface.of(context).border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -743,9 +752,9 @@ class _SavedCouponCard extends StatelessWidget {
                           letterSpacing: 0.5,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       Icon(Icons.copy_rounded,
-                          size: 16, color: AppSurface.textMuted),
+                          size: 16, color: AppSurface.of(context).textMuted),
                     ],
                   ),
                 ),
@@ -753,7 +762,7 @@ class _SavedCouponCard extends StatelessWidget {
               if (coupon.isFirstOrderOffer)
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.deepOrange,
                     borderRadius: BorderRadius.circular(6),
@@ -763,7 +772,7 @@ class _SavedCouponCard extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
-                      fontSize: 11,
+                      fontSize: 10,
                     ),
                   ),
                 ),
@@ -783,7 +792,7 @@ class _SavedCouponCard extends StatelessWidget {
               _minOrderText,
               style: GoogleFonts.poppins(
                 fontSize: 12,
-                color: AppSurface.textMuted,
+                color: AppSurface.of(context).textMuted,
               ),
             ),
           ],
@@ -792,7 +801,7 @@ class _SavedCouponCard extends StatelessWidget {
               _maxDiscountText,
               style: GoogleFonts.poppins(
                 fontSize: 12,
-                color: AppSurface.textMuted,
+                color: AppSurface.of(context).textMuted,
               ),
             ),
           const SizedBox(height: 10),
@@ -812,7 +821,7 @@ class _SavedCouponCard extends StatelessWidget {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: AppLoading.micro,
                     )
                   : Text(
                       context.l10n.apply,
@@ -849,15 +858,15 @@ class ProfileAddressesSection extends ConsumerWidget {
           ),
           ProfileCard(
             child: addressesAsync.when(
-              loading: () => const Center(
+              loading: () => Center(
                 child: Padding(
                   padding: EdgeInsets.all(12),
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: AppLoading.micro,
                 ),
               ),
               error: (_, __) => Text(
                 'Could not load addresses',
-                style: GoogleFonts.poppins(color: AppSurface.textMuted),
+                style: GoogleFonts.poppins(color: AppSurface.of(context).textMuted),
               ),
               data: (addresses) {
                 if (addresses.isEmpty) {
@@ -1147,6 +1156,272 @@ class _ProfileNotificationsSectionState
   }
 }
 
+// ─── App Update (store listing) ───────────────────────────────────────────
+
+class ProfileAppUpdateSection extends StatefulWidget {
+  const ProfileAppUpdateSection({super.key, this.animationIndex = 8});
+
+  final int animationIndex;
+
+  @override
+  State<ProfileAppUpdateSection> createState() =>
+      _ProfileAppUpdateSectionState();
+}
+
+class _ProfileAppUpdateSectionState extends State<ProfileAppUpdateSection> {
+  final _service = AppUpdateService();
+  UpdateDecision? _decision;
+  bool _opening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    final decision = await _service.checkAvailability();
+    if (!mounted) return;
+    setState(() => _decision = decision);
+  }
+
+  Future<void> _openStore() async {
+    if (_opening) return;
+    setState(() => _opening = true);
+    HapticFeedback.selectionClick();
+    final ok = await _service.openStoreListing();
+    if (!mounted) return;
+    setState(() => _opening = false);
+    if (!ok) {
+      AppSnackBar.info(
+        defaultTargetPlatform == TargetPlatform.iOS
+            ? 'Could not open the App Store. Try again later.'
+            : 'Could not open the Play Store. Try again later.',
+        context: context,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final decision = _decision;
+    if (decision == null) return const SizedBox.shrink();
+
+    final surface = AppSurface.of(context);
+    final latest = decision.config.latestVersion.trim();
+    final versionLabel = latest.isEmpty
+        ? null
+        : (latest.startsWith('v') || latest.startsWith('V')
+            ? latest
+            : 'v$latest');
+
+    return FadeInUp(
+      duration: Duration(milliseconds: 380 + widget.animationIndex * 40),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Material(
+        color: surface.card,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        child: InkWell(
+          onTap: _opening ? null : _openStore,
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+              border: Border.all(color: surface.border.withValues(alpha: 0.7)),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColor.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.sync_rounded,
+                    color: AppColor.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'App Update Available',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: surface.text,
+                    ),
+                  ),
+                ),
+                if (versionLabel != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: surface.subtle,
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
+                    ),
+                    child: Text(
+                      versionLabel,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: surface.textMuted,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (_opening)
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: AppLoading.spinner(
+                      size: 18,
+                      color: surface.textMuted,
+                    ),
+                  )
+                else
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: surface.textMuted,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      ),
+    );
+  }
+}
+
+// ─── Appearance ───────────────────────────────────────────────────────────
+
+class ProfileAppearanceSection extends ConsumerWidget {
+  const ProfileAppearanceSection({super.key, this.animationIndex = 9});
+
+  final int animationIndex;
+
+  String _activeLabel(BuildContext context, AppThemeModeOption option) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final resolved = isDark
+        ? context.l10n.theme_dark
+        : context.l10n.theme_light;
+    return context.l10n.theme_active_mode(resolved);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final option = ref.watch(themeModeProvider);
+    final controller = ref.read(themeModeProvider.notifier);
+    final surface = AppSurface.of(context);
+
+    final choices = <(AppThemeModeOption, String, IconData)>[
+      (AppThemeModeOption.light, context.l10n.theme_light, Icons.light_mode_rounded),
+      (AppThemeModeOption.dark, context.l10n.theme_dark, Icons.dark_mode_rounded),
+      (AppThemeModeOption.system, context.l10n.theme_system, Icons.brightness_auto_rounded),
+    ];
+
+    return FadeInUp(
+      duration: Duration(milliseconds: 380 + animationIndex * 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ProfileSectionTitle(title: context.l10n.appearance),
+          ProfileCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _activeLabel(context, option),
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: surface.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...choices.map((choice) {
+                  final (mode, label, icon) = choice;
+                  final selected = option == mode;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Material(
+                      color: selected
+                          ? AppColor.primary.withValues(alpha: 0.14)
+                          : surface.subtle,
+                      borderRadius: BorderRadius.circular(14),
+                      child: InkWell(
+                        onTap: () => controller.setOption(mode),
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: selected
+                                  ? AppColor.primary
+                                  : surface.border,
+                              width: selected ? 2 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                icon,
+                                size: 20,
+                                color: selected
+                                    ? AppColor.primary
+                                    : surface.iconActive,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  label,
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: selected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    fontSize: 14,
+                                    color: surface.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                selected
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                size: 20,
+                                color: selected
+                                    ? AppColor.primary
+                                    : surface.iconInactive,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Language ─────────────────────────────────────────────────────────────
 
 class ProfileLanguageSection extends StatelessWidget {
@@ -1179,7 +1454,7 @@ class ProfileLanguageSection extends StatelessWidget {
                       child: Material(
                         color: isSelected
                             ? AppColor.primary.withValues(alpha: 0.15)
-                            : AppSurface.subtle,
+                            : AppSurface.of(context).subtle,
                         borderRadius: BorderRadius.circular(14),
                         child: InkWell(
                           onTap: () => controller.setLocale(
@@ -1190,7 +1465,7 @@ class ProfileLanguageSection extends StatelessWidget {
                           ),
                           borderRadius: BorderRadius.circular(14),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
+                            padding: EdgeInsets.symmetric(
                               horizontal: 14,
                               vertical: 10,
                             ),
@@ -1199,7 +1474,7 @@ class ProfileLanguageSection extends StatelessWidget {
                               border: Border.all(
                                 color: isSelected
                                     ? AppColor.primary
-                                    : AppSurface.border,
+                                    : AppSurface.of(context).border,
                                 width: isSelected ? 2 : 1,
                               ),
                             ),
@@ -1211,7 +1486,7 @@ class ProfileLanguageSection extends StatelessWidget {
                                     : FontWeight.w500,
                                 color: isSelected
                                     ? AppColor.primary
-                                    : AppSurface.text,
+                                    : AppSurface.of(context).text,
                                 fontSize: 13,
                               ),
                             ),
@@ -1251,6 +1526,12 @@ class ProfileSupportSection extends ConsumerWidget {
           ProfileCard(
             child: Column(
               children: [
+                ProfileListTile(
+                  icon: Icons.smart_toy_outlined,
+                  title: 'Grocery Assistant',
+                  subtitle: 'Ask about products, offers & orders',
+                  onTap: () => openAiAssistant(context),
+                ),
                 if (settings.hasPhone)
                   ProfileListTile(
                     icon: Icons.call_outlined,
@@ -1278,14 +1559,14 @@ class ProfileSupportSection extends ConsumerWidget {
                     ),
                   ),
                 if (settings.hasMessage) ...[
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                     child: Text(
                       settings.message,
                       style: GoogleFonts.poppins(
                         fontSize: 12,
-                        color: AppSurface.textMuted,
+                        color: AppSurface.of(context).textMuted,
                         height: 1.35,
                       ),
                     ),
@@ -1372,223 +1653,245 @@ class ProfileLegalSection extends StatelessWidget {
   }
 }
 
-// ─── Delete Account ───────────────────────────────────────────────────────
+// ─── Delete Account (Apple Guideline 5.1.1(v)) ────────────────────────────
 
-class ProfileDeleteAccountSection extends ConsumerStatefulWidget {
-  const ProfileDeleteAccountSection({
-    super.key,
-    this.animationIndex = 14,
-    this.deleteAccount,
-  });
+class ProfileDeleteAccountSection extends ConsumerWidget {
+  const ProfileDeleteAccountSection({super.key, this.animationIndex = 14});
 
   final int animationIndex;
-  final Future<void> Function()? deleteAccount;
 
   @override
-  ConsumerState<ProfileDeleteAccountSection> createState() =>
-      _ProfileDeleteAccountSectionState();
-}
-
-class _ProfileDeleteAccountSectionState
-    extends ConsumerState<ProfileDeleteAccountSection> {
-  bool _busy = false;
-
-  Future<void> _onDeleteTapped() async {
-    if (_busy) return;
-    final confirmed = await AccountDeletionConfirmFlow.confirm(context);
-    if (!confirmed || !mounted) return;
-    await _runDeletion();
-  }
-
-  Future<void> _runDeletion() async {
-    if (_busy) return;
-    setState(() => _busy = true);
-
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: AlertDialog(
-          content: Row(
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(width: 16),
-              Expanded(child: Text(context.l10n.deleteAccountProcessing)),
-            ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FadeInUp(
+      duration: Duration(milliseconds: 380 + animationIndex * 40),
+      child: Semantics(
+        button: true,
+        label: context.l10n.delete_account,
+        child: SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => _confirmAndDeleteAccount(context, ref),
+            icon: Icon(Icons.person_remove_outlined, color: Colors.red.shade700),
+            label: Text(
+              context.l10n.delete_account,
+              style: GoogleFonts.poppins(
+                color: Colors.red.shade700,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              side: BorderSide(color: Colors.red.shade300),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              minimumSize: const Size(48, 48),
+            ),
           ),
         ),
       ),
     );
-
-    Future<void> runDelete() =>
-        (widget.deleteAccount ?? AccountDeletionService().deleteCurrentAccount)();
-
-    try {
-      await runDelete();
-      await _finishSuccess();
-    } on AccountDeletionException catch (e) {
-      if (e.needsReauth) {
-        await _retryAfterReauth(runDelete);
-      } else {
-        _closeLoading();
-        if (mounted) {
-          showTopErrorToast(
-            context,
-            e.message,
-            duration: const Duration(seconds: 6),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('ACCOUNT_DELETE unexpected: $e');
-      _closeLoading();
-      if (mounted) {
-        showTopErrorToast(
-          context,
-          context.l10n.deleteAccountFailed,
-          duration: const Duration(seconds: 6),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
   }
 
-  Future<void> _retryAfterReauth(Future<void> Function() runDelete) async {
-    _closeLoading();
-    if (!mounted) return;
-    final ok = await PhoneReauthSheet.show(context);
-    if (!ok || !mounted) return;
-    setState(() => _busy = true);
-    showDialog<void>(
+  Future<void> _confirmAndDeleteAccount(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final l10n = context.l10n;
+    final ok = await showDialog<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: AlertDialog(
-          content: Row(
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(width: 16),
-              Expanded(child: Text(context.l10n.deleteAccountProcessing)),
-            ],
-          ),
-        ),
-      ),
-    );
-    try {
-      await runDelete();
-      await _finishSuccess();
-    } on AccountDeletionException catch (e) {
-      _closeLoading();
-      if (mounted) {
-        showTopErrorToast(
-          context,
-          e.message,
-          duration: const Duration(seconds: 6),
-        );
-      }
-    } catch (e) {
-      debugPrint('ACCOUNT_DELETE retry: $e');
-      _closeLoading();
-      if (mounted) {
-        showTopErrorToast(
-          context,
-          context.l10n.deleteAccountFailed,
-          duration: const Duration(seconds: 6),
-        );
-      }
-    }
-  }
-
-  Future<void> _finishSuccess() async {
-    _closeLoading();
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        content: Text(context.l10n.deleteAccountSuccess),
+        title: Text(l10n.delete_account_title),
+        content: Text(l10n.delete_account_confirmation),
         actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('OK'),
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(l10n.delete_account),
           ),
         ],
       ),
     );
-    if (!mounted) return;
-    await AuthSessionManager.signOutFromContext(
+    if (ok != true || !context.mounted) return;
+
+    await _runAccountDeletion(context, ref);
+  }
+
+  Future<void> _runAccountDeletion(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final l10n = context.l10n;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      AppSnackBar.error(l10n.delete_account_failed, context: context);
+      return;
+    }
+    final uid = user.uid;
+
+    // Reauth BEFORE wiping data so canceling OTP cannot leave a half-deleted account.
+    final reauthed = await showAccountDeletionReauthSheet(context);
+    if (!reauthed || !context.mounted) return;
+
+    showDialog<void>(
       context: context,
-      ref: ref,
-      preserveCartForGuest: false,
-    );
-    if (!mounted) return;
-    await GuestLoginLauncher.launch(context, ref);
-  }
-
-  void _closeLoading() {
-    if (!mounted) return;
-    final nav = Navigator.of(context, rootNavigator: true);
-    if (nav.canPop()) nav.pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeInUp(
-      duration: Duration(milliseconds: 380 + widget.animationIndex * 40),
-      child: SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          key: const Key('deleteAccountButton'),
-          onPressed: _busy ? null : _onDeleteTapped,
-          icon: Icon(Icons.delete_forever_rounded, color: Colors.red.shade700),
-          label: Text(
-            context.l10n.delete_account,
-            style: GoogleFonts.poppins(
-              color: Colors.red.shade800,
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-            ),
-          ),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            minimumSize: const Size(48, 48),
-            side: BorderSide(color: Colors.red.shade200),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.8,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Material(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    child: Text(
+                      l10n.delete_account_in_progress,
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
+
+    var loadingStillOpen = true;
+    void dismissLoadingIfNeeded() {
+      if (!loadingStillOpen || !context.mounted) return;
+      final nav = Navigator.of(context, rootNavigator: true);
+      if (nav.canPop()) nav.pop();
+      loadingStillOpen = false;
+    }
+
+    final service = AccountDeletionService();
+
+    try {
+      final current = FirebaseAuth.instance.currentUser;
+      if (current == null || current.uid != uid) {
+        throw AccountDeletionException(AccountDeletionErrorKind.notSignedIn);
+      }
+
+      await service.deleteUserOwnedData(uid);
+
+      try {
+        await service.deleteAuthUser();
+      } on AccountDeletionException catch (e) {
+        if (e.kind != AccountDeletionErrorKind.requiresRecentLogin) rethrow;
+        // Rare: session aged during long data wipe — reauth once more.
+        dismissLoadingIfNeeded();
+        if (!context.mounted) {
+          throw AccountDeletionException(AccountDeletionErrorKind.cancelled);
+        }
+        final again = await showAccountDeletionReauthSheet(context);
+        if (!again) {
+          throw AccountDeletionException(AccountDeletionErrorKind.cancelled);
+        }
+        if (!context.mounted) {
+          throw AccountDeletionException(AccountDeletionErrorKind.cancelled);
+        }
+        loadingStillOpen = true;
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          useRootNavigator: true,
+          builder: (_) => const PopScope(
+            canPop: false,
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: Center(
+                child: SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.8,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await service.deleteAuthUser();
+      }
+
+      if (!context.mounted) return;
+      final successMessage = l10n.delete_account_success;
+
+      try {
+        legacy.Provider.of<HomeProvider>(context, listen: false)
+            .onSelectedChange(0);
+      } catch (_) {}
+
+      await AuthSessionManager.finalizeAfterAccountDeletion(
+        context: context,
+        ref: ref,
+      );
+      dismissLoadingIfNeeded();
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = rootNavigatorKey.currentContext;
+        if (ctx == null || !ctx.mounted) return;
+        AppSnackBar.success(successMessage, context: ctx);
+      });
+    } catch (e) {
+      dismissLoadingIfNeeded();
+      if (!context.mounted) return;
+      if (e is AccountDeletionException &&
+          e.kind == AccountDeletionErrorKind.cancelled) {
+        return;
+      }
+      AppSnackBar.error(
+        accountDeletionErrorMessage(context, e),
+        context: context,
+      );
+    }
   }
 }
 
 // ─── Logout ───────────────────────────────────────────────────────────────
 
-class ProfileLogoutSection extends ConsumerStatefulWidget {
-  const ProfileLogoutSection({super.key, this.animationIndex = 14});
+class ProfileLogoutSection extends ConsumerWidget {
+  const ProfileLogoutSection({super.key, this.animationIndex = 15});
 
   final int animationIndex;
 
   @override
-  ConsumerState<ProfileLogoutSection> createState() =>
-      _ProfileLogoutSectionState();
-}
-
-class _ProfileLogoutSectionState extends ConsumerState<ProfileLogoutSection> {
-  bool _busy = false;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return FadeInUp(
-      duration: Duration(milliseconds: 380 + widget.animationIndex * 40),
+      duration: Duration(milliseconds: 380 + animationIndex * 40),
       child: SizedBox(
         width: double.infinity,
         child: OutlinedButton.icon(
-          onPressed: _busy ? null : _confirmLogout,
+          onPressed: () => _confirmLogout(context, ref),
           icon: const Icon(Icons.logout_rounded, color: Colors.red),
           label: Text(
             context.l10n.logout,
@@ -1609,8 +1912,7 @@ class _ProfileLogoutSectionState extends ConsumerState<ProfileLogoutSection> {
     );
   }
 
-  Future<void> _confirmLogout() async {
-    if (_busy) return;
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1629,38 +1931,58 @@ class _ProfileLogoutSectionState extends ConsumerState<ProfileLogoutSection> {
         ],
       ),
     );
-    if (ok != true || !mounted) return;
+    if (ok != true || !context.mounted) return;
 
-    setState(() => _busy = true);
-    var loadingShown = false;
+    // Switch to Home tab immediately so guest landing feels like a fresh visit.
+    try {
+      legacy.Provider.of<HomeProvider>(context, listen: false)
+          .onSelectedChange(0);
+    } catch (_) {}
+
     showDialog<void>(
       context: context,
       barrierDismissible: false,
       useRootNavigator: true,
       builder: (_) => const PopScope(
         canPop: false,
-        child: Center(child: CircularProgressIndicator()),
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Center(
+            child: SizedBox(
+              width: 36,
+              height: 36,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.8,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+          ),
+        ),
       ),
     );
-    loadingShown = true;
+
+    // AuthSessionManager.popUntil(isFirst) dismisses this dialog.
+    // Never pop the root route — that blacks out MaterialApp.
+    var loadingStillOpen = true;
+    void dismissLoadingIfNeeded() {
+      if (!loadingStillOpen || !context.mounted) return;
+      final nav = Navigator.of(context, rootNavigator: true);
+      if (nav.canPop()) {
+        nav.pop();
+      }
+      loadingStillOpen = false;
+    }
 
     try {
       await AuthSessionManager.signOutFromContext(context: context, ref: ref);
+      // popUntil(isFirst) already cleared overlays; don't pop again.
+      loadingStillOpen = false;
     } catch (e) {
-      debugPrint('LOGOUT: $e');
-      if (mounted) {
-        showTopErrorToast(
-          context,
-          'Unable to log out. Please try again.',
-          duration: const Duration(seconds: 5),
-        );
+      dismissLoadingIfNeeded();
+      if (context.mounted) {
+        AppSnackBar.error('Logout failed: $e', context: context);
       }
-    } finally {
-      if (loadingShown) {
-        final nav = rootNavigatorKey.currentState;
-        if (nav != null && nav.canPop()) nav.pop();
-      }
-      if (mounted) setState(() => _busy = false);
     }
   }
 }

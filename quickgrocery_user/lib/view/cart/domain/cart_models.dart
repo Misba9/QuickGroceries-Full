@@ -305,6 +305,19 @@ class PricingConfig {
   final bool surgeActive;
   final String? surgeReason;
 
+  /// COD Convenience Fee (admin-managed; realtime via settings + dedicated doc).
+  final bool codFeeEnabled;
+  final double codFeeAmount;
+  final double codFeeMinimumOrderAmount;
+  final double codFeeMaximumOrderAmount;
+  final double freeCodAboveAmount;
+  final String codFeeDescription;
+  final String codFeeApplicableTo;
+  final List<String> codFeeApplicableUsers;
+  final List<String> codFeeApplicableCities;
+  final List<String> codFeeApplicableVendors;
+  final List<String> codFeeApplicableCategories;
+
   /// Latest [settings/main] (or merged admin) `updatedAt` for UI / debugging.
   final DateTime? settingsUpdatedAt;
 
@@ -321,6 +334,17 @@ class PricingConfig {
     this.surgeMultiplier = 1.0,
     this.surgeActive = false,
     this.surgeReason,
+    this.codFeeEnabled = false,
+    this.codFeeAmount = 0,
+    this.codFeeMinimumOrderAmount = 0,
+    this.codFeeMaximumOrderAmount = 0,
+    this.freeCodAboveAmount = 0,
+    this.codFeeDescription = 'Convenience Fee for Cash on Delivery',
+    this.codFeeApplicableTo = 'all',
+    this.codFeeApplicableUsers = const [],
+    this.codFeeApplicableCities = const [],
+    this.codFeeApplicableVendors = const [],
+    this.codFeeApplicableCategories = const [],
     this.settingsUpdatedAt,
   });
 
@@ -339,6 +363,17 @@ class PricingConfig {
     double? surgeMultiplier,
     bool? surgeActive,
     String? surgeReason,
+    bool? codFeeEnabled,
+    double? codFeeAmount,
+    double? codFeeMinimumOrderAmount,
+    double? codFeeMaximumOrderAmount,
+    double? freeCodAboveAmount,
+    String? codFeeDescription,
+    String? codFeeApplicableTo,
+    List<String>? codFeeApplicableUsers,
+    List<String>? codFeeApplicableCities,
+    List<String>? codFeeApplicableVendors,
+    List<String>? codFeeApplicableCategories,
     DateTime? settingsUpdatedAt,
   }) => PricingConfig(
     platformFee: platformFee ?? this.platformFee,
@@ -355,6 +390,23 @@ class PricingConfig {
     surgeMultiplier: surgeMultiplier ?? this.surgeMultiplier,
     surgeActive: surgeActive ?? this.surgeActive,
     surgeReason: surgeReason ?? this.surgeReason,
+    codFeeEnabled: codFeeEnabled ?? this.codFeeEnabled,
+    codFeeAmount: codFeeAmount ?? this.codFeeAmount,
+    codFeeMinimumOrderAmount:
+        codFeeMinimumOrderAmount ?? this.codFeeMinimumOrderAmount,
+    codFeeMaximumOrderAmount:
+        codFeeMaximumOrderAmount ?? this.codFeeMaximumOrderAmount,
+    freeCodAboveAmount: freeCodAboveAmount ?? this.freeCodAboveAmount,
+    codFeeDescription: codFeeDescription ?? this.codFeeDescription,
+    codFeeApplicableTo: codFeeApplicableTo ?? this.codFeeApplicableTo,
+    codFeeApplicableUsers:
+        codFeeApplicableUsers ?? this.codFeeApplicableUsers,
+    codFeeApplicableCities:
+        codFeeApplicableCities ?? this.codFeeApplicableCities,
+    codFeeApplicableVendors:
+        codFeeApplicableVendors ?? this.codFeeApplicableVendors,
+    codFeeApplicableCategories:
+        codFeeApplicableCategories ?? this.codFeeApplicableCategories,
     settingsUpdatedAt: settingsUpdatedAt ?? this.settingsUpdatedAt,
   );
 }
@@ -372,6 +424,8 @@ class BillBreakdown {
   final double platformFee;
   final double tax;
   final double deliveryPartnerTip;
+  final double codConvenienceFee;
+  final String codFeeDescription;
   final double total;
   final bool isFreeDelivery;
   final bool meetsMinimumOrder;
@@ -388,6 +442,8 @@ class BillBreakdown {
     required this.platformFee,
     required this.tax,
     this.deliveryPartnerTip = 0,
+    this.codConvenienceFee = 0,
+    this.codFeeDescription = 'COD Convenience Fee',
     required this.total,
     required this.isFreeDelivery,
     required this.meetsMinimumOrder,
@@ -408,6 +464,38 @@ class BillBreakdown {
       platformFee: platformFee,
       tax: tax,
       deliveryPartnerTip: t,
+      codConvenienceFee: codConvenienceFee,
+      codFeeDescription: codFeeDescription,
+      total: double.parse((total + delta).toStringAsFixed(2)),
+      isFreeDelivery: isFreeDelivery,
+      meetsMinimumOrder: meetsMinimumOrder,
+      minimumOrderValue: minimumOrderValue,
+    );
+  }
+
+  /// Apply / clear COD convenience fee (idempotent — replaces prior fee).
+  BillBreakdown withCodConvenienceFee({
+    required double fee,
+    String? description,
+  }) {
+    final f = fee < 0 ? 0.0 : fee;
+    final delta = f - codConvenienceFee;
+    return BillBreakdown(
+      subtotal: subtotal,
+      slashedSubtotal: slashedSubtotal,
+      itemSavings: itemSavings,
+      couponDiscount: couponDiscount,
+      deliveryFee: deliveryFee,
+      surgeFee: surgeFee,
+      handlingCharge: handlingCharge,
+      platformFee: platformFee,
+      tax: tax,
+      deliveryPartnerTip: deliveryPartnerTip,
+      codConvenienceFee: f,
+      codFeeDescription:
+          (description ?? codFeeDescription).trim().isEmpty
+              ? 'COD Convenience Fee'
+              : (description ?? codFeeDescription).trim(),
       total: double.parse((total + delta).toStringAsFixed(2)),
       isFreeDelivery: isFreeDelivery,
       meetsMinimumOrder: meetsMinimumOrder,
@@ -426,6 +514,7 @@ class BillBreakdown {
     platformFee: 0,
     tax: 0,
     deliveryPartnerTip: 0,
+    codConvenienceFee: 0,
     total: 0,
     isFreeDelivery: false,
     meetsMinimumOrder: false,
@@ -444,6 +533,9 @@ class BillBreakdown {
     'platformFee': platformFee,
     'tax': tax,
     if (deliveryPartnerTip > 0) 'deliveryPartnerTip': deliveryPartnerTip,
+    'codConvenienceFee': codConvenienceFee,
+    'codFee': codConvenienceFee,
+    if (codConvenienceFee > 0) 'codFeeDescription': codFeeDescription,
     'total': total,
     'grandTotal': total,
     'isFreeDelivery': isFreeDelivery,

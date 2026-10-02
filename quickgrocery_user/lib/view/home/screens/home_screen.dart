@@ -8,7 +8,11 @@ import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
+import 'package:quickgrocery/core/startup/post_home_startup.dart';
+import 'package:quickgrocery/core/startup/widgets/home_arm_gate.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/core/widgets/home_section_error_card.dart';
 import 'package:quickgrocery/core/widgets/horizontal_product_rail.dart';
@@ -31,7 +35,7 @@ import 'package:quickgrocery/view/home/presentation/widgets/home_categories_rail
 import 'package:quickgrocery/view/home/presentation/widgets/home_delivery_header.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/fallback_banner_slider.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_banner_slider.dart';
-import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/home_section_slot.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/recently_ordered_section.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/recommendations_section.dart';
@@ -47,18 +51,15 @@ import 'package:quickgrocery/core/localization/l10n_extension.dart';
 /// Sections (top → bottom):
 ///   1. Pinned delivery header (premium card + actions)
 ///   2. Search bar (floating pill)
-///   3. Banner carousel (image-only slides; 16:7)
-///   4. Categories horizontal rail
-///   5. Video promo rail (admin MP4 banners)
-///   6. Flash sale (countdown rail)
-///   6. Trending Now / Featured For You (Riverpod)
-///   7. Picked for you (personalized)
-///   8. Order again (recently ordered)
-///   9. Legacy `special_cat` rails (auto-hide when empty)
-///   10. Explore (paginated grid, responsive cols)
+///   3. Banner carousel — section shimmer until ready
+///   4. Categories rail — section shimmer until ready
+///   5. Featured products — section shimmer until ready
+///   6. Offers / explore grid — section shimmer until ready
+///   7. Recommended (picked for you) — section shimmer until ready
+///   8. Flash / trending / order-again / legacy rails (secondary)
 ///
-/// The floating cart pill lives in [LandingScreen] so it persists across
-/// every bottom-nav tab.
+/// After Home opens, never restarts the startup category animation.
+/// Each section loads independently; Home stays interactive.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -68,12 +69,11 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
-  AddressService? _addressService;
-  bool _didBootstrapAddress = false;
   bool _hasInternet = true;
   bool _isServiceable = true;
   bool _isCheckingServiceability = false;
-  bool _serviceabilityReady = false;
+  /// Optimistic true so Home layout paints immediately; refined in background.
+  bool _serviceabilityReady = true;
   String? _lastCheckedPinCode;
   String? _lastObservedAddressId;
   String? _lastObservedPin;
@@ -83,27 +83,58 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _setupConnectivityListener();
-    _checkConnectivity();
+    _bootstrapLegacyServices();
     _scrollController.addListener(_onScroll);
+    AppPermissionCoordinator.settledTick.addListener(_onPermissionsSettled);
+
+    // Connectivity + location wait for staggered post-Home frames.
+    PostHomeStartup.onFrame(2, () {
+      if (!mounted) return;
+      _setupConnectivityListener();
+      unawaited(_checkConnectivity());
+    });
+    PostHomeStartup.onFrame(4, () {
+      if (!mounted) return;
+      unawaited(_checkServiceability(force: true));
+    });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final addressService = legacy.Provider.of<AddressService>(context);
-    if (!identical(_addressService, addressService)) {
-      _addressService?.removeListener(_onAddressChanged);
-      _addressService = addressService;
-      _addressService!.addListener(_onAddressChanged);
-    }
-    if (_didBootstrapAddress) return;
-    _didBootstrapAddress = true;
+  void _onPermissionsSettled() {
+    if (!mounted) return;
+    PostHomeStartup.onFrame(4, () {
+      if (!mounted) return;
+      unawaited(_checkServiceability(force: true));
+    });
+  }
+
+  void _bootstrapLegacyServices() {
+    final addressService = legacy.Provider.of<AddressService>(
+      context,
+      listen: false,
+    );
+
+    addressService.addListener(_onAddressChanged);
     Future.microtask(() async {
       await addressService.ready;
+      if (!mounted) return;
+
+      // Paint home immediately when a recent serviceability result is cached.
+      if (addressService.shouldBypassServiceAreaCheck) {
+        _applyServiceableState(
+          addressService,
+          serviceable: true,
+          pin: addressService.activeDeliveryPin,
+        );
+      }
+
+      // Address hydrate is fine async — Home already painted optimistically.
       await addressService.getAddress();
       if (!mounted) return;
-      await _checkServiceability(force: true);
+      // Geolocator / serviceability only after frame +4.
+      PostHomeStartup.onFrame(4, () {
+        if (!mounted) return;
+        unawaited(_checkServiceability(force: true));
+      });
     });
   }
 
@@ -113,13 +144,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     String? pin,
   }) {
     if (!mounted) return;
+    final nextPin = pin ?? addressService.pinCode;
+    final nextObservedPin = addressService.activeDeliveryPin;
+    final nextAddressId = addressService.selectedAddressId;
+    final unchanged = _isServiceable == serviceable &&
+        _serviceabilityReady &&
+        !_isCheckingServiceability &&
+        _lastCheckedPinCode == nextPin &&
+        _lastObservedPin == nextObservedPin &&
+        _lastObservedAddressId == nextAddressId;
+    _isCheckingServiceability = false;
+    _lastCheckedPinCode = nextPin;
+    _lastObservedPin = nextObservedPin;
+    _lastObservedAddressId = nextAddressId;
+    if (unchanged) return;
+    // Only rebuild when the visible branch (serviceable / ready) changes.
+    if (_isServiceable == serviceable && _serviceabilityReady) return;
     setState(() {
       _isServiceable = serviceable;
       _serviceabilityReady = true;
-      _isCheckingServiceability = false;
-      _lastCheckedPinCode = pin ?? addressService.pinCode;
-      _lastObservedPin = addressService.activeDeliveryPin;
-      _lastObservedAddressId = addressService.selectedAddressId;
     });
   }
 
@@ -198,6 +241,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           return;
         }
 
+        // Wait for post-launch permission prompts to finish before GPS.
+        if (!AppPermissionCoordinator.hasSettled) {
+          if (!mounted) return;
+          _applyServiceableState(
+            addressService,
+            serviceable: true,
+            pin: pinCode,
+          );
+          return;
+        }
+
+        if (!await AppPermissionCoordinator.isLocationGranted()) {
+          if (!mounted) return;
+          _applyServiceableState(
+            addressService,
+            serviceable: true,
+            pin: pinCode,
+          );
+          return;
+        }
+
+        if (!mounted) return;
         await addressService.getCurrentLocation(context, force: true);
         if (!mounted) return;
 
@@ -251,13 +316,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _checkConnectivity() async {
     final result = await Connectivity().checkConnectivity();
     final ok = result.any((r) => r != ConnectivityResult.none);
-    if (mounted) setState(() => _hasInternet = ok);
+    if (!mounted || ok == _hasInternet) return;
+    setState(() => _hasInternet = ok);
   }
 
   void _setupConnectivityListener() {
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
       final ok = results.any((r) => r != ConnectivityResult.none);
-      if (mounted) setState(() => _hasInternet = ok);
+      if (!mounted || ok == _hasInternet) return;
+      setState(() => _hasInternet = ok);
     });
   }
 
@@ -288,34 +355,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   void dispose() {
+    AppPermissionCoordinator.settledTick.removeListener(_onPermissionsSettled);
     _connectivitySub?.cancel();
     _scrollController.dispose();
-    _addressService?.removeListener(_onAddressChanged);
+    if (mounted) {
+      legacy.Provider.of<AddressService>(
+        context,
+        listen: false,
+      ).removeListener(_onAddressChanged);
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_serviceabilityReady) {
-      return const _ServiceabilityLoading();
+    // Never block the whole Home with a full-page shimmer / category loop.
+    if (!_isServiceable && _serviceabilityReady) {
+      return const NoServiceableAreaScreen();
     }
-    if (!_isServiceable) return const NoServiceableAreaScreen();
     if (!_hasInternet) return _OfflineView(onRetry: _checkConnectivity);
 
-    final cartService = legacy.Provider.of<CategoryService>(context);
-    final hasCartItems = cartService.selectedProduct.isNotEmpty;
     final responsive = Responsive.of(context);
-    final gutter = responsive.horizontalInset();
-    final pricingAsync = ref.watch(pricingConfigProvider);
-    final pricing = pricingAsync.asData?.value;
-    final appContentAsync = ref.watch(appContentStreamProvider);
-    final appContent = appContentAsync.value ?? AppContentConfig.defaults;
-    final contentLoading =
-        appContentAsync.isLoading && !appContentAsync.hasValue;
+    final gutter = responsive.gutter();
 
+    // Root watches nothing section-specific — leaf Consumers own their data.
     return Scaffold(
-      backgroundColor: AppSurface.background,
+      backgroundColor: AppSurface.of(context).background,
+      // Top inset comes from LandingScreen's SafeArea only.
       body: SafeArea(
+        top: false,
+        bottom: false,
         child: RefreshIndicator(
           color: AppColor.primary,
           onRefresh: _refreshAll,
@@ -339,117 +408,293 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ],
                 onTap: () => Navigator.push(context, AppPageRoutes.search()),
               ),
-              if (pricingAsync.hasError)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 8),
-                    child: HomeSectionErrorCard(
-                      title: 'Delivery offers unavailable',
-                      subtitle:
-                          'Prices and delivery fees may be outdated until we reconnect.',
-                      onRetry: () => ref.invalidate(pricingConfigProvider),
-                      minHeight: 108,
-                    ),
-                  ),
+              // Pricing live refresh — frame +8
+              SliverToBoxAdapter(
+                child: HomeArmGate(
+                  frame: 8,
+                  placeholder: const SizedBox.shrink(),
+                  child: _HomePricingBody(gutter: gutter),
                 ),
-              if (pricing != null)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 10),
-                    child: _DeliveryPromoStrip(pricing: pricing),
-                  ),
-                ),
+              ),
+              // 1) Banner — placeholder first; live refresh frame +10
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 12),
-                  child: const _BannersSection(),
-                ),
-              ),
-              if (appContent.showShopCategory)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: gutter),
-                    child: const HomeCategoriesRail(),
+                  child: HomeArmGate(
+                    frame: 10,
+                    placeholder: AppLoading.banner,
+                    child: const _BannersSection(),
                   ),
                 ),
-              if (appContent.showFlashDeals)
-                SliverToBoxAdapter(
-                  child: Padding(
+              ),
+              // 2) Categories — arm at +4 (seed paints immediately on subscribe)
+              SliverToBoxAdapter(
+                child: HomeArmGate(
+                  frame: 4,
+                  placeholder: Padding(
                     padding: EdgeInsets.symmetric(horizontal: gutter),
-                    child: FlashSaleSection(
-                      heading: appContent.flashDealHeading,
-                      headingLoading: contentLoading,
-                      heroScope: 'flash-home',
+                    child: AppLoading.categoryRail,
+                  ),
+                  child: _HomeCategoriesBody(gutter: gutter),
+                ),
+              ),
+              // 3) Featured — frame +12
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: gutter),
+                  child: HomeArmGate(
+                    frame: 12,
+                    placeholder: AppLoading.productRail,
+                    child: _ProductRailSection(
+                      title: 'Featured For You',
+                      provider: featuredProductsStreamProvider,
+                      legacySpecialCat: 'Featured this week',
                     ),
                   ),
                 ),
+              ),
+              // 4) Offers / explore — armed at frame +10 inside widget
+              _HomeExploreOffersSliver(gutter: gutter),
+              // 5) Recommended — frame +14
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: _ProductRailSection(
-                    title: appContent.trendingHeading,
-                    titleLoading: contentLoading,
-                    provider: trendingProductsStreamProvider,
-                    legacySpecialCat: "Today's snacks deals",
+                  child: HomeArmGate(
+                    frame: 14,
+                    placeholder: AppLoading.productRail,
+                    child: const RecommendationsSection(),
+                  ),
+                ),
+              ),
+              // Flash — frame +16 (no provider watch until armed)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: gutter),
+                  child: HomeArmGate(
+                    frame: 16,
+                    placeholder: AppLoading.productRail,
+                    child: _HomeFlashBody(),
+                  ),
+                ),
+              ),
+              // Trending — frame +13
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: gutter),
+                  child: HomeArmGate(
+                    frame: 13,
+                    placeholder: AppLoading.productRail,
+                    child: _HomeTrendingBody(),
+                  ),
+                ),
+              ),
+              // Recently ordered — frame +18
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: gutter),
+                  child: HomeArmGate(
+                    frame: 18,
+                    placeholder: const SizedBox.shrink(),
+                    child: const RecentlyOrderedSection(),
                   ),
                 ),
               ),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: const RecommendationsSection(heroScope: 'recs-home'),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: const RecentlyOrderedSection(),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: _ProductRailSection(
-                    title: 'Featured For You',
-                    provider: featuredProductsStreamProvider,
-                    legacySpecialCat: 'Featured this week',
+                  child: HomeArmGate(
+                    frame: 19,
+                    placeholder: const SizedBox.shrink(),
+                    child: _LegacyRail(
+                      title: context.l10n.epic_price_drop_items,
+                      specialCat: 'Epic price drop items',
+                    ),
                   ),
                 ),
               ),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: _LegacyRail(
-                    title: context.l10n.epic_price_drop_items,
-                    specialCat: 'Epic price drop items',
+                  child: HomeArmGate(
+                    frame: 23,
+                    placeholder: const SizedBox.shrink(),
+                    child: _LegacyRail(
+                      title: context.l10n.big_deals_on_beauty_products,
+                      specialCat: 'Big deals on beauty products',
+                    ),
                   ),
                 ),
               ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: gutter),
-                  child: _LegacyRail(
-                    title: context.l10n.big_deals_on_beauty_products,
-                    specialCat: 'Big deals on beauty products',
-                  ),
-                ),
-              ),
-              ...buildHomeExploreOfferSlivers(
-                context: context,
-                ref: ref,
-                exploreAsync: ref.watch(exploreProductsProvider),
-                offers:
-                    ref.watch(homeExploreOfferBannersProvider).asData?.value ??
-                        const [],
-                gutter: gutter,
-              ),
-              SliverToBoxAdapter(
-                child: SizedBox(height: hasCartItems ? 110 : 30),
-              ),
+              const _HomeBottomSpacerSliver(),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Leaf hosts: each watches only the data it needs ──────────────────────
+
+/// Box body for pricing strip — wrapped in [HomeArmGate] (+8) by Home.
+class _HomePricingBody extends ConsumerWidget {
+  const _HomePricingBody({required this.gutter});
+  final double gutter;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pricingAsync = ref.watch(pricingConfigProvider);
+    final pricing = pricingAsync.asData?.value;
+    if (pricingAsync.hasError) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 8),
+        child: HomeSectionErrorCard(
+          title: 'Delivery offers unavailable',
+          subtitle:
+              'Prices and delivery fees may be outdated until we reconnect.',
+          onRetry: () => ref.invalidate(pricingConfigProvider),
+          minHeight: 108,
+        ),
+      );
+    }
+    if (pricing == null) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 10),
+      child: _DeliveryPromoStrip(pricing: pricing),
+    );
+  }
+}
+
+class _HomeCategoriesBody extends ConsumerWidget {
+  const _HomeCategoriesBody({required this.gutter});
+  final double gutter;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final show = ref.watch(
+      appContentStreamProvider.select(
+        (async) {
+          final loading = async.isLoading && !async.hasValue;
+          final cfg = async.value ?? AppContentConfig.defaults;
+          return loading || cfg.showShopCategory;
+        },
+      ),
+    );
+    if (!show) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: gutter),
+      child: const HomeCategoriesRail(),
+    );
+  }
+}
+
+class _HomeExploreOffersSliver extends ConsumerStatefulWidget {
+  const _HomeExploreOffersSliver({required this.gutter});
+  final double gutter;
+
+  @override
+  ConsumerState<_HomeExploreOffersSliver> createState() =>
+      _HomeExploreOffersSliverState();
+}
+
+class _HomeExploreOffersSliverState
+    extends ConsumerState<_HomeExploreOffersSliver> {
+  bool _armed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Frame +11 — after banner refresh (+10), before featured (+12).
+    _armed = PostHomeStartup.armedAt(11);
+    if (!_armed) {
+      PostHomeStartup.onFrame(11, () {
+        if (mounted) setState(() => _armed = true);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_armed) {
+      // Lightweight placeholder until Home is interactive — no explore GET yet.
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: widget.gutter),
+          child: AppLoading.exploreGrid,
+        ),
+      );
+    }
+
+    final exploreAsync = ref.watch(exploreProductsProvider);
+    final offersAsync = ref.watch(homeExploreOfferBannersProvider);
+    return SliverMainAxisGroup(
+      slivers: buildHomeExploreOfferSlivers(
+        context: context,
+        ref: ref,
+        exploreAsync: exploreAsync,
+        offers: offersAsync.asData?.value ?? const [],
+        offersLoading: offersAsync.isLoading && !offersAsync.hasValue,
+        gutter: widget.gutter,
+      ),
+    );
+  }
+}
+
+class _HomeFlashBody extends ConsumerWidget {
+  const _HomeFlashBody();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final visible = ref.watch(
+      appContentStreamProvider.select((async) {
+        final loading = async.isLoading && !async.hasValue;
+        final cfg = async.value ?? AppContentConfig.defaults;
+        return (
+          show: loading || cfg.showFlashDeals,
+          heading: cfg.flashDealHeading,
+          loading: loading,
+        );
+      }),
+    );
+    if (!visible.show) return const SizedBox.shrink();
+    return FlashSaleSection(
+      heading: visible.heading,
+      headingLoading: visible.loading,
+    );
+  }
+}
+
+class _HomeTrendingBody extends ConsumerWidget {
+  const _HomeTrendingBody();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final meta = ref.watch(
+      appContentStreamProvider.select((async) {
+        final loading = async.isLoading && !async.hasValue;
+        final cfg = async.value ?? AppContentConfig.defaults;
+        return (title: cfg.trendingHeading, loading: loading);
+      }),
+    );
+    return _ProductRailSection(
+      title: meta.title,
+      titleLoading: meta.loading,
+      provider: trendingProductsStreamProvider,
+      legacySpecialCat: "Today's snacks deals",
+    );
+  }
+}
+
+class _HomeBottomSpacerSliver extends ConsumerWidget {
+  const _HomeBottomSpacerSliver();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasCartItems = ref.watch(
+      cartProvider.select((c) => c.items.isNotEmpty),
+    );
+    return SliverToBoxAdapter(
+      child: SizedBox(height: hasCartItems ? 110 : 30),
     );
   }
 }
@@ -463,15 +708,18 @@ class _DeliveryPromoStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final message = DeliveryPricingPolicy.homePromoLine(pricing);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: Colors.white,
-        border: Border.all(color: AppSurface.border),
+        color: AppSurface.of(context).card,
+        border: Border.all(color: AppSurface.of(context).border),
       ),
       child: Text(
         message,
-        style: const TextStyle(fontWeight: FontWeight.w600),
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: AppSurface.of(context).textPrimary,
+        ),
       ),
     );
   }
@@ -487,9 +735,10 @@ class _BannersSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(bannersStreamProvider);
-    return async.when(
-      loading: () => HomeShimmer.banner(),
-      error: (e, _) => Column(
+    final loading = async.isLoading && !async.hasValue;
+    Widget content;
+    if (async.hasError && !async.hasValue) {
+      content = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Align(
@@ -502,13 +751,24 @@ class _BannersSection extends ConsumerWidget {
           ),
           const FallbackBannerSlider(),
         ],
-      ),
-      data: (List<BannerModel> banners) {
-        if (banners.isEmpty) return const FallbackBannerSlider();
+      );
+    } else {
+      final banners = async.asData?.value ?? const <BannerModel>[];
+      if (banners.isEmpty && !loading) {
+        content = const FallbackBannerSlider();
+      } else {
         final carousel = imageCarouselBanners(banners);
-        if (carousel.isEmpty) return const FallbackBannerSlider();
-        return HomeBannerSlider(banners: carousel);
-      },
+        content = carousel.isEmpty
+            ? const FallbackBannerSlider()
+            : HomeBannerSlider(banners: carousel);
+      }
+    }
+
+    return HomeSectionSlot(
+      loading: loading,
+      shimmer: AppLoading.banner,
+      minHeight: 160,
+      child: content,
     );
   }
 }
@@ -534,41 +794,47 @@ class _ProductRailSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(provider);
 
-    return async.when(
-      loading: () => Padding(
+    final loading = async.isLoading && !async.hasValue;
+    if (async.hasError && !async.hasValue) {
+      return HomeSectionErrorCard(
+        title: 'Unable to load products',
+        subtitle: 'Pull to refresh or try again in a moment.',
+        onRetry: () => ref.invalidate(provider),
+      );
+    }
+
+    final products = async.asData?.value ?? const <ProductModel>[];
+    final Widget body;
+    if (products.isNotEmpty) {
+      body = _RailWithProducts(
+        title: title,
+        titleLoading: titleLoading,
+        products: products,
+      );
+    } else if (!loading) {
+      body = _LegacyRail(
+        title: title,
+        titleLoading: titleLoading,
+        specialCat: legacySpecialCat,
+      );
+    } else {
+      body = const SizedBox.shrink();
+    }
+
+    return HomeSectionSlot(
+      loading: loading,
+      minHeight: 240,
+      shimmer: Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(title: title, isLoading: titleLoading),
-            Builder(
-              builder: (context) => HomeShimmer.horizontalProducts(
-                height: Responsive.horizontalProductRailHeight(context),
-              ),
-            ),
+            AppLoading.productRail,
           ],
         ),
       ),
-      error: (e, _) => HomeSectionErrorCard(
-        title: 'Unable to load products',
-        subtitle: 'Pull to refresh or try again in a moment.',
-        onRetry: () => ref.invalidate(provider),
-      ),
-      data: (products) {
-        if (products.isNotEmpty) {
-          return _RailWithProducts(
-            title: title,
-            titleLoading: titleLoading,
-            products: products,
-            heroScope: 'home-rail-$legacySpecialCat',
-          );
-        }
-        return _LegacyRail(
-          title: title,
-          titleLoading: titleLoading,
-          specialCat: legacySpecialCat,
-        );
-      },
+      child: body,
     );
   }
 }
@@ -587,18 +853,31 @@ class _LegacyRail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(specialCatProductsProvider(specialCat));
-    return async.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (products) {
-        if (products.isEmpty) return const SizedBox.shrink();
-        return _RailWithProducts(
-          title: title,
-          titleLoading: titleLoading,
-          products: products,
-          heroScope: 'home-rail-$specialCat',
-        );
-      },
+    final loading = async.isLoading && !async.hasValue;
+    if (async.hasError && !async.hasValue) {
+      return const SizedBox.shrink();
+    }
+    final products = async.asData?.value ?? const <ProductModel>[];
+    return HomeSectionSlot(
+      loading: loading,
+      hideWhenEmpty: true,
+      isEmpty: products.isEmpty,
+      minHeight: 240,
+      shimmer: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(title: title, isLoading: titleLoading),
+            AppLoading.productRail,
+          ],
+        ),
+      ),
+      child: _RailWithProducts(
+        title: title,
+        titleLoading: titleLoading,
+        products: products,
+      ),
     );
   }
 }
@@ -607,13 +886,11 @@ class _RailWithProducts extends StatelessWidget {
   const _RailWithProducts({
     required this.title,
     required this.products,
-    required this.heroScope,
     this.titleLoading = false,
   });
 
   final String title;
   final bool titleLoading;
-  final String heroScope;
   final List<ProductModel> products;
 
   @override
@@ -627,13 +904,16 @@ class _RailWithProducts extends StatelessWidget {
           SectionHeader(title: title, isLoading: titleLoading),
           HorizontalProductRail(
             height: h,
+            itemExtent: HomeProductCard.railExtent,
             itemCount: products.length,
             separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, i) => HomeProductCard(
-              product: products[i],
-              heroScope: heroScope,
-              heroIndex: i,
-            ),
+            itemBuilder: (_, i) {
+              final p = products[i];
+              return HomeProductCard(
+                key: ValueKey('rail-${p.id}-$title'),
+                product: p,
+              );
+            },
           ),
         ],
       ),
@@ -645,28 +925,6 @@ class _RailWithProducts extends StatelessWidget {
 //  STATUS / GLOBAL OVERLAYS
 // ──────────────────────────────────────────────────────────────────────────
 
-class _ServiceabilityLoading extends StatelessWidget {
-  const _ServiceabilityLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text(context.l10n.checking_service_availability),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _OfflineView extends StatelessWidget {
   const _OfflineView({required this.onRetry});
   final VoidCallback onRetry;
@@ -674,51 +932,12 @@ class _OfflineView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppSurface.of(context).scaffold,
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.wifi_off, size: 80, color: Colors.grey[400]),
-                const SizedBox(height: 24),
-                Text(
-                  'No Internet connection',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Please check your internet connection and try again',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: onRetry,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColor.primary,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
-                    ),
-                  ),
-                  child: const Text(
-                    'Retry',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        top: false,
+        bottom: false,
+        child: OfflineLoadingView(
+          onRetry: onRetry,
         ),
       ),
     );

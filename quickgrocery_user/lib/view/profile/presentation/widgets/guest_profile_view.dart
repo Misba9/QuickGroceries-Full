@@ -24,7 +24,7 @@ class GuestProfileView extends ConsumerWidget {
             .onSelectedChange(0);
       },
       child: Scaffold(
-        backgroundColor: AppSurface.background,
+        backgroundColor: AppSurface.of(context).background,
         body: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
@@ -52,11 +52,11 @@ class GuestProfileView extends ConsumerWidget {
                   children: [
                     CircleAvatar(
                       radius: 42,
-                      backgroundColor: Colors.white.withValues(alpha: 0.9),
+                      backgroundColor: Colors.black.withValues(alpha: 0.12),
                       child: Icon(
                         Icons.person_outline_rounded,
                         size: 44,
-                        color: Colors.grey.shade700,
+                        color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -87,6 +87,7 @@ class GuestProfileView extends ConsumerWidget {
                             GuestAuthGuard.requireAuth(context, ref),
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.black87,
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -96,6 +97,7 @@ class GuestProfileView extends ConsumerWidget {
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w700,
                             fontSize: 15,
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -108,6 +110,9 @@ class GuestProfileView extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
+                  const ProfileAppUpdateSection(),
+                  const ProfileAppearanceSection(),
+                  const SizedBox(height: 16),
                   const ProfileLanguageSection(),
                   const SizedBox(height: 16),
                   const ProfileSupportSection(),

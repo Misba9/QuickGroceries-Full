@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/constants/app_spacing.dart';
+import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 
 class CategorySelectionTile extends StatelessWidget {
   const CategorySelectionTile({
@@ -30,7 +31,14 @@ class CategorySelectionTile extends StatelessWidget {
               color: isSelected
                   ? AppColor.primary.withValues(alpha: 0.2)
                   : Colors.grey.shade200,
-              image: DecorationImage(image: NetworkImage(image)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: CachedImage(
+              url: image,
+              width: double.infinity,
+              height: 60,
+              fit: BoxFit.cover,
+              memCacheWidth: 200,
             ),
           ),
         ),

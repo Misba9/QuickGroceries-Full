@@ -14,13 +14,14 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/navigation/home_tab_observer.dart';
+import 'package:quickgrocery/core/startup/startup_isolate_parse.dart';
 import 'package:quickgrocery/models/banner_model.dart';
 import 'package:quickgrocery/models/category_model.dart';
 import 'package:quickgrocery/models/customer_model.dart';
 import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/home/screens/home_screen.dart';
 import 'package:quickgrocery/view/offers/presentation/screens/offers_screen.dart';
-import 'package:quickgrocery/view/orders/orders_screen.dart';
+import 'package:quickgrocery/view/ai_chat/presentation/screens/ai_chat_screen.dart';
 import 'package:quickgrocery/view/profile/screens/profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -111,27 +112,25 @@ class HomeProvider extends ChangeNotifier {
     const HomeScreen(),
     const MainCategoryViewScreen(),
     const OffersScreen(),
-    const OrdersScreeen(),
+    const AiChatScreen(),
     const ProfileScreen(),
   ];
 
   Future<void> fetchProducts() async {
     if (products == null) {
       try {
-        QuerySnapshot snapshot = await FirebaseFirestore.instance
+        final snapshot = await FirebaseFirestore.instance
             .collection('products')
+            .orderBy(FieldPath.documentId)
+            .limit(300)
             .get();
 
-        // Map Firestore documents to ProductModel list
-        products = snapshot.docs
-            .map((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              return ProductModel.fromFirestore(data, doc.id);
-            })
-            .where((p) => p.isAvailable)
-            .toList();
+        products = await StartupIsolateParse.parseProductsFromUntypedSnapshot(
+          snapshot,
+          onlyAvailable: true,
+        );
 
-        // Filter special categories
+        // Filter special categories (cheap list scans — already parsed).
         todaysSnack = products!
             .where(
               (product) =>
@@ -154,7 +153,7 @@ class HomeProvider extends ChangeNotifier {
 
         notifyListeners();
       } catch (e) {
-        debugPrint("Error fetching products: $e");
+        if (kDebugMode) debugPrint("Error fetching products: $e");
       }
     }
   }
@@ -162,18 +161,16 @@ class HomeProvider extends ChangeNotifier {
   // Force refresh products (clears cache)
   Future<void> refreshProducts() async {
     try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
+      final snapshot = await FirebaseFirestore.instance
           .collection('products')
+          .orderBy(FieldPath.documentId)
+          .limit(300)
           .get();
 
-      // Map Firestore documents to ProductModel list
-      products = snapshot.docs
-          .map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return ProductModel.fromFirestore(data, doc.id);
-          })
-          .where((p) => p.isAvailable)
-          .toList();
+      products = await StartupIsolateParse.parseProductsFromUntypedSnapshot(
+        snapshot,
+        onlyAvailable: true,
+      );
 
       // Filter special categories
       todaysSnack = products!
@@ -198,7 +195,7 @@ class HomeProvider extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      debugPrint("Error refreshing products: $e");
+      if (kDebugMode) debugPrint("Error refreshing products: $e");
     }
   }
 
@@ -251,6 +248,7 @@ class HomeProvider extends ChangeNotifier {
     try {
       final snap = await FirebaseFirestore.instance
           .collection('categories')
+          .limit(100)
           .get();
 
       final fresh = <CategoryModel>[];
@@ -258,7 +256,9 @@ class HomeProvider extends ChangeNotifier {
         try {
           fresh.add(CategoryModel.fromFirestore(doc.data(), doc.id));
         } catch (e) {
-          debugPrint('[HomeProvider] category parse fail ${doc.id}: $e');
+          if (kDebugMode) {
+            debugPrint('[HomeProvider] category parse fail ${doc.id}: $e');
+          }
         }
       }
 
@@ -274,9 +274,11 @@ class HomeProvider extends ChangeNotifier {
         ..clear()
         ..addAll(fresh);
       notifyListeners();
-      debugPrint('[HomeProvider] categories loaded: ${categories.length}');
+      if (kDebugMode) {
+        debugPrint('[HomeProvider] categories loaded: ${categories.length}');
+      }
     } catch (e) {
-      debugPrint('[HomeProvider] error loading categories: $e');
+      if (kDebugMode) debugPrint('[HomeProvider] error loading categories: $e');
     }
   }
 
@@ -285,6 +287,7 @@ class HomeProvider extends ChangeNotifier {
       try {
         QuerySnapshot querySnapshot = await FirebaseFirestore.instance
             .collection('banners')
+            .limit(50)
             .get();
 
         for (var doc in querySnapshot.docs) {
@@ -325,10 +328,13 @@ class HomeProvider extends ChangeNotifier {
 
   Future<void> getLocationAndAddress() async {
     try {
-      // Request location permission
-      await Geolocator.requestPermission();
+      // Only resolve GPS when already authorized — never prompt from HomeProvider.
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
 
-      // Get current position
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );

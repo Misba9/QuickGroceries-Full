@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 /// Sticky checkout / place-order dock with a centered amount and full-width CTA.
 class CheckoutBottomBar extends StatelessWidget {
@@ -34,6 +35,7 @@ class CheckoutBottomBar extends StatelessWidget {
     final hasAmount = (amountLine ?? '').isNotEmpty;
     final hasHint = (secondaryHint ?? '').isNotEmpty;
 
+    final surface = AppSurface.of(context);
     return SafeArea(
       top: false,
       child: Align(
@@ -43,15 +45,15 @@ class CheckoutBottomBar extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: AppBreakpoints.contentMaxWidth),
           child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: surface.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           boxShadow: [
             BoxShadow(
               blurRadius: 10,
-              color: Colors.black12,
-              offset: Offset(0, -4),
+              color: surface.shadow,
+              offset: const Offset(0, -4),
             ),
           ],
         ),
@@ -72,10 +74,10 @@ class CheckoutBottomBar extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppSurface.textSecondary,
+                  color: AppSurface.of(context).textSecondary,
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               SizedBox(
                 width: double.infinity,
                 child: Center(
@@ -102,7 +104,7 @@ class CheckoutBottomBar extends StatelessWidget {
                         style: GoogleFonts.poppins(
                           fontSize: 34,
                           fontWeight: FontWeight.w900,
-                          color: AppSurface.text,
+                          color: AppSurface.of(context).text,
                           letterSpacing: -0.8,
                         ),
                       ),
@@ -137,7 +139,7 @@ class _HintStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = isError ? AppSurface.danger : AppSurface.textSecondary;
+    final c = isError ? AppSurface.of(context).danger : AppSurface.of(context).textSecondary;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -207,16 +209,7 @@ class _PrimaryCta extends StatelessWidget {
               ),
               child: Center(
                 child: loading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.4,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
-                          ),
-                        ),
-                      )
+                    ? const SizedBox(width: 22, height: 22, child: AppLoading.micro)
                     : Text(
                         label,
                         textAlign: TextAlign.center,

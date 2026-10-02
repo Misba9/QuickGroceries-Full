@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quick_grocery_geo/quick_grocery_geo.dart';
 
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import '../../domain/order_models.dart';
 
 class OrderNavigationActions extends StatelessWidget {
@@ -27,14 +28,11 @@ class OrderNavigationActions extends StatelessWidget {
     );
     if (!context.mounted) return;
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            label == null
-                ? 'Location coordinates are unavailable.'
-                : '$label coordinates are unavailable.',
-          ),
-        ),
+      AppSnackBar.error(
+        label == null
+            ? 'Location coordinates are unavailable.'
+            : '$label coordinates are unavailable.',
+        context: context,
       );
     }
   }

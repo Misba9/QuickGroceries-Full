@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:quickgrocery/core/permissions/app_permission_coordinator.dart';
 import 'package:quickgrocery/core/push/push_navigation.dart';
 
 /// Data-only FCM from Cloud Functions is the sole tray display path for ops pushes.
@@ -68,24 +67,38 @@ class FcmPushInitializer {
       }
     }
 
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      if (!await AppPermissionCoordinator.notificationAlreadyAsked()) {
-        await _plugin
-            .resolvePlatformSpecificImplementation<
-                IOSFlutterLocalNotificationsPlugin>()
-            ?.requestPermissions(
-              alert: true,
-              badge: true,
-              sound: true,
-            );
+    // Do not request notification permissions here — wait until Home is ready.
+    _initialized = true;
+
+    // Cold start from data-only local tray — FCM getInitialMessage is empty.
+    try {
+      final launch = await _plugin.getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp == true) {
+        final p = launch!.notificationResponse?.payload;
+        if (p != null && p.isNotEmpty) {
+          final map = jsonDecode(p) as Map<String, dynamic>;
+          enqueuePushNavigation(map);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[UserNotify] launch details skipped: $e');
       }
     }
+  }
 
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      await AppPermissionCoordinator.requestAndroidNotificationOnce();
-    }
-
-    _initialized = true;
+  /// iOS local-notification permission — only from post-launch coordinator.
+  static Future<void> requestIosLocalNotificationPermission() async {
+    if (kIsWeb) return;
+    await ensureInitialized();
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
   }
 
   static void _onNotificationTap(NotificationResponse response) {

@@ -80,16 +80,16 @@ class StickySearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppSurface.background,
+      color: AppSurface.of(context).background,
       elevation: elevated ? 3 : 0,
       shadowColor: Colors.black.withValues(alpha: 0.1),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppSurface.background,
+          color: AppSurface.of(context).background,
           border: elevated
               ? Border(
                   bottom: BorderSide(
-                    color: AppSurface.border.withValues(alpha: 0.85),
+                    color: AppSurface.of(context).border.withValues(alpha: 0.85),
                     width: 0.6,
                   ),
                 )
@@ -159,16 +159,16 @@ class StickySearchBarDelegate extends SliverPersistentHeaderDelegate {
         : topPadding;
 
     return Material(
-      color: AppSurface.background,
+      color: AppSurface.of(context).background,
       elevation: elevation,
       shadowColor: Colors.black.withValues(alpha: 0.1),
       child: Container(
         decoration: BoxDecoration(
-          color: AppSurface.background,
+          color: AppSurface.of(context).background,
           border: isStuck
               ? Border(
                   bottom: BorderSide(
-                    color: AppSurface.border.withValues(alpha: 0.35 + 0.5 * t),
+                    color: AppSurface.of(context).border.withValues(alpha: 0.35 + 0.5 * t),
                     width: 0.6,
                   ),
                 )

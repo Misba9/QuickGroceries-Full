@@ -9,6 +9,8 @@ import 'package:quickgrocery/view/home/presentation/widgets/guest_mode_banner.da
 import 'package:quickgrocery/maintenance/presentation/widgets/maintenance_gate.dart';
 import 'package:quickgrocery/view/delivery/presentation/delivery_pricing_update_listener.dart';
 import 'package:quickgrocery/view/home/provider/home_provider.dart';
+import 'package:quickgrocery/core/review/order_review_bootstrap.dart';
+import 'package:quickgrocery/core/update/update_bootstrap.dart';
 import 'package:quickgrocery/view/offers/presentation/widgets/promotion_popup_bootstrap.dart';
 
 class LandingScreen extends ConsumerStatefulWidget {
@@ -19,6 +21,9 @@ class LandingScreen extends ConsumerStatefulWidget {
 }
 
 class _LandingScreenState extends ConsumerState<LandingScreen> {
+  /// Build Home immediately; other tabs on first visit (keeps memory lower).
+  final Set<int> _mountedTabs = {0};
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -39,48 +44,66 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
           provider.onSelectedChange(0);
           return;
         }
-        // Home tab on Android: move task to background (Blinkit/Zepto-style).
         await AndroidAppBackground.moveTaskToBack();
       },
       child: MaintenanceGate(
-        child: legacy.Consumer<HomeProvider>(
-          builder: (context, provider, _) {
+        child: legacy.Selector<HomeProvider, int>(
+          selector: (_, p) => p.selectedIndex,
+          builder: (context, selectedIndex, _) {
+            if (!_mountedTabs.contains(selectedIndex)) {
+              // Defer setState — never mutate the set during build.
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted || _mountedTabs.contains(selectedIndex)) return;
+                setState(() => _mountedTabs.add(selectedIndex));
+              });
+            }
+            final provider =
+                legacy.Provider.of<HomeProvider>(context, listen: false);
             final pages = provider.pages;
-            final selected = provider.selectedIndex;
             return Scaffold(
-              body: Column(
-                children: [
-                  SafeArea(
-                    bottom: false,
-                    child: const GuestModeBanner(),
-                  ),
-                  Expanded(
-                    child: DeliveryPricingUpdateListener(
-                      child: PromotionPopupBootstrap(
-                        child: IndexedStack(
-                          key: ValueKey<String>('tabs-$localeKey'),
-                          index: selected,
-                          children: [
-                            // IndexedStack keeps every tab mounted. Only
-                            // HeroMode actually drops offstage heroes from
-                            // the navigator's flight scan; a second
-                            // HeroController does not.
-                            for (var i = 0; i < pages.length; i++)
-                              HeroMode(
-                                enabled: i == selected,
-                                child: pages[i],
+              body: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    const GuestModeBanner(),
+                    Expanded(
+                      // Background shells are no-ops until
+                      // [PostHomeStartup.homeVisible] — they must not delay
+                      // the first Home paint.
+                      child: DeliveryPricingUpdateListener(
+                        child: AppUpdateBootstrap(
+                          child: OrderReviewBootstrap(
+                            child: PromotionPopupBootstrap(
+                              child: IndexedStack(
+                                key: ValueKey<String>('tabs-$localeKey'),
+                                index: selectedIndex,
+                                children: [
+                                  for (var i = 0; i < pages.length; i++)
+                                    HeroMode(
+                                      enabled: selectedIndex == i,
+                                      child: _mountedTabs.contains(i)
+                                          ? pages[i]
+                                          : const SizedBox.shrink(),
+                                    ),
+                                ],
                               ),
-                          ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               bottomNavigationBar: PremiumFiveTabNav(
                 key: ValueKey<String>('nav-$localeKey'),
-                currentIndex: selected,
-                onTap: provider.onSelectedChange,
+                currentIndex: selectedIndex,
+                onTap: (i) {
+                  if (!_mountedTabs.contains(i)) {
+                    setState(() => _mountedTabs.add(i));
+                  }
+                  provider.onSelectedChange(i);
+                },
               ),
             );
           },

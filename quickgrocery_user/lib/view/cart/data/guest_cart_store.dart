@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -7,6 +8,7 @@ import 'package:quickgrocery/view/cart/domain/cart_models.dart';
 /// Local-only cart persistence for guest browsing sessions.
 abstract final class GuestCartStore {
   static const _key = 'guest_cart_items_v1';
+  static const _isolateThreshold = 8;
 
   static Future<void> saveItems(
     SharedPreferences prefs,
@@ -16,7 +18,10 @@ abstract final class GuestCartStore {
       await clear(prefs);
       return;
     }
-    final encoded = jsonEncode(items.map((e) => e.toMap()).toList());
+    final maps = items.map((e) => e.toMap()).toList(growable: false);
+    final encoded = maps.length < _isolateThreshold
+        ? jsonEncode(maps)
+        : await Isolate.run(() => jsonEncode(maps));
     await prefs.setString(_key, encoded);
   }
 
@@ -24,7 +29,9 @@ abstract final class GuestCartStore {
     final raw = prefs.getString(_key);
     if (raw == null || raw.isEmpty) return const [];
     try {
-      final list = jsonDecode(raw) as List<dynamic>;
+      final list = raw.length < 2048
+          ? jsonDecode(raw) as List<dynamic>
+          : await Isolate.run(() => jsonDecode(raw) as List<dynamic>);
       return list
           .map(
             (e) => CartItem.fromMap(

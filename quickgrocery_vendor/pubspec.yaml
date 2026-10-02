@@ -52,6 +52,10 @@ dependencies:
   flutter_local_notifications: ^18.0.1
   permission_handler: ^12.0.0
   vibration: ^2.0.0
+  firebase_remote_config: ^6.1.0
+  package_info_plus: ^8.3.0
+  in_app_update: ^4.2.5
+  http: ^1.3.0
   quick_grocery_receipt:
     path: ../packages/quick_grocery_receipt
   quick_grocery_geo:

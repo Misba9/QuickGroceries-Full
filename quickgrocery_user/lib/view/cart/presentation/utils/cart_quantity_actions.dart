@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as legacy;
 import 'dart:developer' as developer;
 
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/inventory/inventory_limit_messages.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 import 'package:quickgrocery/models/product.dart';
@@ -40,14 +40,14 @@ bool tryIncrementProductInCart(
       legacyCart.selectedProduct.where((p) => p.id == product.id).firstOrNull;
   final current = line?.itemCount ?? legacyLine?.itemCount ?? 0;
 
-  showTopErrorToast(
-    context,
+  AppSnackBar.error(
     InventoryLimitMessages.incrementBlocked(
       l10n: context.l10n,
       stock: line?.stock ?? legacyLine?.stock ?? product.stock,
       maxOrder: line?.maxOrder ?? legacyLine?.maxOrder ?? product.maxOrder,
       currentCount: current,
     ),
+    context: context,
   );
   return false;
 }
@@ -69,8 +69,7 @@ bool tryAddProductToCart(
 
   _trace('add blocked: productId=${product.id}');
 
-  showTopErrorToast(
-    context,
+  AppSnackBar.error(
     product.isOutOfStock
         ? InventoryLimitMessages.outOfStock(context.l10n)
         : InventoryLimitMessages.incrementBlocked(
@@ -79,6 +78,7 @@ bool tryAddProductToCart(
             maxOrder: product.maxOrder,
             currentCount: product.effectiveMaxQuantity,
           ),
+    context: context,
   );
   return false;
 }

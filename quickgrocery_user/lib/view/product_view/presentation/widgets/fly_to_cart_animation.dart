@@ -37,6 +37,7 @@ class FlyToCart {
     overlay.insert(entry);
     await Future.delayed(const Duration(milliseconds: 720));
     entry.remove();
+    entry.dispose();
   }
 }
 

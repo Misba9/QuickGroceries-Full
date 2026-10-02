@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 
 import '../design/app_tokens.dart';
-import '../design/app_typography.dart';
 
 class ModernBottomNavItem {
   const ModernBottomNavItem({
@@ -46,21 +46,23 @@ class ModernBottomNav extends StatefulWidget {
 class _ModernBottomNavState extends State<ModernBottomNav> {
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
+    final isDark = context.isDarkTheme;
     return Material(
-      color: Colors.white,
+      color: surface.card,
       elevation: 0,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface.card,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
+              color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.06),
               blurRadius: 24,
-              offset: const Offset(0, -6),
+              offset: Offset(0, -6),
             ),
           ],
           border: Border(
-            top: BorderSide(color: AppSurface.border, width: 0.6),
+            top: BorderSide(color: surface.border, width: 0.6),
           ),
         ),
         padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
@@ -131,14 +133,15 @@ class _NavTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = AppColor.primary;
-    final iconColor = selected ? Colors.black : Colors.grey.shade500;
+    final surface = AppSurface.of(context);
+    final iconColor =
+        selected ? surface.iconActive : surface.iconInactive;
 
     return InkResponse(
       radius: 38,
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: EdgeInsets.symmetric(vertical: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -162,7 +165,7 @@ class _NavTab extends StatelessWidget {
                           )
                         : Icon(
                             selected ? (item.activeIcon ?? item.icon) : item.icon,
-                            color: selected ? activeColor : iconColor,
+                            color: selected ? AppColor.primary : iconColor,
                             size: selected ? 24 : 22,
                           ),
                   ),
@@ -181,9 +184,10 @@ class _NavTab extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: AppTypography.caption.copyWith(
+              style: GoogleFonts.poppins(
+                fontSize: 10.5,
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                color: selected ? AppSurface.textPrimary : AppSurface.textMuted,
+                color: selected ? surface.textPrimary : surface.textMuted,
               ),
             ),
           ],
@@ -199,21 +203,27 @@ class _Badge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return AnimatedSwitcher(
       duration: AppMotion.short,
       child: Container(
         key: ValueKey(count),
-        constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+        constraints: BoxConstraints(minWidth: 18, minHeight: 18),
         padding: const EdgeInsets.symmetric(horizontal: 5),
         decoration: BoxDecoration(
-          color: AppSurface.danger,
+          color: surface.danger,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white, width: 1.5),
+          border: Border.all(color: surface.card, width: 1.5),
         ),
         alignment: Alignment.center,
         child: Text(
           count > 99 ? '99+' : '$count',
-          style: AppTypography.badge,
+          style: GoogleFonts.poppins(
+            fontSize: 9.5,
+            fontWeight: FontWeight.w800,
+            color: surface.onDanger,
+            height: 1.2,
+          ),
         ),
       ),
     );

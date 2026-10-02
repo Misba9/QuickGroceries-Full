@@ -1,3 +1,4 @@
+import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,12 +14,12 @@ import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/address/services/address_service.dart';
 import 'package:quickgrocery/view/cart/domain/cart_models.dart';
 import 'package:quickgrocery/view/cart/domain/pricing_calculator.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/inventory/inventory_limit_messages.dart';
 import 'package:quickgrocery/view/cart/presentation/providers/cart_notifier.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/cart_header.dart';
-import 'package:quickgrocery/view/cart/presentation/widgets/cart_shimmer.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/free_delivery_banner.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/premium_bill_card.dart';
 import 'package:quickgrocery/view/cart/presentation/widgets/premium_cart_item_card.dart';
@@ -37,7 +38,7 @@ import 'package:quickgrocery/core/localization/l10n_extension.dart';
 /// Scaffold
 ///  ├ body: SafeArea(bottom: false) → Column
 ///  │   ├ CartHeader
-///  │   └ Expanded(CustomScrollView / empty / shimmer)
+///  │   └ Expanded(CustomScrollView / empty / category loader)
 ///  └ bottomNavigationBar: PremiumCheckoutBar (when cart non-empty)
 /// ```
 ///
@@ -92,11 +93,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final zoneCharge = zoneAsync.value ?? 0;
     final bill = _bill(cart, zoneCharge);
 
-    final showShimmer = cart.isHydrating && cart.isEmpty;
+    final showLoader = cart.isHydrating && cart.isEmpty;
     final showEmpty = !cart.isHydrating && cart.isEmpty;
 
     return Scaffold(
-      backgroundColor: AppSurface.background,
+      backgroundColor: AppSurface.of(context).background,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         bottom: false,
@@ -111,8 +112,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
             ),
             Expanded(
-              child: showShimmer
-                  ? const CartShimmer()
+              child: showLoader
+                  ? AppLoading.center
                   : showEmpty
                       ? PremiumEmptyCart(
                           onBrowse: () => Navigator.maybePop(context),
@@ -189,20 +190,20 @@ class _CartBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      color: AppSurface.success,
+      color: AppSurface.of(context).success,
       onRefresh: () async {
         await addressService.getAddress();
       },
       child: CustomScrollView(
         keyboardDismissBehavior:
             ScrollViewKeyboardDismissBehavior.onDrag,
-        physics: const AlwaysScrollableScrollPhysics(
+        physics: AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 12, Responsive.of(context).horizontalInset(), 0),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
               child: FreeDeliveryBanner(
                 subtotal: bill.subtotal,
                 threshold: cart.pricing.freeDeliveryThreshold.toDouble(),
@@ -217,7 +218,7 @@ class _CartBody extends StatelessWidget {
           if (cart.errorMessage != null)
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 10, Responsive.of(context).horizontalInset(), 0),
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
                 child: _InlineError(
                   message: cart.errorMessage!,
                   onRetry: notifier.retry,
@@ -225,33 +226,28 @@ class _CartBody extends StatelessWidget {
               ),
             ),
           if (zoneAsync.isLoading)
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 8, Responsive.of(context).horizontalInset(), 0),
-                child: LinearProgressIndicator(
-                  minHeight: 2,
-                  backgroundColor: AppSurface.subtle,
+                padding: EdgeInsets.fromLTRB(14, 8, 14, 0),
+                child: SizedBox(
+                  height: 28,
+                  child: AppLoading.micro,
                 ),
               ),
             ),
           if (cart.items.any((e) => e.isUnavailable))
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 12, Responsive.of(context).horizontalInset(), 0),
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
                 child: _UnavailableCartBanner(
                   onRemoveUnavailable: () {
                     final n = notifier.removeUnavailableItems();
                     if (context.mounted && n > 0) {
-                      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            n == 1
-                                ? 'Removed 1 unavailable item'
-                                : 'Removed $n unavailable items',
-                          ),
-                          behavior: SnackBarBehavior.floating,
-                          margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        ),
+                      AppSnackBar.success(
+                        n == 1
+                            ? 'Removed 1 unavailable item'
+                            : 'Removed $n unavailable items',
+                        context: context,
                       );
                     }
                   },
@@ -260,7 +256,7 @@ class _CartBody extends StatelessWidget {
             ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 18, Responsive.of(context).horizontalInset(), 8),
+              padding: EdgeInsets.fromLTRB(14, 18, 14, 8),
               child: Row(
                 children: [
                   Text(
@@ -268,42 +264,42 @@ class _CartBody extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w800,
-                      color: AppSurface.text,
+                      color: AppSurface.of(context).text,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 7,
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppSurface.subtle,
+                      color: AppSurface.of(context).subtle,
                       borderRadius: BorderRadius.circular(99),
                     ),
                     child: Text(
                       '${cart.items.length}',
                       style: GoogleFonts.poppins(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: AppSurface.textSecondary,
+                        color: AppSurface.of(context).textSecondary,
                       ),
                     ),
                   ),
-                  const Spacer(),
+                  Spacer(),
                   TextButton.icon(
                     onPressed: () => _confirmClear(context),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.delete_sweep_outlined,
                       size: 18,
-                      color: AppSurface.danger,
+                      color: AppSurface.of(context).danger,
                     ),
                     label: Text(
                       'Clear all',
                       style: GoogleFonts.poppins(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
-                        color: AppSurface.danger,
+                        color: AppSurface.of(context).danger,
                       ),
                     ),
                     style: TextButton.styleFrom(
@@ -321,30 +317,31 @@ class _CartBody extends StatelessWidget {
             ),
           ),
           SliverPadding(
-            padding: EdgeInsets.symmetric(
-              horizontal: Responsive.of(context).horizontalInset(),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, i) {
                   final item = cart.items[i];
-                  return PremiumCartItemCard(
-                    item: item,
-                    lineIndex: i,
-                    onIncrement: () {
-                      if (notifier.increment(item.productId)) return;
-                      showTopErrorToast(
-                        context,
-                        InventoryLimitMessages.incrementBlocked(
-                          l10n: context.l10n,
-                          stock: item.stock,
-                          maxOrder: item.maxOrder,
-                          currentCount: item.itemCount,
-                        ),
-                      );
-                    },
-                    onDecrement: () => notifier.decrement(item.productId),
-                    onRemove: () => notifier.remove(item.productId),
+                  return FadeInUp(
+                    duration: Duration(milliseconds: 220 + i * 30),
+                    from: 14,
+                    child: PremiumCartItemCard(
+                      item: item,
+                      onIncrement: () {
+                        if (notifier.increment(item.productId)) return;
+                        AppSnackBar.error(
+                          InventoryLimitMessages.incrementBlocked(
+                            l10n: context.l10n,
+                            stock: item.stock,
+                            maxOrder: item.maxOrder,
+                            currentCount: item.itemCount,
+                          ),
+                          context: context,
+                        );
+                      },
+                      onDecrement: () => notifier.decrement(item.productId),
+                      onRemove: () => notifier.remove(item.productId),
+                    ),
                   );
                 },
                 childCount: cart.items.length,
@@ -353,7 +350,7 @@ class _CartBody extends StatelessWidget {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 8, Responsive.of(context).horizontalInset(), 0),
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
               child: PremiumBillCard(
                 bill: bill,
                 pricing: cart.pricing,
@@ -364,11 +361,7 @@ class _CartBody extends StatelessWidget {
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          SliverToBoxAdapter(
-            child: HeroControllerScope.none(
-              child: _YouMightAlsoLikeRail(),
-            ),
-          ),
+          SliverToBoxAdapter(child: _YouMightAlsoLikeRail()),
           // Bottom breathing room so the last card never sits flush
           // against the checkout bar's top divider.
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
@@ -388,14 +381,14 @@ class _CartBody extends StatelessWidget {
               'Clear cart?',
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w800,
-                color: AppSurface.text,
+                color: AppSurface.of(context).text,
               ),
             ),
             content: Text(
               'This will remove all items from your bag. Are you sure?',
               style: GoogleFonts.poppins(
                 fontSize: 13,
-                color: AppSurface.textSecondary,
+                color: AppSurface.of(context).textSecondary,
                 height: 1.4,
               ),
             ),
@@ -406,7 +399,7 @@ class _CartBody extends StatelessWidget {
                   'Cancel',
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w700,
-                    color: AppSurface.textSecondary,
+                    color: AppSurface.of(context).textSecondary,
                   ),
                 ),
               ),
@@ -416,7 +409,7 @@ class _CartBody extends StatelessWidget {
                   'Clear',
                   style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w800,
-                    color: AppSurface.danger,
+                    color: AppSurface.of(context).danger,
                   ),
                 ),
               ),
@@ -442,27 +435,27 @@ class _InlineError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      padding: EdgeInsets.fromLTRB(12, 10, 8, 10),
       decoration: BoxDecoration(
-        color: AppSurface.danger.withValues(alpha: 0.08),
+        color: AppSurface.of(context).danger.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppRadii.sm),
         border: Border.all(
-          color: AppSurface.danger.withValues(alpha: 0.30),
+          color: AppSurface.of(context).danger.withValues(alpha: 0.30),
         ),
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.error_outline_rounded,
-            color: AppSurface.danger,
+            color: AppSurface.of(context).danger,
             size: 18,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
               style: GoogleFonts.poppins(
-                color: AppSurface.danger,
+                color: AppSurface.of(context).danger,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
                 height: 1.3,
@@ -479,7 +472,7 @@ class _InlineError extends StatelessWidget {
               child: Text(
                 'Retry',
                 style: GoogleFonts.poppins(
-                  color: AppSurface.danger,
+                  color: AppSurface.of(context).danger,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -512,26 +505,26 @@ class _YouMightAlsoLikeRail extends StatelessWidget {
         }
 
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: EdgeInsets.symmetric(vertical: 4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(Responsive.of(context).horizontalInset(), 8, Responsive.of(context).horizontalInset(), 8),
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.auto_awesome_rounded,
                       size: 18,
-                      color: AppSurface.text,
+                      color: AppSurface.of(context).text,
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: 6),
                     Text(
                       context.l10n.you_might_also_like,
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: AppSurface.text,
+                        color: AppSurface.of(context).text,
                       ),
                     ),
                   ],
@@ -551,8 +544,6 @@ class _YouMightAlsoLikeRail extends StatelessWidget {
                       child: HomeProductCard(
                         product: p,
                         width: Responsive.of(context).isPhone ? 148 : 158,
-                        heroScope: 'cart-suggest',
-                        heroIndex: j,
                       ),
                     );
                   },
@@ -574,23 +565,23 @@ class _UnavailableCartBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppSurface.danger.withValues(alpha: 0.08),
+        color: AppSurface.of(context).danger.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: AppSurface.danger.withValues(alpha: 0.25)),
+        border: Border.all(color: AppSurface.of(context).danger.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: AppSurface.danger, size: 22),
-          const SizedBox(width: 10),
+          Icon(Icons.warning_amber_rounded, color: AppSurface.of(context).danger, size: 22),
+          SizedBox(width: 10),
           Expanded(
             child: Text(
               'Some items are unavailable. Remove them to continue checkout.',
               style: GoogleFonts.poppins(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: AppSurface.danger,
+                color: AppSurface.of(context).danger,
               ),
             ),
           ),
@@ -600,7 +591,7 @@ class _UnavailableCartBanner extends StatelessWidget {
               'Remove',
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w700,
-                color: AppSurface.danger,
+                color: AppSurface.of(context).danger,
               ),
             ),
           ),

@@ -3,6 +3,7 @@ import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/navigation/app_page_routes.dart';
 import 'package:quickgrocery/view/cart/services/cart_service.dart';
 import 'package:provider/provider.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class CartBottomBarWidget extends StatelessWidget {
@@ -45,12 +46,9 @@ class CartBottomBarWidget extends StatelessWidget {
                 return GestureDetector(
                   onTap: () {
                     if (double.parse(amount) < p.minumOrder) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Sorry!. We are taking Delivery Orders above ₹${p.minumOrder}',
-                          ),
-                        ),
+                      AppSnackBar.error(
+                        'Sorry!. We are taking Delivery Orders above ₹${p.minumOrder}',
+                        context: context,
                       );
                     } else {
                       Navigator.push(context, AppPageRoutes.checkout());

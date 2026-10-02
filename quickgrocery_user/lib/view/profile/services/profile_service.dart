@@ -1,20 +1,31 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ProfileService extends ChangeNotifier {
-  void shareReferralLink(String referralCode) {
+  /// HTTPS referral link (Universal Link / Hosting) — no Firebase Dynamic Links.
+  static const String _referralBaseUrl =
+      'https://www.quickgroceries.in/referral';
+
+  Future<String> createReferralLink(String referralCode) async {
+    final uri = Uri.parse(_referralBaseUrl).replace(
+      queryParameters: {'code': referralCode},
+    );
+    return uri.toString();
+  }
+
+  void shareReferralLink(String referralCode) async {
+    String link = await createReferralLink(referralCode);
     Share.share(
-      'Get groceries delivered fast with Quick Groceries. Use my referral code: $referralCode',
+      'Get groceries delivered fast. Use my referral code $referralCode '
+      'or link: $link',
     );
   }
 
   Future<double> getReferralProgress() async {
     FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-    // Get all referred customers
     QuerySnapshot referredCustomersSnapshot = await firestore
         .collection('customers')
         .where('referred_by', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
@@ -45,14 +56,9 @@ class ProfileService extends ChangeNotifier {
     return progress.clamp(0.0, 1.0);
   }
 
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-
   Future<void> init() async {
-    NotificationSettings settings = await _fcm.requestPermission();
-
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      String? token = await _fcm.getToken();
-      if (kDebugMode) debugPrint('FCM Token: $token');
-    }
+    // Notification permission is requested after Home is ready via
+    // [AppPermissionCoordinator.requestAfterAppReady] — do not prompt here.
+    if (kDebugMode) debugPrint('ProfileService.init: no permission prompt');
   }
 }

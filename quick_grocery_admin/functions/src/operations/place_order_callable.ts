@@ -1,5 +1,4 @@
 import * as admin from "firebase-admin";
-import { createHash } from "crypto";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { callableBaseOptions } from "../https_callable_options";
 import {
@@ -9,11 +8,23 @@ import {
   mergeTipIntoBill,
   validateTipAmount,
 } from "../delivery_tips/delivery_tips_engine";
-
-function hashId(value: string): string {
-  if (!value) return "";
-  return createHash("sha256").update(value).digest("hex").slice(0, 12);
-}
+import {
+  assertBillTotalMatches,
+  calculateCodConvenienceFee,
+  mergeCodFeeIntoBill,
+} from "../cod_fee/cod_fee_engine";
+import { getCodFeeSettings } from "../cod_fee/cod_fee_settings";
+import {
+  parseCodPaymentRestriction,
+  resolveCodEligibility,
+  clearedRestrictionWrite,
+} from "../cod_restrictions/cod_restriction_engine";
+import { verifyRazorpayCheckoutSignature, assertRazorpayPaymentCaptured } from "../payments/razorpay_api";
+import { razorpaySecretBindings } from "../payments/razorpay_config";
+import {
+  consumeRazorpayCheckoutOrder,
+  linkConsumedPaymentToGroceryOrder,
+} from "../payments/razorpay_orders_store";
 
 function num(v: unknown, fallback = 0): number {
   const n = Number(v);
@@ -75,49 +86,6 @@ function effectiveMax(stock: number, maxOrder: number): number {
   return maxOrder < stock ? maxOrder : stock;
 }
 
-function emergencyDisableCod(
-  maintenance: FirebaseFirestore.DocumentData,
-): boolean {
-  const emergency = maintenance.emergencyControls;
-  if (emergency && typeof emergency === "object") {
-    const e = emergency as Record<string, unknown>;
-    if (e.disableCod === true) return true;
-  }
-  return boolField(maintenance, ["disableCod"], false);
-}
-
-function accountBlocksCod(customer: Record<string, unknown> | undefined): boolean {
-  if (!customer) return false;
-  if (customer.codBlocked === true) return true;
-  if (customer.forceOnlinePayment === true) return true;
-  if (customer.allowCod === false || customer.codEnabled === false) return true;
-  return false;
-}
-
-async function markIdempotencyFailed(
-  db: FirebaseFirestore.Firestore,
-  uid: string,
-  idempotencyKey: string,
-  message: string,
-): Promise<void> {
-  if (!idempotencyKey) return;
-  try {
-    await db
-      .collection("order_idempotency")
-      .doc(`${uid}_${idempotencyKey}`)
-      .set(
-        {
-          status: "failed",
-          error: message.slice(0, 200),
-          failedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true },
-      );
-  } catch (err) {
-    console.error("placeOrderCallable idempotency fail mark", err);
-  }
-}
-
 function deliveryInstructionsPayload(data: unknown): {
   legacy: string;
   structured: Record<string, unknown>;
@@ -162,27 +130,15 @@ interface LineInput {
 
 /** Validates stock/max-order and places order atomically (decrements inventory). */
 export const placeOrderCallable = onCall(
-  { ...callableBaseOptions(), invoker: "public" },
+  {
+    ...callableBaseOptions(),
+    secrets: razorpaySecretBindings(),
+    invoker: "public",
+  },
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) {
       throw new HttpsError("unauthenticated", "Sign in to place an order.");
-    }
-    const idempotencyKeyEarly = str(req.data?.idempotencyKey);
-    console.log(
-      `[PlaceOrder] requestStarted uidHash=${hashId(uid)} keyHash=${hashId(idempotencyKeyEarly)}`,
-    );
-
-    const paymentMethod = str(req.data?.paymentMethod) || "cod";
-    const paymentRef = str(req.data?.paymentRef);
-    const razorpayOrderId = str(
-      req.data?.razorpayOrderId || req.data?.gatewayOrderId,
-    );
-    if (paymentMethod !== "cod" && paymentRef.length === 0) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Online payment was not confirmed. Your order was not placed.",
-      );
     }
 
     const rawItems = req.data?.items;
@@ -206,22 +162,6 @@ export const placeOrderCallable = onCall(
     const db = admin.firestore();
     const idempotencyKey = str(req.data?.idempotencyKey);
     let orderRef = db.collection("orders").doc();
-
-    if (paymentRef.length > 0) {
-      try {
-        const paidDup = await db
-          .collection("orders")
-          .where("uuid", "==", uid)
-          .where("razorpayPaymentId", "==", paymentRef)
-          .limit(1)
-          .get();
-        if (!paidDup.empty) {
-          return { orderId: paidDup.docs[0].id, duplicate: true };
-        }
-      } catch (err) {
-        console.error("placeOrderCallable paymentRef lookup", err);
-      }
-    }
 
     if (idempotencyKey.length > 0) {
       const idemRef = db
@@ -273,14 +213,17 @@ export const placeOrderCallable = onCall(
       validateTipAmount(tipAmount, tipSettings);
     }
     const billRaw = (req.data?.bill ?? {}) as Record<string, unknown>;
+    // Strip any client COD fee before tip merge so fee cannot be double-counted.
+    const billSansCodFee = mergeCodFeeIntoBill(billRaw, 0, "");
     const billWithTip =
-      tipAmount > 0 ? mergeTipIntoBill(billRaw, tipAmount) : billRaw;
+      tipAmount > 0 ? mergeTipIntoBill(billSansCodFee, tipAmount) : billSansCodFee;
 
     let profilePhone = "";
+    let customerRaw: Record<string, unknown> | undefined;
     const custSnap = await db.collection("customers").doc(uid).get();
     if (custSnap.exists) {
-      const c = custSnap.data() as Record<string, unknown>;
-      profilePhone = str(c.phone || c.phoneNumber || c.mobile);
+      customerRaw = custSnap.data() as Record<string, unknown>;
+      profilePhone = str(customerRaw.phone || customerRaw.phoneNumber || customerRaw.mobile);
     }
     if (!profilePhone) {
       const userSnap = await db.collection("users").doc(uid).get();
@@ -290,27 +233,139 @@ export const placeOrderCallable = onCall(
       }
     }
 
-    let duplicateOrderId = "";
+    const paymentMethod = str(req.data?.paymentMethod) || "cod";
+    const isOnline = paymentMethod !== "cod";
+
+    // Server-side COD eligibility — never trust the client.
+    if (!isOnline) {
+      const eligibility = resolveCodEligibility(
+        parseCodPaymentRestriction(customerRaw),
+      );
+      if (eligibility.expired && custSnap.exists) {
+        await custSnap.ref.set(
+          clearedRestrictionWrite("system", "Auto-expiry"),
+          { merge: true },
+        );
+      } else if (!eligibility.allowed) {
+        throw new HttpsError(
+          "failed-precondition",
+          eligibility.message ||
+            "Cash on Delivery is unavailable for your account. Please use Online Payment.",
+        );
+      }
+    }
+
+    const addressForFee = (req.data?.address ?? {}) as Record<string, unknown>;
+    const itemsForFee = [
+      ...(Array.isArray(req.data?.items)
+        ? (req.data.items as Record<string, unknown>[])
+        : []),
+      ...(Array.isArray(req.data?.comboItems)
+        ? (req.data.comboItems as Record<string, unknown>[])
+        : []),
+    ];
+    const vendorIdsForFee = [
+      ...new Set(
+        itemsForFee
+          .map((it) => str(it.vendorId ?? it.vendor_id))
+          .filter((id) => id.length > 0),
+      ),
+    ];
+    const categoriesForFee = [
+      ...new Set(
+        itemsForFee
+          .map((it) => str(it.category))
+          .filter((c) => c.length > 0),
+      ),
+    ];
+    const taxableForFee = Math.max(
+      0,
+      num(billWithTip.subtotal) - num(billWithTip.couponDiscount ?? billWithTip.discount),
+    );
+    const codSettings = await getCodFeeSettings();
+    const codFeeResult = calculateCodConvenienceFee(codSettings, {
+      paymentMethod,
+      orderAmount: taxableForFee,
+      userId: uid,
+      city: str(
+        addressForFee.city ??
+          addressForFee.City ??
+          addressForFee.area ??
+          addressForFee.district,
+      ),
+      vendorIds: vendorIdsForFee,
+      categories: categoriesForFee,
+    });
+    const billFinal = mergeCodFeeIntoBill(
+      billWithTip,
+      codFeeResult.fee,
+      codFeeResult.description,
+    );
+    try {
+      assertBillTotalMatches(billRaw, billFinal);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Order total mismatch.";
+      throw new HttpsError("invalid-argument", msg);
+    }
+
+    const razorpayPaymentId = str(
+      req.data?.razorpay_payment_id ?? req.data?.paymentRef,
+    );
+    const razorpayOrderId = str(req.data?.razorpay_order_id);
+    const razorpaySignature = str(req.data?.razorpay_signature);
+
+    let paymentRef = "";
+    let isPaid = false;
+
+    if (isOnline) {
+      const expectedPaise = Math.round(
+        num(billFinal.total ?? billFinal.grandTotal) * 100,
+      );
+      if (expectedPaise < 100) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Invalid payable amount for online payment.",
+        );
+      }
+
+      if (razorpayPaymentId && razorpayOrderId && razorpaySignature) {
+        verifyRazorpayCheckoutSignature({
+          orderId: razorpayOrderId,
+          paymentId: razorpayPaymentId,
+          signature: razorpaySignature,
+        });
+
+        const consumed = await consumeRazorpayCheckoutOrder({
+          uid,
+          razorpayOrderId,
+          paymentId: razorpayPaymentId,
+          expectedAmountPaise: expectedPaise,
+          purpose: "grocery_order",
+        });
+
+        if (consumed.alreadyConsumed && consumed.linkedOrderId) {
+          return { orderId: consumed.linkedOrderId, duplicate: true };
+        }
+      } else if (razorpayPaymentId) {
+        // Fallback when createRazorpayOrderCallable is not deployed yet:
+        // verify the payment directly with Razorpay Payments API.
+        await assertRazorpayPaymentCaptured({
+          paymentId: razorpayPaymentId,
+          expectedAmountPaise: expectedPaise,
+        });
+      } else {
+        throw new HttpsError(
+          "failed-precondition",
+          "Online payment requires a Razorpay payment id.",
+        );
+      }
+
+      paymentRef = razorpayPaymentId;
+      isPaid = true;
+    }
+
     try {
       await db.runTransaction(async (tx) => {
-        if (idempotencyKey.length > 0) {
-          const idemInTx = await tx.get(
-            db.collection("order_idempotency").doc(`${uid}_${idempotencyKey}`),
-          );
-          const existingOrderId = str(idemInTx.data()?.orderId);
-          if (existingOrderId) {
-            const existingOrder = await tx.get(
-              db.collection("orders").doc(existingOrderId),
-            );
-            if (existingOrder.exists) {
-              duplicateOrderId = existingOrderId;
-              return;
-            }
-          }
-        }
-        console.log(
-          `[PlaceOrder] idempotencyCheck keyHash=${hashId(idempotencyKey)}`,
-        );
         const systemSnap = await tx.get(
           db.collection("maintenance").doc("system"),
         );
@@ -364,25 +419,6 @@ export const placeOrderCallable = onCall(
           throw new HttpsError(
             "failed-precondition",
             "User app disabled by admin",
-          );
-        }
-        if (paymentMethod === "cod" && emergencyDisableCod(maintenance)) {
-          throw new HttpsError(
-            "failed-precondition",
-            "Cash on Delivery is currently unavailable. Please use Online Payment.",
-          );
-        }
-        if (
-          paymentMethod === "cod" &&
-          accountBlocksCod(
-            custSnap.exists
-              ? (custSnap.data() as Record<string, unknown>)
-              : undefined,
-          )
-        ) {
-          throw new HttpsError(
-            "failed-precondition",
-            "Cash on Delivery is unavailable for your account. Please use Online Payment.",
           );
         }
 
@@ -596,8 +632,7 @@ export const placeOrderCallable = onCall(
           ...addressRaw,
           mobile: orderPhone || addressMobile,
         };
-        const bill = billWithTip;
-        const isPaid = paymentMethod !== "cod" && paymentRef.length > 0;
+        const bill = billFinal;
         const slotRaw = req.data?.delivery_slot ?? req.data?.deliverySlot;
         const instr = deliveryInstructionsPayload(
           req.data?.delivery_instructions ?? req.data?.deliveryInstructions,
@@ -653,10 +688,10 @@ export const placeOrderCallable = onCall(
           ...(isPaid
             ? {
                 razorpayPaymentId: paymentRef,
+                razorpayOrderId,
                 transactionId: paymentRef,
                 paidAmount: num(bill.total ?? bill.grandTotal),
                 paidAt: admin.firestore.FieldValue.serverTimestamp(),
-                ...(razorpayOrderId ? { razorpayOrderId } : {}),
               }
             : {}),
           delivery_instructions: instr.legacy,
@@ -676,24 +711,11 @@ export const placeOrderCallable = onCall(
           ...(idempotencyKey.length > 0 ? { idempotencyKey } : {}),
         });
       });
-      if (duplicateOrderId) {
-        console.log(
-          `[PlaceOrder] duplicateDetected keyHash=${hashId(idempotencyKey)} orderId=${duplicateOrderId}`,
-        );
-        return { orderId: duplicateOrderId, duplicate: true };
-      }
     } catch (e) {
-      const message =
-        e instanceof HttpsError ? e.message : "Could not place order";
-      await markIdempotencyFailed(db, uid, idempotencyKey, message);
       if (e instanceof HttpsError) throw e;
       console.error("placeOrderCallable", e);
       throw new HttpsError("internal", "Could not place order");
     }
-
-    console.log(
-      `[PlaceOrder] orderCreated keyHash=${hashId(idempotencyKey)} orderId=${orderRef.id}`,
-    );
 
     const orderSnap = await orderRef.get();
     const orderData = orderSnap.data() as Record<string, unknown> | undefined;
@@ -724,9 +746,6 @@ export const placeOrderCallable = onCall(
         );
       }
       await batch.commit();
-      console.log(
-        `[PlaceOrder] vendorOrdersCreated keyHash=${hashId(idempotencyKey)} orderId=${orderRef.id}`,
-      );
     }
 
     if (idempotencyKey.length > 0) {
@@ -745,9 +764,14 @@ export const placeOrderCallable = onCall(
         );
     }
 
-    console.log(
-      `[PlaceOrder] completed keyHash=${hashId(idempotencyKey)} orderId=${orderRef.id}`,
-    );
+    if (isPaid && razorpayOrderId && paymentRef) {
+      await linkConsumedPaymentToGroceryOrder({
+        razorpayOrderId,
+        paymentId: paymentRef,
+        groceryOrderId: orderRef.id,
+      });
+    }
+
     return { orderId: orderRef.id };
   },
 );

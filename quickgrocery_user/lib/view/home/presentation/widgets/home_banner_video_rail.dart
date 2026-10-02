@@ -2,22 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart' as legacy;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
+import 'package:quickgrocery/core/navigation/product_navigation.dart';
 import 'package:quickgrocery/models/banner_model.dart';
-import 'package:quickgrocery/models/product.dart';
 import 'package:quickgrocery/view/category/screens/category_screen.dart';
-import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/home_banner_helpers.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/section_header.dart';
-import 'package:quickgrocery/view/home/presentation/widgets/home_shimmer.dart';
 import 'package:quickgrocery/view/home/presentation/providers/home_providers.dart';
-import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 /// Full-width promo strip for admin-uploaded MP4 banners (`banners/`).
@@ -99,8 +97,7 @@ class _HomeBannerVideoRailState extends ConsumerState<HomeBannerVideoRail> {
     final async = ref.watch(bannersStreamProvider);
 
     return async.when(
-      loading: () =>
-          HomeShimmer.videoRail(showHeader: widget.showHeader),
+      loading: () => AppLoading.banner,
       error: (_, __) => const SizedBox.shrink(),
       data: (banners) {
         final all = promoVideoBanners(banners);
@@ -287,31 +284,31 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
   Future<void> _handleTap(BuildContext context) async {
     final b = widget.banner;
     if (!b.hasRedirect) return;
-    switch (b.redirectType) {
+    switch (ProductNavigation.normalizeRedirectType(b.redirectType)) {
       case 'category':
+        final categoryId = b.redirectId.trim();
+        if (categoryId.isEmpty) {
+          AppSnackBar.error('Category unavailable', context: context);
+          return;
+        }
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => CategoryScreen(category: b.redirectId),
+            builder: (_) => CategoryScreen(category: categoryId),
           ),
         );
         break;
       case 'product':
-        final cartService =
-            legacy.Provider.of<CategoryService>(context, listen: false);
-        final ProductModel? product = cartService.allProducts
-            .where((p) => p.id == b.redirectId)
-            .cast<ProductModel?>()
-            .firstWhere((p) => p != null, orElse: () => null);
-        if (product != null && context.mounted) {
-          Navigator.push(context, AppPageRoutes.product(product));
-        }
+        await ProductNavigation.openProductById(context, b.redirectId);
         break;
       case 'url':
-        final uri = Uri.tryParse(b.redirectId);
+        final uri = Uri.tryParse(b.redirectId.trim());
         if (uri != null) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         }
+        break;
+      case 'offers_page':
+        // Spotlight videos typically deep-link products/categories; keep safe.
         break;
       default:
         break;
@@ -348,7 +345,7 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                ColoredBox(color: AppSurface.subtle),
+                ColoredBox(color: AppSurface.of(context).subtle),
                 if (_ready && _controller != null)
                   FittedBox(
                     fit: BoxFit.cover,
@@ -385,10 +382,10 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
                   top: 10,
                   right: 10,
                   child: Material(
-                    color: Colors.white.withValues(alpha: 0.92),
-                    shape: const CircleBorder(),
+                    color: AppSurface.of(context).card.withValues(alpha: 0.92),
+                    shape: CircleBorder(),
                     elevation: 3,
-                    shadowColor: Colors.black26,
+                    shadowColor: AppSurface.of(context).shadow,
                     child: InkWell(
                       customBorder: const CircleBorder(),
                       onTap: _togglePause,
@@ -399,7 +396,7 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
                               ? Icons.play_arrow_rounded
                               : Icons.pause_rounded,
                           size: 22,
-                          color: AppSurface.textPrimary,
+                          color: AppSurface.of(context).textPrimary,
                         ),
                       ),
                     ),
@@ -411,10 +408,10 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
                   bottom: 12,
                   child: FilledButton(
                     style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.95),
+                      backgroundColor: AppSurface.of(context).card.withValues(alpha: 0.95),
                       foregroundColor: AppColor.primary,
                       disabledBackgroundColor:
-                          Colors.white.withValues(alpha: 0.5),
+                          AppSurface.of(context).card.withValues(alpha: 0.5),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -429,29 +426,22 @@ class _PromoVideoCardState extends State<_PromoVideoCard> {
                         ? () => _handleTap(context)
                         : () {
                             HapticFeedback.lightImpact();
-                            ScaffoldMessenger.of(context).clearSnackBars();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                behavior: SnackBarBehavior.floating,
-                                margin: const EdgeInsets.all(14),
-                                content: Text(
-                                  context.l10n.promo_more_soon,
-                                  style: GoogleFonts.poppins(),
-                                ),
-                              ),
+                            AppSnackBar.info(
+                              context.l10n.promo_more_soon,
+                              context: context,
                             );
                           },
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(_ctaLabel()),
-                        const SizedBox(width: 6),
+                        SizedBox(width: 6),
                         Icon(
                           Icons.arrow_forward_rounded,
                           size: 18,
                           color: widget.banner.hasRedirect
                               ? AppColor.primary
-                              : AppSurface.textMuted,
+                              : AppSurface.of(context).textMuted,
                         ),
                       ],
                     ),

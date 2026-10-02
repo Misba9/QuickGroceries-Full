@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -36,9 +37,7 @@ class ReferShareActions extends StatelessWidget {
       return;
     }
     Clipboard.setData(ClipboardData(text: message));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Invite message copied')),
-    );
+    AppSnackBar.success('Invite message copied', context: context);
   }
 
   @override
@@ -139,20 +138,21 @@ class _ShareChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     final w = (MediaQuery.sizeOf(context).width - 52) / 3;
     return Material(
-      color: Colors.white,
+      color: surface.card,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Ink(
           width: w.clamp(100, 140),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppSurface.border),
-            boxShadow: AppShadow.card,
+            border: Border.all(color: surface.border),
+            boxShadow: AppShadow.cardOf(context),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -165,6 +165,7 @@ class _ShareChip extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w600,
                   fontSize: 11.5,
+                  color: surface.text,
                 ),
               ),
             ],

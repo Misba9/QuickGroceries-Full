@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/core/user/search_history_store.dart';
 import 'package:quickgrocery/core/design/responsive.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 import 'package:quickgrocery/core/widgets/app_search_bar.dart';
 import 'package:quickgrocery/core/widgets/sticky_search_bar.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/product_card.dart';
@@ -9,6 +10,7 @@ import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -32,9 +34,6 @@ class _SearchScreenState extends State<SearchScreen> {
     Provider.of<SearchService>(context, listen: false).fetchProducts();
     _loadSearchHistory();
     _initializeSpeech();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
-    });
   }
 
   Future<void> _loadSearchHistory() async {
@@ -42,10 +41,11 @@ class _SearchScreenState extends State<SearchScreen> {
     if (mounted) setState(() => _searchHistory = history);
   }
 
-  void _runSearch(String query) {
+  void _runSearch(String query, {String source = 'typed'}) {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return;
-    Provider.of<SearchService>(context, listen: false).searchProducts(trimmed);
+    Provider.of<SearchService>(context, listen: false)
+        .commitSearch(trimmed, source: source);
     SearchHistoryStore.add(trimmed).then((_) => _loadSearchHistory());
   }
 
@@ -63,11 +63,9 @@ class _SearchScreenState extends State<SearchScreen> {
           setState(() {
             _isListening = false;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(context.l10n.speechRecognitionError(error.errorMsg)),
-              backgroundColor: Colors.red,
-            ),
+          AppSnackBar.error(
+            context.l10n.speechRecognitionError(error.errorMsg),
+            context: context,
           );
         }
       },
@@ -83,11 +81,9 @@ class _SearchScreenState extends State<SearchScreen> {
     var status = await Permission.microphone.request();
     if (status != PermissionStatus.granted) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.microphonePermissionRequired),
-            backgroundColor: Colors.red,
-          ),
+        AppSnackBar.error(
+          context.l10n.microphonePermissionRequired,
+          context: context,
         );
       }
       return;
@@ -95,11 +91,9 @@ class _SearchScreenState extends State<SearchScreen> {
 
     if (!_isSpeechAvailable) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.speechRecognitionUnavailable),
-            backgroundColor: Colors.red,
-          ),
+        AppSnackBar.error(
+          context.l10n.speechRecognitionUnavailable,
+          context: context,
         );
       }
       return;
@@ -122,7 +116,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 _isListening = false;
               });
               _searchController.text = result.recognizedWords;
-              _runSearch(result.recognizedWords);
+              _runSearch(result.recognizedWords, source: 'voice');
             }
           }
         },
@@ -162,7 +156,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   gutter: gutter,
                   searchBar: AppSearchBar(
                     live: true,
-                    autofocus: true,
+                    autofocus: false,
                     focusNode: _focusNode,
                     controller: _searchController,
                     hints: [context.l10n.search],
@@ -194,7 +188,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                     label: Text(q),
                                     onPressed: () {
                                       _searchController.text = q;
-                                      _runSearch(q);
+                                      _runSearch(q, source: 'recent_chip');
                                     },
                                   ),
                                 )
@@ -207,7 +201,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 if (provider.filteredProductsList == null)
                   const SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(child: CircularProgressIndicator()),
+                    child: AppLoading.center,
                   )
                 else if (provider.filteredProductsList!.isEmpty)
                   SliverFillRemaining(

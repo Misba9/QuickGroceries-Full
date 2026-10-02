@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/widgets/global_floating_cart_widget.dart';
 
 import '../design/app_tokens.dart';
-import '../design/app_typography.dart';
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
 
-/// Bottom navigation: Home, Categories, **Offers FAB**, Orders, Profile.
+/// Bottom navigation: Home, Categories, **Offers FAB**, Ask AI, Profile.
 class PremiumFiveTabNav extends StatelessWidget {
   const PremiumFiveTabNav({
     super.key,
@@ -18,12 +18,7 @@ class PremiumFiveTabNav extends StatelessWidget {
   /// Total height of the bottom nav including safe-area inset.
   static double tabBarHeight(BuildContext context) {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
-    return safeBottom + _innerBarHeight(context);
-  }
-
-  static double _innerBarHeight(BuildContext context) {
-    final scale = MediaQuery.textScalerOf(context).scale(12) / 12;
-    return (72 + (scale - 1) * 22).clamp(72.0, 96.0);
+    return safeBottom + 70;
   }
 
   /// [Positioned.bottom] for the floating cart above this bar (+ 12px gap).
@@ -38,29 +33,30 @@ class PremiumFiveTabNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final badge = offersBadgeCount ?? 0;
+    final surface = AppSurface.of(context);
     return Material(
-      color: Colors.white,
+      color: surface.card,
       elevation: 0,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface.card,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.07),
+              color: Colors.black.withValues(alpha: context.isDarkTheme ? 0.35 : 0.07),
               blurRadius: 28,
               offset: const Offset(0, -8),
             ),
           ],
           border: Border(
-            top: BorderSide(color: AppSurface.border, width: 0.6),
+            top: BorderSide(color: surface.border, width: 0.6),
           ),
         ),
         child: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(4, 2, 4, 2),
+            padding: const EdgeInsets.fromLTRB(4, 4, 4, 2),
             child: SizedBox(
-              height: PremiumFiveTabNav._innerBarHeight(context) - 8,
+              height: 64,
               child: Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.bottomCenter,
@@ -91,9 +87,9 @@ class PremiumFiveTabNav extends StatelessWidget {
                       const SizedBox(width: 76),
                       Expanded(
                         child: _SideTab(
-                          label: context.l10n.nav_orders,
-                          icon: Icons.receipt_long_outlined,
-                          activeIcon: Icons.receipt_long_rounded,
+                          label: context.l10n.nav_ai,
+                          icon: Icons.smart_toy_outlined,
+                          activeIcon: Icons.smart_toy_rounded,
                           selected: currentIndex == 3,
                           onTap: () => onTap(3),
                           indicatorCenter: true,
@@ -152,8 +148,10 @@ class _SideTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     final activeColor = AppColor.primary;
-    final iconColor = selected ? activeColor : Colors.grey.shade500;
+    final iconColor =
+        selected ? activeColor : surface.iconInactive;
 
     return InkResponse(
       radius: 40,
@@ -165,7 +163,7 @@ class _SideTab extends StatelessWidget {
             duration: AppMotion.short,
             opacity: selected ? 1 : 0,
             child: Padding(
-              padding: const EdgeInsets.only(top: 2),
+              padding: EdgeInsets.only(top: 2),
               child: Align(
                 alignment: indicatorLeft
                     ? Alignment.topLeft
@@ -211,16 +209,17 @@ class _SideTab extends StatelessWidget {
                     size: selected ? 23 : 21,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: AppTypography.caption.copyWith(
+                  style: GoogleFonts.poppins(
+                    fontSize: 10,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                     color:
-                        selected ? AppSurface.textPrimary : AppSurface.textMuted,
+                        selected ? AppSurface.of(context).textPrimary : AppSurface.of(context).textMuted,
                   ),
                 ),
               ],
@@ -294,10 +293,10 @@ class _OffersFabState extends State<_OffersFab>
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.12),
                     blurRadius: 16,
-                    offset: const Offset(0, 8),
+                    offset: Offset(0, 8),
                   ),
                 ],
-                border: Border.all(color: Colors.white, width: 3),
+                border: Border.all(color: AppSurface.of(context).card, width: 3),
               ),
               child: Icon(
                 Icons.card_giftcard_rounded,
@@ -313,14 +312,21 @@ class _OffersFabState extends State<_OffersFab>
                   constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                   padding: const EdgeInsets.symmetric(horizontal: 5),
                   decoration: BoxDecoration(
-                    color: AppSurface.danger,
+                    color: AppSurface.of(context).danger,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white, width: 1.5),
+                    border: Border.all(
+                      color: AppSurface.of(context).card,
+                      width: 1.5,
+                    ),
                   ),
                   alignment: Alignment.center,
                   child: Text(
                     widget.badge > 99 ? '99+' : '${widget.badge}',
-                    style: AppTypography.badge,
+                    style: GoogleFonts.poppins(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: AppSurface.of(context).onDanger,
+                    ),
                   ),
                 ),
               ),

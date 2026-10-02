@@ -86,6 +86,107 @@ class _CustomerListScreenState extends State<CustomerListScreen> {
                         : null,
                   ),
                 ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 180,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          labelText: 'Platform',
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: svc.platformFilter,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'all',
+                                child: Text('All platforms'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'android',
+                                child: Text('Android'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'ios',
+                                child: Text('iOS'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'web',
+                                child: Text('Web'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'unknown',
+                                child: Text('Unknown'),
+                              ),
+                            ],
+                            onChanged: (v) {
+                              if (v != null) svc.setPlatformFilter(v);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 220,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          labelText: 'App version',
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: svc.availableAppVersions
+                                        .contains(svc.appVersionFilter) ||
+                                    svc.appVersionFilter == 'all' ||
+                                    svc.appVersionFilter == 'unknown'
+                                ? svc.appVersionFilter
+                                : 'all',
+                            items: [
+                              const DropdownMenuItem(
+                                value: 'all',
+                                child: Text('All versions'),
+                              ),
+                              const DropdownMenuItem(
+                                value: 'unknown',
+                                child: Text('Unknown'),
+                              ),
+                              ...svc.availableAppVersions.map(
+                                (v) => DropdownMenuItem(
+                                  value: v,
+                                  child: Text(v, overflow: TextOverflow.ellipsis),
+                                ),
+                              ),
+                            ],
+                            onChanged: (v) {
+                              if (v != null) svc.setAppVersionFilter(v);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),

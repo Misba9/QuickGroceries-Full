@@ -1,8 +1,11 @@
 import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart';
+
 /// Timestamped startup milestones for performance tuning.
 abstract final class AppStartupLog {
-  static const bool enabled = true;
+  /// Debug/profile only — release builds skip developer.log overhead.
+  static const bool enabled = !kReleaseMode;
 
   static final Stopwatch _sw = Stopwatch();
 

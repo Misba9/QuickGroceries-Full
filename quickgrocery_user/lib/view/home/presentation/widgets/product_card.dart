@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart' as legacy;
 import 'package:quickgrocery/constants/app_color.dart';
 import 'package:quickgrocery/core/auth/guest_auth_guard.dart';
-import 'package:quickgrocery/core/feedback/show_top_error_toast.dart';
+import 'package:quickgrocery/core/feedback/app_snackbar.dart';
 import 'package:quickgrocery/core/product/product_quantity_label.dart';
 import 'package:quickgrocery/core/design/app_tokens.dart';
 import 'package:quickgrocery/core/widgets/discount_badge.dart';
@@ -17,22 +16,25 @@ import 'package:quickgrocery/view/cart/presentation/utils/cart_quantity_actions.
 import 'package:quickgrocery/view/category/services/category_service.dart';
 import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 import 'package:quickgrocery/view/product_view/presentation/providers/product_detail_providers.dart';
-import 'package:quickgrocery/view/product_view/presentation/widgets/product_image_carousel.dart'
-    show productCardHeroTag;
 import 'package:quickgrocery/core/localization/l10n_extension.dart';
-import 'package:quickgrocery/core/navigation/app_page_routes.dart';
+import 'package:quickgrocery/core/navigation/product_navigation.dart';
 
 /// Modern, Zepto/Blinkit-style product card used by every home rail and
 /// the explore grid. Bridges the new dynamic homepage with the legacy
 /// [CategoryService] so the cart continues to work end-to-end.
+///
+/// Hero transitions are **opt-in** via [heroTag]. Do not use a bare
+/// `product-image-$id` tag here: [LandingScreen]'s [IndexedStack] keeps
+/// Home + Categories mounted together, and the same product often appears
+/// in multiple rails — duplicate tags throw and cascade into
+/// `_dependents.isEmpty`.
 class HomeProductCard extends ConsumerWidget {
   const HomeProductCard({
     super.key,
     required this.product,
     this.width = 150,
     this.onAfterProductDetailClosed,
-    this.heroScope = 'home',
-    this.heroIndex = 0,
+    this.heroTag,
   });
 
   final ProductModel product;
@@ -40,35 +42,48 @@ class HomeProductCard extends ConsumerWidget {
   /// Called after the product detail route is popped (e.g. wishlist refresh).
   final VoidCallback? onAfterProductDetailClosed;
 
-  /// Distinguishes this card from the same product in other rails/tabs.
-  final String heroScope;
-  final int heroIndex;
+  /// Optional unique [Hero] tag for this card instance only. Must not collide
+  /// with any other Hero in the current route subtree (including offstage
+  /// [IndexedStack] tabs). Prefer `productHeroTag(id, scope: 'rail-$i')`.
+  final String? heroTag;
 
   static const double _radius = AppRadii.lg;
   static const double _cardPadding = 8;
   /// Image area height on horizontal rails (unbounded height parent).
   static const double _railImageHeightFactor = 0.82;
 
+  /// Card width used by horizontal rails (for [ListView] itemExtent).
+  static const double railExtent = 150;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cartService = legacy.Provider.of<CategoryService>(context);
-    final cart = ref.watch(cartProvider);
-    final cartLine = cart.items
-        .where((e) => e.productId == product.id && !e.isComboLine)
-        .firstOrNull;
-    final count = cartLine?.itemCount ?? 0;
+    // Addon popup only — do not listen (cart qty uses Riverpod select below).
+    final cartService =
+        legacy.Provider.of<CategoryService>(context, listen: false);
+    // Rebuild this card only when *this* product's qty changes.
+    final count = ref.watch(
+      cartProvider.select((cart) {
+        for (final e in cart.items) {
+          if (e.productId == product.id && !e.isComboLine) {
+            return e.itemCount;
+          }
+        }
+        return 0;
+      }),
+    );
     final outOfStock = product.isOutOfStock;
     final weightLabel = productQuantityLabel(product);
 
+    final surface = AppSurface.of(context);
     return SizedBox(
       width: width,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(_radius),
-          boxShadow: AppShadow.card,
+          boxShadow: AppShadow.cardOf(context),
         ),
         child: Material(
-          color: Colors.white,
+          color: surface.card,
           borderRadius: BorderRadius.circular(_radius),
           clipBehavior: Clip.antiAlias,
           child: Opacity(
@@ -76,10 +91,10 @@ class HomeProductCard extends ConsumerWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(_radius),
               onTap: () async {
-                HapticFeedback.selectionClick();
-                await Navigator.push(
+                await ProductNavigation.openProduct(
                   context,
-                  AppPageRoutes.product(product),
+                  product,
+                  heroTag: heroTag,
                 );
                 onAfterProductDetailClosed?.call();
               },
@@ -87,7 +102,7 @@ class HomeProductCard extends ConsumerWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(_radius),
                   border: Border.all(
-                    color: AppSurface.border.withValues(alpha: 0.55),
+                    color: AppSurface.of(context).border.withValues(alpha: 0.55),
                   ),
                 ),
                 padding: const EdgeInsets.all(_cardPadding),
@@ -95,27 +110,9 @@ class HomeProductCard extends ConsumerWidget {
                   builder: (context, constraints) {
                     final bounded = constraints.hasBoundedHeight &&
                         constraints.maxHeight < double.infinity;
-                    final heroTag = productCardHeroTag(
-                      product.id,
-                      scope: heroScope,
-                      index: heroIndex,
-                    );
                     final image = Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        if (kDebugMode)
-                          Positioned(
-                            left: 0,
-                            top: 0,
-                            width: 0,
-                            height: 0,
-                            child: _HeroTagProbe(
-                              key: ValueKey<String>(heroTag),
-                              productId: product.id,
-                              productName: product.name,
-                              tag: heroTag,
-                            ),
-                          ),
                         _ImageWithDiscount(
                           product: product,
                           heroTag: heroTag,
@@ -152,9 +149,9 @@ class HomeProductCard extends ConsumerWidget {
                         product: product,
                         legacyCart: cartService,
                       ),
-                      onMaxReached: () => showTopErrorToast(
-                        context,
+                      onMaxReached: () => AppSnackBar.error(
                         maxQuantityMessageFor(context, product),
+                        context: context,
                       ),
                       onDecrement: () {
                         ref.read(cartProvider.notifier).decrement(product.id);
@@ -222,7 +219,7 @@ class _ProductDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 6),
+      padding: EdgeInsets.only(top: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -232,21 +229,21 @@ class _ProductDetails extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              fontSize: 13.5,
+              fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: AppSurface.textPrimary,
+              color: AppSurface.of(context).textPrimary,
               height: 1.2,
             ),
           ),
           if (weightLabel.isNotEmpty) ...[
-            const SizedBox(height: 2),
+            SizedBox(height: 2),
             Text(
               weightLabel,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: AppSurface.textSecondary,
+                fontSize: 10.5,
+                color: AppSurface.of(context).textSecondary,
                 fontWeight: FontWeight.w500,
                 height: 1.15,
               ),
@@ -280,37 +277,58 @@ class _ProductDetails extends StatelessWidget {
   }
 }
 
-class _FavoriteChip extends ConsumerWidget {
+/// Home-rail favorite control — **no** per-card Firestore listener.
+/// Optimistic local state only; product detail owns live favorite streams.
+class _FavoriteChip extends ConsumerStatefulWidget {
   const _FavoriteChip({required this.productId});
 
   final String productId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final favAsync = ref.watch(isFavoriteStreamProvider(productId));
-    final fav = favAsync.valueOrNull ?? false;
+  ConsumerState<_FavoriteChip> createState() => _FavoriteChipState();
+}
+
+class _FavoriteChipState extends ConsumerState<_FavoriteChip> {
+  bool _fav = false;
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Material(
-      color: Colors.white.withValues(alpha: 0.96),
+      color: surface.card.withValues(alpha: 0.96),
       elevation: 1,
-      shadowColor: Colors.black26,
+      shadowColor: surface.shadow,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
-        onTap: () async {
-          HapticFeedback.selectionClick();
-          final authed = await GuestAuthGuard.requireAuth(context, ref);
-          if (!authed || !context.mounted) return;
-          await ref.read(productDetailRepositoryProvider).toggleFavorite(
-                productId,
-                !fav,
-              );
-        },
+        onTap: _busy
+            ? null
+            : () async {
+                HapticFeedback.selectionClick();
+                final authed = await GuestAuthGuard.requireAuth(context, ref);
+                if (!authed || !mounted) return;
+                final next = !_fav;
+                setState(() {
+                  _fav = next;
+                  _busy = true;
+                });
+                try {
+                  await ref
+                      .read(productDetailRepositoryProvider)
+                      .toggleFavorite(widget.productId, next);
+                } catch (_) {
+                  if (mounted) setState(() => _fav = !next);
+                } finally {
+                  if (mounted) setState(() => _busy = false);
+                }
+              },
         child: Padding(
           padding: const EdgeInsets.all(5),
           child: Icon(
-            fav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            _fav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
             size: 17,
-            color: fav ? Colors.redAccent : Colors.black45,
+            color: _fav ? surface.danger : surface.iconInactive,
           ),
         ),
       ),
@@ -319,51 +337,52 @@ class _FavoriteChip extends ConsumerWidget {
 }
 
 class _ImageWithDiscount extends StatelessWidget {
-  const _ImageWithDiscount({
-    required this.product,
-    required this.heroTag,
-  });
+  const _ImageWithDiscount({required this.product, this.heroTag});
 
   final ProductModel product;
-  final String heroTag;
+  final String? heroTag;
 
   static const double _innerR = 12;
 
   @override
   Widget build(BuildContext context) {
+    Widget image = CachedImage(
+      url: product.image,
+      fit: BoxFit.contain,
+      borderRadius: BorderRadius.circular(_innerR - 2),
+      memCacheWidth: 400,
+    );
+    if (heroTag != null) {
+      image = Hero(tag: heroTag!, child: image);
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(_innerR),
       child: Stack(
         fit: StackFit.expand,
         children: [
           ColoredBox(
-            color: AppSurface.subtle.withValues(alpha: 0.45),
+            color: AppSurface.of(context).subtle.withValues(alpha: 0.45),
             child: Padding(
               padding: const EdgeInsets.all(4),
-              child: Center(
-                child: Hero(
-                  tag: heroTag,
-                  child: CachedImage(
-                    url: product.image,
-                    fit: BoxFit.contain,
-                    borderRadius: BorderRadius.circular(_innerR - 2),
-                    memCacheWidth: 400,
-                  ),
-                ),
-              ),
+              child: Center(child: image),
             ),
           ),
           if (product.hasDiscount)
             Positioned(
               top: 6,
               left: 6,
-              child: DiscountBadge(percent: product.discountPercent),
+              child: IgnorePointer(
+                child: DiscountBadge(percent: product.discountPercent),
+              ),
             ),
           Positioned(
             left: 4,
             bottom: 4,
             right: 4,
-            child: ProductBadgesRow(product: product, maxBadges: 2),
+            child: IgnorePointer(
+              child: ProductBadgesRow(product: product, maxBadges: 2),
+            ),
           ),
         ],
       ),
@@ -379,16 +398,18 @@ class _RatingPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
+    final isDark = context.isDarkTheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.green.shade50,
+        color: surface.success.withValues(alpha: isDark ? 0.22 : 0.12),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.star, size: 11, color: Colors.green),
+          Icon(Icons.star, size: 11, color: surface.success),
           const SizedBox(width: 2),
           Flexible(
             child: Text(
@@ -396,9 +417,9 @@ class _RatingPill extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: Colors.green.shade800,
+                color: surface.success,
               ),
             ),
           ),
@@ -409,8 +430,8 @@ class _RatingPill extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: Colors.green.shade700,
+                fontSize: 9.5,
+                color: surface.success.withValues(alpha: 0.85),
               ),
             ),
           ),
@@ -438,9 +459,9 @@ class _PriceBlock extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
-            fontSize: 15,
+            fontSize: 13.5,
             fontWeight: FontWeight.w700,
-            color: AppSurface.textPrimary,
+            color: AppSurface.of(context).textPrimary,
             height: 1.1,
           ),
         ),
@@ -450,8 +471,8 @@ class _PriceBlock extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: AppSurface.textSecondary,
+              fontSize: 10.5,
+              color: AppSurface.of(context).textSecondary,
               decoration: TextDecoration.lineThrough,
               height: 1.1,
             ),
@@ -481,17 +502,18 @@ class _CartControl extends StatelessWidget {
   final VoidCallback onDecrement;
   final VoidCallback onMaxReached;
 
-  static const double _h = 40;
+  static const double _h = 32;
 
   @override
   Widget build(BuildContext context) {
     if (product.isOutOfStock) {
+      final surface = AppSurface.of(context);
       return Container(
         height: _h,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.grey.shade200,
+          color: surface.subtle,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(
@@ -499,9 +521,9 @@ class _CartControl extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
-            fontSize: 12,
+            fontSize: 10,
             fontWeight: FontWeight.w700,
-            color: Colors.grey.shade600,
+            color: surface.textMuted,
           ),
         ),
       );
@@ -541,7 +563,7 @@ class _CartControl extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 13,
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
                 color: AppColor.primary,
                 letterSpacing: 0.3,
@@ -573,7 +595,7 @@ class _CartControl extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.poppins(
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
                 ),
@@ -627,63 +649,4 @@ class _StepBtn extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Debug-only mount counter for product-card hero tags.
-///
-/// Prints `productId`, name, and the computed tag, and warns when the same
-/// tag is mounted twice (the "multiple heroes" crash). Silent in release.
-class _HeroTagProbe extends StatefulWidget {
-  const _HeroTagProbe({
-    super.key,
-    required this.productId,
-    required this.productName,
-    required this.tag,
-  });
-
-  final String productId;
-  final String productName;
-  final String tag;
-
-  @override
-  State<_HeroTagProbe> createState() => _HeroTagProbeState();
-}
-
-class _HeroTagProbeState extends State<_HeroTagProbe> {
-  static final Map<String, int> _mounted = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _register(widget.tag);
-  }
-
-  @override
-  void dispose() {
-    final next = (_mounted[widget.tag] ?? 1) - 1;
-    if (next <= 0) {
-      _mounted.remove(widget.tag);
-    } else {
-      _mounted[widget.tag] = next;
-    }
-    super.dispose();
-  }
-
-  void _register(String tag) {
-    final count = (_mounted[tag] ?? 0) + 1;
-    _mounted[tag] = count;
-    debugPrint(
-      '[HeroTag] id=${widget.productId} name=${widget.productName} '
-      'tag=$tag mounted=$count',
-    );
-    if (count > 1) {
-      debugPrint(
-        '[HeroTag] DUPLICATE id=${widget.productId} '
-        'name=${widget.productName} tag=$tag mounted=$count',
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
 }

@@ -74,8 +74,8 @@ class GlobalCartVisibility {
     if (onRoot) {
       final tab = HomeTabObserver.selectedIndexListenable.value;
       if (tab == AppRoutes.profileTabIndex ||
-          (isGuestMode && tab == AppRoutes.ordersTabIndex)) {
-        _trace('hidden: profile/orders tab (guest orders)');
+          tab == AppRoutes.aiChatTabIndex) {
+        _trace('hidden: profile/ai tab');
         return false;
       }
     }

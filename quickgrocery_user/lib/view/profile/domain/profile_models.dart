@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quickgrocery/core/user/cod_eligibility.dart';
 import 'package:quickgrocery/models/customer_model.dart';
 
 /// Extended profile data merged from `customers/{uid}`.
@@ -11,6 +13,7 @@ class ProfileData {
     required this.isPremiumMember,
     required this.referralCode,
     required this.gender,
+    this.codEligibility = CodEligibility.allowed,
   });
 
   final CustomerModel customer;
@@ -21,11 +24,23 @@ class ProfileData {
   final bool isPremiumMember;
   final String referralCode;
   final String gender;
+  final CodEligibility codEligibility;
 
   factory ProfileData.fromFirestore(Map<String, dynamic> data, String uid) {
     final wallet = data['wallet'] is Map
         ? Map<String, dynamic>.from(data['wallet'] as Map)
         : const <String, dynamic>{};
+
+    final mapped = Map<String, dynamic>.from(data);
+    // Normalize Timestamps for CodEligibility parsing.
+    for (final key in [
+      'codRestrictionEnd',
+      'codRestrictionStart',
+      'codUpdatedAt',
+    ]) {
+      final v = mapped[key];
+      if (v is Timestamp) mapped[key] = v.toDate().toIso8601String();
+    }
 
     return ProfileData(
       customer: CustomerModel.fromFirestore(data, uid),
@@ -46,6 +61,7 @@ class ProfileData {
           data['isPremiumMember'] == true,
       referralCode: (data['referral_code'] ?? data['uid'] ?? uid).toString(),
       gender: (data['gender'] ?? '').toString(),
+      codEligibility: CodEligibility.fromMap(mapped),
     );
   }
 

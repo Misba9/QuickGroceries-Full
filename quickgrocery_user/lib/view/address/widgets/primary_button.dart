@@ -1,6 +1,6 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:quickgrocery/constants/app_color.dart';
+import 'package:quickgrocery/core/loading/loading.dart';
 
 class PrimaryButton extends StatelessWidget {
   const PrimaryButton({
@@ -30,17 +30,10 @@ class PrimaryButton extends StatelessWidget {
         ),
         child: Center(
           child: isLoading
-              ? SizedBox(
-                  height: height * .06,
-                  child: const CupertinoActivityIndicator(color: Colors.black87),
-                )
+              ? AppLoading.spinner(size: 22, color: Colors.white)
               : Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
-                  ),
+                  style: const TextStyle(fontSize: 18, color: Colors.white),
                 ),
         ),
       ),

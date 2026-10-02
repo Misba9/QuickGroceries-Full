@@ -2,30 +2,24 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
-import 'package:quickgrocery/core/order/order_placement_log.dart';
+import 'package:quickgrocery/view/payment/domain/razorpay_payment_result.dart';
 
 class PaymentService extends ChangeNotifier {
   bool isCashOnDelivery = false;
-  String paymentStatus = "Pending";
+  String paymentStatus = 'Pending';
   final Razorpay _razorpay = Razorpay();
-  void Function(String paymentId, String? gatewayOrderId)?
-  _onPaymentSuccessCallback;
+  void Function(RazorpayPaymentResult result)? _onPaymentSuccessCallback;
   void Function(String message)? _onPaymentErrorCallback;
-
-  int? _activeAttemptId;
-
-  /// Last gateway payment id after a successful callback (never a secret).
-  String? lastPaymentId;
-
-  /// Razorpay Key ID (public). Secret keys must never live in the client.
-  static const _razorpayKeyId = 'rzp_live_SLDUzSlRIhWOXG';
+  bool _checkoutInFlight = false;
+  bool _requiresSignature = true;
 
   void resetSessionForLogout() {
     isCashOnDelivery = false;
     paymentStatus = 'Pending';
     _onPaymentSuccessCallback = null;
     _onPaymentErrorCallback = null;
-    _activeAttemptId = null;
+    _checkoutInFlight = false;
+    _requiresSignature = true;
     notifyListeners();
   }
 
@@ -40,97 +34,115 @@ class PaymentService extends ChangeNotifier {
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
+  /// Opens Razorpay Checkout for a checkout [session].
+  ///
+  /// Prefer sessions from [RazorpayOrderClient] (server Order + signature).
+  /// Public-key fallback sessions omit `order_id`.
+  void openCheckoutSession({
+    required RazorpayCheckoutSession session,
+    required String name,
+    required String description,
+    void Function(RazorpayPaymentResult result)? onPaymentSuccess,
+    void Function(String message)? onPaymentError,
+  }) {
+    if (_checkoutInFlight) {
+      onPaymentError?.call('Payment already in progress. Please wait.');
+      return;
+    }
+    if (session.keyId.isEmpty || session.amountPaise < 100) {
+      onPaymentError?.call('Invalid payment session. Please try again.');
+      return;
+    }
+
+    _checkoutInFlight = true;
+    _requiresSignature = session.requiresSignature;
+    _onPaymentSuccessCallback = onPaymentSuccess;
+    _onPaymentErrorCallback = onPaymentError;
+
+    final options = <String, dynamic>{
+      'key': session.keyId,
+      'amount': session.amountPaise,
+      'currency': session.currency,
+      'name': name,
+      'description': description,
+      if (session.hasServerOrder) 'order_id': session.orderId,
+      'prefill': {
+        'contact': FirebaseAuth.instance.currentUser?.phoneNumber ?? '',
+        'email': '',
+      },
+      'theme': {
+        'color': '#11A04C',
+      },
+    };
+
+    try {
+      _razorpay.open(options);
+    } catch (e) {
+      _checkoutInFlight = false;
+      _onPaymentSuccessCallback = null;
+      _onPaymentErrorCallback = null;
+      if (kDebugMode) debugPrint('Razorpay open error: $e');
+      onPaymentError?.call('Could not open payment. Please try again.');
+    }
+  }
+
+  @Deprecated('Use openCheckoutSession with a server-created Razorpay order')
   void openCheckout(
     double amount,
     String name,
     String description, {
-    int? attemptId,
-    void Function(String paymentId, String? gatewayOrderId)? onPaymentSuccess,
+    void Function(String paymentId)? onPaymentSuccess,
     void Function(String message)? onPaymentError,
   }) {
-    if (attemptId != null &&
-        _activeAttemptId != null &&
-        _activeAttemptId != attemptId) {
-      OrderPlacementLog.staleCallbackIgnored(_activeAttemptId!);
+    onPaymentError?.call(
+      'Secure payment setup required. Please update the app and try again.',
+    );
+    if (kDebugMode) {
+      debugPrint(
+        'Blocked insecure Razorpay openCheckout(amount=$amount) without order_id',
+      );
     }
-    _activeAttemptId = attemptId;
-    if (attemptId != null) OrderPlacementLog.bindAttempt(attemptId);
-    _onPaymentSuccessCallback = onPaymentSuccess;
-    _onPaymentErrorCallback = onPaymentError;
-
-    final paise = (amount * 100).round();
-    if (paise < 100) {
-      _failOpen('Payable amount is too small for online payment. Try COD.');
-      return;
-    }
-
-    final contact = FirebaseAuth.instance.currentUser?.phoneNumber ?? '';
-    final displayName = name.trim().isEmpty ? 'Quick Groceries' : name.trim();
-
-    final options = <String, dynamic>{
-      'key': _razorpayKeyId,
-      'amount': paise,
-      'currency': 'INR',
-      'name': displayName,
-      'description': description,
-      'prefill': {'contact': contact, 'email': ''},
-      'theme': {'color': '#FFC107'},
-    };
-
-    OrderPlacementLog.paymentInit(amountPaise: paise);
-    try {
-      OrderPlacementLog.paymentGatewayOpen();
-      _razorpay.open(options);
-    } catch (e, st) {
-      debugPrint('PAYMENT_GATEWAY_OPEN failed: $e\n$st');
-      _failOpen('Could not open payment. Please try again.');
-    }
-  }
-
-  void _failOpen(String message) {
-    paymentStatus = 'Payment Failed: $message';
-    notifyListeners();
-    final cb = _onPaymentErrorCallback;
-    _onPaymentSuccessCallback = null;
-    _onPaymentErrorCallback = null;
-    _activeAttemptId = null;
-    cb?.call(message);
   }
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) {
-    final paymentId = response.paymentId?.trim() ?? '';
-    OrderPlacementLog.paymentSuccessCallback(
-      hasPaymentId: paymentId.isNotEmpty,
-    );
-    if (paymentId.isEmpty) {
-      _failOpen(
-        'Payment succeeded but no payment ID was returned. Contact support.',
-      );
-      return;
-    }
-    lastPaymentId = paymentId;
+    _checkoutInFlight = false;
     paymentStatus = 'Payment Successful';
     notifyListeners();
-    final cb = _onPaymentSuccessCallback;
+
+    final result = RazorpayPaymentResult(
+      paymentId: response.paymentId?.trim() ?? '',
+      orderId: response.orderId?.trim() ?? '',
+      signature: response.signature?.trim() ?? '',
+    );
+
+    final successCb = _onPaymentSuccessCallback;
+    final errorCb = _onPaymentErrorCallback;
+    final needsSignature = _requiresSignature;
     _onPaymentSuccessCallback = null;
     _onPaymentErrorCallback = null;
-    _activeAttemptId = null;
-    OrderPlacementLog.paymentVerificationStarted(hasPaymentId: true);
-    OrderPlacementLog.paymentVerificationSuccess();
-    cb?.call(paymentId, response.orderId?.trim());
+    _requiresSignature = true;
+
+    if (!result.hasPaymentId) {
+      errorCb?.call('Incomplete payment response from Razorpay.');
+      return;
+    }
+    if (needsSignature && !result.isComplete) {
+      errorCb?.call('Incomplete payment response from Razorpay.');
+      return;
+    }
+    successCb?.call(result);
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
-    OrderPlacementLog.paymentFailureCallback(code: response.code);
+    _checkoutInFlight = false;
     paymentStatus = 'Payment Failed: ${response.message}';
     notifyListeners();
     final code = response.code;
-    final raw = response.message?.trim();
+    final raw = response.message?.trim() ?? '';
     String msg;
-    if (code == Razorpay.PAYMENT_CANCELLED ||
-        (raw != null && raw.toLowerCase().contains('cancel'))) {
-      msg = 'Payment cancelled. Your order was not placed.';
-    } else if (raw != null && raw.isNotEmpty) {
+    if (code == Razorpay.PAYMENT_CANCELLED) {
+      msg = 'Payment cancelled.';
+    } else if (raw.isNotEmpty) {
       msg = raw;
     } else {
       msg = 'Payment failed. Please try again.';
@@ -138,17 +150,13 @@ class PaymentService extends ChangeNotifier {
     final cb = _onPaymentErrorCallback;
     _onPaymentErrorCallback = null;
     _onPaymentSuccessCallback = null;
-    _activeAttemptId = null;
+    _requiresSignature = true;
     cb?.call(msg);
   }
 
-  void _handleExternalWallet(ExternalWalletResponse _) {
+  void _handleExternalWallet(ExternalWalletResponse response) {
     paymentStatus = 'External Wallet Selected';
     notifyListeners();
-    OrderPlacementLog.paymentStarted(
-      method: 'external_wallet',
-      idempotencyKey: '',
-    );
   }
 
   @override

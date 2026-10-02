@@ -10,10 +10,10 @@ import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 ///
 /// Layout contract — overflow-proof on any device:
 ///   ┌────────────────────────┐  ← cell (sized by parent grid)
-///   │ ┌────────────────────┐ │  ← Expanded → AspectRatio(1)
-///   │ │     image card     │ │     keeps a square that *shrinks*
-///   │ │                    │ │     to fit whatever vertical space
-///   │ └────────────────────┘ │     the parent grants.
+///   │ ┌────────────────────┐ │  ← Expanded → square via LayoutBuilder
+///   │ │     image card     │ │     (side = min(maxW, maxH))
+///   │ │                    │ │
+///   │ └────────────────────┘ │
 ///   │ ── 8 px gap ──         │
 ///   │  Label · up to 2 lines │  ← flexible text block (ellipsis)
 ///   └────────────────────────┘
@@ -44,28 +44,36 @@ class CategoryTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.max,
           children: [
             Expanded(
-              child: Center(
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: AppRadii.all(AppRadii.md),
-                      border: Border.all(color: AppSurface.border),
-                      boxShadow: AppShadow.dim,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final side = constraints.maxWidth < constraints.maxHeight
+                      ? constraints.maxWidth
+                      : constraints.maxHeight;
+                  return Center(
+                    child: SizedBox(
+                      width: side,
+                      height: side,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppSurface.of(context).card,
+                          borderRadius: AppRadii.all(AppRadii.md),
+                          border: Border.all(color: AppSurface.of(context).border),
+                          boxShadow: AppShadow.dim,
+                        ),
+                        padding: const EdgeInsets.all(8),
+                        child: CachedImage(
+                          url: category.image,
+                          fit: BoxFit.contain,
+                          borderRadius: AppRadii.all(AppRadii.sm),
+                          memCacheWidth: 240,
+                        ),
+                      ),
                     ),
-                    padding: const EdgeInsets.all(8),
-                    child: CachedImage(
-                      url: category.image,
-                      fit: BoxFit.contain,
-                      borderRadius: AppRadii.all(AppRadii.sm),
-                      memCacheWidth: 240,
-                    ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
-            const SizedBox(height: CategoryGridLayout.homeImageGap),
+            SizedBox(height: CategoryGridLayout.homeImageGap),
             Flexible(
               fit: FlexFit.loose,
               child: Text(
@@ -76,7 +84,7 @@ class CategoryTile extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: CategoryGridLayout.nameFontSize,
                   fontWeight: FontWeight.w600,
-                  color: AppSurface.textPrimary,
+                  color: AppSurface.of(context).textPrimary,
                   height: CategoryGridLayout.nameLineHeight,
                 ),
               ),

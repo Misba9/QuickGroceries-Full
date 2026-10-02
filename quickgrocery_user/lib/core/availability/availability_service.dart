@@ -173,6 +173,7 @@ class AvailabilityResult {
   bool get deliveryEnabled => config.driverAppEnabled && deliveryAreaValid;
 
   void debugLog() {
+    if (!kDebugMode) return;
     final vendor = inventory.firstVendor;
     final product = inventory.firstProduct;
 
@@ -203,9 +204,9 @@ class AvailabilityResult {
     }
     for (final p in inventory.products) {
       debugPrint(
-        'Product[${p.productId}] "${p.name}" available=${p.isAvailable} '
+        'Product[${p.productId}] available=${p.isAvailable} '
         'stock=${p.stock} requested=${p.requestedQuantity} '
-        'vendor=${p.vendorId} exists=${p.exists}',
+        'exists=${p.exists}',
       );
     }
   }

@@ -18,8 +18,9 @@ import 'package:quickgrocery/view/home/presentation/widgets/cached_image.dart';
 /// 5. **Price + ADD** — current price + slashed price; right-aligned
 ///    [AnimatedAddButton] that swaps in a [QuantityStepper] on tap.
 ///
-/// Uses Hero with tag `product-${id}` so opening the product detail
-/// screen animates the image smoothly.
+/// Uses an optional [heroTag] for image handoff. Never hardcode
+/// `product-${id}` — under [IndexedStack] the same product can appear in
+/// multiple rails and duplicate tags corrupt the element tree.
 class PremiumProductCard extends StatelessWidget {
   const PremiumProductCard({
     super.key,
@@ -29,6 +30,7 @@ class PremiumProductCard extends StatelessWidget {
     required this.onAdd,
     required this.onIncrement,
     required this.onDecrement,
+    this.heroTag,
   });
 
   final ProductModel product;
@@ -38,25 +40,30 @@ class PremiumProductCard extends StatelessWidget {
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
 
+  /// Optional unique [Hero] tag. Leave null unless a matching destination
+  /// tag is also provided on the product detail route.
+  final String? heroTag;
+
   @override
   Widget build(BuildContext context) {
     final discount = _discountPct();
     final outOfStock = product.isOutOfStock;
     final maxQty = product.effectiveMaxQuantity;
 
+    final surface = AppSurface.of(context);
     return Opacity(
       opacity: outOfStock ? 0.55 : 1,
       child: Material(
-      color: Colors.white,
+      color: surface.card,
       borderRadius: BorderRadius.circular(AppRadii.md),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadii.md),
         onTap: onTap,
         child: Ink(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: surface.card,
             borderRadius: BorderRadius.circular(AppRadii.md),
-            border: Border.all(color: AppSurface.border),
+            border: Border.all(color: surface.border),
             boxShadow: AppShadow.dim,
           ),
           child: Padding(
@@ -67,7 +74,7 @@ class PremiumProductCard extends StatelessWidget {
                     constraints.maxHeight < double.infinity;
                 final image = _ImageSurface(
                   imageUrl: product.image,
-                  heroTag: 'category-card-${product.id}',
+                  heroTag: heroTag,
                   discountPct: discount,
                 );
                 return Column(
@@ -76,21 +83,36 @@ class PremiumProductCard extends StatelessWidget {
                       bounded ? MainAxisSize.max : MainAxisSize.min,
                   children: [
                     if (bounded)
-                      Expanded(child: image)
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, c) {
+                            final side = c.maxWidth < c.maxHeight
+                                ? c.maxWidth
+                                : c.maxHeight;
+                            return Center(
+                              child: SizedBox(
+                                width: side,
+                                height: side,
+                                child: image,
+                              ),
+                            );
+                          },
+                        ),
+                      )
                     else
-                      image,
-                    const SizedBox(height: 8),
+                      AspectRatio(aspectRatio: 1, child: image),
+                    SizedBox(height: 8),
                     if (product.unitPerItem.isNotEmpty)
                       _UnitChip(text: product.unitPerItem),
                     const SizedBox(height: 4),
                     Text(
                       product.name,
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
-                        fontSize: 13.5,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w700,
-                        color: AppSurface.text,
+                        color: AppSurface.of(context).text,
                         height: 1.2,
                       ),
                     ),
@@ -101,7 +123,6 @@ class PremiumProductCard extends StatelessWidget {
                         reviews: product.totalReviews,
                       ),
                     ],
-                    if (bounded) const Spacer() else const SizedBox(height: 6),
                     const SizedBox(height: 8),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -149,43 +170,40 @@ class PremiumProductCard extends StatelessWidget {
 class _ImageSurface extends StatelessWidget {
   const _ImageSurface({
     required this.imageUrl,
-    required this.heroTag,
     required this.discountPct,
+    this.heroTag,
   });
 
   final String imageUrl;
-  final String heroTag;
+  final String? heroTag;
   final int discountPct;
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.sm),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ColoredBox(
-              color: AppSurface.subtle,
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: Center(
-                  child: Hero(
-                    tag: heroTag,
-                    child: CachedImage(url: imageUrl, fit: BoxFit.contain),
-                  ),
-                ),
-              ),
+    Widget image = CachedImage(url: imageUrl, fit: BoxFit.contain);
+    if (heroTag != null) {
+      image = Hero(tag: heroTag!, child: image);
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadii.sm),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ColoredBox(
+            color: AppSurface.of(context).subtle,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Center(child: image),
             ),
-            if (discountPct > 0)
-              Positioned(
-                top: 6,
-                left: 6,
-                child: DiscountBadge(percent: discountPct),
-              ),
-          ],
-        ),
+          ),
+          if (discountPct > 0)
+            Positioned(
+              top: 6,
+              left: 6,
+              child: DiscountBadge(percent: discountPct),
+            ),
+        ],
       ),
     );
   }
@@ -200,9 +218,9 @@ class _UnitChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppSurface.subtle,
+        color: AppSurface.of(context).subtle,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
@@ -210,9 +228,9 @@ class _UnitChip extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: GoogleFonts.poppins(
-          fontSize: 12,
+          fontSize: 9.5,
           fontWeight: FontWeight.w700,
-          color: AppSurface.textSecondary,
+          color: AppSurface.of(context).textSecondary,
           letterSpacing: 0.2,
           height: 1.2,
         ),
@@ -233,7 +251,7 @@ class _RatingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(Icons.star_rounded, size: 12, color: Color(0xFFF5A623)),
+        Icon(Icons.star_rounded, size: 12, color: Color(0xFFF5A623)),
         const SizedBox(width: 2),
         Flexible(
           child: Text(
@@ -241,24 +259,24 @@ class _RatingRow extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              fontSize: 12,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: AppSurface.textSecondary,
+              color: AppSurface.of(context).textSecondary,
               height: 1.2,
             ),
           ),
         ),
         if (reviews > 0) ...[
-          const SizedBox(width: 3),
+          SizedBox(width: 3),
           Flexible(
             child: Text(
               '($reviews)',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 12,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w500,
-                color: AppSurface.textMuted,
+                color: AppSurface.of(context).textMuted,
                 height: 1.2,
               ),
             ),
@@ -289,9 +307,9 @@ class _PriceColumn extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: FontWeight.w800,
-            color: AppSurface.text,
+            color: AppSurface.of(context).text,
             height: 1.1,
           ),
         ),
@@ -301,9 +319,9 @@ class _PriceColumn extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: AppSurface.textMuted,
+              color: AppSurface.of(context).textMuted,
               decoration: TextDecoration.lineThrough,
               height: 1.2,
             ),
@@ -319,18 +337,19 @@ class _PriceColumn extends StatelessWidget {
 class _OutOfStockPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final surface = AppSurface.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
+        color: surface.subtle,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         'OUT',
         style: GoogleFonts.poppins(
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: FontWeight.w800,
-          color: Colors.grey.shade600,
+          color: surface.textMuted,
         ),
       ),
     );
